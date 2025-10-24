@@ -47,7 +47,7 @@ from xanesnet.utils.switch import (
 
 
 class Learn(ABC):
-    """Base class for model training procedures"""
+    """Base class for model training process"""
 
     def __init__(self, model, dataset, **kwargs):
         self.model = model
@@ -235,9 +235,7 @@ class Learn(ABC):
 
             eval_idx = None
 
-        train_loader = self._create_loader(
-            dataset[train_idx], shuffle=True, drop_last=True
-        )
+        train_loader = self._create_loader(dataset[train_idx], shuffle=True)
         valid_loader = self._create_loader(dataset[valid_idx])
         eval_loader = self._create_loader(dataset[eval_idx]) if eval_idx else None
 

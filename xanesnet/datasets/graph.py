@@ -60,7 +60,7 @@ class GraphDataset(BaseDataset):
         )
 
         if self.mode is not Mode.XYZ_TO_XANES:
-            raise ValueError(f"Unsupported mode for TransformerDataset: {self.mode}")
+            raise ValueError(f"Unsupported mode for GraphDataset: {self.mode}")
 
         # Save configuration
         params = {
@@ -77,16 +77,21 @@ class GraphDataset(BaseDataset):
         Get the list of valid file stems based on the
         xyz_path and/or xanes_path. If both are given, only common stems are kept.
         """
-        xyz_stems = set(list_filestems(self.xyz_path))
-        if self.xyz_path and self.xanes_path:
-            xanes_stems = set(list_filestems(self.xanes_path))
-            # Find common files
+        xyz_path = self.xyz_path
+        xanes_path = self.xanes_path
+
+        if xyz_path and xanes_path:
+            xyz_stems = set(list_filestems(xyz_path))
+            xanes_stems = set(list_filestems(xanes_path))
             file_names = sorted(list(xyz_stems & xanes_stems))
-        else:
+        elif xyz_path:
+            xyz_stems = set(list_filestems(xyz_path))
             file_names = sorted(list(xyz_stems))
+        else:
+            raise ValueError("At least one data dataset path must be provided.")
 
         if not file_names:
-            raise ValueError("No matching files found in xyz_path and xanes_path.")
+            raise ValueError("No matching files found in the provided paths.")
 
         self.file_names = file_names
 
@@ -109,8 +114,6 @@ class GraphDataset(BaseDataset):
         """
         Processes raw XYZ and XANES files to convert them into graph data objects.
         """
-
-        logging.info(f"Converting {len(self.file_names)} XYZ files to graph objects...")
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             # Get energy and intensities
             xanes = e = None

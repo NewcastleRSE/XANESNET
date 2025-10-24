@@ -69,16 +69,14 @@ def register_scheme(model_name, scheme_name):
     def decorator(cls):
         if not SCHEME_REGISTRY:
             from xanesnet.scheme import (
-                AEEval,
-                AEGANEval,
                 AEGANLearn,
                 AEGANPredict,
                 AELearn,
                 AEPredict,
-                NNEval,
                 NNLearn,
                 NNPredict,
                 MHLearn,
+                SSLearn,
             )
 
             SCHEME_REGISTRY.update(
@@ -86,19 +84,17 @@ def register_scheme(model_name, scheme_name):
                     "nn": {
                         "learn": NNLearn,
                         "predict": NNPredict,
-                        "eval": NNEval,
                     },
                     "ae": {
                         "learn": AELearn,
                         "predict": AEPredict,
-                        "eval": AEEval,
                     },
                     "aegan": {
                         "learn": AEGANLearn,
                         "predict": AEGANPredict,
-                        "eval": AEGANEval,
                     },
                     "mh": {"learn": MHLearn, "predict": None, "eval": None},
+                    "ss": {"learn": SSLearn, "predict": None, "eval": None},
                 },
             )
 
@@ -108,7 +104,7 @@ def register_scheme(model_name, scheme_name):
 
         LEARN_SCHEME_REGISTRY[model_name] = scheme["learn"]
         PREDICT_SCHEME_REGISTRY[model_name] = scheme["predict"]
-        EVAL_SCHEME_REGISTRY[model_name] = scheme["eval"]
+        # EVAL_SCHEME_REGISTRY[model_name] = scheme["eval"]
         return cls
 
     return decorator

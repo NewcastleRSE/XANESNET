@@ -26,6 +26,14 @@ from xanesnet.utils.switch import LossSwitch, LossRegSwitch
 
 
 class NNLearn(Learn):
+    """
+    NNLearn: Neural Network training class.
+
+    This class implements standard supervised learning training loop for neural network.
+
+    Models compatible with this training process include: MLP, CNN, LSTM, GNN, and Transformer.
+    """
+
     def train(self, model, dataset):
         """
         Main training loop

@@ -103,7 +103,6 @@ class XanesXDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
-        logging.info(f"Processing {len(self.file_names)} files to data objects...")
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             xyz = xanes = e = None
 

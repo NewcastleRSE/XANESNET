@@ -14,10 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
 import os
-from pyexpat import features
-
 import torch
 import torch.nn as nn
 
@@ -25,6 +22,7 @@ from pathlib import Path
 from typing import List, Union
 from dataclasses import dataclass
 from ase.data import atomic_masses
+from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from xanesnet.core_learn import Mode
@@ -37,7 +35,7 @@ from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xy
 @dataclass
 class Data:
     mace: torch.Tensor = None
-    feat: torch.Tensor = None
+    desc: torch.Tensor = None
     pos: torch.Tensor = None
     weight: torch.Tensor = None
     mask: torch.Tensor = None
@@ -46,7 +44,7 @@ class Data:
 
     def to(self, device):
         # send batch do device
-        for attr in ["mace", "feat", "pos", "weight", "mask", "y", "e"]:
+        for attr in ["mace", "desc", "pos", "weight", "mask", "y", "e"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -78,6 +76,9 @@ class TransformerDataset(BaseDataset):
 
         if self.mode is not Mode.XYZ_TO_XANES:
             raise ValueError(f"Unsupported mode for TransformerDataset: {self.mode}")
+
+        if not self.xyz_path:
+            raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
         params = {
@@ -111,27 +112,25 @@ class TransformerDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
-        logging.info(f"Processing {len(self.file_names)} files to data objects...")
-
         # separate MACE from other descriptors
         mace_desc = next((d for d in self.descriptors if d.get_type() == "mace"), None)
         feat_desc = [d for d in self.descriptors if d.get_type() != "mace"]
 
-        mace_list, feat_list = [], []
+        mace_list, desc_list = [], []
         spec_list, e_list = [], []
         pos_list, weight_list, mask_list = [], [], []
 
-        for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
+        for stem in tqdm(self.file_names, total=len(self.file_names)):
             if self.xyz_path:
                 raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
                 with open(raw_path, "r") as f:
                     atoms = load_xyz(f)
 
-                # non-MACE feature encoding
-                feat = transform_xyz(raw_path, feat_desc)
-                feat_list.append(feat)
+                # non-MACE descriptor feature
+                desc = transform_xyz(raw_path, feat_desc)
+                desc_list.append(desc)
 
-                # MACE encoding
+                # MACE feature
                 mace_feat = torch.tensor(
                     mace_desc.transform(atoms), dtype=torch.float32
                 )
@@ -170,7 +169,7 @@ class TransformerDataset(BaseDataset):
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             data = Data(
                 mace=mace_norm_list[idx],
-                feat=feat_list[idx],
+                desc=desc_list[idx],
                 pos=pos_list[idx],
                 weight=weight_list[idx],
                 mask=mask_list[idx],
@@ -186,30 +185,26 @@ class TransformerDataset(BaseDataset):
         Collates a list of Data objects into a single Data object with batched tensors.
         """
         mace_list = [sample.mace for sample in batch]
-        feat_list = [sample.feat for sample in batch]
+        desc_list = [sample.desc for sample in batch]
         pos_list = [sample.pos for sample in batch]
         weight_list = [sample.weight for sample in batch]
         mask_list = [sample.mask for sample in batch]
         spec_list = [sample.y for sample in batch]
 
-        feat = torch.stack(feat_list).to(torch.float32)
-        mask_spec = torch.stack(spec_list).to(torch.float32)
+        desc = torch.stack(desc_list).to(torch.float32)
+        spec = torch.stack(spec_list).to(torch.float32)
 
-        mace = nn.utils.rnn.pad_sequence(mace_list, batch_first=True).to(torch.float32)
-        weight = nn.utils.rnn.pad_sequence(weight_list, batch_first=True).to(
-            torch.float32
-        )
-        pos = nn.utils.rnn.pad_sequence(pos_list, batch_first=True).to(torch.float32)
-        mask = nn.utils.rnn.pad_sequence(mask_list, batch_first=True).to(torch.bool)
+        mace = pad_sequence(mace_list, batch_first=True).to(torch.float32)
+        weight = pad_sequence(weight_list, batch_first=True).to(torch.float32)
+        pos = pad_sequence(pos_list, batch_first=True).to(torch.float32)
+        mask = pad_sequence(mask_list, batch_first=True).to(torch.bool)
 
-        return Data(
-            mace=mace, feat=feat, pos=pos, weight=weight, mask=mask, y=mask_spec
-        )
+        return Data(mace=mace, desc=desc, pos=pos, weight=weight, mask=mask, y=spec)
 
     @property
     def x_size(self) -> Union[int, List[int]]:
         """Size of the feature array."""
-        return [self[0].mace.shape[1], self[0].feat.shape[0]]
+        return [self[0].mace.shape[1], self[0].desc.shape[0]]
 
     @property
     def y_size(self) -> int:

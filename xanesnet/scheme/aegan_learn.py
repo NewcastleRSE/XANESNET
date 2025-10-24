@@ -33,6 +33,15 @@ from xanesnet.utils.switch import (
 
 
 class AEGANLearn(Learn):
+    """
+    AEGANLearn: Autoencoder - GAN training class.
+
+    This class implements training loop for models combining autoencoders and GANs.
+    It supports reconstruction through the autoencoder and adversarial training via the GAN discriminator.
+
+    Compatible model architecture includes AEGAN-MLP.
+    """
+
     def __init__(self, model, dataset, **kwargs):
         # Call the constructor of the parent class
         super().__init__(model, dataset, **kwargs)

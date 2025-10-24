@@ -426,9 +426,9 @@ def load_xanes(file_path: str) -> Tuple[Tensor, Tensor]:
     # pop the XANES spectrum block
     xanes_block = [xanes_f_l.pop(0).split() for _ in range(len(xanes_f_l))]
     # absorption energies
-    e = torch.tensor([float(l[0]) for l in xanes_block], dtype=torch.float64)
+    e = torch.tensor([float(l[0]) for l in xanes_block], dtype=torch.float32)
     # absorption intensities
-    m = torch.tensor([float(l[1]) for l in xanes_block], dtype=torch.float64)
+    m = torch.tensor([float(l[1]) for l in xanes_block], dtype=torch.float32)
 
     return e, m
 
@@ -456,7 +456,7 @@ def transform_xyz(file_path: str, descriptor_list: List) -> Tensor:
             feature_arrays.append(feature)
 
     features = np.concatenate(feature_arrays, axis=0)
-    return torch.tensor(features, dtype=torch.float64)
+    return torch.tensor(features, dtype=torch.float32)
 
 
 def save_xanes(xanes_f: TextIO, xanes: XANES):

@@ -20,6 +20,14 @@ from xanesnet.scheme.nn_learn import NNLearn
 
 
 class MHLearn(NNLearn):
+    """
+    MHLearn: Multi-Head neural network training class.
+
+    This class implements training loop for multihead neural network.
+
+    Models compatible with this training process include: MH_MLP,MH_CNN, and MH_GNN.
+    """
+
     def _run_one_epoch(
         self, phase, loader, model, criterion, regularizer, optimizer=None
     ):

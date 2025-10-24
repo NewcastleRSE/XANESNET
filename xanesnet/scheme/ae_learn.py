@@ -27,6 +27,14 @@ from xanesnet.utils.switch import LossSwitch, LossRegSwitch
 
 
 class AELearn(Learn):
+    """
+    AELearn: AutoEncoder training class.
+
+    This class implements training loop for autoencoder models.
+
+    It supports models for reconstruction tasks, including AE_MLP, and AE_CNN.
+    """
+
     def train(self, model, dataset):
         """
         Main training loop

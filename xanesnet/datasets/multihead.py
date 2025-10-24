@@ -107,7 +107,6 @@ class MultiheadDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
-        logging.info(f"Processing {len(self.file_names)} files to data objects...")
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             xyz = xanes = e = None
             head_idx_xyz = head_idx_xanes = None
@@ -167,7 +166,7 @@ class MultiheadDataset(BaseDataset):
 
         batched_x = torch.stack(x_list, dim=0).to(torch.float32)
         batched_y = torch.stack(y_list, dim=0).to(torch.float32)
-        batched_i = torch.stack(idx_list, dim=0).to(torch.int32)
+        batched_i = torch.stack(idx_list, dim=0).to(torch.float32)
 
         return Data(x=batched_x, y=batched_y, head_idx=batched_i)
 

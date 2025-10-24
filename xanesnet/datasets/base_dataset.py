@@ -139,6 +139,7 @@ class BaseDataset(Dataset):
                 f">> Processed files exist in {self.processed_dir}, skipping data processing."
             )
         else:
+            logging.info(f"Processing {len(self.file_names)} files to data objects...")
             os.makedirs(self.processed_dir, exist_ok=True)
             self.process()
 

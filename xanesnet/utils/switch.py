@@ -24,7 +24,13 @@ from torch import optim
 from torch import nn
 from typing import Dict
 
-from xanesnet.utils.loss import EMDLoss, CosineSimilarityLoss, WCCLoss, HybridLoss
+from xanesnet.utils.loss import (
+    EMDLoss,
+    CosineSimilarityLoss,
+    WCCLoss,
+    HybridLoss,
+    SpectralLossPlus,
+)
 
 # Suppress non-significant warning for shap and WCCLoss function
 warnings.filterwarnings("ignore")
@@ -68,6 +74,7 @@ class LossSwitch:
         "l1": nn.L1Loss,
         "wcc": WCCLoss,
         "hybrid": HybridLoss,
+        "specplus": SpectralLossPlus,
     }
 
     def get(self, loss_name: str, **kwargs) -> nn.Module:
@@ -75,6 +82,7 @@ class LossSwitch:
             raise TypeError(f"Invalided loss function name '{loss_name}'.")
 
         loss_class = self.LOSS[loss_name.lower()]
+
         return loss_class(**kwargs)
 
 

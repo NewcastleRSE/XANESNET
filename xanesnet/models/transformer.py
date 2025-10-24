@@ -94,7 +94,7 @@ class Transformer(Model):
         # Unpack attributes from the batch object
         mace, feat, pos, weight, mask = (
             batch.mace,
-            batch.feat,
+            batch.desc,
             batch.pos,
             batch.weight,
             batch.mask,
