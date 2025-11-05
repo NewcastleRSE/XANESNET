@@ -25,11 +25,11 @@ from ase.data import atomic_masses
 from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
-from xanesnet.core_learn import Mode
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
+from xanesnet.utils.mode import Mode
 
 
 @dataclass

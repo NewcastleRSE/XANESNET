@@ -77,24 +77,16 @@ def register_scheme(model_name, scheme_name):
                 NNPredict,
                 MHLearn,
                 SSLearn,
+                SSPredict,
             )
 
             SCHEME_REGISTRY.update(
                 {
-                    "nn": {
-                        "learn": NNLearn,
-                        "predict": NNPredict,
-                    },
-                    "ae": {
-                        "learn": AELearn,
-                        "predict": AEPredict,
-                    },
-                    "aegan": {
-                        "learn": AEGANLearn,
-                        "predict": AEGANPredict,
-                    },
-                    "mh": {"learn": MHLearn, "predict": None, "eval": None},
-                    "ss": {"learn": SSLearn, "predict": None, "eval": None},
+                    "nn": {"learn": NNLearn, "predict": NNPredict},
+                    "ae": {"learn": AELearn, "predict": AEPredict},
+                    "aegan": {"learn": AEGANLearn, "predict": AEGANPredict},
+                    "mh": {"learn": MHLearn, "predict": None},
+                    "ss": {"learn": SSLearn, "predict": SSPredict},
                 },
             )
 

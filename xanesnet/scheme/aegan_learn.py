@@ -118,13 +118,13 @@ class AEGANLearn(Learn):
         # The final score is the total loss from the last validation epoch
         score = valid_losses["total"]
 
-        return model, score
+        return score
 
     def train_std(self):
         """
         Performs standard training run
         """
-        model, _ = self.train(self.model, self.dataset)
+        self.train(self.model, self.dataset)
 
         return self.model
 
@@ -155,7 +155,7 @@ class AEGANLearn(Learn):
 
             #  Train model on the training split
             train_data = self.dataset[train_index]
-            model, train_score = self.train(model, train_data)
+            train_score = self.train(model, train_data)
 
             # Evaluate model on the test split
             test_data = self.dataset[test_index]

@@ -24,12 +24,12 @@ import torch
 from torch.utils.data import Dataset
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Union, List, Any, Callable, Tuple, Iterator
+from typing import Union, List, Any, Callable
 
 from torch import Tensor
 from torch_geometric.io import fs
 
-from xanesnet.utils.mode import Mode, get_mode
+from xanesnet.utils.mode import Mode
 
 IndexType = Union[slice, Tensor, np.ndarray, Sequence]
 

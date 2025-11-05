@@ -160,7 +160,7 @@ class Learn(ABC):
             model = self._init_model_weights(model, **self.weights_params)
 
             # Train the model on the bootstrap sample
-            model, _ = self.train(model, dataset_boot)
+            self.train(model, dataset_boot)
 
             model_list.append(model)
 
@@ -179,7 +179,7 @@ class Learn(ABC):
             self.weights_params["seed"] = self.weight_seed_ens[i]
             model = self._init_model_weights(model, **self.weights_params)
 
-            model, _ = self.train(model, self.dataset)
+            self.train(model, self.dataset)
 
             model_list.append(model)
 

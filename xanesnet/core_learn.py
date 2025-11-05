@@ -23,12 +23,11 @@ import time
 from datetime import timedelta
 from pathlib import Path
 
-from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torchinfo import summary
 
 from xanesnet.models.pre_trained import PretrainedModels
-from xanesnet.utils.mode import Mode, get_mode
+from xanesnet.utils.mode import get_mode
 from xanesnet.utils.switch import KernelInitSwitch, BiasInitSwitch
 from xanesnet.utils.io import (
     save_models,
@@ -153,9 +152,10 @@ def _setup_model(config, dataset):
         model = create_model(model_type, **model_params)
 
         weights_config = config["model"].get("weights", {})
-        weight_kernel = weights_config.get("kernel", "xavier_uniform")
+        weight_kernel = weights_config.get("kernel", None)
         logging.info(f">> Initialising model weights: {weight_kernel}")
-        model = _init_model_weights(model, **weights_config)
+        if weight_kernel:
+            model = _init_model_weights(model, **weights_config)
 
     return model
 

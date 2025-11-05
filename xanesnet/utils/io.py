@@ -227,7 +227,6 @@ def _build_and_load_model(model_config: Dict, weight_path: Path) -> Any:
     model_type = config.pop("type")
 
     model = create_model(model_type, **config)
-
     # Load state_dict from the specific weight path
     state_dict = torch.load(weight_path, map_location=torch.device("cpu"))
     model.load_state_dict(state_dict)

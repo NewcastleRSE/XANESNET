@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
 import os
 import torch
 
@@ -23,11 +22,11 @@ from pathlib import Path
 from typing import List, Union
 from tqdm import tqdm
 
-from xanesnet.core_learn import Mode
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
+from xanesnet.utils.mode import Mode
 
 
 @dataclass

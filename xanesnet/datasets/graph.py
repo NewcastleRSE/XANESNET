@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
 import os
 from pathlib import Path
 
@@ -23,13 +22,13 @@ import numpy as np
 
 from tqdm import tqdm
 from typing import List, Union
-from torch_geometric.data import Data, Dataset, Batch
+from torch_geometric.data import Data
 
-from xanesnet.core_learn import Mode
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
 from xanesnet.utils.io import list_filestems, load_xanes
+from xanesnet.utils.mode import Mode
 from xanesnet.utils.xyz2graph import MolGraph
 
 

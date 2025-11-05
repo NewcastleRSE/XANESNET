@@ -13,6 +13,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import math
 import os
 import numpy as np
@@ -27,11 +28,11 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
-from xanesnet.core_learn import Mode
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.models.softshell import SpectralBasis
 from xanesnet.registry import register_dataset
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
+from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -67,8 +68,6 @@ class SoftShellDataset(BaseDataset):
         self.fft = kwargs.get("fourier", False)
         self.fft_concat = kwargs.get("fourier_concat", False)
         self.basis_stride = kwargs.get("basis_stride", 4)
-        # set True to enable constant background basis column
-        self.constant_col = kwargs.get("constant_col", False)
 
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
@@ -89,7 +88,6 @@ class SoftShellDataset(BaseDataset):
             "fourier": self.fft,
             "fourier_concat": self.fft_concat,
             "basis_stride": self.basis_stride,
-            "constant_col": self.constant_col,
         }
         self.register_config(locals(), type="softshell")
 
@@ -155,7 +153,6 @@ class SoftShellDataset(BaseDataset):
                         widths_bins=widths_bins,
                         normalize_atoms=True,
                         stride=self.basis_stride,
-                        add_constant_column=self.constant_col,
                     )
 
                     # Ridge operator for Φ and coefficients c*
@@ -203,6 +200,7 @@ class SoftShellDataset(BaseDataset):
     @property
     def x_size(self) -> Union[int, List[int]]:
         """Size of the feature array."""
+        x_size = []
         eV = self[0].e
 
         dE = eV[1] - eV[0]
@@ -214,24 +212,24 @@ class SoftShellDataset(BaseDataset):
             widths_bins=widths_bins,
             normalize_atoms=True,
             stride=self.basis_stride,
-            add_constant_column=self.constant_col,
         )
 
         # Per-width group sizes for grouped head
         K = basis.Phi.shape[1]
         n_width_groups = len(widths_bins)
-        const_cols = 1 if self.constant_col else 0
-        K_no_const = K - const_cols
 
-        # number of centers per width (should be equal for each width given same stride)
-        per_width = K_no_const // n_width_groups
+        # Number of centers per width (should be equal for each width given same stride)
+        per_width = K // n_width_groups
         K_groups = [per_width] * n_width_groups
-        if const_cols:
-            K_groups.append(1)  # constant column as its own group (optional)
 
         # Sanity: sum of groups equals K
         assert sum(K_groups) == K, f"K_groups {K_groups} do not sum to K={K}"
-        return K_groups
+
+        # Append descriptor feature size and K_groups to x_size
+        x_size.append(self[0].desc.shape[1])
+        x_size.append(K_groups)
+
+        return x_size
 
     @property
     def y_size(self) -> int:

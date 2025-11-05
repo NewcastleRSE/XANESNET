@@ -15,11 +15,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+import random
 from collections import defaultdict
 
+import numpy as np
 import torch
 
 import torch.nn.functional as F
+from matplotlib import pyplot as plt
 from torch.optim.swa_utils import AveragedModel, SWALR
 
 from xanesnet.scheme.base_learn import Learn
@@ -41,8 +44,8 @@ class SSLearn(Learn):
 
         # Unpack SoftShell hyperparameters
         hyper_params = self.hyper_params
-        self.diagnostics = hyper_params.get("diagnostics", False)
         self.weight_decay = hyper_params.get("weight_decay", 1e-4)
+        self.basis_stride = hyper_params.get("basis_stride", 4)
 
         # SWA parameters
         self.swa_frac = hyper_params.get("swa_frac", 0.8)
@@ -57,31 +60,45 @@ class SSLearn(Learn):
             kappa_peak=hyper_params.get("kappa_peak", 0.05),
         )
 
+    # ============================================================
+    # Main training loop
+    # ============================================================
     def train(self, model, dataset):
-        """
-        Main training loop
-        """
-        train_loader, valid_loader, eval_loader = self.setup_dataloaders(dataset)
+        from xanesnet.models.softshell import SpectralPost, SpectralBasis
+
+        train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
         model.to(self.device)
 
-        encoder = model.encoder
-        coeff_head = model.coeff_head
+        # Initialise parameter-free spectral "post" component
+        eV = dataset[0].e
+        widths_bins = self.compute_widths_bins(eV)
 
-        spectral_post = self.model_diagnostics(model, dataset)
+        basis = SpectralBasis(
+            energies=eV,
+            widths_bins=widths_bins,
+            normalize_atoms=True,
+            stride=self.basis_stride,
+        ).to(self.device)
 
-        encoder_params = list(encoder.parameters()) + list(coeff_head.parameters())
+        spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
+        spectral_post.eval()
 
+        # Model diagnostics
+        self.model_diagnostics(spectral_post, model, dataset)
+
+        # Initialise optimizer
+        model_param = list(model.encoder.parameters()) + list(
+            model.coeff_head.parameters()
+        )
         optimizer = torch.optim.AdamW(
-            encoder_params, lr=self.lr, weight_decay=self.weight_decay
+            model_param, lr=self.lr, weight_decay=self.weight_decay
         )
 
-        has_enc_params = any(p.requires_grad for p in encoder.parameters())
-        has_head_params = any(p.requires_grad for p in coeff_head.parameters())
-
-        swa_start_epoch = int(self.swa_frac * self.epochs)
-        swa_encoder = AveragedModel(encoder) if has_enc_params else None
-        swa_coeff = AveragedModel(coeff_head) if has_head_params else None
-        swa_scheduler = SWALR(optimizer, swa_lr=self.swa_lr)
+        # SWA setup
+        swa_start = int(self.swa_frac * self.epochs)
+        swa_encoder, swa_coeff, swa_scheduler = self.setup_swa(
+            model, optimizer, self.swa_lr
+        )
         swa_active = False
 
         valid_loss = 0.0
@@ -92,39 +109,20 @@ class SSLearn(Learn):
                 epoch, train_loader, model, optimizer, spectral_post
             )
 
-            # SWA scheduler
-            if epoch >= swa_start_epoch:
+            # Update SWA scheduler
+            if epoch >= swa_start:
                 swa_active = True
-                if swa_encoder is not None:
-                    swa_encoder.update_parameters(encoder)
-                if swa_coeff is not None:
-                    swa_coeff.update_parameters(coeff_head)
-                swa_scheduler.step()
+                self.update_swa(swa_encoder, swa_coeff, model, swa_scheduler)
 
             # Run validation phase
-            valid_loss = self._run_one_epoch_valid(valid_loader, model, spectral_post)
-
-            # # Logging for the current epoch
-            tag = "SWA" if swa_active else "Base"
-            avg_Lc = train_loss["Lc"]
-            avg_Ld = train_loss["Ld"]
-            avg_Lg = train_loss["Lg"]
-            avg_spec_loss = train_loss["spec"]
-            avg_aux_loss = train_loss["aux"]
-
-            val_spectral_mse = valid_loss["sse"]
-            logging.info(
-                f"[Stage 2 / Epoch {epoch+1:03d} [{tag}] | "
-                f"Train Lspec={avg_spec_loss:.6f} (Lc={avg_Lc:.6f}, Ld={avg_Ld:.6f}, Lg={avg_Lg:.6f}) | "
-                f"Aux(c*)={avg_aux_loss:.6f} | Val spectral MSE={val_spectral_mse:.6f}"
+            valid_loss = self._run_one_epoch_valid(
+                epoch, valid_loader, model, spectral_post
             )
 
-            self.log_loss("loss/Lspec", avg_spec_loss, epoch)
-            self.log_loss("loss/Lc", avg_Lc, epoch)
-            self.log_loss("loss/Ld", avg_Ld, epoch)
-            self.log_loss("loss/Lg", avg_Lg, epoch)
-            self.log_loss("loss/Aux", avg_aux_loss, epoch)
-            self.log_loss("loss/SSE", val_spectral_mse, epoch)
+            # Logging for the current epoch
+            self.log_epoch(
+                epoch, "SWA" if swa_active else "Base", train_loss, valid_loss
+            )
 
         logging.info("--- Training Finished ---")
 
@@ -135,26 +133,20 @@ class SSLearn(Learn):
 
         self.log_close()
 
+        if swa_active:
+            model.encoder = swa_encoder.module
+            model.coeff_head = swa_coeff.module
+
         # The final score is the validation loss from the last epoch
         score = valid_loss
 
-        model_list = []
-        if swa_active and (swa_encoder is not None):
-            model_list.append(swa_encoder)
-        else:
-            model_list.append(encoder)
-        if swa_active and (swa_coeff is not None):
-            model_list.append(swa_coeff)
-        else:
-            model_list.append(coeff_head)
-
-        return model_list, score
+        return score
 
     def train_std(self):
         """
         Performs standard training run
         """
-        model, _ = self.train(self.model, self.dataset)
+        self.train(self.model, self.dataset)
 
         return self.model
 
@@ -165,80 +157,70 @@ class SSLearn(Learn):
         pass
 
     def _run_one_epoch_train(self, epoch, loader, model, optimizer, spectral_post):
-        """Runs a single epoch of training or validation."""
+        """
+        Run one epoch of training.
+        """
         model.train()
-
-        epoch_losses = defaultdict(float)
         device = self.device
+        epoch_losses = defaultdict(float)
 
-        encoder = model.encoder
-        coeff_head = model.coeff_head
-        encoder_params = list(encoder.parameters()) + list(coeff_head.parameters())
+        model_params = list(model.encoder.parameters()) + list(
+            model.coeff_head.parameters()
+        )
 
-        with torch.set_grad_enabled(True):
-            for batch in loader:
-                batch.to(device)
+        # Setup constants
+        sigma_max, sigma_min = 9.0, 5.0
+        ETA_AUX_MAX, ETA_AUX_MIN = 3e-3, 3e-4
+        T = max(1, self.epochs - 50)  # stop annealing near the end
 
-                # Zero the parameter gradients only during training
-                optimizer.zero_grad(set_to_none=True)
+        for batch in loader:
+            batch.to(device)
+            optimizer.zero_grad(set_to_none=True)
 
-                h = encoder(
-                    batch.desc, lengths=batch.lengths, dists=batch.dist
-                )  # (B,512)
-                c_pred = coeff_head(h)  # (B,K)
-                # Stage-1 is frozen; forward through it
-                y_pred = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
+            # ---- Forward pass ----
+            c_pred = model(batch)
+            y_pred = spectral_post.forward_from_coeffs(c_pred)
 
-                # initialise spectral loss plus
-                sigma_max, sigma_min = 9.0, 5.0  # bins
-                T = max(1, self.epochs - 50)  # stop annealing near the end
-                sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
-                self.loss_kwargs["blur_sigma_bins"] = sigma_now
-                criterion = LossSwitch().get(self.loss, **self.loss_kwargs)
-                loss_spec, (Lc, Ld, Lg) = criterion(batch.y, y_pred)
+            # ---- Compute losses ----
+            sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
+            eta_aux = ETA_AUX_MIN + (ETA_AUX_MAX - ETA_AUX_MIN) * max(0, T - epoch) / T
 
-                # Tiny auxiliary coefficient regression to ridge c*
-                loss_aux = F.mse_loss(c_pred, batch.c_star)
+            # Additional parameter pass to loss
+            self.loss_kwargs["blur_sigma_bins"] = sigma_now
+            criterion = LossSwitch().get(self.loss, **self.loss_kwargs)
+            loss_spec, (Lc, Ld, Lg) = criterion(batch.y, y_pred)
+            # Tiny auxiliary coefficient regression to ridge c*
+            loss_aux = F.mse_loss(c_pred, batch.c_star)
 
-                ETA_AUX_MAX, ETA_AUX_MIN = 3e-3, 3e-4
-                eta_aux = (
-                    ETA_AUX_MIN + (ETA_AUX_MAX - ETA_AUX_MIN) * max(0, T - epoch) / T
-                )
+            # ---- total loss and optimize ----
+            loss_total = loss_spec + eta_aux * loss_aux
+            loss_total.backward()
+            torch.nn.utils.clip_grad_norm_(model_params, 1.0)
+            optimizer.step()
 
-                loss_total = loss_spec + eta_aux * loss_aux
-                loss_total.backward()
-                torch.nn.utils.clip_grad_norm_(encoder_params, 1.0)
-                optimizer.step()
-
-                epoch_losses["spec"] += loss_spec.item()
-                epoch_losses["aux"] += loss_aux.item()
-                epoch_losses["Lc"] += Lc.item()
-                epoch_losses["Ld"] += Ld.item()
-                epoch_losses["Lg"] += Lg.item()
+            epoch_losses["spec"] += loss_spec.item()
+            epoch_losses["aux"] += loss_aux.item()
+            epoch_losses["Lc"] += Lc.item()
+            epoch_losses["Ld"] += Ld.item()
+            epoch_losses["Lg"] += Lg.item()
 
         train_losses = {k: v / len(loader) for k, v in epoch_losses.items()}
 
         return train_losses
 
-    def _run_one_epoch_valid(self, loader, model, spectral_post):
+    def _run_one_epoch_valid(self, epoch, loader, model, spectral_post):
         """Runs a single epoch of training or validation."""
         model.eval()
 
         epoch_losses = defaultdict(float)
         device = self.device
 
-        encoder = model.encoder
-        coeff_head = model.coeff_head
-
         n_elem = 0
         with torch.set_grad_enabled(False):
             for batch in loader:
                 batch.to(device)
 
-                h = encoder(
-                    batch.desc, lengths=batch.lengths, dists=batch.dist
-                )  # (B,512)
-                c_pred = coeff_head(h)  # (B,K)
+                c_pred = model(batch)
                 y_pred = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
 
                 epoch_losses["sse"] += F.mse_loss(
@@ -258,26 +240,9 @@ class SSLearn(Learn):
         }
         return layout
 
-    def model_diagnostics(self, model, dataset):
+    def model_diagnostics(self, spectral_post, model, dataset):
         print("--- Model Diagnostics ---")
-        from xanesnet.models.softshell import SpectralPost, SpectralBasis
-
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
-
-        eV = dataset[0].e
-        dE = float(eV[1] - eV[0])
-        widths_eV = (0.5, 1.0, 2.0, 4.0)
-        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
-        basis_stride = 4
-        add_constant_column = False
-
-        basis = SpectralBasis(
-            energies=eV,
-            widths_bins=widths_bins,
-            normalize_atoms=True,
-            stride=basis_stride,
-            add_constant_column=add_constant_column,
-        ).to(self.device)
 
         with torch.no_grad():
             for loader, tag in [(train_loader, "Train"), (valid_loader, "Val")]:
@@ -287,7 +252,7 @@ class SSLearn(Learn):
                     c_batch = batch.c_star
                     y_batch = batch.y
 
-                    y_gauss = basis.synthesize(c_batch)  # (B, N)
+                    y_gauss = spectral_post.basis.synthesize(c_batch)  # (B, N)
                     sse += F.mse_loss(y_gauss, y_batch, reduction="sum").item()
                     n_elem += y_batch.numel()
                 mse_gauss = sse / max(1, n_elem)
@@ -295,9 +260,6 @@ class SSLearn(Learn):
                     f"[Stage 1] Gaussian-only fit MSE ({tag}) = {mse_gauss:.10f}"
                 )
 
-        # Parameter-free spectral "post"
-        spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
-        spectral_post.eval()
         trainable, total = self.count_trainable_params(spectral_post)
         logging.info(
             f"[Stage 1] SpectralPost parameters: {trainable:,} trainable / {total:,} total (no optimizer needed)"
@@ -318,7 +280,44 @@ class SSLearn(Learn):
 
         return spectral_post
 
-    def count_trainable_params(self, m):
+    @staticmethod
+    def compute_widths_bins(eV):
+        dE = float(eV[1] - eV[0])
+        widths_eV = (0.5, 1.0, 2.0, 4.0)
+        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
+
+        return widths_bins
+
+    @staticmethod
+    def count_trainable_params(m):
         trainable = sum(p.numel() for p in m.parameters() if p.requires_grad)
         total = sum(p.numel() for p in m.parameters())
         return trainable, total
+
+    @staticmethod
+    def setup_swa(model, optimizer, swa_lr):
+        swa_encoder = AveragedModel(model.encoder)
+        swa_coeff = AveragedModel(model.coeff_head)
+        swa_scheduler = SWALR(optimizer, swa_lr=swa_lr)
+
+        return swa_encoder, swa_coeff, swa_scheduler
+
+    @staticmethod
+    def update_swa(swa_encoder, swa_coeff, model, swa_scheduler):
+        swa_encoder.update_parameters(model.encoder)
+        swa_coeff.update_parameters(model.coeff_head)
+        swa_scheduler.step()
+
+    def log_epoch(self, epoch, tag, train_loss, valid_loss):
+        logging.info(
+            f"[Stage 2 / Epoch {epoch + 1:03d} [{tag}] | "
+            f"Train Lspec={train_loss['spec']:.6f} "
+            f"(Lc={train_loss['Lc']:.6f}, Ld={train_loss['Ld']:.6f}, Lg={train_loss['Lg']:.6f}) | "
+            f"Aux(c*)={train_loss['aux']:.6f} | "
+            f"Val spectral MSE={valid_loss['sse']:.6f}"
+        )
+
+        for key in ["spec", "Lc", "Ld", "Lg", "aux"]:
+            self.log_loss(f"loss/{key}", train_loss[key], epoch)
+
+        self.log_loss("loss/SSE", valid_loss["sse"], epoch)

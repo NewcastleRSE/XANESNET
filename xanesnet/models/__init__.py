@@ -12,5 +12,6 @@ from .mh_cnn import MultiHead_CNN
 from .mh_gnn import MultiHead_GNN
 
 from .transformer import Transformer
+from .softshell import SoftShellSpectraNet
 
 from .pre_trained import PretrainedModels

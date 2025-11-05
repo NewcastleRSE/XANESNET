@@ -114,8 +114,7 @@ def _setup_scheme(dataset, mode, metadata, pred_eval):
         "pred_mode": mode,
         "pred_eval": pred_eval,
         "scaler": metadata["standardscaler"],
-        "fourier": metadata["dataset"]["params"]["fourier"],
-        "fourier_param": metadata["dataset"]["params"]["fourier_concat"],
+        **metadata["dataset"]["params"],
     }
 
     scheme = create_predict_scheme(model_type, dataset, mode, **kwargs)

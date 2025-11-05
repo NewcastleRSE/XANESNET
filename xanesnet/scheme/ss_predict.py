@@ -21,8 +21,8 @@ import numpy as np
 import torch
 
 from typing import List, Optional, Tuple
-from sklearn.preprocessing import StandardScaler
 
+import xanesnet
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
@@ -37,26 +37,42 @@ class Prediction:
     xanes_pred: Optional[Tuple[np.ndarray, np.ndarray]] = None
 
 
-class NNPredict(Predict):
+class SSPredict(Predict):
+    def __init__(self, dataset, mode, **kwargs):
+        super().__init__(dataset, mode, **kwargs)
+        self.stride = kwargs.get("basis_stride")
+
     def predict(self, model):
         """
         Performs a single prediction with a given model.
         """
-        data_loader = self._create_loader(model, self.dataset)
+        from xanesnet.models.softshell import SpectralPost, SpectralBasis
 
         model.eval()
         predictions, targets = [], []
+        data_loader = self._create_loader(model, self.dataset)
 
+        # Initialise parameter-free spectral "post" component
+        eV = self.dataset[0].e
+        widths_bins = self.compute_widths_bins(eV)
+
+        basis_eval = SpectralBasis(
+            energies=eV,
+            widths_bins=widths_bins,
+            normalize_atoms=True,
+            stride=self.stride,
+        )
+
+        spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+        spectral_post.eval()
+
+        # ---- Run inference ----
         with torch.no_grad():
             for data in data_loader:
-                # Pass X or batch object to model
-                input_data = data if model.batch_flag else data.x
-                output = model(input_data)
-                output = self.to_numpy(output)
+                c_pred = model(data)
+                output = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
+                output = self.to_numpy(output.squeeze(0))
 
-                if self.mode is Mode.XYZ_TO_XANES and self.fft:
-                    output = inverse_fft(output, self.fft_concat)
-                print(output.shape)
                 predictions.append(output)
 
                 if self.pred_eval:
@@ -65,9 +81,9 @@ class NNPredict(Predict):
 
         predictions = np.array(predictions)
         targets = np.array(targets)
-        print(predictions.shape)
+
+        # ---- Evaluation ----
         if self.pred_eval:
-            # Print MSE of the model prediction
             Predict.print_mse("target", "prediction", targets, predictions)
 
         return predictions, targets
@@ -84,49 +100,24 @@ class NNPredict(Predict):
         predictions, targets = self.predict(model)
         std_pred = np.zeros_like(predictions)
 
-        if self.mode is Mode.XANES_TO_XYZ:
-            return Prediction(xyz_pred=(predictions, std_pred))
-        # predict_xanes
         return Prediction(xanes_pred=(predictions, std_pred))
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
         """
         Performs predictions on multiple models (bootstrapping)
         """
-        # Get all predictions and targets from model_list
-        prediction_list, targets = self._predict_from_models(model_list)
-
-        # Calculate mean and std
-        mean_pred = np.mean(prediction_list, axis=0)
-        std_pred = np.std(prediction_list, axis=0)
-
-        # Print MSE of the mean prediction
-        if self.pred_eval:
-            logging.info("-" * 55)
-            Predict.print_mse("target", "mean prediction", targets, mean_pred)
-
-        if self.mode is Mode.XANES_TO_XYZ:
-            return Prediction(xyz_pred=(mean_pred, std_pred))
-        # predict_xanes
-        return Prediction(xanes_pred=(mean_pred, std_pred))
+        pass
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
         """
         Performs predictions on multiple models (ensemble)
         """
-        return self.predict_bootstrap(model_list)
+        pass
 
-    def _predict_from_models(self, model_list: List[Model]):
-        """
-        Predictions for a list of models.
-        """
-        prediction_list, targets = [], []
+    @staticmethod
+    def compute_widths_bins(eV):
+        dE = float(eV[1] - eV[0])
+        widths_eV = (0.5, 1.0, 2.0, 4.0)
+        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
 
-        for i, model in enumerate(model_list, start=1):
-            logging.info(
-                f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
-            )
-            predictions, targets = self.predict(model)
-            prediction_list.append(predictions)
-
-        return np.array(prediction_list), targets
+        return widths_bins

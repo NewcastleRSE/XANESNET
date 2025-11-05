@@ -13,6 +13,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from typing import List
 
 import torch
@@ -33,9 +34,8 @@ class SoftShellSpectraNet(Model):
 
     def __init__(
         self,
-        in_size: List[int],  # K_group
+        in_size: List,  # descriptor feature + K_group
         out_size: int,
-        d_input: int = 256,
         n_shells: int = 4,
         latent_dim: int = 512,
         max_radius_angs: float = 7.0,
@@ -43,8 +43,7 @@ class SoftShellSpectraNet(Model):
         use_gating: bool = True,
         head_hidden: int = 256,
         head_depth: int = 3,
-        pdrop: float = 0.1,
-        zero_init_output: bool = True,
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -53,6 +52,9 @@ class SoftShellSpectraNet(Model):
 
         # Save model configuration
         self.register_config(locals(), type="softshell")
+
+        d_input = in_size[0]  # descriptor feature size
+        kgroups = in_size[1]  # K-groups
 
         self.encoder = SoftRadialShellsEncoder(
             d_input=d_input,
@@ -66,15 +68,15 @@ class SoftShellSpectraNet(Model):
 
         self.coeff_head = CoeffHeadGroupedResidualPreLN(
             latent_dim=latent_dim,
-            K_groups=in_size,
+            K_groups=kgroups,
             hidden=head_hidden,
             depth=head_depth,
-            pdrop=pdrop,
-            zero_init_output=zero_init_output,
+            dropout=dropout,
         )
 
-    def forward(self, x):
-        pass
+    def forward(self, batch):
+        h = self.encoder(batch.desc, lengths=batch.lengths, dists=batch.dist)
+        return self.coeff_head(h)
 
     def forward_encoder(self, x, lengths=None, dists=None):
         return self.encoder(x, lengths=lengths, dists=dists)
@@ -90,14 +92,12 @@ class SpectralBasis(nn.Module):
         widths_bins=(1.0, 3.0, 7.0),
         normalize_atoms=True,
         stride=1,
-        add_constant_column: bool = False,
     ):
         super().__init__()
         self.register_buffer("E", energies.detach().clone())
         self.widths_bins = [float(w) for w in widths_bins]
         self.normalize_atoms = bool(normalize_atoms)
         self.stride = int(stride)
-        self.add_constant_column = bool(add_constant_column)
 
         N = energies.numel()
         dE = float(energies[1] - energies[0])
@@ -114,11 +114,6 @@ class SpectralBasis(nn.Module):
 
         Phi = torch.cat(Phi_list, dim=1)  # (N, K_no_const)
         centers = torch.cat(centers_list)  # (K_no_const,)
-
-        if self.add_constant_column:
-            const_col = torch.ones((N, 1), device=energies.device, dtype=energies.dtype)
-            Phi = torch.cat([Phi, const_col], dim=1)
-            centers = torch.cat([centers, self.E.new_tensor([self.E.mean()])], dim=0)
 
         if self.normalize_atoms:
             Phi = Phi / (Phi.sum(dim=0, keepdim=True) * dE + 1e-12)
@@ -185,11 +180,15 @@ class SoftRadialShellsEncoder(nn.Module):
         self.shell_centers = nn.Parameter(centers)  # (S,)
         self.shell_widths = nn.Parameter(widths.clamp_min(1e-2))  # (S,)
 
+        # self.post_shell = nn.Sequential(
+        #     nn.Linear(d_input * self.n_shells, 2 * d_input),
+        #     nn.GELU(),
+        #     nn.Linear(2 * d_input, d_input),
+        #     nn.GELU(),
+        # )
+
         self.post_shell = nn.Sequential(
-            nn.Linear(d_input * self.n_shells, 2 * d_input),
-            nn.GELU(),
-            nn.Linear(2 * d_input, d_input),
-            nn.GELU(),
+            nn.Linear(d_input * self.n_shells, d_input),
         )
 
         self.use_gating = bool(use_gating)
@@ -263,21 +262,21 @@ class SoftRadialShellsEncoder(nn.Module):
             g = self.gate(gate_in)  # (B,H) in [0,1]
             shell_summary = shell_summary * g
 
-        fused = torch.cat([absorbing, shell_summary], dim=-1)  # (B,2H)
-        return self.fuse(fused)  # (B,latent_dim)
+        fused = torch.cat([absorbing, shell_summary], dim=-1)
+        return fused
 
 
 # -------------------------
 # NEW Coeff Head: Grouped + Residual + Pre-LN
 # -------------------------
 class ResidualPreLNBlock(nn.Module):
-    def __init__(self, dim, hidden, pdrop=0.1):
+    def __init__(self, dim, hidden, dropout=0.1):
         super().__init__()
         self.ln = nn.LayerNorm(dim)
         self.fc1 = nn.Linear(dim, hidden)
         self.fc2 = nn.Linear(hidden, dim)
         self.act = nn.GELU()
-        self.drop = nn.Dropout(pdrop)
+        self.drop = nn.Dropout(dropout)
         init_mlp_weights(self.fc1)
         init_mlp_weights(self.fc2)
 
@@ -300,29 +299,26 @@ class CoeffHeadGroupedResidualPreLN(nn.Module):
     def __init__(
         self,
         latent_dim: int,
-        K_groups: List[int],
+        K_groups: List,
         hidden=256,
         depth=3,
-        pdrop=0.1,
-        zero_init_output=True,
+        dropout=0.1,
     ):
         super().__init__()
         self.latent_dim = latent_dim
-        self.K_groups = list(K_groups)
+        self.K_groups = K_groups
         self.trunk = nn.Sequential(
-            *[ResidualPreLNBlock(latent_dim, hidden, pdrop) for _ in range(depth)]
+            *[ResidualPreLNBlock(latent_dim, hidden, dropout) for _ in range(depth)]
         )
         self.trunk_out_ln = nn.LayerNorm(latent_dim)
         self.group_heads = nn.ModuleList(
             [nn.Linear(latent_dim, k) for k in self.K_groups]
         )
-        # Initialize group heads (optionally near-zero) for stable early training
+        # Initialize group heads for stable early training
         for head in self.group_heads:
-            if zero_init_output:
-                nn.init.zeros_(head.weight)
-                nn.init.zeros_(head.bias)
-            else:
-                init_mlp_weights(head)
+            # init_mlp_weights(head)
+            nn.init.zeros_(head.weight)
+            nn.init.zeros_(head.bias)
 
     def forward(self, z):
         h = self.trunk(z)
