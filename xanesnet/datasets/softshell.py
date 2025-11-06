@@ -132,21 +132,18 @@ class SoftShellDataset(BaseDataset):
             dist = self.distances_to_absorber(mol, absorber_idx=0)  # (n_atoms,)
 
             # energy (eV) intensities (xanes), and energy coeffs (c_star) tensors
-            eV = y_norm = c_star = None
+            eV = c_star = None
             if self.xanes_path:
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 eV, xanes = load_xanes(raw_path)
 
                 dE = float(eV[1] - eV[0])
-                y_norm = self.normalize_area(
-                    xanes, dE, target_area=1.0, baseline="shift_nonneg"
-                )
                 torch.set_printoptions(precision=8)
 
                 if not energy_flag:
                     widths_eV = (0.5, 1.0, 2.0, 4.0)
                     widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
-                    y_len = len(y_norm)
+                    y_len = len(xanes)
 
                     basis = SpectralBasis(
                         energies=eV,
@@ -166,10 +163,10 @@ class SoftShellDataset(BaseDataset):
                         f"Spectrum length mismatch for {stem}: expected {y_len}, got {len(xanes)}."
                     )
 
-                c_star = y_norm @ A.T
+                c_star = xanes @ A.T
 
             # initialise data object
-            data = Data(desc=desc, dist=dist, y=y_norm, e=eV, c_star=c_star)
+            data = Data(desc=desc, dist=dist, y=xanes, e=eV, c_star=c_star)
             # save data to disk
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
