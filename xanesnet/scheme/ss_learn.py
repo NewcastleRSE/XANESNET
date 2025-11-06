@@ -38,14 +38,11 @@ class SSLearn(Learn):
     """
 
     def __init__(self, model, dataset, **kwargs):
-        # Call the constructor of the parent class
         super().__init__(model, dataset, **kwargs)
 
-        # Unpack SoftShell hyperparameters
         hyper_params = self.hyper_params
         self.basis_stride = hyper_params.get("basis_stride", 4)
 
-        # loss parameters
         self.loss_kwargs = dict(
             alpha=hyper_params.get("loss_alpha", 0.65),
             beta=hyper_params.get("loss_beta", 0.35),
@@ -60,7 +57,6 @@ class SSLearn(Learn):
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
         model.to(self.device)
 
-        # Initialise parameter-free spectral "post" component
         eV = dataset[0].e
         widths_bins = self.compute_widths_bins(eV)
 
@@ -74,28 +70,21 @@ class SSLearn(Learn):
         spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
         spectral_post.eval()
 
-        # Model diagnostics
         self.model_diagnostics(spectral_post, model, dataset)
 
-        # Initialise optimizer
         model_param = list(model.encoder.parameters()) + list(
             model.coeff_head.parameters()
         )
 
-#       optimizer = torch.optim.AdamW(
-#           model_param, lr=self.lr, weight_decay=self.weight_decay
-#       )
         optimizer, criterion, regularizer, scheduler = self.setup_components(model)
 
         valid_loss = 0.0
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
-            # Run training phase
             train_loss = self._run_one_epoch_train(
                 epoch, train_loader, model, optimizer, spectral_post
             )
 
-            # Run validation phase
             valid_loss = self._run_one_epoch_valid(
                 epoch, valid_loader, model, spectral_post
             )
@@ -103,21 +92,18 @@ class SSLearn(Learn):
             if self.lr_scheduler:
                 scheduler.step()
 
-            # Logging for the current epoch
             self.log_epoch(
                 epoch, "Base", train_loss, valid_loss
             )
 
         logging.info("--- Training Finished ---")
 
-        # Log model and final evaluation
         if self.mlflow_flag:
             logging.info("\nLogging the trained model as a run artifact...")
             self.log_mlflow(model)
 
         self.log_close()
 
-        # The final score is the validation loss from the last epoch
         score = valid_loss
 
         return score
@@ -151,29 +137,24 @@ class SSLearn(Learn):
         # Setup constants
         sigma_max, sigma_min = 9.0, 5.0
         ETA_AUX_MAX, ETA_AUX_MIN = 3e-3, 3e-4
-        T = max(1, self.epochs - 50)  # stop annealing near the end
+        T = max(1, self.epochs - 50) 
 
         for batch in loader:
             batch.to(device)
             optimizer.zero_grad(set_to_none=True)
 
-            # ---- Forward pass ----
             c_pred = model(batch)
             y_pred = spectral_post.forward_from_coeffs(c_pred)
 
-            # ---- Compute losses ----
             sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
             eta_aux = ETA_AUX_MIN + (ETA_AUX_MAX - ETA_AUX_MIN) * max(0, T - epoch) / T
 
-            # Additional parameter pass to loss
             self.loss_kwargs["blur_sigma_bins"] = sigma_now
             criterion = LossSwitch().get(self.loss, **self.loss_kwargs)
             loss_spec, (Lc, Ld, Lg) = criterion(batch.y, y_pred)
             loss_aux = F.mse_loss(c_pred, batch.c_star)
 
-            # ---- total loss and optimize ----
             loss_total = loss_spec + eta_aux * loss_aux
-#           loss_total = loss_spec + loss_aux
             loss_total.backward()
             torch.nn.utils.clip_grad_norm_(model_params, 1.0)
             optimizer.step()
