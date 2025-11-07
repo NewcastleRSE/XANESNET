@@ -37,6 +37,9 @@ class Predict(ABC):
         self.scaler = kwargs.get("scaler")
         self.fft = kwargs.get("fourier")
         self.fft_concat = kwargs.get("fourier_concat")
+        self.gaussian = kwargs.get("gaussian")
+        self.widths_eV = kwargs.get("widths_eV")
+        self.basis_stride = kwargs.get("basis_stride")
 
         self.recon_flag = 0
 

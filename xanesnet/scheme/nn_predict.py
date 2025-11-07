@@ -27,6 +27,8 @@ from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
+from xanesnet.utils.gaussian import SpectralBasis, SpectralPost 
+from xanesnet.utils.gaussian import build_ridge_operator
 
 
 @dataclass
@@ -56,8 +58,27 @@ class NNPredict(Predict):
 
                 if self.mode is Mode.XYZ_TO_XANES and self.fft:
                     output = inverse_fft(output, self.fft_concat)
-                print(output.shape)
-                predictions.append(output)
+                if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
+                    eV = self.dataset[0].e
+                    dE = float(eV[1] - eV[0])
+                    widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
+                    basis_eval = SpectralBasis(
+                        energies=eV,
+                        widths_bins=widths_bins,
+                        normalize_atoms=True,
+                        stride=self.basis_stride,
+                    )
+                    spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+                    spectral_post.eval()
+
+                    coeffs = output
+                    if isinstance(coeffs, np.ndarray):
+                       coeffs = torch.from_numpy(coeffs)
+                    coeffs = coeffs.to(dtype=basis_eval.Phi.dtype, device=basis_eval.Phi.device)
+                    output_new = spectral_post.forward_from_coeffs(coeffs)
+                    output_new = self.to_numpy(output_new)
+
+                predictions.append(output_new)
 
                 if self.pred_eval:
                     target = self.to_numpy(data.y)
@@ -65,9 +86,7 @@ class NNPredict(Predict):
 
         predictions = np.array(predictions)
         targets = np.array(targets)
-        print(predictions.shape)
-        if self.pred_eval:
-            # Print MSE of the model prediction
+        if self.pred_eval and not self.gaussian:
             Predict.print_mse("target", "prediction", targets, predictions)
 
         return predictions, targets
@@ -86,7 +105,6 @@ class NNPredict(Predict):
 
         if self.mode is Mode.XANES_TO_XYZ:
             return Prediction(xyz_pred=(predictions, std_pred))
-        # predict_xanes
         return Prediction(xanes_pred=(predictions, std_pred))
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:

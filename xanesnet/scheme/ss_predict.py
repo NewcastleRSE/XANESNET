@@ -46,7 +46,7 @@ class SSPredict(Predict):
         """
         Performs a single prediction with a given model.
         """
-        from xanesnet.models.softshell import SpectralPost, SpectralBasis
+        from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
 
         model.eval()
         predictions, targets = [], []

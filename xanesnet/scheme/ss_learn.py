@@ -52,7 +52,7 @@ class SSLearn(Learn):
         )
 
     def train(self, model, dataset):
-        from xanesnet.models.softshell import SpectralPost, SpectralBasis
+        from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
 
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
         model.to(self.device)
