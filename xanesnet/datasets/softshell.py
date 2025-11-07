@@ -29,10 +29,11 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
-from xanesnet.models.softshell import SpectralBasis
 from xanesnet.registry import register_dataset
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
 from xanesnet.utils.mode import Mode
+from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.gaussian import build_ridge_operator
 
 
 @dataclass
@@ -122,7 +123,6 @@ class SoftShellDataset(BaseDataset):
 
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
-            # descriptor feature tensor
             desc = transform_xyz(raw_path, self.descriptors)
 
             with open(raw_path, "r") as f:
@@ -151,10 +151,7 @@ class SoftShellDataset(BaseDataset):
                         normalize_atoms=True,
                         stride=self.basis_stride,
                     )
-
-                    # Ridge operator for Φ and coefficients c*
-                    RIDGE_LAMBDA = 1e-2
-                    A = self.build_ridge_operator(basis.Phi, lam=RIDGE_LAMBDA)  # (K, N)
+                    A = build_ridge_operator(basis.Phi, lam=1e-2)  # (K, N)
 
                     energy_flag = 1
 
@@ -239,55 +236,3 @@ class SoftShellDataset(BaseDataset):
         ref = pos[absorber_idx]
         d = np.linalg.norm(pos - ref, axis=1).astype(np.float32)
         return torch.tensor(d, dtype=torch.float32)
-
-    @staticmethod
-    def normalize_area(
-        xanes: Tensor,
-        delta_e: float,
-        target_area: float = 1.0,
-        baseline: str = "shift_nonneg",
-        eps: float = 1e-12,
-    ) -> Tensor:
-        y = xanes.clone().float()
-
-        if baseline == "shift_nonneg":
-            m = y.min()
-            if m < 0:
-                y = y - m
-        area = float(y.sum()) * float(delta_e)
-
-        if area <= eps:
-            return torch.zeros_like(y, dtype=torch.float32)
-        scale = target_area / area
-
-        return y * scale
-
-    @staticmethod
-    def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
-        """
-        A = (Φᵀ Φ + λ I)^{-1} Φᵀ  with Cholesky; fallback to augmented LSQ.
-        Returns A: (K, N_E) on same device/dtype as Phi.
-        """
-        Phi = Phi.contiguous()
-        N_E, K = Phi.shape
-        I_K = torch.eye(K, dtype=Phi.dtype, device=Phi.device)
-
-        G = Phi.T @ Phi
-        G = G + lam * I_K
-        try:
-            L = torch.linalg.cholesky(G)  # (K,K)
-            A = torch.cholesky_solve(Phi.T, L)  # (K,N_E)
-        except RuntimeError:
-            top = Phi
-            bot = math.sqrt(lam) * I_K
-            A_aug = torch.cat([top, bot], dim=0)  # ((N_E+K), K)
-            rhs = torch.cat(
-                [
-                    torch.eye(N_E, dtype=Phi.dtype, device=Phi.device),
-                    torch.zeros((K, N_E), dtype=Phi.dtype, device=Phi.device),
-                ],
-                dim=0,
-            )  # ((N_E+K), N_E)
-            A = torch.linalg.lstsq(A_aug, rhs, rcond=None).solution  # (K, N_E)
-
-        return A.to(torch.float32)
