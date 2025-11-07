@@ -17,6 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 import random
 import sys
+from typing import Tuple, Dict, List
+
 import torch
 import time
 
@@ -26,8 +28,11 @@ from pathlib import Path
 from torch import nn
 from torchinfo import summary
 
+from xanesnet.datasets.base_dataset import BaseDataset
+from xanesnet.models.base_model import Model
 from xanesnet.models.pre_trained import PretrainedModels
-from xanesnet.utils.mode import get_mode
+from xanesnet.scheme import Learn
+from xanesnet.utils.mode import get_mode, Mode
 from xanesnet.utils.switch import KernelInitSwitch, BiasInitSwitch
 from xanesnet.utils.io import (
     save_models,
@@ -53,33 +58,31 @@ logging.basicConfig(
 
 def train(config, args):
     """
-    Train ML model based on the provided configuration and arguments.
+    Main training entry
     """
     logging.info(f">> Training mode: {args.mode}")
     mode = get_mode(args.mode)
 
-    # Setup descriptors from inputscript or pretrained model
+    # Initialise feature descriptor(s)
     descriptor_list = _setup_descriptors(config)
 
-    # Load, encode, and preprocess data
-    dataset = _setup_datasets(config, mode, descriptor_list)
+    # Precess training dataset
+    dataset = _setup_dataset(config, mode, descriptor_list)
 
-    # Setup model from inputscript or pretrained model
+    # Setup model
     model = _setup_model(config, dataset)
 
     # Setup training scheme
     scheme = _setup_scheme(config, args, model, dataset)
 
-    # Run model training
-    model_list, scheme_type, train_time = _train_models(config, scheme)
+    # Train the model
+    model_list, scheme_type, train_time = _train_model(config, scheme)
 
-    # Print trained model summary
+    # Display model summary and training duration
     _summary_model(model_list[0], dataset)
-
-    # Print training time
     logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
 
-    # Save model, encoded data and config to disk
+    # Save model(s) and metadata to disk if requested
     if args.save:
         metadata = {
             "mode": args.mode,
@@ -93,12 +96,12 @@ def train(config, args):
         save_models(Path("models"), model_list, metadata)
 
 
-def _setup_descriptors(config):
-    """Initialises or loads descriptors."""
+def _setup_descriptors(config: Dict) -> List:
+    """Initialise or load descriptors depending on the model type."""
     model_type = config["model"]["type"]
 
     if hasattr(PretrainedModels, model_type):
-        logging.info(f">> Loading descriptors from pretrained model: {model_type}")
+        logging.info(f">> Loading pretrained model descriptors: {model_type}")
         descriptor_list = load_pretrained_descriptors(model_type)
     else:
         descriptor_config = config["descriptors"]
@@ -109,11 +112,12 @@ def _setup_descriptors(config):
     return descriptor_list
 
 
-def _setup_datasets(config, mode, descriptor_list):
+def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDataset:
+    """Process the dataset using input configuration or load an existing one from disk"""
     dataset_type = config["dataset"]["type"]
 
-    logging.info(f">> Initialising training datasets: {dataset_type}")
-    # Pack kwargs
+    logging.info(f">> Initialising training dataset: {dataset_type}")
+    # Pack parameters
     kwargs = {
         "root": config["dataset"]["root_path"],
         "xyz_path": config["dataset"]["xyz_path"],
@@ -133,7 +137,7 @@ def _setup_datasets(config, mode, descriptor_list):
     return dataset
 
 
-def _setup_model(config, dataset):
+def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
     """Initialises or loads the model and its descriptors."""
     model_type = config["model"]["type"]
 
@@ -160,15 +164,15 @@ def _setup_model(config, dataset):
     return model
 
 
-def _init_model_weights(model, **kwargs):
+def _init_model_weights(model: Model, **kwargs) -> Model:
     """
-    Initialise model weights and biases
+    Initialise model kernel and bias weights using user-defined methods.
     """
     kernel = kwargs.get("kernel", "xavier_uniform")
     bias = kwargs.get("bias", "zeros")
     seed = kwargs.get("seed", random.randrange(1000))
 
-    # set seed
+    # Set random seed
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
     else:
@@ -177,9 +181,8 @@ def _init_model_weights(model, **kwargs):
     kernel_init_fn = KernelInitSwitch().get(kernel)
     bias_init_fn = BiasInitSwitch().get(bias)
 
-    # nested function to apply to each module
+    # Apply initialisation to each applicable layer
     def _init_fn(m):
-        # Initialise Conv and Linear layers
         if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
             kernel_init_fn(m.weight)
             if m.bias is not None:
@@ -190,11 +193,12 @@ def _init_model_weights(model, **kwargs):
     return model
 
 
-def _setup_scheme(config, args, model, dataset):
+def _setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Learn:
+    """Initialise training scheme (standard, k-fold, ensemble, etc.)."""
     model_type = config["model"].get("type")
 
     logging.info(">> Initialising training scheme")
-    # Pack kwargs
+    # Pack parameters
     kwargs = {
         "model_config": config.get("model"),
         "hyper_params": config.get("hyperparams", {}),
@@ -208,13 +212,16 @@ def _setup_scheme(config, args, model, dataset):
     }
 
     scheme = create_learn_scheme(model_type, model, dataset, **kwargs)
-
     return scheme
 
 
-def _train_models(config, scheme):
+def _train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
+    """
+    Train model using the selected training scheme.
+    """
     model_list = []
     start_time = time.time()
+
     if config["bootstrap"]:
         logging.info(">> Training model using bootstrap resampling...\n")
         scheme_type = "bootstrap"
@@ -237,7 +244,7 @@ def _train_models(config, scheme):
     return model_list, scheme_type, train_time
 
 
-def _summary_model(model, dataset):
+def _summary_model(model: Model, dataset: BaseDataset) -> None:
     logging.info("\n--- Model Summary ---")
 
     if model.aegan_flag:

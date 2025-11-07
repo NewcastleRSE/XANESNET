@@ -43,9 +43,6 @@ class SSPredict(Predict):
         self.stride = kwargs.get("basis_stride")
 
     def predict(self, model):
-        """
-        Performs a single prediction with a given model.
-        """
         from xanesnet.models.softshell import SpectralPost, SpectralBasis
 
         model.eval()

@@ -14,6 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import logging
+from dataclasses import dataclass
+from typing import List, Tuple
+
 import numpy as np
 
 from abc import ABC, abstractmethod
@@ -22,38 +25,90 @@ import torch
 import torch_geometric
 from sklearn.metrics import mean_squared_error
 
+from xanesnet.models.base_model import Model
+
 
 class Predict(ABC):
-    """
-    Base class for prediction
+    """Abstract base class defining the prediction interface for XANESNET models."""
 
-    """
-
-    def __init__(self, dataset, mode, **kwargs):
+    def __init__(self, dataset, **kwargs):
         self.dataset = dataset
 
+        # Unpack parameters
         self.mode = kwargs.get("pred_mode")
         self.pred_eval = kwargs.get("pred_eval")
         self.scaler = kwargs.get("scaler")
         self.fft = kwargs.get("fourier")
         self.fft_concat = kwargs.get("fourier_concat")
 
+        # Flag for autoencoder-type predictors
         self.recon_flag = 0
 
     @abstractmethod
-    def predict(self, model):
+    def predict(self, model: Model) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Core forward prediction.
+
+        Returns
+        -------
+        Tuple[np.array, np.array]
+            A tuple containing Array of model output predictions,
+            and Array of ground-truth target values
+        """
         pass
 
     @abstractmethod
-    def predict_std(self, model):
+    def predict_std(self, model: Model):
+        """
+        Perform standard single-model prediction.
+
+        Parameters
+        ----------
+        model : Model
+            The trained model.
+
+        Returns
+        -------
+        Prediction
+            A `Prediction` dataclass object.
+        """
+
         pass
 
     @abstractmethod
-    def predict_bootstrap(self, model_list):
+    def predict_bootstrap(self, model_list: List[Model]):
+        """
+        Aggregate predictions from multiple bootstrap-trained models.
+
+        Parameters
+        ----------
+        model_list : List[Model]
+            List of trained models.
+
+        Returns
+        -------
+        Prediction
+            A `Prediction` dataclass object.
+        """
+
         pass
 
     @abstractmethod
-    def predict_ensemble(self, model_list):
+    def predict_ensemble(self, model_list: List[Model]):
+        """
+        Aggregate predictions from an ensemble of models.
+
+
+        Parameters
+        ----------
+        model_list : List[Model]
+            List of trained models.
+
+        Returns
+        -------
+        Prediction
+            A `Prediction` dataclass object.
+        """
         pass
 
     @staticmethod

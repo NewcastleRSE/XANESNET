@@ -20,7 +20,6 @@ DESCRIPTOR_REGISTRY = {}
 SCHEME_REGISTRY = {}
 LEARN_SCHEME_REGISTRY = {}
 PREDICT_SCHEME_REGISTRY = {}
-EVAL_SCHEME_REGISTRY = {}
 
 """
 This module provides central registries and decorators for registering
@@ -34,6 +33,10 @@ Usage:
 
     @register_descriptor("wacsf")
     class WACSF:
+        ...
+        
+    @register_dataset("xanesx")
+    class XanesXDataset:
         ...
 
 Once registered, the classes can be instantiated via corresponding
@@ -68,25 +71,18 @@ def register_descriptor(name):
 def register_scheme(model_name, scheme_name):
     def decorator(cls):
         if not SCHEME_REGISTRY:
-            from xanesnet.scheme import (
-                AEGANLearn,
-                AEGANPredict,
-                AELearn,
-                AEPredict,
-                NNLearn,
-                NNPredict,
-                MHLearn,
-                SSLearn,
-                SSPredict,
-            )
+            import xanesnet.scheme as scheme
 
             SCHEME_REGISTRY.update(
                 {
-                    "nn": {"learn": NNLearn, "predict": NNPredict},
-                    "ae": {"learn": AELearn, "predict": AEPredict},
-                    "aegan": {"learn": AEGANLearn, "predict": AEGANPredict},
-                    "mh": {"learn": MHLearn, "predict": None},
-                    "ss": {"learn": SSLearn, "predict": SSPredict},
+                    "nn": {"learn": scheme.NNLearn, "predict": scheme.NNPredict},
+                    "ae": {"learn": scheme.AELearn, "predict": scheme.AEPredict},
+                    "mh": {"learn": scheme.MHLearn, "predict": None},
+                    "ss": {"learn": scheme.SSLearn, "predict": scheme.SSPredict},
+                    "aegan": {
+                        "learn": scheme.AEGANLearn,
+                        "predict": scheme.AEGANPredict,
+                    },
                 },
             )
 
@@ -96,7 +92,6 @@ def register_scheme(model_name, scheme_name):
 
         LEARN_SCHEME_REGISTRY[model_name] = scheme["learn"]
         PREDICT_SCHEME_REGISTRY[model_name] = scheme["predict"]
-        # EVAL_SCHEME_REGISTRY[model_name] = scheme["eval"]
         return cls
 
     return decorator

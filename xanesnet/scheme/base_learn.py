@@ -16,23 +16,24 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import random
+from typing import Dict, List
+
 import mlflow
 import torch
 import time
 import pickle
+import torch_geometric
 import numpy as np
-
-# import optuna
 
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 
-import torch_geometric
 from sklearn.model_selection import train_test_split
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
+from xanesnet.models.base_model import Model
 from xanesnet.utils.switch import (
     OptimSwitch,
     LossSwitch,
@@ -47,15 +48,15 @@ from xanesnet.utils.switch import (
 
 
 class Learn(ABC):
-    """Base class for model training process"""
+    """Abstract base class defining the training interface for XANESNET models."""
 
     def __init__(self, model, dataset, **kwargs):
         self.model = model
         self.dataset = dataset
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.recon_flag = 0  # Set to 1 for AELearn or AEGANLearn
+        self.recon_flag = 0  # 1 for AELearn or AEGANLearn
 
-        # Unpack kwargs
+        # ---Unpack kwargs
         model_config = kwargs.get("model_config")
         hyper_params = kwargs.get("hyper_params")
         kfold_params = kwargs.get("kfold_params")
@@ -63,12 +64,12 @@ class Learn(ABC):
         ensemble_params = kwargs.get("ensemble_params")
         scheduler_params = kwargs.get("scheduler_params")
 
-        # model parameter set
+        # --- Model parameter ---
         self.model_type = model_config.get("type")
         self.model_params = model_config.get("params", {})
         self.weights_params = model_config.get("weights", {})
 
-        # hyperparameter set
+        # --- Hyperparameter ---
         self.hyper_params = hyper_params
         self.batch_size = hyper_params.get("batch_size", 32)
         self.epochs = hyper_params.get("epochs", 100)
@@ -80,69 +81,114 @@ class Learn(ABC):
         self.loss_lambda = hyper_params.get("loss_lambda", 0.0001)
         self.seed = hyper_params.get("seed", random.randrange(1000))
 
-        # kfold parameter set
+        # --- K-Fold cross-validation parameters ---
         self.n_splits = kfold_params.get("n_splits", 3)
         self.n_repeats = kfold_params.get("n_repeats", 1)
         self.seed_kfold = kfold_params.get("seed", random.randrange(1000))
 
-        # bootstrap parameter set
+        # --- Bootstrap learning parameters ---
         self.n_boot = bootstrap_params.get("n_boot", 3)
         self.n_size = bootstrap_params.get("n_size", 1.0)
         self.weight_seed_boot = bootstrap_params.get(
             "weight_seed", random.sample(range(1000), 3)
         )
 
-        # ensemble parameter set
+        # --- Ensemble learning parameters ---
         self.n_ens = ensemble_params.get("n_ens", 3)
         self.weight_seed_ens = ensemble_params.get(
             "weight_seed", random.sample(range(1000), 3)
         )
-        # learning rate scheduler
+
+        # --- Learning rate scheduler ---
         self.lr_scheduler = kwargs.get("lr_scheduler")
         self.scheduler_type = scheduler_params.get("type")
         self.scheduler_params = {
             k: v for k, v in scheduler_params.items() if k != "type"
         }
 
-        # mlflow and tensorboard
+        # --- logging ---
         self.mlflow_flag = kwargs.get("mlflow")
         self.tb_flag = kwargs.get("tensorboard")
         self.writer = None
 
-        # Initialise tensorboard writer with custom layout
+        # Initialize TensorBoard writer
         if self.tb_flag:
             layout = self.tensorboard_layout()
             self.writer = self.setup_writer(layout)
 
-        # Initialise mlflow experiment
+        # Initialize MLflow experiment
         if self.mlflow_flag:
             self.setup_mlflow()
 
     @abstractmethod
-    def tensorboard_layout(self):
-        pass
-
-    @abstractmethod
-    def train(self, model, dataset):
-        pass
-
-    @abstractmethod
-    def train_std(self):
-        pass
-
-    @abstractmethod
-    def train_kfold(self):
-        pass
-
-    def train_bootstrap(self):
+    def tensorboard_layout(self) -> Dict:
         """
-        Trains multiple models on bootstrap resamples of the provided dataset.
+        Defines the TensorBoard layout.
+
+        Returns
+        -------
+        Dict
+            A dictionary describing the TensorBoard layout configuration.
+        """
+        pass
+
+    @abstractmethod
+    def train(self, model, dataset) -> float:
+        """
+        Core training loop.
+
+        Parameters
+        ----------
+        model : Model
+            The untrained model
+        dataset : BaseDataset
+            XANES dataset
+
+        Returns
+        -------
+        float
+            The final score - validation loss from the last epoch
+        """
+        pass
+
+    @abstractmethod
+    def train_std(self) -> Model:
+        """
+        Trains model using standard single-run training.
+
+        Returns
+        -------
+        Model
+            The trained model object.
+        """
+        pass
+
+    @abstractmethod
+    def train_kfold(self) -> Model:
+        """
+        Trains model using k-fold cross-validation.
+
+
+        Returns
+        -------
+        Model
+            The (best) trained model object.
+        """
+        pass
+
+    def train_bootstrap(self) -> List[Model]:
+        """
+
+        Trains models using bootstrap resampling.
+
+        Returns
+        -------
+        List[Model]
+            A list of trained models.
         """
 
         model_list = []
         n_samples = len(self.dataset)
-
-        # Size of each bootstrap sample
         sample_size = int(n_samples * self.n_size)
 
         for i in range(self.n_boot):
@@ -150,8 +196,6 @@ class Learn(ABC):
 
             # Generate all random indices at once
             bootstrap_indices = rng.choice(n_samples, size=sample_size, replace=True)
-
-            # Create the bootstrap sample in a single, fast indexing operation
             dataset_boot = self.dataset[bootstrap_indices]
 
             # Deep copy model and re-initialise model weight using bootstrap seeds
@@ -159,16 +203,20 @@ class Learn(ABC):
             self.weights_params["seed"] = self.weight_seed_boot[i]
             model = self._init_model_weights(model, **self.weights_params)
 
-            # Train the model on the bootstrap sample
             self.train(model, dataset_boot)
 
             model_list.append(model)
 
         return model_list
 
-    def train_ensemble(self):
+    def train_ensemble(self) -> List[Model]:
         """
-        Train multiple models with ensemble learning
+        Trains an ensemble of models with different random weight initialisations
+
+        Returns
+        -------
+        List[Model]
+            A list of trained models.
         """
         model_list = []
 
@@ -180,13 +228,12 @@ class Learn(ABC):
             model = self._init_model_weights(model, **self.weights_params)
 
             self.train(model, self.dataset)
-
             model_list.append(model)
 
         return model_list
 
     def setup_components(self, model):
-        """Initializes optimizer, loss function, and LR scheduler."""
+        """Initialises the optimizer, loss function, regularizer, and scheduler."""
         # --- Initialise Optimizer ---
         optim_fn = OptimSwitch().get(self.optimizer)
         optimizer = optim_fn(model.parameters(), self.lr)
@@ -209,9 +256,7 @@ class Learn(ABC):
         return optimizer, criterion, regularizer, scheduler
 
     def setup_dataloaders(self, dataset):
-        """
-        Splits data and creates DataLoaders.
-        """
+        """Splits the dataset and creates DataLoaders."""
         indices = dataset.indices
 
         if self.model_eval:
@@ -241,8 +286,8 @@ class Learn(ABC):
 
         return train_loader, valid_loader, eval_loader
 
-    # Helper function to create loaders
     def _create_loader(self, dataset, shuffle: bool = False, drop_last: bool = False):
+        """Creates a DataLoader based on model type."""
         if self.model.gnn_flag:
             dataloader_cls = torch_geometric.data.DataLoader
         else:
@@ -257,6 +302,7 @@ class Learn(ABC):
         )
 
     def setup_mlflow(self):
+        """Initialises an MLflow experiment."""
         experiment_name = self.model.__class__.__name__
         mlflow.set_experiment(experiment_name)
 
@@ -265,15 +311,15 @@ class Learn(ABC):
         mlflow.log_params(self.hyper_params)
         mlflow.log_param("n_epoch", self.epochs)
 
-    def setup_writer(self, layout: dict) -> SummaryWriter:
-        # setup tensorboard stuff
+    def setup_writer(self, layout: Dict) -> SummaryWriter:
+        """Initializes a TensorBoard SummaryWriter with a given layout."""
         writer = SummaryWriter(f"tensorboard/{int(time.time())}")
         writer.add_custom_scalars(layout)
 
         return writer
 
     def log_mlflow(self, model):
-        # Log the model as an artifact of the MLflow run.
+        """Log the model as an artifact of the MLflow run."""
         mlflow.pytorch.log_model(
             model, artifact_path="pytorch-model", pickle_module=pickle
         )
@@ -281,15 +327,15 @@ class Learn(ABC):
         mlflow.pytorch.load_model(mlflow.get_artifact_uri("pytorch-model"))
 
     def log_loss(self, name: str, value: float, epoch: int):
-        # Log loss to MLflow if enabled
+        """Log loss to MLflow and/or TensorBoard."""
         if self.mlflow_flag:
             mlflow.log_metric(name, value, step=epoch)
 
-        # Log loss to TensorBoard if enabled
         if self.tb_flag:
             self.writer.add_scalar(name, value, epoch)
 
     def log_close(self):
+        """Finalises and closes TensorBoard and MLflow logging sessions."""
         if self.tb_flag:
             log_dir = self.writer.log_dir  # Get TensorBoard log directory
             self.writer.close()
@@ -300,30 +346,8 @@ class Learn(ABC):
             mlflow.end_run()
             print(f"\nMLflow run saved at: {run_url}")
 
-    # TODO
-    # def evaluate(self, model, loaders):
-    #     """Performs final model evaluation and logs results to MLflow."""
-    #     train_loader, valid_loader, eval_loader = loaders
-    #     eval_test = create_eval_scheme(
-    #         self.model_name,
-    #         model,
-    #         train_loader,
-    #         valid_loader,
-    #         eval_loader,
-    #         self.X.shape[1],
-    #         self.y.shape[1],
-    #     )
-    #     eval_results = eval_test.eval()
-    #
-    #     if self.mlflow_flag:
-    #         print("Logging evaluation results to MLflow...")
-    #         for k, v in eval_results.items():
-    #             mlflow.log_dict(v, f"{k}.yaml")
-
     def _init_model_weights(self, model, **kwargs):
-        """
-        Initialise model weights and biases
-        """
+        """Initialise model weights and biases"""
         kernel = kwargs.get("kernel", "xavier_uniform")
         bias = kwargs.get("bias", "zeros")
         seed = kwargs.get("seed", random.randrange(1000))

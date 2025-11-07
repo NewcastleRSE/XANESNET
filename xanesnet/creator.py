@@ -13,11 +13,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-import numpy as np
-
-from typing import Dict
-from torch.utils.data import DataLoader
+from typing import Dict, List
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.descriptors.base_descriptor import BaseDescriptor
@@ -26,10 +22,11 @@ from xanesnet.registry import (
     MODEL_REGISTRY,
     LEARN_SCHEME_REGISTRY,
     PREDICT_SCHEME_REGISTRY,
-    EVAL_SCHEME_REGISTRY,
     DESCRIPTOR_REGISTRY,
     DATASET_REGISTRY,
 )
+from xanesnet.scheme import Learn, Predict
+from xanesnet.utils.mode import Mode
 
 """
 Factory functions to create instance of model, descriptor or scheme
@@ -41,7 +38,7 @@ def create_dataset(name: str, **kwargs) -> BaseDataset:
     Create and return an instance of a dataset class based on the given name.
 
     Dataset must be registered using the @register_dataset("dataset_name") decorator.
-    See `models/mlp.py` for an example of how to register a model class.
+    See `dataset/xanesx.py` for an example of how to register a dataset class.
 
     Args:
         name (str): The name of the dataset to create.
@@ -106,9 +103,9 @@ def create_descriptor(name: str, **kwargs) -> BaseDescriptor:
         raise ValueError(f"Unsupported descriptor name: {name}")
 
 
-def create_descriptors(config: Dict = None):
+def create_descriptors(config: Dict = None) -> List:
     """
-    Create and return a list of descriptor instances based on the configuration.
+    Create and return a list of descriptor instances.
     """
     descriptor_list = []
 
@@ -120,36 +117,56 @@ def create_descriptors(config: Dict = None):
     return descriptor_list
 
 
-def create_learn_scheme(name, model, dataset, **kwargs):
+def create_learn_scheme(
+    name: str, model: Model, dataset: BaseDataset, **kwargs
+) -> Learn:
+    """
+    Create and return an instance of a learning scheme based on the given scheme name.
+
+    Learning schemes define how a model is trained and are registered using the
+    @register_scheme(model_name, scheme_name) decorator in MODEL classes.
+    See `models/mlp.py` for an example.
+
+    Args:
+        name (str): The name of the scheme.
+        model: The model instance to be trained.
+        dataset: The dataset instance used for training.
+        **kwargs: Additional keyword arguments passed to the learning scheme constructor.
+
+    Returns:
+        An instance of the learning scheme associated with the given model.
+
+    Raises:
+        ValueError: If the specified learning scheme name is not registered.
+    """
     if name in LEARN_SCHEME_REGISTRY:
         return LEARN_SCHEME_REGISTRY[name](model, dataset, **kwargs)
     raise ValueError(f"Unsupported learn scheme for the model: {name}")
 
 
-def create_predict_scheme(name: str, dataset, mode, **kwargs):
+def create_predict_scheme(
+    name: str, dataset: BaseDataset, mode: Mode, **kwargs
+) -> Predict:
+    """
+    Create and return an instance of a prediction scheme based on the given scheme name.
+
+    Prediction schemes are registered using the
+    @register_scheme(model_name, scheme_name) decorator in MODEL classes.
+    See `models/mlp.py` for an example.
+
+    Args:
+        name (str): The name of the scheme.
+        dataset: The dataset instance used for prediction.
+        mode (str): The prediction mode.
+        **kwargs: Additional keyword arguments passed to the prediction scheme constructor.
+
+    Returns:
+        An instance of the prediction scheme associated with the given model.
+
+    Raises:
+        ValueError: If the specified prediction scheme name is not registered.
+    """
     if name in PREDICT_SCHEME_REGISTRY:
         return PREDICT_SCHEME_REGISTRY[name](dataset, mode, **kwargs)
     else:
         raise ValueError(f"Unsupported predict scheme for the model: {name}")
-
-
-def create_eval_scheme(
-    name: str,
-    model: Model,
-    train_loader: DataLoader,
-    valid_loader: DataLoader,
-    eval_loader: DataLoader,
-    input_size: int,
-    output_size: int,
-):
-    if name in EVAL_SCHEME_REGISTRY:
-        return EVAL_SCHEME_REGISTRY[name](
-            model,
-            train_loader,
-            valid_loader,
-            eval_loader,
-            input_size,
-            output_size,
-        )
-    else:
-        raise ValueError(f"Unsupported learn scheme for the model: {name}")

@@ -1,6 +1,5 @@
 """
 XANESNET
-Copyright (C) 2021  Conor D. Rankine
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +24,6 @@ from torch.utils.data import Dataset
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Union, List, Any, Callable
-
 from torch import Tensor
 from torch_geometric.io import fs
 
@@ -33,13 +31,9 @@ from xanesnet.utils.mode import Mode
 
 IndexType = Union[slice, Tensor, np.ndarray, Sequence]
 
-###############################################################################
-################################## CLASSES ####################################
-###############################################################################
-
 
 class BaseDataset(Dataset):
-    """An abstract base class for xanesnet datasets."""
+    """Abstract base class for XANESNET datasets."""
 
     def __init__(
         self,
@@ -50,6 +44,16 @@ class BaseDataset(Dataset):
         descriptors: List = None,
         **kwargs,
     ):
+        """
+        Args:
+            root: Root directory for dataset storage.
+            xyz_path: Paths to atomic coordinate files (.xyz).
+            xanes_path: Paths to XANES spectra files.
+            mode: training mode.
+            descriptors : List of feature descriptors.
+            **kwargs: Additional optional keyword arguments.
+        """
+
         super().__init__()
 
         self.root = root
@@ -67,56 +71,68 @@ class BaseDataset(Dataset):
         self._process()
 
     def set_file_names(self):
-        """Set a list of file names (stems) used in the dataset."""
+        """Set a list of file names (stems) in the dataset."""
         raise NotImplementedError
 
     def process(self):
-        """Processes the dataset and save to the self.processed_dir folder."""
+        """Process the raw file and save them to the self.processed_dir folder."""
         raise NotImplementedError
 
     def collate_fn(self, batch):
-        """Custom collate function to handle a list of Data objects."""
+        """Custom collate function to handle batching of data objects."""
         raise NotImplementedError
 
     @property
     def x_size(self) -> Union[int, List[int]]:
-        """Size of the feature array."""
+        """Size or shape of the input feature tensor."""
         raise NotImplementedError
 
     @property
     def y_size(self) -> Union[int, List[int]]:
-        """Size of the label array."""
+        """Size or shape of the target label tensor."""
         raise NotImplementedError
 
     @property
     def indices(self) -> Sequence:
-        """A list of integer indices corresponding to the data points."""
+        """List of integer indices corresponding to data entries."""
         return list(range(len(self.file_names)))
 
     @property
     def processed_file_names(self) -> List[str]:
-        """A list of all processed file names."""
+        """List of processed data file names."""
         return [f"{stem}.pt" for i, stem in enumerate(self.file_names)]
 
     @property
     def processed_dir(self) -> str:
-        """The directory containing processed datasets"""
+        """Directory path where processed data files are stored."""
         return os.path.join(self.root, "processed")
 
     @property
     def processed_paths(self) -> List[str]:
-        """A list of absolute paths to all processed files."""
+        """List of absolute paths to all processed data files."""
         files = self.processed_file_names
         # Prevent a common source of error in which `file_names` are not
         # defined as a property.
         if isinstance(files, Callable):
             files = files()
-        return [os.path.join(self.processed_dir, f) for f in to_list(files)]
+        return [os.path.join(self.processed_dir, f) for f in self.to_list(files)]
 
     def __len__(self) -> int:
+        """Number of data object in the dataset."""
         return len(self.file_names)
 
     def __getitem__(self, idx: Union[int, np.integer, IndexType]):
+        """Retrieve a data object or a subset of the dataset by index.
+
+        Supports integer indexing, slicing, or index arrays/tensors.
+
+        Args:
+            idx: The index or indices of items to retrieve.
+
+        Returns:
+            If `idx` is a single integer: a single data object.
+            Otherwise: a subset of the dataset.
+        """
         if (
             isinstance(idx, (int, np.integer))
             or (isinstance(idx, Tensor) and idx.dim() == 0)
@@ -132,9 +148,9 @@ class BaseDataset(Dataset):
 
     def _process(self):
         """
-        Checks if processing is complete and runs the process() if not.
+        Process raw data file. If processed files exist, skip processing.
         """
-        if files_exist(self.processed_paths):
+        if self.files_exist(self.processed_paths):
             logging.info(
                 f">> Processed files exist in {self.processed_dir}, skipping data processing."
             )
@@ -146,21 +162,6 @@ class BaseDataset(Dataset):
         if self.preload:
             logging.info(">> Preloading dataset into memory...")
             self.preload_dataset = [torch.load(path) for path in self.processed_paths]
-
-    def unique_path(self, path) -> Path:
-        if isinstance(path, list):
-            if len(path) > 1:
-                raise ValueError(
-                    "Dataset does not support multiple paths. Please provide only one."
-                )
-            path = path[0] if path else None
-
-        return Path(path) if path is not None else None
-
-    def list_path(self, path) -> List[Path]:
-        if isinstance(path, list):
-            return [Path(x) for x in path] if path else None
-        return [path] if path is not None else None
 
     def index_select(self, idx: IndexType) -> "BaseDataset":
         """Creates a subset of the dataset from specified indices.
@@ -228,18 +229,46 @@ class BaseDataset(Dataset):
         # Extract parameters from the local_vars, excluding 'self' and '__class__'
         args_dict = {key: val for key, val in args.items() if key in ["type", "params"]}
 
-        # config.update(params)
         config.update(args_dict)
 
         self.config = config
 
+    @staticmethod
+    def unique_path(path) -> Path:
+        """
+        Resolve single path
+        """
+        if isinstance(path, list):
+            if len(path) > 1:
+                raise ValueError(
+                    "Dataset does not support multiple paths. Please provide only one."
+                )
+            path = path[0] if path else None
 
-def files_exist(files: List[str]) -> bool:
-    return len(files) != 0 and all([fs.exists(f) for f in files])
+        return Path(path) if path is not None else None
 
+    @staticmethod
+    def list_path(path) -> List[Path]:
+        """
+        Resolve list of paths
+        """
+        if isinstance(path, list):
+            return [Path(x) for x in path] if path else None
+        return [path] if path is not None else None
 
-def to_list(value: Any) -> Sequence:
-    if isinstance(value, Sequence) and not isinstance(value, str):
-        return value
-    else:
-        return [value]
+    @staticmethod
+    def files_exist(files: List[str]) -> bool:
+        """
+        Check whether all given file paths exist.
+        """
+        return len(files) != 0 and all([fs.exists(f) for f in files])
+
+    @staticmethod
+    def to_list(value: Any) -> Sequence:
+        """
+        Ensure the input is returned as a list.
+        """
+        if isinstance(value, Sequence) and not isinstance(value, str):
+            return value
+        else:
+            return [value]

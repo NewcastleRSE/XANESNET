@@ -170,7 +170,7 @@ class SSLearn(Learn):
 
         # Setup constants
         sigma_max, sigma_min = 9.0, 5.0
-        ETA_AUX_MAX, ETA_AUX_MIN = 3e-3, 3e-4
+        eta_aux_max, eta_aux_min = 3e-3, 3e-4
         T = max(1, self.epochs - 50)  # stop annealing near the end
 
         for batch in loader:
@@ -183,7 +183,7 @@ class SSLearn(Learn):
 
             # ---- Compute losses ----
             sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
-            eta_aux = ETA_AUX_MIN + (ETA_AUX_MAX - ETA_AUX_MIN) * max(0, T - epoch) / T
+            eta_aux = eta_aux_min + (eta_aux_max - eta_aux_min) * max(0, T - epoch) / T
 
             # Additional parameter pass to loss
             self.loss_kwargs["blur_sigma_bins"] = sigma_now

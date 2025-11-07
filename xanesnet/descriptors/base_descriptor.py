@@ -32,7 +32,7 @@ from abc import ABC, abstractmethod
 
 
 class BaseDescriptor(ABC):
-    """An abstract base class for all xanesnet descriptors."""
+    """Abstract base class for XANESNET descriptors."""
 
     def __init__(self):
         self.config = {}

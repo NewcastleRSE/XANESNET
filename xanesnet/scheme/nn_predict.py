@@ -39,9 +39,7 @@ class Prediction:
 
 class NNPredict(Predict):
     def predict(self, model):
-        """
-        Performs a single prediction with a given model.
-        """
+        """Perform standard single-model prediction."""
         data_loader = self._create_loader(model, self.dataset)
 
         model.eval()
@@ -56,7 +54,7 @@ class NNPredict(Predict):
 
                 if self.mode is Mode.XYZ_TO_XANES and self.fft:
                     output = inverse_fft(output, self.fft_concat)
-                print(output.shape)
+
                 predictions.append(output)
 
                 if self.pred_eval:
@@ -65,7 +63,7 @@ class NNPredict(Predict):
 
         predictions = np.array(predictions)
         targets = np.array(targets)
-        print(predictions.shape)
+
         if self.pred_eval:
             # Print MSE of the model prediction
             Predict.print_mse("target", "prediction", targets, predictions)
@@ -73,53 +71,41 @@ class NNPredict(Predict):
         return predictions, targets
 
     def predict_std(self, model: Model) -> Prediction:
-        """
-        Performs a single prediction and returns the result with a zero (dummy)
-        standard deviation array.
-        """
+        """Perform standard single-model prediction."""
         logging.info(
             f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---"
         )
 
         predictions, targets = self.predict(model)
+        # zero (dummy) standard deviation array.
         std_pred = np.zeros_like(predictions)
 
         if self.mode is Mode.XANES_TO_XYZ:
             return Prediction(xyz_pred=(predictions, std_pred))
-        # predict_xanes
         return Prediction(xanes_pred=(predictions, std_pred))
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
-        """
-        Performs predictions on multiple models (bootstrapping)
-        """
+        """Aggregate predictions from multiple bootstrap-trained models."""
         # Get all predictions and targets from model_list
         prediction_list, targets = self._predict_from_models(model_list)
 
-        # Calculate mean and std
         mean_pred = np.mean(prediction_list, axis=0)
         std_pred = np.std(prediction_list, axis=0)
 
-        # Print MSE of the mean prediction
         if self.pred_eval:
             logging.info("-" * 55)
             Predict.print_mse("target", "mean prediction", targets, mean_pred)
 
         if self.mode is Mode.XANES_TO_XYZ:
             return Prediction(xyz_pred=(mean_pred, std_pred))
-        # predict_xanes
         return Prediction(xanes_pred=(mean_pred, std_pred))
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
-        """
-        Performs predictions on multiple models (ensemble)
-        """
+        """Aggregate predictions from an ensemble of models."""
         return self.predict_bootstrap(model_list)
 
     def _predict_from_models(self, model_list: List[Model]):
-        """
-        Predictions for a list of models.
-        """
+        """Predictions for a list of models."""
         prediction_list, targets = [], []
 
         for i, model in enumerate(model_list, start=1):

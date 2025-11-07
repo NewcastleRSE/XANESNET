@@ -19,14 +19,7 @@ from torch import nn
 
 class Model(nn.Module):
     """
-    A base class for constructing neural network model
-    with flags indicating different model types.
-
-    Attributes:
-        nn_flag (int): if nn_flag = 1, the model is configured as a classic type of Neural Network.
-        ae_flag (int): if ae_flag = 1, the model is configured as Autoencoder network.
-        aegan_flag (int): if aegan_flag = 1, the model is configured as an
-            Autoencoder-Generative Adversarial Network
+    Abstract base class for XANESNET models.
     """
 
     def __init__(self):
@@ -37,7 +30,8 @@ class Model(nn.Module):
         self.aegan_flag = 0
         self.gnn_flag = 0
 
-        self.batch_flag = 0  # forward() accepts batch object as input if 1
+        # 0 if forward() accepts a tensor x, 1 if forward() accepts a batch object
+        self.batch_flag = 0
         self.config = {}
 
     def register_config(self, args, **kwargs):
