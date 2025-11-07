@@ -4,7 +4,9 @@ dataset:
   xyz_path: data/fe/xyz_train         # Path to the directory containing .XYZ files
   xanes_path: data/fe/xanes_train     # Path to the directory containing XANES files
   params:
-    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+    gaussian: True
+    widths_eV: [0.5, 1.0, 2.0, 4.0]
     basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
 
 
