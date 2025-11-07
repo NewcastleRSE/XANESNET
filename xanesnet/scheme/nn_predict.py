@@ -47,7 +47,7 @@ class NNPredict(Predict):
         data_loader = self._create_loader(model, self.dataset)
 
         model.eval()
-        predictions, targets = [], []
+        predictions, targets, output_new = [], []
 
         with torch.no_grad():
             for data in data_loader:
