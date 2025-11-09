@@ -54,7 +54,7 @@ class NNPredict(Predict):
                 # Pass X or batch object to model
                 input_data = data if model.batch_flag else data.x
                 output = model(input_data)
-                output = self.to_numpy(output)
+                output_new = self.to_numpy(output)
 
                 if self.mode is Mode.XYZ_TO_XANES and self.fft:
                     output = inverse_fft(output, self.fft_concat)
