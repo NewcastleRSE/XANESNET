@@ -1,3 +1,4 @@
+from . import gaussian
 from . import fourier
 from . import freeze
 from . import loss

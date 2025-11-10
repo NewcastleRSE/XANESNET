@@ -21,12 +21,12 @@ import numpy as np
 import torch
 
 from typing import List, Optional, Tuple
-from sklearn.preprocessing import StandardScaler
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
+from xanesnet.utils.gaussian import SpectralBasis, SpectralPost
 
 
 @dataclass
@@ -43,7 +43,7 @@ class NNPredict(Predict):
         data_loader = self._create_loader(model, self.dataset)
 
         model.eval()
-        predictions, targets = [], []
+        predictions, targets, output_new = [], [], []
 
         with torch.no_grad():
             for data in data_loader:
@@ -55,7 +55,29 @@ class NNPredict(Predict):
                 if self.mode is Mode.XYZ_TO_XANES and self.fft:
                     output = inverse_fft(output, self.fft_concat)
 
-                predictions.append(output)
+                if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
+                    eV = self.dataset[0].e
+                    dE = float(eV[1] - eV[0])
+                    widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
+                    basis_eval = SpectralBasis(
+                        energies=eV,
+                        widths_bins=widths_bins,
+                        normalize_atoms=True,
+                        stride=self.basis_stride,
+                    )
+                    spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+                    spectral_post.eval()
+
+                    coeffs = output
+                    if isinstance(coeffs, np.ndarray):
+                        coeffs = torch.from_numpy(coeffs)
+                    coeffs = coeffs.to(
+                        dtype=basis_eval.Phi.dtype, device=basis_eval.Phi.device
+                    )
+                    output_new = spectral_post.forward_from_coeffs(coeffs)
+                    output_new = self.to_numpy(output_new)
+
+                predictions.append(output_new)
 
                 if self.pred_eval:
                     target = self.to_numpy(data.y)
@@ -64,8 +86,7 @@ class NNPredict(Predict):
         predictions = np.array(predictions)
         targets = np.array(targets)
 
-        if self.pred_eval:
-            # Print MSE of the model prediction
+        if self.pred_eval and not self.gaussian:
             Predict.print_mse("target", "prediction", targets, predictions)
 
         return predictions, targets

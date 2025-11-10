@@ -22,11 +22,9 @@ import torch
 
 from typing import List, Optional, Tuple
 
-import xanesnet
+from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import inverse_fft
-from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -38,13 +36,14 @@ class Prediction:
 
 
 class SSPredict(Predict):
-    def __init__(self, dataset, mode, **kwargs):
-        super().__init__(dataset, mode, **kwargs)
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
         self.stride = kwargs.get("basis_stride")
 
     def predict(self, model):
-        from xanesnet.models.softshell import SpectralPost, SpectralBasis
-
+        """
+        Performs a single prediction with a given model.
+        """
         model.eval()
         predictions, targets = [], []
         data_loader = self._create_loader(model, self.dataset)

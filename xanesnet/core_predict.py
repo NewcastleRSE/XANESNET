@@ -117,7 +117,7 @@ def _setup_scheme(dataset, mode, metadata, pred_eval):
         **metadata["dataset"]["params"],
     }
 
-    scheme = create_predict_scheme(model_type, dataset, mode, **kwargs)
+    scheme = create_predict_scheme(model_type, dataset, **kwargs)
     return scheme
 
 

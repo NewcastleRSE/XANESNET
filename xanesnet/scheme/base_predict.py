@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import logging
-from dataclasses import dataclass
 from typing import List, Tuple
 
 import numpy as np
@@ -40,6 +39,9 @@ class Predict(ABC):
         self.scaler = kwargs.get("scaler")
         self.fft = kwargs.get("fourier")
         self.fft_concat = kwargs.get("fourier_concat")
+        self.gaussian = kwargs.get("gaussian")
+        self.widths_eV = kwargs.get("widths_eV")
+        self.basis_stride = kwargs.get("basis_stride")
 
         # Flag for autoencoder-type predictors
         self.recon_flag = 0

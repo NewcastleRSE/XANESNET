@@ -144,9 +144,7 @@ def create_learn_scheme(
     raise ValueError(f"Unsupported learn scheme for the model: {name}")
 
 
-def create_predict_scheme(
-    name: str, dataset: BaseDataset, mode: Mode, **kwargs
-) -> Predict:
+def create_predict_scheme(name: str, dataset: BaseDataset, **kwargs) -> Predict:
     """
     Create and return an instance of a prediction scheme based on the given scheme name.
 
@@ -157,7 +155,6 @@ def create_predict_scheme(
     Args:
         name (str): The name of the scheme.
         dataset: The dataset instance used for prediction.
-        mode (str): The prediction mode.
         **kwargs: Additional keyword arguments passed to the prediction scheme constructor.
 
     Returns:
@@ -167,6 +164,6 @@ def create_predict_scheme(
         ValueError: If the specified prediction scheme name is not registered.
     """
     if name in PREDICT_SCHEME_REGISTRY:
-        return PREDICT_SCHEME_REGISTRY[name](dataset, mode, **kwargs)
+        return PREDICT_SCHEME_REGISTRY[name](dataset, **kwargs)
     else:
         raise ValueError(f"Unsupported predict scheme for the model: {name}")

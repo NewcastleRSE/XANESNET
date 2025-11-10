@@ -137,7 +137,7 @@ def save_models(
         yaml.dump_all([metadata], f)
 
 
-def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: bool):
+def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: int):
     """
     Save prediction and reconstruction results to disk.
     """

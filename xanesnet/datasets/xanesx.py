@@ -27,6 +27,8 @@ from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
 from xanesnet.utils.mode import Mode
+from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.gaussian import build_ridge_operator
 
 
 @dataclass
@@ -43,7 +45,6 @@ class Data:
                 setattr(self, attr, val.to(device))
         return self
 
-
 @register_dataset("xanesx")
 class XanesXDataset(BaseDataset):
     def __init__(
@@ -58,6 +59,9 @@ class XanesXDataset(BaseDataset):
         # Unpack kwargs
         self.fft = kwargs.get("fourier", False)
         self.fft_concat = kwargs.get("fourier_concat", False)
+        self.gaussian = kwargs.get("gaussian", False)
+        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
+        self.basis_stride = kwargs.get("basis_stride", 2)
 
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
@@ -71,6 +75,9 @@ class XanesXDataset(BaseDataset):
         params = {
             "fourier": self.fft,
             "fourier_concat": self.fft_concat,
+            "gaussian": self.gaussian,
+            "widths_eV":  self.widths_eV, 
+            "basis_stride": self.basis_stride, 
         }
         self.register_config(locals(), type="xanesx")
 
@@ -116,6 +123,17 @@ class XanesXDataset(BaseDataset):
                 e, xanes = load_xanes(raw_path)
                 if self.fft:
                     xanes = fft(xanes, self.fft_concat)
+                elif self.gaussian:
+                    dE = float(e[1] - e[0])
+                    widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
+                    basis = SpectralBasis(
+                        energies=e,
+                        widths_bins=widths_bins,
+                        normalize_atoms=True,
+                        stride=self.basis_stride,
+                    )
+                    A = build_ridge_operator(basis.Phi, lam=1e-2)
+                    xanes = xanes @ A.T
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
