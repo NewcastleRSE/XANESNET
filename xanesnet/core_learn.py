@@ -148,7 +148,6 @@ def _setup_model(config, dataset):
         # Add additional model parameters
         model_params["in_size"] = dataset.x_size
         model_params["out_size"] = dataset.y_size
-
         model = create_model(model_type, **model_params)
 
         weights_config = config["model"].get("weights", {})
@@ -198,6 +197,7 @@ def _setup_scheme(config, args, model, dataset):
     kwargs = {
         "model_config": config.get("model"),
         "hyper_params": config.get("hyperparams", {}),
+        "earlystop_params": config.get("earlystop_params", {}),
         "kfold_params": config.get("kfold_params", {}),
         "bootstrap_params": config.get("bootstrap_params", {}),
         "ensemble_params": config.get("ensemble_params", {}),
@@ -227,6 +227,10 @@ def _train_models(config, scheme):
         logging.info(">> Training model using kfold cross-validation...\n")
         scheme_type = "kfold"
         model_list.append(scheme.train_kfold())
+    elif config["earlystop"]:
+        logging.info(">> Training model using EarlyStop...\n")
+        scheme_type = "earlystop"
+        model_list.append(scheme.train_earlystop())
     else:
         logging.info(">> Training model using standard training procedure...\n")
         scheme_type = "std"

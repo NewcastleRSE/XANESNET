@@ -22,6 +22,7 @@ import sys
 import yaml
 import os
 
+from tblite.interface import Calculator
 from pathlib import Path
 from argparse import ArgumentParser
 from xanesnet.core_learn import train
