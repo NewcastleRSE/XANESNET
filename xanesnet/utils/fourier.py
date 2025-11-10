@@ -22,6 +22,7 @@ def fft(x, concat):
     Transform xanes spectra using Fourier
     """
 
+    x = np.asarray(x)
     y = np.hstack((x, x[::-1]))
     f = np.fft.fft(y)
     z = f.real
