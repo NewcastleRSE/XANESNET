@@ -238,11 +238,7 @@ class NNLearn(Learn):
 
                 if model.gnn_flag:
                     predict = torch.flatten(predict)
-
-                if predict.shape[1] != batch.y.float().shape[1]:
-                    loss = criterion(predict, batch.cstar.float())
-                else:
-                    loss = criterion(predict, batch.y.float())
+                loss = criterion(predict, batch.y.float())
 
                 # Add regularization loss
                 loss_reg = regularizer.loss(model, self.loss_reg, device)
