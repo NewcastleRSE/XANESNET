@@ -18,6 +18,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 ############################### LIBRARY IMPORTS ###############################
 ###############################################################################
 
+from tblite.interface import Calculator
 import numpy as np
 from pyscf import scf, gto
 
@@ -41,7 +42,9 @@ class PDOS(VectorDescriptor):
 
     def __init__(
         self,
-        e_min: float = -20.0,
+        code: str = "xtb",
+        method: str = "GFN2-xTB",
+        e_min: float = 20.0,
         e_max: float = 20.0,
         sigma: float = 0.7,
         orb_type: str = "p",
@@ -49,22 +52,20 @@ class PDOS(VectorDescriptor):
         num_points: float = 200,
         basis: str = "3-21g",
         init_guess: str = "minao",
-        max_scf_cycles: float = 0,
+        max_cycles: float = 0,
         use_charge=False,
         use_spin=False,
         use_quad=False,
         use_occupied=False,
+        accuracy: float = 1.0,
+        guess: int = 0,
+        mixer_damping: float = 0.4,
+        save_integrals: int = 0,
+        temperature: float = 9.5e-4,
+        verbosity: int = 0,
     ):
         """
         Args:
-            l (list, optional): List of lambda values for G4 symmetry function
-                encoding. For details, see Marquetand et al.; J. Chem. Phys.,
-                2018, 148, 241709 (DOI: 10.1063/1.5019667).
-                Defaults to [1.0, -1.0].
-            z (list, optional): List of zeta values for G4 symmetry function
-                encoding. For details, see Marquetand et al.; J. Chem. Phys.,
-                2018, 148, 241709 (DOI: 10.1063/1.5019667).
-                Defaults to [1.0].
             e_min (float, optional): The minimum energy grid point for the pDOS (in eV)
                 Default: -20.0 eV.
             e_max (float, optional): The maximum energy grid point for the pDOS (in eV)
@@ -81,15 +82,12 @@ class PDOS(VectorDescriptor):
             basis (string, optional): Defines the method of the initial guess used by pySCF
                 during generation of the pDOS.
                 Default: minao
-            max_scf_cycles (float, optional): This is the number of SCF cycles used by pySCF
+            max_cycles (float, optional): This is the number of SCF cycles used by pySCF
                 during develop the pDOS. Smaller numbers will be closer to the raw guess, while
                 larger number will take longer to load.
                 Note, the warnings are suppressed and so it will not tell you if the SCF is
                 converged. Larger numbers make this more likely, but do not gurantee it.
                 Default: 0
-            use_wacsf (bool): If True, the wacsf descriptor for the structure is also generated
-                and concatenated onto the end after the pDOS descriptor.
-                Defaults to False.
             use_charge (bool): If True, includes an additional element in the
                 vector descriptor for the charge state of the complex.
                 Defaults to False.
@@ -99,16 +97,30 @@ class PDOS(VectorDescriptor):
             use_quad (bool): If True, includes d-orbitals in the p-DOS for
                 to account for quadrupole transitions.
                 Defaults to False.
+            accuracy (float): Numerical thresholds for SCC.
+                Defaults to 1.0.
+            guess (int): Initial guess for wavefunction.
+                Defaults to 0 (SAD).
+            mixer_damping (float): Parameter for the SCC mixer.
+                Defaults to 0.4.
+            save_integrals (int): Keep integral matrices in results.
+                Defaults to 0 (False).
+            temperature (float): Electronic temperature for filling.
+                Defaults to 9.500e-4.
+            verbosity (float): Set verbosity of printout
+                Defaults to 0
         """
 
         super().__init__(0.0, 6.0, use_charge, use_spin)
 
         self.register_config(locals(), type="pdos")
 
+        self.code = code
+        self.method = method 
         self.e_min = e_min
         self.e_max = e_max
         self.num_points = num_points
-        self.max_scf_cycles = max_scf_cycles
+        self.max_cycles = max_cycles
         self.basis = basis
         self.sigma = sigma
         self.init_guess = init_guess
@@ -118,170 +130,198 @@ class PDOS(VectorDescriptor):
         self.use_charge = use_charge
         self.use_quad = use_quad
         self.use_occupied = use_occupied
+        self.verbosity = verbosity
 
     def transform(self, system: Atoms) -> np.ndarray:
+        if self.code == "xtb":
+            return self._transform_xtb(system)
+        elif self.code == "pyscf":
+            return self._transform_pyscf(system)
+        else:
+            raise ValueError(f"Unknown method: {self.method}")
+
+    def _validate_charge_spin(self, total_electrons: int, charge: int, spin: int):
+        if (self.use_spin and not self.use_charge) or (not self.use_spin and self.use_charge):
+            raise NotImplementedError(
+                "For the p-DOS descriptor, it is not a good idea to only consider overall charge or spin state. "
+                "Both should be included simultaneously or not at all."
+            )
+        if self.use_spin and self.use_charge:
+            # consistency between parity of electron count and spin multiplicity
+            if (((total_electrons - charge) % 2) == 1) and (spin % 2) == 0:
+                raise ValueError(
+                    "The number of electrons is inconsistent with the spin state you have defined."
+                )
+            if (((total_electrons - charge) % 2) == 0) and (spin % 2) == 1:
+                raise ValueError(
+                    "The number of electrons is inconsistent with the spin state you have defined."
+                )
+
+    def _transform_xtb(self, system: Atoms) -> np.ndarray:
+        numbers = system.get_atomic_numbers()
+        nelectron = int(np.sum(numbers))
+        positions = system.get_positions() * 1.8897259886  # Å -> bohr
+
+        # charge / spin
+        if self.use_spin and self.use_charge:
+            charge = int(system.info.get("q", 0))
+            spin = int(system.info.get("s", 0))
+        else:
+            charge = 0
+            spin = 0
+
+        self._validate_charge_spin(nelectron, charge, spin)
+
+        # set up xTB calculator
+        calc = Calculator(self.method, numbers, positions, charge, spin)
+        calc.set("verbosity", self.verbosity)
+        calc.set("max-iter", self.max_cycles)
+
+        try:
+            res = calc.singlepoint()
+            _ = res.get("energy")  # ensure computed
+            coeff = np.square(res.get("orbital-coefficients"))  # AO contribution weights
+            # Pick p-channel rows depending on absorbing atom Z (first atom)
+            z0 = int(numbers[0])
+            # For transition metals and heavier series the AO ordering can put core (0:?) then valence;
+            # the original code used slices [6:8] for p and [0:4] for d. Preserve that intent.
+            if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
+                p_rows = slice(6, 8)
+                d_rows = slice(0, 4)
+            else:
+                p_rows = slice(1, 3)   # lighter elements: p ~ rows 1-2 in that basis mapping
+                d_rows = slice(0, 0)   # unused unless quad requested for TMs
+
+            # p-DOS fraction for each MO
+            p_dos = np.array([
+                np.sum(coeff[p_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])
+            ])
+
+            # MO energies and occupations
+            orbe = np.asarray(res.get("orbital-energies")) * 27.211324570273  # eV
+            orbo = np.asarray(res.get("orbital-occupations"))
+
+            if self.use_occupied:
+                weights = p_dos * np.abs(orbo)
+            else:
+                weights = p_dos * np.abs(orbo - 2.0)  # unoccupied part
+
+            x = np.linspace(self.e_min, self.e_max, num=self.num_points, endpoint=True)
+            pdos_gauss = np.asarray(spectrum(orbe, weights, self.sigma, x), dtype=float)
+
+            if self.use_quad:
+                if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
+                    d_dos = np.array([
+                        np.sum(coeff[d_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])
+                    ])
+                else:
+                    raise ValueError("d-orbitals are not considered for these atoms.")
+
+                if self.use_occupied:
+                    d_weights = d_dos * np.abs(orbo)
+                else:
+                    d_weights = d_dos * np.abs(orbo - 2.0)
+
+                ddos_gauss = np.asarray(spectrum(orbe, d_weights, self.sigma, x), dtype=float)
+                pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
+
+        except Exception:
+            pdos_gauss = np.full(self.num_points * (2 if self.use_quad else 1), np.nan)
+
+        return pdos_gauss
+
+    def _transform_pyscf(self, system: Atoms) -> np.ndarray:
         mol = gto.Mole()
         mol.atom = atoms_to_pyscf(system)
         mol.basis = self.basis
 
-        if (self.use_spin and not self.use_charge) or (
-            not self.use_spin and self.use_charge
-        ):
-            err_str = (
-                "For the p-DOS descriptor, it is not a good idea to only"
-                "consider overall charge or spin state. Both should be"
-                "include simultaneously or not at all."
-            )
-            raise NotImplementedError(err_str)
-
+        # charge / spin
+        if self.use_spin and self.use_charge:
+            charge = int(system.info.get("q", 0))
+            spin = int(system.info.get("s", 0))
         else:
-            if self.use_spin and self.use_charge:
-                charge = system.info["q"]
-                spin = system.info["s"]
-                if (((mol.nelectron - charge) % 2) == 1) and (spin % 2) == 0:
-                    err_str = (
-                        "The number of electrons is inconsistent with the spin"
-                        "state you have defined."
-                    )
-                    raise ValueError(err_str)
-                elif (((mol.nelectron - charge) % 2) == 0) and (spin % 2) == 1:
-                    err_str = (
-                        "The number of electrons is inconsistent with the spin"
-                        "state you have defined."
-                    )
-                    raise ValueError(err_str)
-            else:
-                charge = 0
-                spin = 0
+            charge = 0
+            spin = 0
 
+        # Build molecule (mol.nelectron available after build)
         mol.build(charge=charge, spin=spin)
+        self._validate_charge_spin(mol.nelectron, charge, spin)
 
-        # Create a SCF (Self-Consistent Field) object with a specific max_cycle value
-        max_scf_cycles = self.max_scf_cycles
+        # UHF setup
         mf = scf.UHF(mol)
         mf.init_guess = self.init_guess
-        mf.max_cycle = max_scf_cycles
-        # Perform the SCF calculation, suppress warnings as we know SCF isn't converged!
+        mf.max_cycle = self.max_cycles
         mf.verbose = 0
-        mf.kernel()
+        mf.kernel()  # proceed even if unconverged
 
-        # Get the atomic orbital coefficients for molecular orbitals
-        alpha_ao_coefficients = mf.mo_coeff[0]
-        beta_ao_coefficients = mf.mo_coeff[1]
-        ao_labels = mol.ao_labels()
+        # MO coefficients and labels
+        alpha_ao = mf.mo_coeff[0]  # (nao, nmo_a)
+        beta_ao = mf.mo_coeff[1]   # (nao, nmo_b)
+        ao_labels = mol.ao_labels()  # e.g. "0 C 1s", "0 C 2px", "1 O 2py", ...
 
-        # Get the orbital energies
-        alpha_orbital_energies = mf.mo_energy[0]
-        beta_orbital_energies = mf.mo_energy[1]
-        alpha_occ = mf.mo_occ[0]
-        beta_occ = mf.mo_occ[1]
-        # Setup pdos arrays
-        alpha_pdos = np.zeros_like(alpha_orbital_energies)
-        beta_pdos = np.zeros_like(beta_orbital_energies)
+        # Energies (Hartree -> eV) and occupations
+        alpha_eps = np.asarray(mf.mo_energy[0]) * 27.211324570273
+        beta_eps  = np.asarray(mf.mo_energy[1]) * 27.211324570273
+        alpha_occ = np.asarray(mf.mo_occ[0])
+        beta_occ  = np.asarray(mf.mo_occ[1])
 
-        # Calculate the squared magnitude of coefficients and convert to percentages
-        alpha_coeff_magnitude_squared = np.square(alpha_ao_coefficients)
-        beta_coeff_magnitude_squared = np.square(beta_ao_coefficients)
-        alpha_coeff_percentage = alpha_coeff_magnitude_squared / np.sum(
-            alpha_coeff_magnitude_squared, axis=0
-        )
-        beta_coeff_percentage = beta_coeff_magnitude_squared / np.sum(
-            beta_coeff_magnitude_squared, axis=0
-        )
+        # Normalize squared AO coeffs to percentages per MO
+        a_sq = np.square(alpha_ao)
+        b_sq = np.square(beta_ao)
+        a_pct = a_sq / np.sum(a_sq, axis=0, keepdims=True)
+        b_pct = b_sq / np.sum(b_sq, axis=0, keepdims=True)
 
-        # Find the index of the first atom's (absorbing atom) atomic orbital labels
-        first_atom_index = ao_labels.index(
-            [label for label in ao_labels if label.split()[0] == "1"][0]
-        )
+        # Build masks for AOs on the absorbing atom (index 0) and by orbital type
+        absorbing_atom_index = 0
+        parsed = [lbl.split() for lbl in ao_labels]  # [atom_idx, element, ao_type, ...]
+        ao_on_absorber = np.array([int(p[0]) == absorbing_atom_index for p in parsed])
+        ao_types = [p[2] for p in parsed]
 
-        # Find coeff_percent for absorbing atom
-        for i, alpha_coeff_percent in enumerate(alpha_coeff_percentage.T):
-            p_contribution = 0
-            for j, percent in enumerate(alpha_coeff_percent):
-                if j < first_atom_index:
-                    label = ao_labels[j]
-                    atomic_num, orb_type = label.split()[1], label.split()[2]
-                    if self.orb_type in orb_type:
-                        p_contribution = p_contribution + percent
-            alpha_pdos[i] = p_contribution
+        def build_channel_mask(substr: str) -> np.ndarray:
+            # match if substr (e.g., "p" or "d") appears in AO type string like "2px", "3dxy"
+            return np.array([substr in t for t in ao_types])
 
-        for i, beta_coeff_percent in enumerate(beta_coeff_percentage.T):
-            p_contribution = 0
-            for j, percent in enumerate(beta_coeff_percent):
-                if j < first_atom_index:
-                    label = ao_labels[j]
-                    atomic_num, orb_type = label.split()[1], label.split()[2]
-                    if self.orb_type in orb_type:
-                        p_contribution = p_contribution + percent
-            beta_pdos[i] = p_contribution
+        p_mask = ao_on_absorber & build_channel_mask(self.orb_type)
+        if self.use_quad:
+            d_mask = ao_on_absorber & build_channel_mask(self.quad_orb_type)
+
+        # Sum contributions over matching AOs for each MO
+        alpha_pdos = np.sum(a_pct[p_mask, :], axis=0)
+        beta_pdos  = np.sum(b_pct[p_mask, :], axis=0)
 
         if self.use_quad:
-            # Setup occ arrays
-            alpha_ddos = np.zeros_like(alpha_occ)
-            beta_ddos = np.zeros_like(beta_occ)
+            alpha_ddos = np.sum(a_pct[d_mask, :], axis=0)
+            beta_ddos  = np.sum(b_pct[d_mask, :], axis=0)
 
-            for i, alpha_coeff_percent in enumerate(alpha_coeff_percentage.T):
-                d_contribution = 0
-                for j, percent in enumerate(alpha_coeff_percent):
-                    if j < first_atom_index:
-                        label = ao_labels[j]
-                        atomic_num, orb_type = label.split()[1], label.split()[2]
-                        if self.quad_orb_type in orb_type:
-                            d_contribution = d_contribution + percent
-                alpha_ddos[i] = d_contribution
-
-            for i, beta_coeff_percent in enumerate(beta_coeff_percentage.T):
-                d_contribution = 0
-                for j, percent in enumerate(beta_coeff_percent):
-                    if j < first_atom_index:
-                        label = ao_labels[j]
-                        atomic_num, orb_type = label.split()[1], label.split()[2]
-                        if self.quad_orb_type in orb_type:
-                            d_contribution = d_contribution + percent
-                beta_ddos[i] = d_contribution
-
-        # Convert orbital energies from atomic units to eV
-        alpha_orbital_energies = np.multiply(alpha_orbital_energies, 27.211324570273)
-        beta_orbital_energies = np.multiply(beta_orbital_energies, 27.211324570273)
-
-        # Filter out the occupied orbitals
+        # Choose occupied vs unoccupied
         if self.use_occupied:
-            final_alpha_orbital_energies = alpha_orbital_energies[: mol.nelec[0] - 1]
-            final_alpha_pdos = alpha_pdos[: mol.nelec[0] - 1]
-            final_beta_orbital_energies = beta_orbital_energies[: mol.nelec[1] - 1]
-            final_beta_pdos = beta_pdos[: mol.nelec[1] - 1]
+            a_eps_final = alpha_eps[: mol.nelec[0] - 1]
+            a_pdos_final = alpha_pdos[: mol.nelec[0] - 1]
+            b_eps_final = beta_eps[: mol.nelec[1] - 1]
+            b_pdos_final = beta_pdos[: mol.nelec[1] - 1]
+            if self.use_quad:
+                a_ddos_final = alpha_ddos[: mol.nelec[0] - 1]
+                b_ddos_final = beta_ddos[: mol.nelec[1] - 1]
         else:
-            final_alpha_orbital_energies = alpha_orbital_energies[mol.nelec[0] :]
-            final_alpha_pdos = alpha_pdos[mol.nelec[0] :]
-            final_beta_orbital_energies = beta_orbital_energies[mol.nelec[1] :]
-            final_beta_pdos = beta_pdos[mol.nelec[1] :]
+            a_eps_final = alpha_eps[mol.nelec[0]:]
+            a_pdos_final = alpha_pdos[mol.nelec[0]:]
+            b_eps_final = beta_eps[mol.nelec[1]:]
+            b_pdos_final = beta_pdos[mol.nelec[1]:]
+            if self.use_quad:
+                a_ddos_final = alpha_ddos[mol.nelec[0]:]
+                b_ddos_final = beta_ddos[mol.nelec[1]:]
 
-        if self.use_quad:
-            if self.use_occupied:
-                final_alpha_ddos = alpha_ddos[: mol.nelec[0] - 1]
-                final_beta_ddos = beta_ddos[: mol.nelec[1] - 1]
-            else:
-                final_alpha_pdos = alpha_ddos[mol.nelec[0] :]
-                final_beta_pdos = beta_ddos[mol.nelec[1] :]
-
-        # Generate a grid and broaden pDOS
+        # Broaden
         x = np.linspace(self.e_min, self.e_max, num=self.num_points, endpoint=True)
-        sigma = self.sigma
-        alpha_gE = spectrum(final_alpha_orbital_energies, final_alpha_pdos, sigma, x)
-        beta_gE = spectrum(final_beta_orbital_energies, final_beta_pdos, sigma, x)
-
-        gE = np.divide(np.add(alpha_gE, beta_gE), 2)
-
-        pdos_gauss = gE
+        alpha_gE = np.asarray(spectrum(a_eps_final, a_pdos_final, self.sigma, x))
+        beta_gE  = np.asarray(spectrum(b_eps_final, b_pdos_final, self.sigma, x))
+        pdos_gauss = 0.5 * (alpha_gE + beta_gE)
 
         if self.use_quad:
-            d_alpha_gE = spectrum(
-                final_alpha_orbital_energies, final_alpha_ddos, sigma, x
-            )
-            d_beta_gE = spectrum(final_beta_orbital_energies, final_beta_ddos, sigma, x)
-            gE = np.divide(np.add(d_alpha_gE, d_beta_gE), 2)
-            ddos_gauss = gE
-            pdos_gauss = np.append(pdos_gauss, ddos_gauss)
+            d_alpha_gE = np.asarray(spectrum(a_eps_final, a_ddos_final, self.sigma, x))
+            d_beta_gE  = np.asarray(spectrum(b_eps_final, b_ddos_final, self.sigma, x))
+            ddos_gauss = 0.5 * (d_alpha_gE + d_beta_gE)
+            pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
 
         return pdos_gauss
 
