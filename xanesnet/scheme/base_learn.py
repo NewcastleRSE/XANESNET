@@ -60,6 +60,7 @@ class Learn(ABC):
         model_config = kwargs.get("model_config")
         hyper_params = kwargs.get("hyper_params")
         kfold_params = kwargs.get("kfold_params")
+        earlystop_params = kwargs.get("earlystop_params")
         bootstrap_params = kwargs.get("bootstrap_params")
         ensemble_params = kwargs.get("ensemble_params")
         scheduler_params = kwargs.get("scheduler_params")
@@ -79,12 +80,16 @@ class Learn(ABC):
         self.loss = hyper_params.get("loss", "mse")
         self.loss_reg = hyper_params.get("loss_reg", "None")
         self.loss_lambda = hyper_params.get("loss_lambda", 0.0001)
+        self.n_earlystop = earlystop_params.get("n_earlystop", 50)
         self.seed = hyper_params.get("seed", random.randrange(1000))
 
         # --- K-Fold cross-validation parameters ---
         self.n_splits = kfold_params.get("n_splits", 3)
         self.n_repeats = kfold_params.get("n_repeats", 1)
         self.seed_kfold = kfold_params.get("seed", random.randrange(1000))
+
+        # earlystop
+        self.n_earlystop = earlystop_params.get("n_earlystop", 50)
 
         # --- Bootstrap learning parameters ---
         self.n_boot = bootstrap_params.get("n_boot", 3)

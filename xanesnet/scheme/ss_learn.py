@@ -97,6 +97,92 @@ class SSLearn(Learn):
 
         return score
 
+    def train_earlystop(self):
+        from xanesnet.models.softshell import SpectralPost, SpectralBasis
+
+        model = self.model
+        dataset = self.dataset
+
+        train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
+        model.to(self.device)
+
+        # Initialise parameter-free spectral "post" component
+        eV = dataset[0].e
+        widths_bins = self.compute_widths_bins(eV)
+
+        basis = SpectralBasis(
+            energies=eV,
+            widths_bins=widths_bins,
+            normalize_atoms=True,
+            stride=self.basis_stride,
+        ).to(self.device)
+
+        spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
+        spectral_post.eval()
+
+        # Model diagnostics
+        self.model_diagnostics(spectral_post, model, dataset)
+
+        # Initialise optimizer
+        model_param = list(model.encoder.parameters()) + list(
+            model.coeff_head.parameters()
+        )
+
+        optimizer, criterion, regularizer, scheduler = self.setup_components(model)
+
+        saved_model = copy.deepcopy(model)
+        epochs_no_improve = 0
+        saved_loss = self._run_one_epoch_valid(
+            0, valid_loader, model, spectral_post
+        )
+        
+        valid_loss = 0.0
+        logging.info(f"--- Starting EarlyStop Training for MAX:{self.epochs} epochs ---")
+        for epoch in range(self.epochs):
+            # Run training phase
+            train_loss = self._run_one_epoch_train(
+                epoch, train_loader, model, optimizer, spectral_post
+            )
+
+            # Run validation phase
+            valid_loss = self._run_one_epoch_valid(
+                epoch, valid_loader, model, spectral_post
+            )
+
+            if self.lr_scheduler:
+                scheduler.step()
+
+            # Logging for the current epoch
+            self.log_epoch(
+                epoch, "Base", train_loss, valid_loss
+            )
+
+            if all(valid_loss[k] < saved_loss[k] for k in valid_loss):
+                saved_loss = valid_loss
+                epochs_no_improve = 0
+                saved_model = copy.deepcopy(model)
+            else:
+                epochs_no_improve += 1
+
+            if epochs_no_improve >= self.n_earlystop:
+                print("Early stopping triggered!")
+                break
+
+        logging.info("--- Training Finished ---")
+
+        # Log model and final evaluation
+        if self.mlflow_flag:
+            logging.info("\nLogging the trained model as a run artifact...")
+            self.log_mlflow(saved_model)
+
+        self.log_close()
+
+        # The final score is the validation loss from the last epoch
+        score = valid_loss
+
+        return saved_model
+
+
     def train_std(self):
         """
         Performs standard training run

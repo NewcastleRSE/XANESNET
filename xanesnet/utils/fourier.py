@@ -15,32 +15,31 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import numpy as np
+import torch
 
-
-def fft(x, concat):
-    """
-    Transform xanes spectra using Fourier
-    """
-
-    y = np.hstack((x, x[::-1]))
-    f = np.fft.fft(y)
+def fft(x: torch.Tensor, concat: bool) -> torch.Tensor:
+    x = x.to(dtype=torch.float32)
+    x_rev = torch.flip(x, dims=[-1])
+    y = torch.cat([x, x_rev], dim=-1)
+    f = torch.fft.fft(y)
     z = f.real
 
-    # Combine features
     if concat:
-        z = np.concatenate((x, z))
+        z = torch.cat([x, z], dim=-1)
 
     return z
 
+def inverse_fft(z: torch.Tensor, concat: bool) -> torch.Tensor:
+    z = z.to(dtype=torch.float32)
+    L = z.shape[-1]
 
-def inverse_fft(z, concat):
-    """
-    Get inverse of fourier transformed data
-    """
-    # Decompose features
     if concat:
-        z = z[z.size // 3 :]
+        N = L // 3
+        z = z[..., N:]
+    else:
+        N = L // 2
 
-    iz = np.fft.ifft(z).real[: z.size // 2]
+    iz = torch.fft.ifft(z, dim=-1).real
+    iz = iz[..., :N]
 
     return iz
