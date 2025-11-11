@@ -21,7 +21,6 @@ model:
   type: softshell
   params:
       n_shells: 4
-      latent_dim: 512
       max_radius_angs: 7.0
       init_width: 0.8
       use_gating: True
