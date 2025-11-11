@@ -15,10 +15,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import math
+from typing import List
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
+
 
 class SpectralBasis(nn.Module):
     def __init__(
@@ -77,6 +80,7 @@ class SpectralPost(nn.Module):
             y = y.clamp_min_(0)
         return y
 
+
 def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     """
     A = (Φᵀ Φ + λ I)^{-1} Φᵀ  with Cholesky; fallback to augmented LSQ.
@@ -105,3 +109,17 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
         A = torch.linalg.lstsq(A_aug, rhs, rcond=None).solution  # (K, N_E)
 
     return A.to(torch.float32)
+
+
+def gaussian_fit(E: Tensor, xanes: Tensor, widths_eV: List, stride: int) -> Tensor:
+    dE = float(E[1] - E[0])
+    widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
+    basis = SpectralBasis(
+        energies=E,
+        widths_bins=widths_bins,
+        normalize_atoms=True,
+        stride=stride,
+    )
+    A = build_ridge_operator(basis.Phi, lam=1e-2)
+
+    return xanes @ A.T

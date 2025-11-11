@@ -234,10 +234,10 @@ def _train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
         logging.info(">> Training model using kfold cross-validation...\n")
         scheme_type = "kfold"
         model_list.append(scheme.train_kfold())
-    elif config["earlystop"]:
-        logging.info(">> Training model using EarlyStop...\n")
-        scheme_type = "earlystop"
-        model_list.append(scheme.train_earlystop())
+    # elif config["earlystop"]:
+    #     logging.info(">> Training model using EarlyStop...\n")
+    #     scheme_type = "earlystop"
+    #     model_list.append(scheme.train_earlystop())
     else:
         logging.info(">> Training model using standard training procedure...\n")
         scheme_type = "std"

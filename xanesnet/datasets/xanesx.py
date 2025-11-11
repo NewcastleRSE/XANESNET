@@ -27,8 +27,7 @@ from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import SpectralBasis
-from xanesnet.utils.gaussian import build_ridge_operator
+from xanesnet.utils.gaussian import gaussian_fit
 
 
 @dataclass
@@ -44,6 +43,7 @@ class Data:
             if val is not None:
                 setattr(self, attr, val.to(device))
         return self
+
 
 @register_dataset("xanesx")
 class XanesXDataset(BaseDataset):
@@ -76,8 +76,8 @@ class XanesXDataset(BaseDataset):
             "fourier": self.fft,
             "fourier_concat": self.fft_concat,
             "gaussian": self.gaussian,
-            "widths_eV":  self.widths_eV, 
-            "basis_stride": self.basis_stride, 
+            "widths_eV": self.widths_eV,
+            "basis_stride": self.basis_stride,
         }
         self.register_config(locals(), type="xanesx")
 
@@ -124,16 +124,7 @@ class XanesXDataset(BaseDataset):
                 if self.fft:
                     xanes = fft(xanes, self.fft_concat)
                 elif self.gaussian:
-                    dE = float(e[1] - e[0])
-                    widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
-                    basis = SpectralBasis(
-                        energies=e,
-                        widths_bins=widths_bins,
-                        normalize_atoms=True,
-                        stride=self.basis_stride,
-                    )
-                    A = build_ridge_operator(basis.Phi, lam=1e-2)
-                    xanes = xanes @ A.T
+                    xanes = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes

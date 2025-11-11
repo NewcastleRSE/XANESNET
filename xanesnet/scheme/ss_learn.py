@@ -38,6 +38,7 @@ class SSLearn(Learn):
         super().__init__(model, dataset, **kwargs)
 
         hyper_params = self.hyper_params
+        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
         self.basis_stride = hyper_params.get("basis_stride", 4)
 
         self.loss_kwargs = dict(
@@ -52,11 +53,12 @@ class SSLearn(Learn):
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
         model.to(self.device)
 
-        eV = dataset[0].e
-        widths_bins = self.compute_widths_bins(eV)
+        e = dataset[0].e
+        dE = float(e[1] - e[0])
+        widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
 
         basis = SpectralBasis(
-            energies=eV,
+            energies=e,
             widths_bins=widths_bins,
             normalize_atoms=True,
             stride=self.basis_stride,
@@ -132,12 +134,12 @@ class SSLearn(Learn):
 
         saved_model = copy.deepcopy(model)
         epochs_no_improve = 0
-        saved_loss = self._run_one_epoch_valid(
-            0, valid_loader, model, spectral_post
-        )
-        
+        saved_loss = self._run_one_epoch_valid(0, valid_loader, model, spectral_post)
+
         valid_loss = 0.0
-        logging.info(f"--- Starting EarlyStop Training for MAX:{self.epochs} epochs ---")
+        logging.info(
+            f"--- Starting EarlyStop Training for MAX:{self.epochs} epochs ---"
+        )
         for epoch in range(self.epochs):
             # Run training phase
             train_loss = self._run_one_epoch_train(
@@ -153,9 +155,7 @@ class SSLearn(Learn):
                 scheduler.step()
 
             # Logging for the current epoch
-            self.log_epoch(
-                epoch, "Base", train_loss, valid_loss
-            )
+            self.log_epoch(epoch, "Base", train_loss, valid_loss)
 
             if all(valid_loss[k] < saved_loss[k] for k in valid_loss):
                 saved_loss = valid_loss
@@ -181,7 +181,6 @@ class SSLearn(Learn):
         score = valid_loss
 
         return saved_model
-
 
     def train_std(self):
         """
@@ -306,14 +305,6 @@ class SSLearn(Learn):
         logging.info(f"TOTAL trainable parameters: {trainable_e + trainable_h:,}")
 
         return spectral_post
-
-    @staticmethod
-    def compute_widths_bins(eV):
-        dE = float(eV[1] - eV[0])
-        widths_eV = (0.5, 1.0, 2.0, 4.0)
-        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
-
-        return widths_bins
 
     @staticmethod
     def count_trainable_params(m):

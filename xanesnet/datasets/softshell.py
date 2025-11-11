@@ -32,7 +32,7 @@ from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.gaussian import SpectralBasis, gaussian_fit
 from xanesnet.utils.gaussian import build_ridge_operator
 
 
@@ -66,8 +66,8 @@ class SoftShellDataset(BaseDataset):
         **kwargs,
     ):
         # Unpack kwargs
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
+        self.gaussian = kwargs.get("gaussian", False)
+        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
         self.basis_stride = kwargs.get("basis_stride", 4)
 
         # dataset accepts only one path each for the XYZ and XANES datasets.
@@ -86,8 +86,8 @@ class SoftShellDataset(BaseDataset):
 
         # Save configuration
         params = {
-            "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
+            "gaussian": self.gaussian,
+            "widths_eV": self.widths_eV,
             "basis_stride": self.basis_stride,
         }
         self.register_config(locals(), type="softshell")
@@ -117,9 +117,7 @@ class SoftShellDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
-        energy_flag = 0
         y_len = 0
-        A = None
 
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
@@ -131,39 +129,16 @@ class SoftShellDataset(BaseDataset):
             # distance feature tensor
             dist = self.distances_to_absorber(mol, absorber_idx=0)  # (n_atoms,)
 
-            # energy (eV) intensities (xanes), and energy coeffs (c_star) tensors
-            eV = c_star = xanes = None
+            e = c_star = xanes = None
             if self.xanes_path:
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
-                eV, xanes = load_xanes(raw_path)
+                e, xanes = load_xanes(raw_path)
 
-                dE = float(eV[1] - eV[0])
-                torch.set_printoptions(precision=8)
-
-                if not energy_flag:
-                    widths_eV = (0.5, 1.0, 2.0, 4.0)
-                    widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
-                    y_len = len(xanes)
-
-                    basis = SpectralBasis(
-                        energies=eV,
-                        widths_bins=widths_bins,
-                        normalize_atoms=True,
-                        stride=self.basis_stride,
-                    )
-                    A = build_ridge_operator(basis.Phi, lam=1e-2)  # (K, N)
-
-                    energy_flag = 1
-
-                if len(xanes) != y_len:
-                    raise ValueError(
-                        f"Spectrum length mismatch for {stem}: expected {y_len}, got {len(xanes)}."
-                    )
-
-                c_star = xanes @ A.T
+                if self.gaussian:
+                    c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
 
             # initialise data object
-            data = Data(desc=desc, dist=dist, y=xanes, e=eV, c_star=c_star)
+            data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
             # save data to disk
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
