@@ -63,6 +63,8 @@ class WACSF(VectorDescriptor):
         g4_parameterisation: str = "centred",
         use_charge=False,
         use_spin=False,
+        absorber_atom_only: bool = True,
+
     ):
         """
         Args:
@@ -116,7 +118,7 @@ class WACSF(VectorDescriptor):
         self.g4_parameterisation = g4_parameterisation
         self.use_charge = use_charge
         self.use_spin = use_spin
-        absorber_atom_only: bool = True,
+        self.absorber_atom_only = absorber_atom_only
         if self.n_g4:
             self.l = l if l is not None else [1.0, -1.0]
             self.z = z if z is not None else [1.0]
