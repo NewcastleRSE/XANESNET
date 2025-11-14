@@ -39,8 +39,12 @@ class Prediction:
 
 
 class AEPredict(Predict):
-    def __init__(self, xyz_data, xanes_data, **kwargs):
-        super().__init__(xyz_data, xanes_data, **kwargs)
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+        self.fft = kwargs.get("fourier")
+        self.fft_concat = kwargs.get("fourier_concat")
+
         self.recon_flag = 1
 
     def predict(self, model):
@@ -48,6 +52,7 @@ class AEPredict(Predict):
         Performs a single prediction with a given model.
         """
         data_loader = self._create_loader(model, self.dataset)
+
         model.eval()
         predictions, reconstructions, targets_x, targets_y = [], [], [], []
 

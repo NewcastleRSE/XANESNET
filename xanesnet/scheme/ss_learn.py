@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 from collections import defaultdict
 
-from xanesnet.scheme.base_learn import Learn
+from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch
 from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
 
@@ -51,41 +51,46 @@ class SSLearn(Learn):
 
     def train(self, model, dataset):
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
+
+        optimizer, _, _, scheduler = self.setup_components(model)
         model.to(self.device)
 
-        e = dataset[0].e
-        dE = float(e[1] - e[0])
-        widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
-
         basis = SpectralBasis(
-            energies=e,
-            widths_bins=widths_bins,
+            energies=dataset[0].e,
+            widths_eV=self.widths_eV,
             normalize_atoms=True,
             stride=self.basis_stride,
         ).to(self.device)
 
         spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
         spectral_post.eval()
+        self._model_diagnostics(spectral_post, model, dataset)
 
-        self.model_diagnostics(spectral_post, model, dataset)
-
-        optimizer, criterion, regularizer, scheduler = self.setup_components(model)
-
+        state = EarlyStopState() if self.earlystop_flag else None
         valid_loss = 0.0
+
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
+            # Run training phase
             train_loss = self._run_one_epoch_train(
                 epoch, train_loader, model, optimizer, spectral_post
             )
 
-            valid_loss = self._run_one_epoch_valid(
-                epoch, valid_loader, model, spectral_post
-            )
+            # Run validation phase
+            valid_loss = self._run_one_epoch_valid(valid_loader, model, spectral_post)
 
+            # Adjust learning rate if scheduler is used
             if self.lr_scheduler:
                 scheduler.step()
 
-            self.log_epoch(epoch, "Base", train_loss, valid_loss)
+            # Logging for the current epoch
+            self._log_epoch_loss(epoch, train_loss, valid_loss)
+
+            # Early stopping
+            if self.earlystop_flag:
+                self._early_stop(valid_loss, state)
+                if state.stop:
+                    break
 
         logging.info("--- Training Finished ---")
 
@@ -98,89 +103,6 @@ class SSLearn(Learn):
         score = valid_loss
 
         return score
-
-    def train_earlystop(self):
-        from xanesnet.models.softshell import SpectralPost, SpectralBasis
-
-        model = self.model
-        dataset = self.dataset
-
-        train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
-        model.to(self.device)
-
-        # Initialise parameter-free spectral "post" component
-        eV = dataset[0].e
-        widths_bins = self.compute_widths_bins(eV)
-
-        basis = SpectralBasis(
-            energies=eV,
-            widths_bins=widths_bins,
-            normalize_atoms=True,
-            stride=self.basis_stride,
-        ).to(self.device)
-
-        spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
-        spectral_post.eval()
-
-        # Model diagnostics
-        self.model_diagnostics(spectral_post, model, dataset)
-
-        # Initialise optimizer
-        model_param = list(model.encoder.parameters()) + list(
-            model.coeff_head.parameters()
-        )
-
-        optimizer, criterion, regularizer, scheduler = self.setup_components(model)
-
-        saved_model = copy.deepcopy(model)
-        epochs_no_improve = 0
-        saved_loss = self._run_one_epoch_valid(0, valid_loader, model, spectral_post)
-
-        valid_loss = 0.0
-        logging.info(
-            f"--- Starting EarlyStop Training for MAX:{self.epochs} epochs ---"
-        )
-        for epoch in range(self.epochs):
-            # Run training phase
-            train_loss = self._run_one_epoch_train(
-                epoch, train_loader, model, optimizer, spectral_post
-            )
-
-            # Run validation phase
-            valid_loss = self._run_one_epoch_valid(
-                epoch, valid_loader, model, spectral_post
-            )
-
-            if self.lr_scheduler:
-                scheduler.step()
-
-            # Logging for the current epoch
-            self.log_epoch(epoch, "Base", train_loss, valid_loss)
-
-            if all(valid_loss[k] < saved_loss[k] for k in valid_loss):
-                saved_loss = valid_loss
-                epochs_no_improve = 0
-                saved_model = copy.deepcopy(model)
-            else:
-                epochs_no_improve += 1
-
-            if epochs_no_improve >= self.n_earlystop:
-                print("Early stopping triggered!")
-                break
-
-        logging.info("--- Training Finished ---")
-
-        # Log model and final evaluation
-        if self.mlflow_flag:
-            logging.info("\nLogging the trained model as a run artifact...")
-            self.log_mlflow(saved_model)
-
-        self.log_close()
-
-        # The final score is the validation loss from the last epoch
-        score = valid_loss
-
-        return saved_model
 
     def train_std(self):
         """
@@ -243,14 +165,14 @@ class SSLearn(Learn):
 
         return train_losses
 
-    def _run_one_epoch_valid(self, epoch, loader, model, spectral_post):
+    def _run_one_epoch_valid(self, loader, model, spectral_post):
         """Runs a single epoch of training or validation."""
         model.eval()
 
-        epoch_losses = defaultdict(float)
+        running_loss = 0.0
+        n_elem = 0
         device = self.device
 
-        n_elem = 0
         with torch.set_grad_enabled(False):
             for batch in loader:
                 batch.to(device)
@@ -258,14 +180,10 @@ class SSLearn(Learn):
                 c_pred = model(batch)
                 y_pred = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
 
-                epoch_losses["sse"] += F.mse_loss(
-                    y_pred, batch.y, reduction="sum"
-                ).item()
+                running_loss += F.mse_loss(y_pred, batch.y, reduction="sum").item()
                 n_elem += batch.y.numel()
 
-        valid_losses = {k: v / max(1, n_elem) for k, v in epoch_losses.items()}
-
-        return valid_losses
+        return running_loss / max(1, n_elem)
 
     def tensorboard_layout(self):
         layout = {
@@ -275,7 +193,7 @@ class SSLearn(Learn):
         }
         return layout
 
-    def model_diagnostics(self, spectral_post, model, dataset):
+    def _model_diagnostics(self, spectral_post, model, dataset):
         print("--- Model Diagnostics ---")
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
 
@@ -292,9 +210,9 @@ class SSLearn(Learn):
                     n_elem += y_batch.numel()
                 mse_gauss = sse / max(1, n_elem)
 
-        trainable, total = self.count_trainable_params(spectral_post)
-        trainable_e, total_e = self.count_trainable_params(model.encoder)
-        trainable_h, total_h = self.count_trainable_params(model.coeff_head)
+        trainable, total = self._count_trainable_params(spectral_post)
+        trainable_e, total_e = self._count_trainable_params(model.encoder)
+        trainable_h, total_h = self._count_trainable_params(model.coeff_head)
 
         logging.info(
             f"Encoder parameters: {trainable_e:,} trainable / {total_e:,} total"
@@ -307,21 +225,21 @@ class SSLearn(Learn):
         return spectral_post
 
     @staticmethod
-    def count_trainable_params(m):
+    def _count_trainable_params(m):
         trainable = sum(p.numel() for p in m.parameters() if p.requires_grad)
         total = sum(p.numel() for p in m.parameters())
         return trainable, total
 
-    def log_epoch(self, epoch, tag, train_loss, valid_loss):
+    def _log_epoch_loss(self, epoch, train_loss, valid_loss):
         logging.info(
             f"Epoch {epoch + 1:03d} | "
             f"Train Lspec={train_loss['spec']:.6f} "
             f"(Lc={train_loss['Lc']:.6f}, Ld={train_loss['Ld']:.6f}, Lg={train_loss['Lg']:.6f}) | "
             f"Aux(c*)={train_loss['aux']:.6f} | "
-            f"Val spectral MSE={valid_loss['sse']:.6f}"
+            f"Val spectral MSE={valid_loss:.6f}"
         )
 
         for key in ["spec", "Lc", "Ld", "Lg", "aux"]:
             self.log_loss(f"loss/{key}", train_loss[key], epoch)
 
-        self.log_loss("loss/SSE", valid_loss["sse"], epoch)
+        self.log_loss("loss/SSE", valid_loss, epoch)

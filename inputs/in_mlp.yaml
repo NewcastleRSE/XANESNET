@@ -3,10 +3,13 @@ dataset:
   root_path: data/fe/processed_train  # Path to save processed dataset
   xyz_path: data/fe/xyz_train         # Path to the directory containing .XYZ files
   xanes_path: data/fe/xanes_train     # Path to the directory containing XANES files
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-#    fourier: False
-#    fourier_concat: False
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+    fourier: False
+    fourier_concat: False
+    gaussian: False
+    widths_eV: [0.5, 1.0, 2.0, 4.0]
+    basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
 
 
 descriptors:
@@ -26,10 +29,10 @@ model:
 #    num_hidden_layers: 3
 #    shrink_rate: 0.5
 #    activation: prelu
-#  weights:
-#    kernel: xavier_uniform
-#    bias: zeros
-#    seed: 2025
+  weights:
+    kernel: xavier_uniform
+    bias: zeros
+    seed: 2025
 
 hyperparams:
   batch_size: 32
@@ -43,27 +46,27 @@ hyperparams:
 #  loss_lambda: 0.0001
 
 kfold: False
-#kfold_params:
-#  n_splits: 3
-#  n_repeats: 1
-#  seed: 2021
+kfold_params:
+  n_splits: 3
+  n_repeats: 1
+  seed: 2021
 
 bootstrap: False
-#bootstrap_params:
-#  n_boot: 3
-#  n_size: 1.0
-#  weight_seed: [97, 39, 22]
+bootstrap_params:
+  n_boot: 3
+  n_size: 1.0
+  weight_seed: [97, 39, 22]
 
 ensemble: False
-#ensemble_params:
-#  n_ens: 3
-#  weight_seed: [97, 39, 22]
+ensemble_params:
+  n_ens: 3
+  weight_seed: [97, 39, 22]
 
 lr_scheduler: False
-#scheduler_params:
-#  type: step
-#  step_size: 10
-#  gamma: 0.5
+scheduler_params:
+  type: step
+  step_size: 10
+  gamma: 0.5
 
 
 standardscaler: False

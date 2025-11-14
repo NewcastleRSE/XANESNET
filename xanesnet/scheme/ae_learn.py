@@ -22,7 +22,7 @@ import numpy as np
 from collections import defaultdict
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import Learn
+from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch, LossRegSwitch
 
 
@@ -44,7 +44,9 @@ class AELearn(Learn):
         optimizer, criterion, regularizer, scheduler = self.setup_components(model)
         model.to(self.device)
 
+        state = EarlyStopState() if self.earlystop_flag else None
         valid_losses = {}
+
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
             # Run the training phase
@@ -61,20 +63,14 @@ class AELearn(Learn):
             if self.lr_scheduler:
                 scheduler.step()
 
-            # Print and log losses using the returned dictionaries
-            logging.info(
-                f">>> Epoch {epoch+1:03d} | "
-                f"Train Loss: {train_losses['total']:.4f} | "
-                f"Valid Loss: {valid_losses['total']:.4f}"
-            )
+            # Logging for the current epoch
+            self._log_epoch_loss(epoch, train_losses, valid_losses)
 
-            self.log_loss("total_loss/train", train_losses["total"], epoch)
-            self.log_loss("recon_loss/train", train_losses["recon"], epoch)
-            self.log_loss("pred_loss/train", train_losses["predict"], epoch)
-
-            self.log_loss("total_loss/valid", valid_losses["total"], epoch)
-            self.log_loss("recon_loss/valid", valid_losses["recon"], epoch)
-            self.log_loss("pred_loss/valid", valid_losses["predict"], epoch)
+            # Early stopping
+            if self.earlystop_flag:
+                self._early_stop(valid_losses["total"], state)
+                if state.stop:
+                    break
 
         logging.info("--- Training Finished ---")
 
@@ -219,3 +215,18 @@ class AELearn(Learn):
             },
         }
         return layout
+
+    def _log_epoch_loss(self, epoch, train_loss, valid_loss):
+        logging.info(
+            f">>> Epoch {epoch + 1:03d} | "
+            f"Train Loss: {train_loss['total']:.4f} | "
+            f"Valid Loss: {train_loss['total']:.4f}"
+        )
+
+        self.log_loss("total_loss/train", train_loss["total"], epoch)
+        self.log_loss("recon_loss/train", train_loss["recon"], epoch)
+        self.log_loss("pred_loss/train", train_loss["predict"], epoch)
+
+        self.log_loss("total_loss/valid", valid_loss["total"], epoch)
+        self.log_loss("recon_loss/valid", valid_loss["recon"], epoch)
+        self.log_loss("pred_loss/valid", valid_loss["predict"], epoch)

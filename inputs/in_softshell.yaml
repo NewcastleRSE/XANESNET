@@ -5,7 +5,6 @@ dataset:
   xanes_path: data/fe/xanes_train     # Path to the directory containing XANES files
   params:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-    gaussian: True
     widths_eV: [0.5, 1.0, 2.0, 4.0]
     basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
 
@@ -31,11 +30,9 @@ model:
 hyperparams:
   batch_size: 32
   epochs: 500
+  n_earlystop: 100
   lr: 0.0002
-  swa_lr: 0.00005
   optimizer: AdamW
-  weight_decay: 0.0001
-  swa_frac: 0.8
   basis_stride: 4
   loss: specplus
   loss_alpha: 0.65

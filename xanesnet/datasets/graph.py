@@ -97,7 +97,7 @@ class GraphDataset(BaseDataset):
     def collate_fn(self, batch):
         """Custom collate function to handle a list of Data objects."""
         # This will be handle in torch_geometric.data.DataLoader
-        return None
+        pass
 
     @property
     def x_size(self) -> Union[int, List[int]]:

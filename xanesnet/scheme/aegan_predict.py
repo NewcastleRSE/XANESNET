@@ -39,8 +39,12 @@ class Prediction:
 
 
 class AEGANPredict(Predict):
-    def __init__(self, xyz_data, xanes_data, **kwargs):
-        super().__init__(xyz_data, xanes_data, **kwargs)
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+        self.fft = kwargs.get("fourier")
+        self.fft_concat = kwargs.get("fourier_concat")
+
         self.recon_flag = 1
 
     def predict(self, model):
@@ -125,7 +129,7 @@ class AEGANPredict(Predict):
             targets_y,
         )
 
-    def predict_std(self, model: torch.nn.Module):
+    def predict_std(self, model: Model):
         """
         Performs a single prediction and returns the result with a zero (dummy)
         standard deviation array.

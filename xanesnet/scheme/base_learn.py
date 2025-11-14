@@ -15,7 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import copy
+import logging
 import random
+from dataclasses import dataclass
 from typing import Dict, List
 
 import mlflow
@@ -47,6 +49,13 @@ from xanesnet.utils.switch import (
 # from xanesnet.param_freeze import Freeze
 
 
+@dataclass
+class EarlyStopState:
+    best_loss: float = float("inf")
+    no_improve: int = 0
+    stop: bool = False
+
+
 class Learn(ABC):
     """Abstract base class defining the training interface for XANESNET models."""
 
@@ -55,12 +64,12 @@ class Learn(ABC):
         self.dataset = dataset
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.recon_flag = 0  # 1 for AELearn or AEGANLearn
+        self.earlystop_flag = 0
 
         # ---Unpack kwargs
         model_config = kwargs.get("model_config")
         hyper_params = kwargs.get("hyper_params")
         kfold_params = kwargs.get("kfold_params")
-        earlystop_params = kwargs.get("earlystop_params")
         bootstrap_params = kwargs.get("bootstrap_params")
         ensemble_params = kwargs.get("ensemble_params")
         scheduler_params = kwargs.get("scheduler_params")
@@ -80,16 +89,14 @@ class Learn(ABC):
         self.loss = hyper_params.get("loss", "mse")
         self.loss_reg = hyper_params.get("loss_reg", "None")
         self.loss_lambda = hyper_params.get("loss_lambda", 0.0001)
-        self.n_earlystop = earlystop_params.get("n_earlystop", 50)
+        self.n_earlystop = hyper_params.get("n_earlystop", self.epochs)
+        self.earlystop_flag = 1 if self.n_earlystop < self.epochs else 0
         self.seed = hyper_params.get("seed", random.randrange(1000))
 
         # --- K-Fold cross-validation parameters ---
         self.n_splits = kfold_params.get("n_splits", 3)
         self.n_repeats = kfold_params.get("n_repeats", 1)
         self.seed_kfold = kfold_params.get("seed", random.randrange(1000))
-
-        # earlystop
-        self.n_earlystop = earlystop_params.get("n_earlystop", 50)
 
         # --- Bootstrap learning parameters ---
         self.n_boot = bootstrap_params.get("n_boot", 3)
@@ -322,6 +329,16 @@ class Learn(ABC):
         writer.add_custom_scalars(layout)
 
         return writer
+
+    def _early_stop(self, val_loss, state):
+        if val_loss < state.best_loss:
+            state.best_loss = val_loss
+            state.no_improve = 0
+        else:
+            state.no_improve += 1
+            if state.no_improve >= self.n_earlystop:
+                logging.info(f"Early stopping after {self.n_earlystop} epochs.")
+                state.stop = True
 
     def log_mlflow(self, model):
         """Log the model as an artifact of the MLflow run."""

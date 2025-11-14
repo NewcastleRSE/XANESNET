@@ -38,46 +38,49 @@ class Prediction:
 
 
 class NNPredict(Predict):
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+        self.fft = kwargs.get("fourier")
+        self.fft_concat = kwargs.get("fourier_concat")
+
+        self.gaussian = kwargs.get("gaussian")
+        self.widths_eV = kwargs.get("widths_eV")
+        self.basis_stride = kwargs.get("basis_stride")
+
     def predict(self, model):
         """Perform standard single-model prediction."""
+
         data_loader = self._create_loader(model, self.dataset)
 
         model.eval()
-        predictions, targets, output_new = [], [], []
+        predictions, targets = [], []
+
+        spectral_post = None
+        if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
+            basis_eval = SpectralBasis(
+                energies=self.dataset[0].e,
+                widths_eV=self.widths_eV,
+                normalize_atoms=True,
+                stride=self.basis_stride,
+            )
+            spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+            spectral_post.eval()
 
         with torch.no_grad():
             for data in data_loader:
                 # Pass X or batch object to model
                 input_data = data if model.batch_flag else data.x
                 output = model(input_data)
-                output_new = self.to_numpy(output)
-
-                if self.mode is Mode.XYZ_TO_XANES and self.fft:
+                # Inverse FFT transform
+                if self.fft:
                     output = inverse_fft(output, self.fft_concat)
+                # Gaussian reconstruction
+                if self.gaussian:
+                    output = spectral_post.forward_from_coeffs(output)
 
-                if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
-                    eV = self.dataset[0].e
-                    dE = float(eV[1] - eV[0])
-                    widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
-                    basis_eval = SpectralBasis(
-                        energies=eV,
-                        widths_bins=widths_bins,
-                        normalize_atoms=True,
-                        stride=self.basis_stride,
-                    )
-                    spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
-                    spectral_post.eval()
-
-                    coeffs = output
-                    if isinstance(coeffs, np.ndarray):
-                        coeffs = torch.from_numpy(coeffs)
-                    coeffs = coeffs.to(
-                        dtype=basis_eval.Phi.dtype, device=basis_eval.Phi.device
-                    )
-                    output_new = spectral_post.forward_from_coeffs(coeffs)
-                    output_new = self.to_numpy(output_new)
-
-                predictions.append(output_new)
+                output = self.to_numpy(output)
+                predictions.append(output)
 
                 if self.pred_eval:
                     target = self.to_numpy(data.y)
@@ -86,7 +89,7 @@ class NNPredict(Predict):
         predictions = np.array(predictions)
         targets = np.array(targets)
 
-        if self.pred_eval and not self.gaussian:
+        if self.pred_eval:
             Predict.print_mse("target", "prediction", targets, predictions)
 
         return predictions, targets
@@ -129,7 +132,7 @@ class NNPredict(Predict):
         """Predictions for a list of models."""
         prediction_list, targets = [], []
 
-        for i, model in enumerate(model_list, start=1):
+        for i, model in enumerate(model_list, start=0):
             logging.info(
                 f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
             )

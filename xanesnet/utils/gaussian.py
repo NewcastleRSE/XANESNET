@@ -27,25 +27,29 @@ class SpectralBasis(nn.Module):
     def __init__(
         self,
         energies: torch.Tensor,
-        widths_bins=(1.0, 3.0, 7.0),
+        widths_eV: List,
         normalize_atoms=True,
         stride=1,
     ):
         super().__init__()
+
         self.register_buffer("E", energies.detach().clone())
-        self.widths_bins = [float(w) for w in widths_bins]
+        self.widths_eV = widths_eV
         self.normalize_atoms = bool(normalize_atoms)
         self.stride = int(stride)
 
         N = energies.numel()
         dE = float(energies[1] - energies[0])
 
+        widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
+        widths_bins = [float(w) for w in widths_bins]
+
         grid_idx = torch.arange(N, device=energies.device, dtype=energies.dtype)
         centers_grid = grid_idx[:: self.stride]
         diff_bins = grid_idx.unsqueeze(1) - centers_grid.unsqueeze(0)
 
         Phi_list, centers_list = [], []
-        for w in self.widths_bins:
+        for w in widths_bins:
             Phi_w = torch.exp(-0.5 * (diff_bins / w) ** 2)
             Phi_list.append(Phi_w)
             centers_list.append(self.E[:: self.stride])
@@ -111,15 +115,14 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     return A.to(torch.float32)
 
 
-def gaussian_fit(E: Tensor, xanes: Tensor, widths_eV: List, stride: int) -> Tensor:
-    dE = float(E[1] - E[0])
-    widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
+def gaussian_fit(e: Tensor, xanes: Tensor, widths_eV: List, stride: int) -> Tensor:
     basis = SpectralBasis(
-        energies=E,
-        widths_bins=widths_bins,
+        energies=e,
+        widths_eV=widths_eV,
         normalize_atoms=True,
         stride=stride,
     )
+
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T

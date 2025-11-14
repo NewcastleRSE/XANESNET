@@ -23,7 +23,7 @@ import numpy as np
 from collections import defaultdict
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import Learn
+from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import (
     LossSwitch,
     OptimSwitch,
@@ -68,8 +68,9 @@ class AEGANLearn(Learn):
         model.to(self.device)
 
         valid_losses = {}
-        logging.info(f"--- Starting Training for {self.epochs} epochs ---")
+        state = EarlyStopState() if self.earlystop_flag else None
 
+        logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
             # Run the training phase
             train_losses = self._run_one_epoch(
@@ -86,25 +87,14 @@ class AEGANLearn(Learn):
                 schedulers[0].step()
                 schedulers[1].step()
 
-            # Print and log losses using the returned dictionaries
-            logging.info(
-                f">>> Epoch {epoch+1:03d} | "
-                f"Train Loss: {train_losses['total']:.4f} | "
-                f"Valid Loss: {valid_losses['total']:.4f}"
-            )
+            # Logging for the current epoch
+            self._log_epoch_loss(epoch, train_losses, valid_losses)
 
-            self.log_loss("total_loss/train", train_losses["total"], epoch)
-            self.log_loss("dis_loss/train", train_losses["dis"], epoch)
-            self.log_loss("recon_X_loss/train", train_losses["recon_a"], epoch)
-            self.log_loss("recon_y_loss/train", train_losses["recon_b"], epoch)
-            self.log_loss("pred_X_loss/train", train_losses["predict_a"], epoch)
-            self.log_loss("pred_y_loss/train", train_losses["predict_b"], epoch)
-
-            self.log_loss("total_loss/valid", valid_losses["total"], epoch)
-            self.log_loss("recon_X_loss/valid", valid_losses["recon_a"], epoch)
-            self.log_loss("recon_y_loss/valid", valid_losses["recon_b"], epoch)
-            self.log_loss("pred_X_loss/valid", valid_losses["predict_a"], epoch)
-            self.log_loss("pred_y_loss/valid", valid_losses["predict_b"], epoch)
+            # Early stopping
+            if self.earlystop_flag:
+                self._early_stop(valid_losses["total"], state)
+                if state.stop:
+                    break
 
         logging.info("--- Training Finished ---")
 
@@ -400,3 +390,23 @@ class AEGANLearn(Learn):
             },
         }
         return layout
+
+    def _log_epoch_loss(self, epoch, train_losses, valid_losses):
+        logging.info(
+            f">>> Epoch {epoch + 1:03d} | "
+            f"Train Loss: {train_losses['total']:.4f} | "
+            f"Valid Loss: {valid_losses['total']:.4f}"
+        )
+
+        self.log_loss("total_loss/train", train_losses["total"], epoch)
+        self.log_loss("dis_loss/train", train_losses["dis"], epoch)
+        self.log_loss("recon_X_loss/train", train_losses["recon_a"], epoch)
+        self.log_loss("recon_y_loss/train", train_losses["recon_b"], epoch)
+        self.log_loss("pred_X_loss/train", train_losses["predict_a"], epoch)
+        self.log_loss("pred_y_loss/train", train_losses["predict_b"], epoch)
+
+        self.log_loss("total_loss/valid", valid_losses["total"], epoch)
+        self.log_loss("recon_X_loss/valid", valid_losses["recon_a"], epoch)
+        self.log_loss("recon_y_loss/valid", valid_losses["recon_b"], epoch)
+        self.log_loss("pred_X_loss/valid", valid_losses["predict_a"], epoch)
+        self.log_loss("pred_y_loss/valid", valid_losses["predict_b"], epoch)

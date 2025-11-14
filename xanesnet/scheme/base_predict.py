@@ -13,6 +13,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import logging
 from typing import List, Tuple
 
@@ -37,17 +38,11 @@ class Predict(ABC):
         self.mode = kwargs.get("pred_mode")
         self.pred_eval = kwargs.get("pred_eval")
         self.scaler = kwargs.get("scaler")
-        self.fft = kwargs.get("fourier")
-        self.fft_concat = kwargs.get("fourier_concat")
-        self.gaussian = kwargs.get("gaussian")
-        self.widths_eV = kwargs.get("widths_eV")
-        self.basis_stride = kwargs.get("basis_stride")
 
-        # Flag for autoencoder-type predictors
         self.recon_flag = 0
 
     @abstractmethod
-    def predict(self, model: Model) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self, model: Model):
         """
         Core forward prediction.
 

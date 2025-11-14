@@ -170,24 +170,22 @@ class SoftShellDataset(BaseDataset):
     def x_size(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         x_size = []
-        eV = self[0].e
-
-        dE = eV[1] - eV[0]
-        widths_eV = (0.5, 1.0, 2.0, 4.0)
-        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
+        e = self[0].e
 
         basis = SpectralBasis(
-            energies=eV,
-            widths_bins=widths_bins,
+            energies=e,
+            widths_eV=self.widths_eV,
             normalize_atoms=True,
             stride=self.basis_stride,
         )
 
         # Per-width group sizes for grouped head
-        K = basis.Phi.shape[1]
+        dE = e[1] - e[0]
+        widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
         n_width_groups = len(widths_bins)
 
         # Number of centers per width (should be equal for each width given same stride)
+        K = basis.Phi.shape[1]
         per_width = K // n_width_groups
         K_groups = [per_width] * n_width_groups
 

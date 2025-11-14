@@ -1,6 +1,6 @@
 dataset:
   type: graph
-  root_path: .github/workflows/data/processed_train
+  root_path: .github/workflows/data/graph-set/processed_train
   xyz_path: .github/workflows/data/graph-set/xyz_train
   xanes_path: .github/workflows/data/graph-set/xanes_train
   params:
@@ -17,7 +17,7 @@ descriptors:
       basis: 3-21G
       init_guess: minao
       orb_type: p
-      max_scf_cycles: 0
+      max_cycles: 0
       num_points: 20
       e_min: -10.0
       e_max: 30.0

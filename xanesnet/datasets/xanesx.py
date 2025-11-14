@@ -35,10 +35,12 @@ class Data:
     x: torch.Tensor = None
     y: torch.Tensor = None
     e: torch.Tensor = None
+    fourier: torch.Tensor = None
+    c_star: torch.Tensor = None
 
     def to(self, device):
         # send batch do device
-        for attr in ["x", "y"]:
+        for attr in ["x", "y", "fourier", "c_star"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -66,6 +68,12 @@ class XanesXDataset(BaseDataset):
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
         xanes_path = self.unique_path(xanes_path)
+
+        if self.fft or self.gaussian:
+            if mode is not Mode.XYZ_TO_XANES:
+                raise ValueError(
+                    "FFT and Gaussian transformation are only supported in XYZ_TO_XANES mode."
+                )
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
@@ -109,8 +117,9 @@ class XanesXDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
+
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            xyz = xanes = e = None
+            xyz = xanes = e = fourier = c_star = None
 
             # transform xyz file into feature array
             if self.xyz_path:
@@ -121,10 +130,11 @@ class XanesXDataset(BaseDataset):
             if self.xanes_path:
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
+
                 if self.fft:
-                    xanes = fft(xanes, self.fft_concat)
+                    fourier = fft(xanes, self.fft_concat)
                 elif self.gaussian:
-                    xanes = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
+                    c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -133,7 +143,7 @@ class XanesXDataset(BaseDataset):
                 x = xyz
                 y = xanes
 
-            data = Data(x=x, y=y, e=e)
+            data = Data(x=x, y=y, e=e, fourier=fourier, c_star=c_star)
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
@@ -142,13 +152,17 @@ class XanesXDataset(BaseDataset):
         """
         Collates a list of Data objects into a single Data object  with batched tensors.
         """
-        x_list = [sample.x for sample in batch]
-        y_list = [sample.y for sample in batch]
+        keys = ["x", "y", "fourier", "c_star"]
+        batched = {}
 
-        batched_x = torch.stack(x_list, dim=0).to(torch.float32)
-        batched_y = torch.stack(y_list, dim=0).to(torch.float32)
+        for k in keys:
+            values = [getattr(sample, k) for sample in batch]
+            if any(v is None for v in values):
+                batched[k] = None
+            else:
+                batched[k] = torch.stack(values).float()
 
-        return Data(x=batched_x, y=batched_y)
+        return Data(**batched)
 
     @property
     def x_size(self) -> Union[int, List[int]]:
@@ -158,4 +172,9 @@ class XanesXDataset(BaseDataset):
     @property
     def y_size(self) -> Union[int, List[int]]:
         """Size of the label array."""
-        return len(self[0].y)
+        if self.gaussian:
+            return len(self[0].c_star)
+        elif self.fft:
+            return len(self[0].fourier)
+        else:
+            return len(self[0].y)

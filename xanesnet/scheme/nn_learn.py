@@ -21,7 +21,7 @@ import torch
 
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import Learn
+from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch, LossRegSwitch
 
 
@@ -43,7 +43,9 @@ class NNLearn(Learn):
         optimizer, criterion, regularizer, scheduler = self.setup_components(model)
         model.to(self.device)
 
+        state = EarlyStopState() if self.earlystop_flag else None
         valid_loss = 0.0
+
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
             # Run training phase
@@ -61,11 +63,13 @@ class NNLearn(Learn):
                 scheduler.step()
 
             # Logging for the current epoch
-            logging.info(
-                f"Epoch {epoch+1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}"
-            )
-            self.log_loss("loss/train", train_loss, epoch)
-            self.log_loss("loss/validation", valid_loss, epoch)
+            self._log_epoch_loss(epoch, train_loss, valid_loss)
+
+            # Early stopping
+            if self.earlystop_flag:
+                self._early_stop(valid_loss, state)
+                if state.stop:
+                    break
 
         logging.info("--- Training Finished ---")
 
@@ -80,73 +84,6 @@ class NNLearn(Learn):
         score = valid_loss
 
         return score
-
-    def train_earlystop(self):
-        """
-        Main training loop
-        """
-        model = self.model
-        dataset = self.dataset
-
-        train_loader, valid_loader, eval_loader = self.setup_dataloaders(dataset)
-
-        optimizer, criterion, regularizer, scheduler = self.setup_components(model)
-        model.to(self.device)
-
-        saved_model = copy.deepcopy(model)
-        epochs_no_improve = 0
-        saved_loss = self._run_one_epoch(
-            "valid", valid_loader, model, criterion, regularizer, optimizer=None
-        )
-
-        valid_loss = 0.0
-        logging.info(f"--- Starting EarlyStop Training for MAX:{self.epochs} epochs ---")
-        for epoch in range(self.epochs):
-            # Run training phase
-            train_loss = self._run_one_epoch(
-                "train", train_loader, model, criterion, regularizer, optimizer
-            )
-
-            # Run validation phase
-            valid_loss = self._run_one_epoch(
-                "valid", valid_loader, model, criterion, regularizer, optimizer=None
-            )
-
-            # Adjust learning rate if scheduler is used
-            if self.lr_scheduler:
-                scheduler.step()
-
-            # Logging for the current epoch
-            logging.info(
-                f"Epoch {epoch+1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}"
-            )
-            self.log_loss("loss/train", train_loss, epoch)
-            self.log_loss("loss/validation", valid_loss, epoch)
-
-            if valid_loss < saved_loss:
-                saved_loss = valid_loss
-                epochs_no_improve = 0
-                saved_model = copy.deepcopy(model)
-            else:
-                epochs_no_improve += 1
-
-            if epochs_no_improve >= self.n_earlystop:
-                print("Early stopping triggered!")
-                break
-
-        logging.info("--- Training Finished ---")
-
-        # Log saved_model and final evaluation
-        if self.mlflow_flag:
-            logging.info("\nLogging the trained model as a run artifact...")
-            self.log_mlflow(saved_model)
-
-        self.log_close()
-
-        # The final score is the validation loss from the last epoch
-        score = valid_loss
-
-        return saved_model
 
     def train_std(self):
         """
@@ -238,7 +175,16 @@ class NNLearn(Learn):
 
                 if model.gnn_flag:
                     predict = torch.flatten(predict)
-                loss = criterion(predict, batch.y.float())
+                    target = batch.y.float()
+                else:
+                    if batch.c_star is not None:
+                        target = batch.c_star
+                    elif batch.fourier is not None:
+                        target = batch.fourier
+                    else:
+                        target = batch.y
+
+                loss = criterion(predict, target)
 
                 # Add regularization loss
                 loss_reg = regularizer.loss(model, self.loss_reg, device)
@@ -259,3 +205,10 @@ class NNLearn(Learn):
             },
         }
         return layout
+
+    def _log_epoch_loss(self, epoch, train_loss, valid_loss):
+        logging.info(
+            f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}"
+        )
+        self.log_loss("loss/train", train_loss, epoch)
+        self.log_loss("loss/validation", valid_loss, epoch)

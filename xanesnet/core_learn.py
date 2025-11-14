@@ -167,9 +167,12 @@ def _init_model_weights(model: Model, **kwargs) -> Model:
     """
     Initialise model kernel and bias weights using user-defined methods.
     """
-    kernel = kwargs.get("kernel", "xavier_uniform")
+    kernel = kwargs.get("kernel")
     bias = kwargs.get("bias", "zeros")
     seed = kwargs.get("seed", random.randrange(1000))
+
+    if kernel is None or str(kernel).lower() == "none":
+        return model
 
     # Set random seed
     if torch.cuda.is_available():
@@ -234,10 +237,6 @@ def _train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
         logging.info(">> Training model using kfold cross-validation...\n")
         scheme_type = "kfold"
         model_list.append(scheme.train_kfold())
-    # elif config["earlystop"]:
-    #     logging.info(">> Training model using EarlyStop...\n")
-    #     scheme_type = "earlystop"
-    #     model_list.append(scheme.train_earlystop())
     else:
         logging.info(">> Training model using standard training procedure...\n")
         scheme_type = "std"

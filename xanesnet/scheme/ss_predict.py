@@ -38,7 +38,10 @@ class Prediction:
 class SSPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
-        self.stride = kwargs.get("basis_stride")
+
+        self.gaussian = kwargs.get("gaussian")
+        self.widths_eV = kwargs.get("widths_eV")
+        self.basis_stride = kwargs.get("basis_stride")
 
     def predict(self, model):
         """
@@ -46,17 +49,12 @@ class SSPredict(Predict):
         """
         model.eval()
         predictions, targets = [], []
-        data_loader = self._create_loader(model, self.dataset)
-
-        # Initialise parameter-free spectral "post" component
-        eV = self.dataset[0].e
-        widths_bins = self.compute_widths_bins(eV)
 
         basis_eval = SpectralBasis(
-            energies=eV,
-            widths_bins=widths_bins,
+            energies=self.dataset[0].e,
+            widths_eV=self.widths_eV,
             normalize_atoms=True,
-            stride=self.stride,
+            stride=self.basis_stride,
         )
 
         spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
@@ -64,7 +62,7 @@ class SSPredict(Predict):
 
         # ---- Run inference ----
         with torch.no_grad():
-            for data in data_loader:
+            for data in self.dataset:
                 c_pred = model(data)
                 output = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
                 output = self.to_numpy(output.squeeze(0))
@@ -109,11 +107,3 @@ class SSPredict(Predict):
         Performs predictions on multiple models (ensemble)
         """
         pass
-
-    @staticmethod
-    def compute_widths_bins(eV):
-        dE = float(eV[1] - eV[0])
-        widths_eV = (0.5, 1.0, 2.0, 4.0)
-        widths_bins = tuple(max(w / dE, 0.5) for w in widths_eV)
-
-        return widths_bins
