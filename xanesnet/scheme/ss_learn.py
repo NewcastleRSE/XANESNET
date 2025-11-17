@@ -134,13 +134,17 @@ class SSLearn(Learn):
         sigma_max, sigma_min = 9.0, 5.0
         eta_aux_max, eta_aux_min = 3e-3, 3e-4
         T = max(1, self.epochs - 50)  # stop annealing near the end
-
+        lambda_neg = 1e2
+        
         for batch in loader:
             batch.to(device)
             optimizer.zero_grad(set_to_none=True)
 
             c_pred = model(batch)
             y_pred = spectral_post.forward_from_coeffs(c_pred)
+
+            neg_part = F.relu(-y_pred)             
+            loss_neg = (neg_part ** 2).mean()    
 
             sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
             eta_aux = eta_aux_min + (eta_aux_max - eta_aux_min) * max(0, T - epoch) / T
@@ -150,7 +154,7 @@ class SSLearn(Learn):
             loss_spec, (Lc, Ld, Lg) = criterion(batch.y, y_pred)
             loss_aux = F.mse_loss(c_pred, batch.c_star)
 
-            loss_total = loss_spec + eta_aux * loss_aux
+            loss_total = loss_spec + eta_aux * loss_aux + lambda_neg * loss_neg
             loss_total.backward()
             torch.nn.utils.clip_grad_norm_(model_params, 1.0)
             optimizer.step()
