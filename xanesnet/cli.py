@@ -22,7 +22,6 @@ import sys
 import yaml
 import os
 
-from tblite.interface import Calculator
 from pathlib import Path
 from argparse import ArgumentParser
 from xanesnet.core_learn import train
@@ -38,7 +37,7 @@ def parse_args(args: list):
     parser = ArgumentParser()
 
     # available modes:
-    # train: train_xanes, train_xyz, train_aegan
+    # train: train_xanes, train_xyz, train_all
     # predict: predict_xyz, predict_xanes, predict_all
     parser.add_argument(
         "--mode",
@@ -106,7 +105,7 @@ def main(args: list):
             with open(metadata_file, "r") as f:
                 metadata = yaml.safe_load(f)
         else:
-            raise ValueError(f"Cannot find metadata file.")
+            raise ValueError(f"Cannot find metadata file in {args.in_model}.")
 
         predict(config, args, metadata)
 

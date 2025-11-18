@@ -113,7 +113,6 @@ def _setup_scheme(dataset, mode, metadata, pred_eval):
     kwargs = {
         "pred_mode": mode,
         "pred_eval": pred_eval,
-        "scaler": metadata["standardscaler"],
         **metadata["dataset"]["params"],
     }
 
@@ -138,7 +137,7 @@ def _run_prediction(scheme, model_dir: Path, predict_scheme: str):
         model_list = load_models_from_local(model_dir)
         result = scheme.predict_ensemble(model_list)
 
-    elif predict_scheme == "std" or predict_scheme == "kfold" or predict_scheme == "earlystop":
+    elif predict_scheme == "std" or predict_scheme == "kfold":
         model = load_model_from_local(model_dir)
         result = scheme.predict_std(model)
 

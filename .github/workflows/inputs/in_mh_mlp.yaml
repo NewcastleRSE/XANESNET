@@ -1,0 +1,73 @@
+dataset:
+  type: multihead
+  root_path: .github/workflows/data/multihead/processed_train  # Path to save processed dataset
+  xyz_path:
+    - .github/workflows/data/multihead/xyz1_train         # Path to the directory containing .XYZ files
+    - .github/workflows/data/multihead/xyz2_train
+    - .github/workflows/data/multihead/xyz3_train
+  xanes_path:
+    - .github/workflows/data/multihead/xanes1_train     # Path to the directory containing XANES files
+    - .github/workflows/data/multihead/xanes2_train
+    - .github/workflows/data/multihead/xanes3_train
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+#    fourier: False
+#    fourier_concat: False
+
+
+descriptors:
+  - type: wacsf
+    params:
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
+
+model:
+  type: mh_mlp
+  params:
+    hidden_size: 512
+    head_hidden_size: 512
+    dropout: 0.2
+    num_hidden_layers: 3
+    head_num_hidden_layers: 2
+    shrink_rate: 1.0
+    head_shrink_rate: 1.0
+    activation: silu
+  weights:
+    kernel: xavier_uniform
+    bias: zeros
+    seed: 2025
+
+hyperparams:
+  epochs: 10
+  batch_size: 3
+  lr: 0.001
+  optimizer: Adam
+  seed: 2021
+  loss: mse
+  loss_reg: None # L1 L2
+  loss_lambda: 0.0001
+
+kfold: False
+kfold_params:
+  n_splits: 3
+  n_repeats: 1
+  seed: 2021
+
+bootstrap: False
+bootstrap_params:
+  n_boot: 3
+  n_size: 1.0
+  weight_seed: [97, 39, 22]
+
+ensemble: False
+ensemble_params:
+  n_ens: 3
+  weight_seed: [97, 39, 22]
+
+lr_scheduler: False
+scheduler_params:
+  type: step
+  step_size: 10
+  gamma: 0.5

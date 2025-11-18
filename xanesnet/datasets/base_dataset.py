@@ -19,6 +19,7 @@ import logging
 import os
 import numpy as np
 import torch
+import torch.nn as nn
 
 from torch.utils.data import Dataset
 from collections.abc import Sequence
@@ -272,3 +273,25 @@ class BaseDataset(Dataset):
             return value
         else:
             return [value]
+
+    @staticmethod
+    def safe_stack(lst, dtype=torch.float32):
+        """
+        Stacks tensor list.
+        Returns None if any element in the list is None.
+        """
+        if any(x is None for x in lst):
+            return None
+        return torch.stack(lst).to(dtype)
+
+    @staticmethod
+    def safe_pad(lst, batch_first=True, dtype=torch.float32):
+        """
+        Pads tensor list.
+        Returns None if any element in the list is None.
+        """
+        if any(x is None for x in lst):
+            return None
+
+        padded = nn.utils.rnn.pad_sequence(lst, batch_first=batch_first).to(dtype)
+        return padded

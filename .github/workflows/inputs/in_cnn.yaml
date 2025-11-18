@@ -7,7 +7,9 @@ dataset:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
     fourier: False
     fourier_concat: False
-
+    gaussian: False                   # Gaussian transformation (default: False)
+    widths_eV: [0.5, 1.0, 2.0, 4.0]
+    basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
 
 descriptors:
     - type: wacsf
@@ -39,7 +41,6 @@ hyperparams:
   lr: 0.0001
   epochs: 10
   optim_fn: Adam
-  model_eval : False
   seed: 2021
   loss: mse
   loss_reg: None #None L1 L2
@@ -67,5 +68,3 @@ scheduler_params:
   type: step
   step_size: 1
   gamma: 0.1
-
-standardscaler: False

@@ -74,6 +74,10 @@ class XanesXDataset(BaseDataset):
                 raise ValueError(
                     "FFT and Gaussian transformation are only supported in XYZ_TO_XANES mode."
                 )
+        if self.fft and self.gaussian:
+            raise ValueError(
+                "FFT and Gaussian transformations cannot be applied at the same time"
+            )
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
@@ -156,11 +160,8 @@ class XanesXDataset(BaseDataset):
         batched = {}
 
         for k in keys:
-            values = [getattr(sample, k) for sample in batch]
-            if any(v is None for v in values):
-                batched[k] = None
-            else:
-                batched[k] = torch.stack(values).float()
+            lst = [getattr(sample, k) for sample in batch]
+            batched[k] = self.safe_stack(lst)
 
         return Data(**batched)
 

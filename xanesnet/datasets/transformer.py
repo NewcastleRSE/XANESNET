@@ -16,13 +16,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import torch
-import torch.nn as nn
 
 from pathlib import Path
 from typing import List, Union
 from dataclasses import dataclass
 from ase.data import atomic_masses
-from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
@@ -39,12 +37,14 @@ class Data:
     pos: torch.Tensor = None
     weight: torch.Tensor = None
     mask: torch.Tensor = None
+    c_star: torch.Tensor = None
     y: torch.Tensor = None
     e: torch.Tensor = None
+    fourier: torch.Tensor = None
 
     def to(self, device):
         # send batch do device
-        for attr in ["mace", "desc", "pos", "weight", "mask", "y", "e"]:
+        for attr in ["mace", "desc", "pos", "weight", "mask", "y", "e", "fourier"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -117,7 +117,7 @@ class TransformerDataset(BaseDataset):
         feat_desc = [d for d in self.descriptors if d.get_type() != "mace"]
 
         mace_list, desc_list = [], []
-        spec_list, e_list = [], []
+        spec_list, e_list, fft_list = [], [], []
         pos_list, weight_list, mask_list = [], [], []
 
         for stem in tqdm(self.file_names, total=len(self.file_names)):
@@ -155,7 +155,8 @@ class TransformerDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
                 if self.fft:
-                    xanes = fft(xanes, self.fft_concat)
+                    fourier = fft(xanes, self.fft_concat)
+                    fft_list.append(fourier)
 
                 spec_list.append(xanes)
                 e_list.append(e)
@@ -175,6 +176,7 @@ class TransformerDataset(BaseDataset):
                 mask=mask_list[idx],
                 y=spec_list[idx] if spec_list else None,
                 e=e_list[idx] if e_list else None,
+                fourier=fft_list[idx] if fft_list else None,
             )
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
@@ -184,22 +186,23 @@ class TransformerDataset(BaseDataset):
         """
         Collates a list of Data objects into a single Data object with batched tensors.
         """
-        mace_list = [sample.mace for sample in batch]
-        desc_list = [sample.desc for sample in batch]
-        pos_list = [sample.pos for sample in batch]
-        weight_list = [sample.weight for sample in batch]
-        mask_list = [sample.mask for sample in batch]
-        spec_list = [sample.y for sample in batch]
+        to_stack = ["desc", "y", "fourier"]
+        to_pad = ["mace", "weight", "pos", "mask"]
 
-        desc = torch.stack(desc_list).to(torch.float32)
-        spec = torch.stack(spec_list).to(torch.float32)
+        batched = {}
 
-        mace = pad_sequence(mace_list, batch_first=True).to(torch.float32)
-        weight = pad_sequence(weight_list, batch_first=True).to(torch.float32)
-        pos = pad_sequence(pos_list, batch_first=True).to(torch.float32)
-        mask = pad_sequence(mask_list, batch_first=True).to(torch.bool)
+        for key in to_stack:
+            lst = [getattr(sample, key) for sample in batch]
+            batched[key] = self.safe_stack(lst)
 
-        return Data(mace=mace, desc=desc, pos=pos, weight=weight, mask=mask, y=spec)
+        for key in to_pad:
+            lst = [getattr(sample, key) for sample in batch]
+            if key == "mask":
+                batched[key] = self.safe_pad(lst, dtype=bool)
+            else:
+                batched[key] = self.safe_pad(lst)
+
+        return Data(**batched)
 
     @property
     def x_size(self) -> Union[int, List[int]]:
@@ -209,4 +212,7 @@ class TransformerDataset(BaseDataset):
     @property
     def y_size(self) -> int:
         """Size of the label array."""
-        return self[0].y.shape[0]
+        if self.fft:
+            return len(self[0].fourier)
+        else:
+            return len(self[0].y)

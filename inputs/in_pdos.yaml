@@ -1,6 +1,6 @@
 dataset:
   type: xanesx
-  root_path: data/fe
+  root_path: data/fe/processed_train
   xyz_path: data/fe/xyz_train
   xanes_path: data/fe/xanes_train
 #  params:

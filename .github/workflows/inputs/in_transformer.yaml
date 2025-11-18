@@ -1,8 +1,8 @@
 dataset:
   type: transformer
-  root_path: data/graph-set/processed_train  # Path to save processed dataset
-  xyz_path: data/graph-set/xyz_train         # Path to the directory containing .XYZ files
-  xanes_path: data/graph-set/xanes_train     # Path to the directory containing XANES files
+  root_path: .github/workflows/data/graph-set/processed_train
+  xyz_path: .github/workflows/data/graph-set/xyz_train
+  xanes_path: .github/workflows/data/graph-set/xanes_train
 #  params:
 #    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: True
@@ -30,15 +30,15 @@ model:
     n_cross_attn_layers: 3
 
 hyperparams:
-  batch_size: 4
-#  lr: 0.001
-  epochs: 100
-#  optimizer: Adam
-#  model_eval : False
-#  seed: 2021
+  batch_size: 3
+  lr: 0.001
+  epochs: 10
+  optimizer: Adam
+  model_eval : False
+  seed: 2021
   loss: hybrid
-#  loss_reg: None # L1 L2
-#  loss_lambda: 0.0001
+  loss_reg: None # L1 L2
+  loss_lambda: 0.0001
 
 kfold: False
 #kfold_params:

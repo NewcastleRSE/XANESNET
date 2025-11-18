@@ -1,10 +1,10 @@
 dataset:
   type: xanesx
-  root_path: data/fe
+  root_path: data/fe/processed_train
   xyz_path: data/fe/xyz_train
   xanes_path: data/fe/xanes_train
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: False
 #    fourier_concat: False
 
@@ -38,7 +38,6 @@ hyperparams:
   lr: 0.0001
   epochs: 100
   optim_fn: Adam
-  model_eval : False
   seed: 2021
   loss: mse
   loss_reg: L2
@@ -66,5 +65,3 @@ scheduler_params:
   type: step
   step_size: 10
   gamma: 0.5
-
-standardscaler: False

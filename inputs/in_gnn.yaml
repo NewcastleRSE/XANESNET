@@ -1,56 +1,57 @@
 dataset:
   type: graph
-  root_path: data/graph-set
+  root_path: data/graph-set/processed_train
   xyz_path: data/graph-set/xyz_train
   xanes_path: data/graph-set/xanes_train
-#  params:
-#    preload: True
-#    n: 16
-#    r_min: 0.0
-#    r_max: 4.0
-#    fourier: False
-#    fourier_concat: False
+  params:
+    preload: True
+    n: 16
+    r_min: 0.0
+    r_max: 4.0
+    fourier: False
+    fourier_concat: False
 
 descriptors:
   - type: pdos
-#    params:
-#      basis: 3-21G
-#      init_guess: minao
-#      orb_type: p
-#      max_cycles: 0
-#      num_points: 80
-#      e_min: -10.0
-#      e_max: 30.0
-#      sigma: 0.8
+    params:
+      code: pyscf
+      basis: 3-21g
+      init_guess: minao
+      orb_type: p
+      max_cycles: 0
+      num_points: 80
+      e_min: -10.0
+      e_max: 30.0
+      sigma: 0.8
 
   - type: wacsf
-#    params:
-#      r_min: 0.5
-#      r_max: 6.5
-#      n_g2: 22
-#      n_g4: 10
+    params:
+      r_min: 0.5
+      r_max: 6.5
+      n_g2: 22
+      n_g4: 10
 
 model:
   type: gnn
-#  params:
-#    hidden_size: 256
-#    dropout: 0.2
-#    num_hidden_layers: 3
-#    activation: prelu
-#    layer_name: GATv2 #GAT, GATv2, GCN, GraphConv
-#    layer_params:
-#      heads: 2
-#      concat: True
-#      edge_dim: 16
-#  weights:
-#    kernel: xavier_uniform
-#    bias: zeros
-#    seed: 2025
+  params:
+    hidden_size: 256
+    dropout: 0.2
+    num_hidden_layers: 3
+    activation: prelu
+    layer_name: GATv2 #GAT, GATv2, GCN, GraphConv
+    layer_params:
+      heads: 2
+      concat: True
+      edge_dim: 16
+  weights:
+    kernel: xavier_uniform
+    bias: zeros
+    seed: 2025
 
 hyperparams:
 #  batch_size: 5
 #  lr: 0.001
-  epochs: 10
+  epochs: 100
 #  optim_fn: Adam
 #  seed: 2021
 #  loss: mse
@@ -79,23 +80,3 @@ ensemble: False
 #ensemble_params:
 #  n_ens: 3
 #  weight_seed: [97, 39, 22]
-
-
-standardscaler: False
-
-#optuna: False
-#optuna_params:
-#  n_trials: 3
-#  tune_optim_fn: True
-#  tune_batch_size: True
-#  tune_activation: True
-#  tune_loss_fn: True
-#  tune_lr: True
-#  tune_dropout: True
-#  tune_gnn: True
-#
-#freeze: False
-#freeze_params:
-#  model_path: ./models/gnn_std_001
-#  n_gnn: 3
-#  n_dense: 2

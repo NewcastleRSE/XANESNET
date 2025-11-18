@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
 import os
 from dataclasses import dataclass
 
@@ -37,11 +36,12 @@ class Data:
     y: torch.Tensor = None
     e: torch.Tensor = None
     head_idx: torch.Tensor = None  # multihead index
+    fourier: torch.Tensor = None
     head_name: str = ""
 
     def to(self, device):
         # send batch do device
-        for attr in ["x", "y", "head_idx"]:
+        for attr in ["x", "y", "head_idx", "fourier"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -108,7 +108,7 @@ class MultiheadDataset(BaseDataset):
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            xyz = xanes = e = None
+            xyz = xanes = e = fourier = None
             head_idx_xyz = head_idx_xanes = None
             head_name_xyz = head_name_xanes = None
 
@@ -126,7 +126,7 @@ class MultiheadDataset(BaseDataset):
                 )
                 e, xanes = load_xanes(xanes_file)
                 if self.fft:
-                    xanes = fft(xanes, self.fft_concat)
+                    fourier = fft(xanes, self.fft_concat)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -140,7 +140,9 @@ class MultiheadDataset(BaseDataset):
                 head_name = head_name_xanes
 
             head_idx = torch.tensor(head_idx, dtype=torch.long)
-            data = Data(x=x, y=y, e=e, head_idx=head_idx, head_name=head_name)
+            data = Data(
+                x=x, y=y, e=e, head_idx=head_idx, head_name=head_name, fourier=fourier
+            )
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
@@ -163,12 +165,14 @@ class MultiheadDataset(BaseDataset):
         x_list = [sample.x for sample in batch]
         y_list = [sample.y for sample in batch]
         idx_list = [sample.head_idx for sample in batch]
+        fft_list = [sample.fourier for sample in batch]
 
-        batched_x = torch.stack(x_list, dim=0).to(torch.float32)
-        batched_y = torch.stack(y_list, dim=0).to(torch.float32)
-        batched_i = torch.stack(idx_list, dim=0).to(torch.float32)
+        batched_x = self.safe_stack(x_list)
+        batched_y = self.safe_stack(y_list)
+        batched_i = self.safe_stack(idx_list, dtype=torch.int32)
+        batched_fft = self.safe_stack(fft_list)
 
-        return Data(x=batched_x, y=batched_y, head_idx=batched_i)
+        return Data(x=batched_x, y=batched_y, head_idx=batched_i, fourier=batched_fft)
 
     @property
     def x_size(self) -> Union[int, List[int]]:
@@ -179,6 +183,10 @@ class MultiheadDataset(BaseDataset):
     def y_size(self) -> Union[int, List[int]]:
         """Size of the label array."""
         # mapping each head index to the length of its label array.
-        out_sizes = {int(data.head_idx): len(data.y) for data in self}
+
+        if self.fft:
+            out_sizes = {int(data.head_idx): len(data.fourier) for data in self}
+        else:
+            out_sizes = {int(data.head_idx): len(data.y) for data in self}
         # return the dict values as a list
         return [int(v) for _, v in sorted(out_sizes.items())]

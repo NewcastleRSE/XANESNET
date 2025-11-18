@@ -66,7 +66,7 @@ class SoftShellDataset(BaseDataset):
         **kwargs,
     ):
         # Unpack kwargs
-        self.gaussian = kwargs.get("gaussian", False)
+        # self.gaussian = kwargs.get("gaussian", False)
         self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
         self.basis_stride = kwargs.get("basis_stride", 4)
 
@@ -86,7 +86,6 @@ class SoftShellDataset(BaseDataset):
 
         # Save configuration
         params = {
-            "gaussian": self.gaussian,
             "widths_eV": self.widths_eV,
             "basis_stride": self.basis_stride,
         }
@@ -134,8 +133,8 @@ class SoftShellDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
 
-                if self.gaussian:
-                    c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
+                # if self.gaussian:
+                c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
 
             # initialise data object
             data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
@@ -153,10 +152,10 @@ class SoftShellDataset(BaseDataset):
         c_list = [sample.c_star for sample in batch]
         lengths = torch.tensor([d.size(0) for d in desc_list], dtype=torch.long)
 
-        batched_desc = pad_sequence(desc_list, batch_first=True).to(torch.float32)
-        batched_dist = pad_sequence(dist_list, batch_first=True).to(torch.float32)
-        batched_y = torch.stack(y_list, dim=0).to(torch.float32)
-        batched_c = torch.stack(c_list, dim=0).to(torch.float32)
+        batched_desc = self.safe_pad(desc_list)
+        batched_dist = self.safe_pad(dist_list)
+        batched_y = self.safe_stack(y_list)
+        batched_c = self.safe_stack(c_list)
 
         return Data(
             desc=batched_desc,

@@ -9,8 +9,8 @@ dataset:
     - data/multihead/xanes1_train     # Path to the directory containing XANES files
     - data/multihead/xanes2_train
     - data/multihead/xanes3_train
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: False
 #    fourier_concat: False
 
@@ -34,17 +34,16 @@ model:
     shrink_rate: 1.0
     head_shrink_rate: 1.0
     activation: silu
-#  weights:
-#    kernel: xavier_uniform
-#    bias: zeros
-#    seed: 2025
+  weights:
+    kernel: xavier_uniform
+    bias: zeros
+    seed: 2025
 
 hyperparams:
+  epochs: 100
 #  batch_size: 32
 #  lr: 0.001
-#  epochs: 100
 #  optimizer: Adam
-#  model_eval : False
 #  seed: 2021
 #  loss: mse
 #  loss_reg: None # L1 L2
@@ -72,6 +71,3 @@ lr_scheduler: False
 #  type: step
 #  step_size: 10
 #  gamma: 0.5
-
-
-standardscaler: False

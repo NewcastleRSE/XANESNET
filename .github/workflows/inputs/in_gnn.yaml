@@ -14,6 +14,7 @@ dataset:
 descriptors:
   - type: pdos
     params:
+      code: pyscf
       basis: 3-21G
       init_guess: minao
       orb_type: p
@@ -29,12 +30,6 @@ descriptors:
       r_max: 6.5
       n_g2: 22
       n_g4: 10
-
-node_features:
-edge_features:
-  n: 16
-  r_min : 0.0
-  r_max: 4.0
 
 model:
   type: gnn
@@ -85,5 +80,3 @@ ensemble: False
 ensemble_params:
   n_ens: 3
   weight_seed: [97, 39, 22]
-
-standardscaler: False

@@ -1,12 +1,16 @@
 dataset:
   type: xanesx
-  root_path: data/fe
+  root_path: data/fe/processed_train
   xyz_path: data/fe/xyz_train
   xanes_path: data/fe/xanes_train
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: False
 #    fourier_concat: False
+#    gaussian: True                   # Gaussian transformation (default: False)
+#    widths_eV: [ 0.5, 1.0, 2.0, 4.0 ]
+#    basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
+
 
 descriptor:
   - type: wacsf
@@ -34,7 +38,6 @@ hyperparams:
   lr: 0.001
   epochs: 50
   optimizer: Adam
-  model_eval : False
   seed: 2021
   loss: mse
   loss_reg: L2 #None L1
@@ -62,5 +65,3 @@ scheduler_params:
   type: step
   step_size: 100
   gamma: 0.5
-
-standardscaler: False

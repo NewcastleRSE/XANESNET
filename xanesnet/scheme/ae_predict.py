@@ -19,7 +19,6 @@ import numpy as np
 import torch
 
 from typing import Optional, Tuple, List
-from sklearn.preprocessing import StandardScaler
 from dataclasses import dataclass
 
 from xanesnet.models.base_model import Model

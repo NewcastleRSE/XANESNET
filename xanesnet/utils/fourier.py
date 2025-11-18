@@ -14,8 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import numpy as np
 import torch
+
 
 def fft(x: torch.Tensor, concat: bool) -> torch.Tensor:
     x = x.to(dtype=torch.float32)
@@ -28,6 +28,7 @@ def fft(x: torch.Tensor, concat: bool) -> torch.Tensor:
         z = torch.cat([x, z], dim=-1)
 
     return z
+
 
 def inverse_fft(z: torch.Tensor, concat: bool) -> torch.Tensor:
     z = z.to(dtype=torch.float32)

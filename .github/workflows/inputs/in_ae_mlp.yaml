@@ -8,7 +8,6 @@ dataset:
     fourier: False
     fourier_concat: False
 
-
 descriptors:
   - type: wacsf
     params:
@@ -35,7 +34,6 @@ hyperparams:
   lr: 0.0001
   epochs: 10
   optim_fn: Adam
-  model_eval: False
   seed: 2021
   loss: mse
   loss_reg: None #None L1 L2
@@ -63,5 +61,3 @@ scheduler_params:
   type: step
   step_size: 1
   gamma: 0.1
-
-standardscaler: False

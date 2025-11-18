@@ -39,7 +39,6 @@ class SSPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
-        self.gaussian = kwargs.get("gaussian")
         self.widths_eV = kwargs.get("widths_eV")
         self.basis_stride = kwargs.get("basis_stride")
 
@@ -47,6 +46,8 @@ class SSPredict(Predict):
         """
         Performs a single prediction with a given model.
         """
+        data_loader = self._create_loader(model, self.dataset)
+
         model.eval()
         predictions, targets = [], []
 
@@ -62,7 +63,7 @@ class SSPredict(Predict):
 
         # ---- Run inference ----
         with torch.no_grad():
-            for data in self.dataset:
+            for data in data_loader:
                 c_pred = model(data)
                 output = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
                 output = self.to_numpy(output.squeeze(0))

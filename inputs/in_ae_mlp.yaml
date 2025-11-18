@@ -3,8 +3,8 @@ dataset:
   root_path: data/fe/processed_train
   xyz_path: data/fe/xyz_train
   xanes_path: data/fe/xanes_train
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: False
 #    fourier_concat: False
 
@@ -34,7 +34,6 @@ hyperparams:
   lr: 0.001
   epochs: 100
   optimizer: Adam
-  model_eval : False
   seed: 2021
   loss: mse
   loss_reg: L2
@@ -57,10 +56,8 @@ ensemble_params:
   n_ens: 3
   weight_seed: [97, 39, 22]
 
-lr_scheduler: True
+lr_scheduler: False
 scheduler_params:
   type: step
   step_size: 50
   gamma: 0.1
-
-standardscaler: False

@@ -135,7 +135,7 @@ class SSLearn(Learn):
         eta_aux_max, eta_aux_min = 3e-3, 3e-4
         T = max(1, self.epochs - 50)  # stop annealing near the end
         lambda_neg = 1e2
-        
+
         for batch in loader:
             batch.to(device)
             optimizer.zero_grad(set_to_none=True)
@@ -143,8 +143,8 @@ class SSLearn(Learn):
             c_pred = model(batch)
             y_pred = spectral_post.forward_from_coeffs(c_pred)
 
-            neg_part = F.relu(-y_pred)             
-            loss_neg = (neg_part ** 2).mean()    
+            neg_part = F.relu(-y_pred)
+            loss_neg = (neg_part**2).mean()
 
             sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
             eta_aux = eta_aux_min + (eta_aux_max - eta_aux_min) * max(0, T - epoch) / T

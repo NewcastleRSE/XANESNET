@@ -139,6 +139,10 @@ class KernelInitSwitch:
     A factory class to get kernel/weight initializer functions from their names.
     """
 
+    @staticmethod
+    def _noop(tensor):
+        return tensor
+
     KERNEL = {
         "uniform": nn.init.uniform_,
         "normal": nn.init.normal_,
@@ -146,6 +150,7 @@ class KernelInitSwitch:
         "xavier_normal": nn.init.xavier_normal_,
         "kaiming_uniform": nn.init.kaiming_uniform_,
         "kaiming_normal": nn.init.kaiming_normal_,
+        "none": _noop.__func__,
     }
 
     def get(self, kernel_name: str):

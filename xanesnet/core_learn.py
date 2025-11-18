@@ -90,7 +90,6 @@ def train(config, args):
             "model": model.config,
             "descriptors": [desc.config for desc in descriptor_list],
             "scheme": scheme_type,
-            "standardscaler": config["standardscaler"],
         }
 
         save_models(Path("models"), model_list, metadata)
@@ -157,8 +156,7 @@ def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
         weights_config = config["model"].get("weights", {})
         weight_kernel = weights_config.get("kernel", None)
         logging.info(f">> Initialising model weights: {weight_kernel}")
-        if weight_kernel:
-            model = _init_model_weights(model, **weights_config)
+        model = _init_model_weights(model, **weights_config)
 
     return model
 
@@ -167,12 +165,9 @@ def _init_model_weights(model: Model, **kwargs) -> Model:
     """
     Initialise model kernel and bias weights using user-defined methods.
     """
-    kernel = kwargs.get("kernel")
+    kernel = kwargs.get("kernel", "None")
     bias = kwargs.get("bias", "zeros")
     seed = kwargs.get("seed", random.randrange(1000))
-
-    if kernel is None or str(kernel).lower() == "none":
-        return model
 
     # Set random seed
     if torch.cuda.is_available():

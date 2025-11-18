@@ -32,7 +32,6 @@ model:
 hyperparams:
   batch_size: 16
   epochs: 100
-  model_eval: False
   seed: 2021
   lr: [0.01, 0.00001]     #[generative autoencoder, discriminator]
   optim_fn: [Adam, Adam]
@@ -62,5 +61,3 @@ scheduler_params:
   type: step
   step_size: 10
   gamma: 0.5
-
-standardscaler: False

@@ -20,11 +20,10 @@ import torch
 
 from typing import Optional, Tuple, List
 from dataclasses import dataclass
-from sklearn.preprocessing import StandardScaler
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import fft, inverse_fft
+from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
 
 

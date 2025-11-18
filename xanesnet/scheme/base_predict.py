@@ -37,7 +37,6 @@ class Predict(ABC):
         # Unpack parameters
         self.mode = kwargs.get("pred_mode")
         self.pred_eval = kwargs.get("pred_eval")
-        self.scaler = kwargs.get("scaler")
 
         self.recon_flag = 0
 
@@ -132,13 +131,3 @@ class Predict(ABC):
     ):
         mse = mean_squared_error(data, result)
         logging.info(f"Mean Squared Error ({source_name} → {target_name}): {mse:.6f}")
-
-    @staticmethod
-    def setup_scaler(scaler, x_data, inverse: bool):
-        if not inverse:
-            scaler.fit(x_data)
-            x_data = scaler.transform(x_data)
-        else:
-            x_data = scaler.inverse_transform(x_data)
-
-        return x_data

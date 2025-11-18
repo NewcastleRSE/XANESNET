@@ -1,8 +1,8 @@
 dataset:
   type: softshell
-  root_path: data/fe/processed_train  # Path to save processed dataset
-  xyz_path: data/fe/xyz_train         # Path to the directory containing .XYZ files
-  xanes_path: data/fe/xanes_train     # Path to the directory containing XANES files
+  root_path: .github/workflows/data/fe/processed_train  # Path to save processed dataset
+  xyz_path: .github/workflows/data/fe/xyz_train         # Path to the directory containing .XYZ files
+  xanes_path: .github/workflows/data/fe/xanes_train     # Path to the directory containing XANES files
   params:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
     widths_eV: [0.5, 1.0, 2.0, 4.0]
@@ -35,8 +35,8 @@ model:
       dropout: 0.1
 
 hyperparams:
-  batch_size: 32
-  epochs: 500
+  batch_size: 4
+  epochs: 10
   n_earlystop: 100
   lr: 0.0002
   optimizer: AdamW
