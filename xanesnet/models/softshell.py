@@ -14,10 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import List
-
 import torch
 
+from typing import List
 from torch import nn
 
 from xanesnet.registry import register_model, register_scheme
@@ -83,6 +82,25 @@ class SoftShellSpectraNet(Model):
 
     def forward_coeffs(self, latent):
         return self.coeff_head(latent)
+
+    def init_layer_weights(self, m, kernel_init_fn, bias_init_fn):
+        """
+        Initialise weights and bias for a single layer.
+        """
+        # initialise layers in encoder
+        if m in self.encoder.modules():
+            if isinstance(m, nn.Linear):
+                kernel_init_fn(m.weight)
+                bias_init_fn(m.bias)
+
+        # initialise layers in coeff_head
+        if m in self.coeff_head.modules():
+            if isinstance(m, ResidualPreLNBlock):
+                # initialize fc1 and fc2 inside the block
+                kernel_init_fn(m.fc1.weight)
+                bias_init_fn(m.fc1.bias)
+                kernel_init_fn(m.fc2.weight)
+                bias_init_fn(m.fc2.bias)
 
 
 class SoftRadialShellsEncoder(nn.Module):

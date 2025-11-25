@@ -320,6 +320,34 @@ jobs:
           python3 -m xanesnet.cli --mode predict_xanes --in_model models/softshell_std_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
           rm -rf ./.github/workflows/data/fe/processed*
 
+      - name: SoftShell (Kfold)
+        run: |
+          echo "--- Running: SoftShell (Kfold) XYZ -> XANES ---"
+          sed -i 's/kfold: False/kfold: True/' ./.github/workflows/inputs/in_softshell.yaml
+          python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_softshell.yaml --save
+          python3 -m xanesnet.cli --mode predict_xanes --in_model models/softshell_kfold_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+          sed -i 's/kfold: True/kfold: False/' ./.github/workflows/inputs/in_softshell.yaml
+          rm -rf ./.github/workflows/data/fe/processed*
+                
+
+      - name: SoftShell (Bootstrap)
+        run: |
+          echo "--- Running: SoftShell (Bootstrap) XYZ -> XANES ---"
+          sed -i 's/bootstrap: False/bootstrap: True/' ./.github/workflows/inputs/in_softshell.yaml
+          python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_softshell.yaml --save
+          python3 -m xanesnet.cli --mode predict_xanes --in_model models/softshell_bootstrap_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+          sed -i 's/bootstrap: True/bootstrap: False/' ./.github/workflows/inputs/in_softshell.yaml
+          rm -rf ./.github/workflows/data/fe/processed*
+
+      - name: SoftShell (STD)
+        run: |
+          echo "--- Running: SoftShell (Ensemble) ---"
+          sed -i 's/ensemble: False/ensemble: True/' ./.github/workflows/inputs/in_softshell.yaml
+          python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_softshell.yaml --save
+          python3 -m xanesnet.cli --mode predict_xanes --in_model models/softshell_ensemble_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+          sed -i 's/ensemble: True/ensemble: False/' ./.github/workflows/inputs/in_softshell.yaml
+          rm -rf ./.github/workflows/data/graph-set/processed*
+          
 
 #      - name: Run unit tests
 #        run: pytest

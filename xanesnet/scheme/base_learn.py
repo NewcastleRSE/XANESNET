@@ -77,7 +77,8 @@ class Learn(ABC):
         # --- Model parameter ---
         self.model_type = model_config.get("type")
         self.model_params = model_config.get("params", {})
-        self.weights_params = model_config.get("weights", {})
+        self.weights_type = model_config.get("weights", {})
+        self.weights_params = model_config.get("weights_params", {})
 
         # --- Hyperparameter ---
         self.hyper_params = hyper_params
@@ -210,10 +211,14 @@ class Learn(ABC):
             bootstrap_indices = rng.choice(n_samples, size=sample_size, replace=True)
             dataset_boot = self.dataset[bootstrap_indices]
 
-            # Deep copy model and re-initialise model weight using bootstrap seeds
+            # Deep copy model
             model = copy.deepcopy(self.model)
-            self.weights_params["seed"] = self.weight_seed_boot[i]
-            model = self._init_model_weights(model, **self.weights_params)
+
+            # Re-initialise model weight using ensemble seeds
+            kernel = self.weights_type.get("kernel", "default")
+            bias = self.weights_type.get("bias", "zeros")
+            seed = self.weight_seed_boot[i]
+            model.init_model_weights(kernel, bias, seed, **self.weights_params)
 
             self.train(model, dataset_boot)
 
@@ -233,11 +238,14 @@ class Learn(ABC):
         model_list = []
 
         for i in range(self.n_ens):
-            # Deep copy model and re-initialise model weight using ensemble seeds
+            # Deep copy model
             model = copy.deepcopy(self.model)
 
-            self.weights_params["seed"] = self.weight_seed_ens[i]
-            model = self._init_model_weights(model, **self.weights_params)
+            # Re-initialise model weight using ensemble seeds
+            kernel = self.weights_type.get("kernel", "default")
+            bias = self.weights_type.get("bias", "zeros")
+            seed = self.weight_seed_ens[i]
+            model.init_model_weights(kernel, bias, seed, **self.weights_params)
 
             self.train(model, self.dataset)
             model_list.append(model)
@@ -367,30 +375,3 @@ class Learn(ABC):
             run_url = mlflow.get_artifact_uri()  # Get the MLflow run URL
             mlflow.end_run()
             print(f"\nMLflow run saved at: {run_url}")
-
-    def _init_model_weights(self, model, **kwargs):
-        """Initialise model weights and biases"""
-        kernel = kwargs.get("kernel", "xavier_uniform")
-        bias = kwargs.get("bias", "zeros")
-        seed = kwargs.get("seed", random.randrange(1000))
-
-        # set seed
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-        else:
-            torch.manual_seed(seed)
-
-        kernel_init_fn = KernelInitSwitch().get(kernel)
-        bias_init_fn = BiasInitSwitch().get(bias)
-
-        # nested function to apply to each module
-        def _init_fn(m):
-            # Initialise Conv and Linear layers
-            if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
-                kernel_init_fn(m.weight)
-                if m.bias is not None:
-                    bias_init_fn(m.bias)
-
-        model.apply(_init_fn)
-
-        return model

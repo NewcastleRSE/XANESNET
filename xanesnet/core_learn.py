@@ -24,8 +24,6 @@ import time
 
 from datetime import timedelta
 from pathlib import Path
-
-from torch import nn
 from torchinfo import summary
 
 from xanesnet.datasets.base_dataset import BaseDataset
@@ -33,7 +31,6 @@ from xanesnet.models.base_model import Model
 from xanesnet.models.pre_trained import PretrainedModels
 from xanesnet.scheme import Learn
 from xanesnet.utils.mode import get_mode, Mode
-from xanesnet.utils.switch import KernelInitSwitch, BiasInitSwitch
 from xanesnet.utils.io import (
     save_models,
     load_pretrained_descriptors,
@@ -138,54 +135,31 @@ def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDatas
 
 def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
     """Initialises or loads the model and its descriptors."""
-    model_type = config["model"]["type"]
+    model_config = config["model"]
+    model_type = model_config["type"]
 
     if hasattr(PretrainedModels, model_type):
         logging.info(f">> Loading pretrained model: {model_type}")
-        model_params = config["model"].get("params", {})
+        model_params = model_config.get("params", {})
         model = load_pretrained_model(model_type, **model_params)
     else:
         logging.info(f">> Initialising model: {model_type}")
-        model_params = config["model"].get("params", {})
+        model_params = model_config.get("params", {})
 
         # Add additional model parameters
         model_params["in_size"] = dataset.x_size
         model_params["out_size"] = dataset.y_size
         model = create_model(model_type, **model_params)
 
-        weights_config = config["model"].get("weights", {})
-        weight_kernel = weights_config.get("kernel", None)
-        logging.info(f">> Initialising model weights: {weight_kernel}")
-        model = _init_model_weights(model, **weights_config)
+        # Intialise model weights
+        weights_params = model_config.get("weights_params", {})
+        weights_type = model_config.get("weights", {})
+        kernel = weights_type.get("kernel", "default")
+        bias = weights_type.get("bias", "zeros")
+        seed = weights_type.get("seed", None)
 
-    return model
-
-
-def _init_model_weights(model: Model, **kwargs) -> Model:
-    """
-    Initialise model kernel and bias weights using user-defined methods.
-    """
-    kernel = kwargs.get("kernel", "None")
-    bias = kwargs.get("bias", "zeros")
-    seed = kwargs.get("seed", random.randrange(1000))
-
-    # Set random seed
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-    else:
-        torch.manual_seed(seed)
-
-    kernel_init_fn = KernelInitSwitch().get(kernel)
-    bias_init_fn = BiasInitSwitch().get(bias)
-
-    # Apply initialisation to each applicable layer
-    def _init_fn(m):
-        if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
-            kernel_init_fn(m.weight)
-            if m.bias is not None:
-                bias_init_fn(m.bias)
-
-    model.apply(_init_fn)
+        logging.info(f">> Initialising model weights: {kernel}")
+        model.init_model_weights(kernel, bias, seed, **weights_params)
 
     return model
 

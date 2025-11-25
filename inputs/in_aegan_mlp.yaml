@@ -24,7 +24,7 @@ model:
     num_hidden_layers_gen: 2
     num_hidden_layers_shared: 2
     num_hidden_layers_dis: 2
-  weight:
+  weights:
     kernel: xavier_uniform
     bias: zeros
     seed: 2025

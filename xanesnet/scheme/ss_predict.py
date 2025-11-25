@@ -25,6 +25,7 @@ from typing import List, Optional, Tuple
 from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
+from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -98,13 +99,32 @@ class SSPredict(Predict):
         return Prediction(xanes_pred=(predictions, std_pred))
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
-        """
-        Performs predictions on multiple models (bootstrapping)
-        """
-        pass
+        """Aggregate predictions from multiple bootstrap-trained models."""
+        # Get all predictions and targets from model_list
+        prediction_list, targets = self._predict_from_models(model_list)
+
+        mean_pred = np.mean(prediction_list, axis=0)
+        std_pred = np.std(prediction_list, axis=0)
+
+        if self.pred_eval:
+            logging.info("-" * 55)
+            Predict.print_mse("target", "mean prediction", targets, mean_pred)
+
+        return Prediction(xanes_pred=(mean_pred, std_pred))
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
-        """
-        Performs predictions on multiple models (ensemble)
-        """
-        pass
+        """Aggregate predictions from an ensemble of models."""
+        return self.predict_bootstrap(model_list)
+
+    def _predict_from_models(self, model_list: List[Model]):
+        """Predictions for a list of models."""
+        prediction_list, targets = [], []
+
+        for i, model in enumerate(model_list, start=0):
+            logging.info(
+                f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
+            )
+            predictions, targets = self.predict(model)
+            prediction_list.append(predictions)
+
+        return np.array(prediction_list), targets

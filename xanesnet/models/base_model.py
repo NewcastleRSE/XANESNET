@@ -14,7 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import random
+
+import torch
 from torch import nn
+
+from xanesnet.utils.switch import KernelInitSwitch, BiasInitSwitch
 
 
 class Model(nn.Module):
@@ -52,3 +57,32 @@ class Model(nn.Module):
         config.update(args_dict)
 
         self.config = config
+
+    def init_model_weights(
+        self, kernel: str, bias: str, seed: int | None = None, **kwargs
+    ):
+        """
+        Initialise model kernel and bias weights using user-defined methods.
+        """
+        if seed is None:
+            seed = random.randrange(1000)
+
+        # Set random seed
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+        else:
+            torch.manual_seed(seed)
+
+        kernel_init_fn = KernelInitSwitch().get(kernel, **kwargs)
+        bias_init_fn = BiasInitSwitch().get(bias)
+
+        # Apply initialisation to each applicable layer
+        self.apply(lambda m: self.init_layer_weights(m, kernel_init_fn, bias_init_fn))
+
+    def init_layer_weights(self, m, kernel_init_fn, bias_init_fn):
+        """
+        Initialise weights and bias for a single layer.
+        """
+        if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
+            kernel_init_fn(m.weight)
+            bias_init_fn(m.bias)

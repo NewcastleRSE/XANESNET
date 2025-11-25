@@ -14,12 +14,18 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import copy
 import logging
+from typing import List
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 from collections import defaultdict
+from sklearn.model_selection import RepeatedKFold
 
+from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch
 from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
@@ -38,8 +44,26 @@ class SSLearn(Learn):
         super().__init__(model, dataset, **kwargs)
 
         hyper_params = self.hyper_params
-        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
-        self.basis_stride = hyper_params.get("basis_stride", 4)
+        widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
+        basis_stride = self.hyper_params.get("basis_stride", 4)
+        diagnostics = self.hyper_params.get("diagnostics", True)
+
+        # Build the spectral basis
+        basis = SpectralBasis(
+            energies=self.dataset[0].e,
+            widths_eV=widths_eV,
+            normalize_atoms=True,
+            stride=basis_stride,
+        ).to(self.device)
+
+        # Build post processor
+        self.spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(
+            self.device
+        )
+        self.spectral_post.eval()
+
+        if diagnostics:
+            self._model_diagnostics(self.spectral_post, model, dataset)
 
         self.loss_kwargs = dict(
             alpha=hyper_params.get("loss_alpha", 0.65),
@@ -55,17 +79,6 @@ class SSLearn(Learn):
         optimizer, _, _, scheduler = self.setup_components(model)
         model.to(self.device)
 
-        basis = SpectralBasis(
-            energies=dataset[0].e,
-            widths_eV=self.widths_eV,
-            normalize_atoms=True,
-            stride=self.basis_stride,
-        ).to(self.device)
-
-        spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(self.device)
-        spectral_post.eval()
-        self._model_diagnostics(spectral_post, model, dataset)
-
         state = EarlyStopState() if self.earlystop_flag else None
         valid_loss = 0.0
 
@@ -73,11 +86,13 @@ class SSLearn(Learn):
         for epoch in range(self.epochs):
             # Run training phase
             train_loss = self._run_one_epoch_train(
-                epoch, train_loader, model, optimizer, spectral_post
+                epoch, train_loader, model, optimizer, self.spectral_post
             )
 
             # Run validation phase
-            valid_loss = self._run_one_epoch_valid(valid_loader, model, spectral_post)
+            valid_loss = self._run_one_epoch_valid(
+                valid_loader, model, self.spectral_post
+            )
 
             # Adjust learning rate if scheduler is used
             if self.lr_scheduler:
@@ -106,7 +121,12 @@ class SSLearn(Learn):
 
     def train_std(self):
         """
-        Performs standard training run
+        Trains model using standard single-run training.
+
+        Returns
+        -------
+        Model
+            The trained model object.
         """
         self.train(self.model, self.dataset)
 
@@ -114,9 +134,63 @@ class SSLearn(Learn):
 
     def train_kfold(self):
         """
-        Performs K-fold cross-validation
+        Trains model using k-fold cross-validation.
+
+
+        Returns
+        -------
+        Model
+            The (best) trained model object.
         """
-        pass
+        best_model = None
+        best_score = float("inf")
+        score_list = {"train_score": [], "test_score": []}
+
+        kfold_splitter = RepeatedKFold(
+            n_splits=self.n_splits,
+            n_repeats=self.n_repeats,
+            random_state=self.seed_kfold,
+        )
+
+        # indices for k-fold splits
+        indices = self.dataset.indices
+
+        for i, (train_index, test_index) in enumerate(kfold_splitter.split(indices)):
+            # Deep copy model
+            model = copy.deepcopy(self.model)
+
+            #  Train model on the training split
+            train_data = self.dataset[train_index]
+            train_score = self.train(model, train_data)
+
+            # Evaluate model on the test split
+            test_data = self.dataset[test_index]
+            test_loader = self._create_loader(test_data)
+
+            test_score = self._run_one_epoch_valid(
+                test_loader, model, self.spectral_post
+            )
+
+            score_list["train_score"].append(train_score)
+            score_list["test_score"].append(test_score)
+
+            if test_score < best_score:
+                logging.info(
+                    f"--- [Fold {i+1}] New best model found with test score: {test_score:.6f} ---"
+                )
+                best_score = test_score
+                best_model = model
+
+        # Log final averaged results
+        logging.info("--- K-Fold Cross-Validation Finished ---")
+        logging.info(
+            f"Average Train Score: {np.mean(score_list['train_score']):.6f} +/- {np.std(score_list['train_score']):.6f}"
+        )
+        logging.info(
+            f"Average Test Score : {np.mean(score_list['test_score']):.6f} +/- {np.std(score_list['test_score']):.6f}"
+        )
+
+        return best_model
 
     def _run_one_epoch_train(self, epoch, loader, model, optimizer, spectral_post):
         """

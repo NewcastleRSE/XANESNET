@@ -140,7 +140,7 @@ class KernelInitSwitch:
     """
 
     @staticmethod
-    def _noop(tensor):
+    def _noop(tensor, **kwargs):
         return tensor
 
     KERNEL = {
@@ -150,14 +150,19 @@ class KernelInitSwitch:
         "xavier_normal": nn.init.xavier_normal_,
         "kaiming_uniform": nn.init.kaiming_uniform_,
         "kaiming_normal": nn.init.kaiming_normal_,
-        "none": _noop.__func__,
+        "default": _noop.__func__,
     }
 
-    def get(self, kernel_name: str):
+    def get(self, kernel_name: str, **kwargs):
         if kernel_name.lower() not in self.KERNEL:
             raise TypeError(f"Invalided kernel function name '{kernel_name}'.")
 
-        return self.KERNEL[kernel_name.lower()]
+        fn = self.KERNEL[kernel_name.lower()]
+
+        def kernel_fn(tensor):
+            return fn(tensor, **kwargs)
+
+        return kernel_fn
 
 
 class LRSchedulerSwitch:

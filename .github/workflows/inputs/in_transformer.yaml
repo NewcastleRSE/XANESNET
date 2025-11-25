@@ -34,7 +34,6 @@ hyperparams:
   lr: 0.001
   epochs: 10
   optimizer: Adam
-  model_eval : False
   seed: 2021
   loss: hybrid
   loss_reg: None # L1 L2
