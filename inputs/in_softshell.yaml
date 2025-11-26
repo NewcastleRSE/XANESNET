@@ -33,13 +33,13 @@ model:
       head_hidden: 256
       head_depth: 3
       dropout: 0.1
-#  weights:
-#    kernel: kaiming_uniform
-#    bias: zeros
-#    seed: 2025
-#  weights_params:
-#    mode: fan_in
-#    nonlinearity: relu
+ weights:
+   kernel: kaiming_uniform
+   bias: zeros
+   seed: 2025
+ weights_params:
+   mode: fan_in
+   nonlinearity: relu
 
 hyperparams:
   batch_size: 32
