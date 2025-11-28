@@ -44,9 +44,9 @@ class SSLearn(Learn):
         super().__init__(model, dataset, **kwargs)
 
         hyper_params = self.hyper_params
-        widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
-        basis_stride = self.hyper_params.get("basis_stride", 4)
-        diagnostics = self.hyper_params.get("diagnostics", True)
+        widths_eV = hyper_params.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
+        basis_stride = hyper_params.get("basis_stride", 4)
+        diagnostics = hyper_params.get("diagnostics", True)
 
         # Build the spectral basis
         basis = SpectralBasis(

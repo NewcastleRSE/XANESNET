@@ -5,7 +5,7 @@ dataset:
   xanes_path: data/fe/xanes_train     # Path to the directory containing XANES files
   params:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-    widths_eV: [0.5, 1.0, 2.0, 4.0]
+    widths_eV: [0.2, 1.0, 2.0, 4.0]
     basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
 
 
@@ -33,13 +33,13 @@ model:
       head_hidden: 256
       head_depth: 3
       dropout: 0.1
- weights:
-   kernel: kaiming_uniform
-   bias: zeros
-   seed: 2025
- weights_params:
-   mode: fan_in
-   nonlinearity: relu
+  weights:
+      kernel: kaiming_uniform
+      bias: zeros
+      seed: 2025
+  weights_params:
+      mode: fan_in
+      nonlinearity: relu
 
 hyperparams:
   batch_size: 32
@@ -53,7 +53,7 @@ hyperparams:
   loss_beta: 0.35
   loss_gamma: 0.25
   loss_huber_delta: 0.01
-  widths_eV: [0.5, 1.0, 2.0, 4.0]
+  widths_eV: [0.2, 1.0, 2.0, 4.0]
   seed: 2021
 
 kfold: False
