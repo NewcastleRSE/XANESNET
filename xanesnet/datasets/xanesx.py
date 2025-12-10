@@ -58,39 +58,15 @@ class XanesXDataset(BaseDataset):
         descriptors: list = None,
         **kwargs,
     ):
-        # Unpack kwargs
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
-        self.gaussian = kwargs.get("gaussian", False)
-        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
-        self.basis_stride = kwargs.get("basis_stride", 2)
-
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
         xanes_path = self.unique_path(xanes_path)
-
-        if self.fft or self.gaussian:
-            if mode is not Mode.XYZ_TO_XANES:
-                raise ValueError(
-                    "FFT and Gaussian transformation are only supported in XYZ_TO_XANES mode."
-                )
-        if self.fft and self.gaussian:
-            raise ValueError(
-                "FFT and Gaussian transformations cannot be applied at the same time"
-            )
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
         )
 
         # Save configuration
-        params = {
-            "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
-            "gaussian": self.gaussian,
-            "widths_eV": self.widths_eV,
-            "basis_stride": self.basis_stride,
-        }
         self.register_config(locals(), type="xanesx")
 
     def set_file_names(self):
@@ -138,7 +114,7 @@ class XanesXDataset(BaseDataset):
                 if self.fft:
                     fourier = fft(xanes, self.fft_concat)
                 elif self.gaussian:
-                    c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
+                    c_star = gaussian_fit(basis=self.basis, xanes=xanes)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -174,8 +150,11 @@ class XanesXDataset(BaseDataset):
     def y_size(self) -> Union[int, List[int]]:
         """Size of the label array."""
         if self.gaussian:
-            return len(self[0].c_star)
+            c_star = self[0].c_star
+            return 0 if c_star is None else len(c_star)
         elif self.fft:
-            return len(self[0].fourier)
+            fourier = self[0].fourier
+            return 0 if fourier is None else len(fourier)
         else:
-            return len(self[0].y)
+            y = self[0].y
+            return 0 if y is None else len(y)

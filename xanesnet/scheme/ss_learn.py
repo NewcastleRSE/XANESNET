@@ -16,7 +16,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import logging
-from typing import List
 
 import numpy as np
 import torch
@@ -28,7 +27,7 @@ from sklearn.model_selection import RepeatedKFold
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch
-from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
+from xanesnet.utils.gaussian import SpectralPost
 
 
 class SSLearn(Learn):
@@ -44,22 +43,11 @@ class SSLearn(Learn):
         super().__init__(model, dataset, **kwargs)
 
         hyper_params = self.hyper_params
-        widths_eV = hyper_params.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
-        basis_stride = hyper_params.get("basis_stride", 4)
         diagnostics = hyper_params.get("diagnostics", True)
 
-        # Build the spectral basis
-        basis = SpectralBasis(
-            energies=self.dataset[0].e,
-            widths_eV=widths_eV,
-            normalize_atoms=True,
-            stride=basis_stride,
-        ).to(self.device)
-
         # Build post processor
-        self.spectral_post = SpectralPost(basis=basis, nonneg_output=False).to(
-            self.device
-        )
+        self.spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
+        self.spectral_post.to(self.device)
         self.spectral_post.eval()
 
         if diagnostics:

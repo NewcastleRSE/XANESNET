@@ -22,10 +22,9 @@ import torch
 
 from typing import List, Optional, Tuple
 
-from xanesnet.utils.gaussian import SpectralPost, SpectralBasis
+from xanesnet.utils.gaussian import SpectralPost
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -40,9 +39,6 @@ class SSPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
-        self.widths_eV = kwargs.get("widths_eV")
-        self.basis_stride = kwargs.get("basis_stride")
-
     def predict(self, model):
         """
         Performs a single prediction with a given model.
@@ -52,14 +48,7 @@ class SSPredict(Predict):
         model.eval()
         predictions, targets = [], []
 
-        basis_eval = SpectralBasis(
-            energies=self.dataset[0].e,
-            widths_eV=self.widths_eV,
-            normalize_atoms=True,
-            stride=self.basis_stride,
-        )
-
-        spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+        spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
         spectral_post.eval()
 
         # ---- Run inference ----

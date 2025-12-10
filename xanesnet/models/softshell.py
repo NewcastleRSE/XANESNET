@@ -86,6 +86,7 @@ class SoftShellSpectraNet(Model):
     def init_layer_weights(self, m, kernel_init_fn, bias_init_fn):
         """
         Initialise weights and bias for a single layer.
+        Overrides base method to handle ResidualPreLNBlock.
         """
         # initialise layers in encoder
         if m in self.encoder.modules():

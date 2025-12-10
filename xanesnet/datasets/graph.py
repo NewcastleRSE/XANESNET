@@ -47,8 +47,6 @@ class GraphDataset(BaseDataset):
         self.n = kwargs.get("n", 16)
         self.r_min = kwargs.get("r_min", 0.0)
         self.r_max = kwargs.get("r_max", 4.0)
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
 
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
@@ -63,8 +61,6 @@ class GraphDataset(BaseDataset):
 
         # Save configuration
         params = {
-            "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
             "n": self.n,
             "r_min": self.r_min,
             "r_max": self.r_max,
@@ -107,7 +103,8 @@ class GraphDataset(BaseDataset):
     @property
     def y_size(self) -> Union[int, List[int]]:
         # xanes (label) size
-        return len(self[0].y)
+        y = self[0].y
+        return 0 if y is None else len(y)
 
     def process(self):
         """

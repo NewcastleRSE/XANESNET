@@ -82,6 +82,7 @@ class Model(nn.Module):
     def init_layer_weights(self, m, kernel_init_fn, bias_init_fn):
         """
         Initialise weights and bias for a single layer.
+        Function to be overridden by child classes if different layers are used.
         """
         if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
             kernel_init_fn(m.weight)

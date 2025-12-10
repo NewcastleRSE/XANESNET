@@ -45,8 +45,6 @@ class NNPredict(Predict):
         self.fft_concat = kwargs.get("fourier_concat")
 
         self.gaussian = kwargs.get("gaussian")
-        self.widths_eV = kwargs.get("widths_eV")
-        self.basis_stride = kwargs.get("basis_stride")
 
     def predict(self, model):
         """Perform standard single-model prediction."""
@@ -58,13 +56,7 @@ class NNPredict(Predict):
 
         spectral_post = None
         if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
-            basis_eval = SpectralBasis(
-                energies=self.dataset[0].e,
-                widths_eV=self.widths_eV,
-                normalize_atoms=True,
-                stride=self.basis_stride,
-            )
-            spectral_post = SpectralPost(basis=basis_eval, nonneg_output=False)
+            spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
             spectral_post.eval()
 
         with torch.no_grad():

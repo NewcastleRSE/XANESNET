@@ -115,14 +115,7 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     return A.to(torch.float32)
 
 
-def gaussian_fit(e: Tensor, xanes: Tensor, widths_eV: List, stride: int) -> Tensor:
-    basis = SpectralBasis(
-        energies=e,
-        widths_eV=widths_eV,
-        normalize_atoms=True,
-        stride=stride,
-    )
-
+def gaussian_fit(basis: SpectralBasis, xanes: Tensor) -> Tensor:
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T

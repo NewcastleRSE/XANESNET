@@ -47,13 +47,11 @@ hyperparams:
   n_earlystop: 100
   lr: 0.0002
   optimizer: AdamW
-  basis_stride: 4
   loss: specplus
   loss_alpha: 0.65
   loss_beta: 0.35
   loss_gamma: 0.25
   loss_huber_delta: 0.01
-  widths_eV: [0.2, 1.0, 2.0, 4.0]
   seed: 2021
 
 kfold: False

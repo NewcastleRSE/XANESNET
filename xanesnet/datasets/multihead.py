@@ -59,10 +59,6 @@ class MultiheadDataset(BaseDataset):
         descriptors: list = None,
         **kwargs,
     ):
-        # Unpack kwargs
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
-
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.list_path(xyz_path)
         xanes_path = self.list_path(xanes_path)
@@ -72,10 +68,6 @@ class MultiheadDataset(BaseDataset):
         )
 
         # Save configuration
-        params = {
-            "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
-        }
         self.register_config(locals(), type="multihead")
 
     def set_file_names(self):

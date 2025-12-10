@@ -28,6 +28,8 @@ from typing import Union, List, Any, Callable
 from torch import Tensor
 from torch_geometric.io import fs
 
+from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.io import load_xanes
 from xanesnet.utils.mode import Mode
 
 IndexType = Union[slice, Tensor, np.ndarray, Sequence]
@@ -62,14 +64,43 @@ class BaseDataset(Dataset):
         self.xanes_path = xanes_path
         self.mode = mode
         self.descriptors = descriptors
+        self.basis = None
+
+        # Unpack kwargs
         self.preload = kwargs.get("preload", True)
+        self.gaussian = kwargs.get("gaussian", False)
+        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
+        self.basis_stride = kwargs.get("basis_stride", 2)
+        self.basis_path = kwargs.get("basis_path", None)
+        self.fft = kwargs.get("fourier", False)
+        self.fft_concat = kwargs.get("fourier_concat", False)
+
+        if self.fft or self.gaussian:
+            if mode is not Mode.XYZ_TO_XANES:
+                raise ValueError(
+                    "FFT and Gaussian transformation are only supported in XYZ_TO_XANES mode."
+                )
+        if self.fft and self.gaussian:
+            raise ValueError(
+                "FFT and Gaussian transformations cannot be applied at the same time"
+            )
 
         self.config = {}
         self.preload_dataset = []
         self.file_names = None
 
+        self.setup_spectral_basis()
         self.set_file_names()
         self._process()
+
+        params = {
+            "gaussian": self.gaussian,
+            "widths_eV": self.widths_eV,
+            "basis_stride": self.basis_stride,
+            "fourier": self.fft,
+            "fourier_concat": self.fft_concat,
+        }
+        self.register_config(locals())
 
     def set_file_names(self):
         """Set a list of file names (stems) in the dataset."""
@@ -225,14 +256,38 @@ class BaseDataset(Dataset):
             args: The dictionary of arguments from the child class's constructor
             **kwargs: additional arguments to store
         """
-        config = kwargs.copy()
+        selected = {k: args[k] for k in ("type", "params") if k in args}
 
-        # Extract parameters from the local_vars, excluding 'self' and '__class__'
-        args_dict = {key: val for key, val in args.items() if key in ["type", "params"]}
+        self.config.update(kwargs)
+        self.config.update(selected)
 
-        config.update(args_dict)
+    def setup_spectral_basis(self):
+        if self.basis_path is not None:
+            logging.info(f">> Loading spectral basis from {self.basis_path}")
+            self.basis = torch.load(self.basis_path)
+            return
 
-        self.config = config
+        if self.xanes_path:
+            if isinstance(self.xanes_path, List):
+                path = self.xanes_path[0]
+            else:
+                path = self.xanes_path
+
+            files = sorted(Path(path).glob("*.txt"))
+
+            if files:
+                e, xanes = load_xanes(str(files[0]))
+            else:
+                raise ValueError("No xanes files found.")
+
+            self.basis = SpectralBasis(
+                energies=e,
+                widths_eV=self.widths_eV,
+                normalize_atoms=True,
+                stride=self.basis_stride,
+            )
+        else:
+            raise ValueError("XANES path must be provided to set up spectral basis.")
 
     @staticmethod
     def unique_path(path) -> Path:

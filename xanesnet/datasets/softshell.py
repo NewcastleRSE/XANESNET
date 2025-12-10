@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import math
 import os
 import numpy as np
 import torch
@@ -25,15 +24,13 @@ from dataclasses import dataclass
 
 from ase import Atoms
 from torch import Tensor
-from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import SpectralBasis, gaussian_fit
-from xanesnet.utils.gaussian import build_ridge_operator
+from xanesnet.utils.gaussian import gaussian_fit
 
 
 @dataclass
@@ -65,11 +62,6 @@ class SoftShellDataset(BaseDataset):
         descriptors: list = None,
         **kwargs,
     ):
-        # Unpack kwargs
-        # self.gaussian = kwargs.get("gaussian", False)
-        self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
-        self.basis_stride = kwargs.get("basis_stride", 4)
-
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
         xanes_path = self.unique_path(xanes_path)
@@ -85,10 +77,6 @@ class SoftShellDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        params = {
-            "widths_eV": self.widths_eV,
-            "basis_stride": self.basis_stride,
-        }
         self.register_config(locals(), type="softshell")
 
     def set_file_names(self):
@@ -116,8 +104,6 @@ class SoftShellDataset(BaseDataset):
 
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
-        y_len = 0
-
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
             desc = transform_xyz(raw_path, self.descriptors)
@@ -133,8 +119,7 @@ class SoftShellDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
 
-                # if self.gaussian:
-                c_star = gaussian_fit(e, xanes, self.widths_eV, self.basis_stride)
+                c_star = gaussian_fit(basis=self.basis, xanes=xanes)
 
             # initialise data object
             data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
@@ -169,14 +154,7 @@ class SoftShellDataset(BaseDataset):
     def x_size(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         x_size = []
-        e = self[0].e
-
-        basis = SpectralBasis(
-            energies=e,
-            widths_eV=self.widths_eV,
-            normalize_atoms=True,
-            stride=self.basis_stride,
-        )
+        e = self.basis.E
 
         # Per-width group sizes for grouped head
         dE = e[1] - e[0]
@@ -184,7 +162,7 @@ class SoftShellDataset(BaseDataset):
         n_width_groups = len(widths_bins)
 
         # Number of centers per width (should be equal for each width given same stride)
-        K = basis.Phi.shape[1]
+        K = self.basis.Phi.shape[1]
         per_width = K // n_width_groups
         K_groups = [per_width] * n_width_groups
 
@@ -200,7 +178,8 @@ class SoftShellDataset(BaseDataset):
     @property
     def y_size(self) -> int:
         """Size of the label array."""
-        return self[0].y.shape[0]
+        y = self[0].y
+        return 0 if y is None else y.shape[0]
 
     @staticmethod
     def distances_to_absorber(mol: Atoms, absorber_idx: int = 0) -> Tensor:

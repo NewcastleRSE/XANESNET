@@ -62,10 +62,6 @@ class TransformerDataset(BaseDataset):
         descriptors: list = None,
         **kwargs,
     ):
-        # Unpack kwargs
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
-
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.unique_path(xyz_path)
         xanes_path = self.unique_path(xanes_path)
@@ -81,10 +77,6 @@ class TransformerDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        params = {
-            "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
-        }
         self.register_config(locals(), type="transformer")
 
     def set_file_names(self):
@@ -213,6 +205,8 @@ class TransformerDataset(BaseDataset):
     def y_size(self) -> int:
         """Size of the label array."""
         if self.fft:
-            return len(self[0].fourier)
+            fourier = self[0].fourier
+            return 0 if fourier is None else len(fourier)
         else:
-            return len(self[0].y)
+            y = self[0].y
+            return 0 if y is None else len(y)

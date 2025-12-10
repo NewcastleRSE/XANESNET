@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import random
 import sys
 from typing import Tuple, Dict, List
 
@@ -89,7 +88,7 @@ def train(config, args):
             "scheme": scheme_type,
         }
 
-        save_models(Path("models"), model_list, metadata)
+        save_models(Path("models"), model_list, metadata, dataset.basis)
 
 
 def _setup_descriptors(config: Dict) -> List:
