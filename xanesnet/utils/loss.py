@@ -13,6 +13,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import math
 
 import torch
@@ -221,12 +222,13 @@ class WCCLoss(nn.Module):
 
 
 class MutliWindowSSIM1DLoss(nn.Module):
-    def __init__(self, spec_size, fractions):
+    def __init__(self, spec_size, weights, fractions):
         super().__init__()
 
         self.fractions = fractions
+        self.weights = weights
+
         window_sizes, sigmas = self.compute_window_scales(spec_size)
-        weights = [0.15, 0.20, 0.20, 0.15, 0.15, 0.15]
         weights = [w / sum(weights) for w in weights]
 
         self.window_sizes = window_sizes
