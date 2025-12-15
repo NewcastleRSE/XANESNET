@@ -93,6 +93,7 @@ class Learn(ABC):
         self.n_earlystop = hyper_params.get("n_earlystop", self.epochs)
         self.earlystop_flag = 1 if self.n_earlystop < self.epochs else 0
         self.seed = hyper_params.get("seed", random.randrange(1000))
+        self.loss_params = hyper_params.get("loss_params", {})
 
         # --- K-Fold cross-validation parameters ---
         self.n_splits = kfold_params.get("n_splits", 3)
@@ -259,7 +260,7 @@ class Learn(ABC):
         optimizer = optim_fn(model.parameters(), self.lr)
 
         # --- Initialise loss functions ---
-        criterion = LossSwitch().get(self.loss)
+        criterion = LossSwitch().get(self.loss, **self.loss_params)
 
         # --- Regularizer ---
         regularizer = LossRegSwitch()

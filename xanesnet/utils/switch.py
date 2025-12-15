@@ -22,7 +22,6 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 from torch import optim
 from torch import nn
-from typing import Dict
 
 from xanesnet.utils.loss import (
     EMDLoss,
@@ -30,6 +29,7 @@ from xanesnet.utils.loss import (
     WCCLoss,
     HybridLoss,
     SpectralLossPlus,
+    MutliWindowSSIM1DLoss,
 )
 
 # Suppress non-significant warning for shap and WCCLoss function
@@ -76,6 +76,7 @@ class LossSwitch:
         "wcc": WCCLoss,
         "hybrid": HybridLoss,
         "specplus": SpectralLossPlus,
+        "mw_ssim1d": MutliWindowSSIM1DLoss,
     }
 
     def get(self, loss_name: str, **kwargs) -> nn.Module:

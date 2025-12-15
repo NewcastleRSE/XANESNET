@@ -181,11 +181,12 @@ class AELearn(Learn):
 
                 # Calculate total loss
                 loss = recon_loss + predict_loss
-                # Add regularization loss
-                loss_reg = regularizer.loss(model, self.loss_reg, device)
-                loss += self.loss_lambda * loss_reg
 
                 if is_train:
+                    # Add regularization loss
+                    loss_reg = regularizer.loss(model, self.loss_reg, device)
+                    loss += self.loss_lambda * loss_reg
+
                     loss.backward()
                     optimizer.step()
 

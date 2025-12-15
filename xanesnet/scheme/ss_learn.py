@@ -53,18 +53,10 @@ class SSLearn(Learn):
         if diagnostics:
             self._model_diagnostics(self.spectral_post, model, dataset)
 
-        self.loss_kwargs = dict(
-            alpha=hyper_params.get("loss_alpha", 0.65),
-            beta=hyper_params.get("loss_beta", 0.35),
-            gamma=hyper_params.get("loss_gamma", 0.25),
-            huber_delta=hyper_params.get("loss_huber_delta", 0.01),
-            kappa_peak=hyper_params.get("kappa_peak", 0.05),
-        )
-
     def train(self, model, dataset):
         train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
 
-        optimizer, _, _, scheduler = self.setup_components(model)
+        optimizer, criterion, regularizer, scheduler = self.setup_components(model)
         model.to(self.device)
 
         state = EarlyStopState() if self.earlystop_flag else None
@@ -211,9 +203,10 @@ class SSLearn(Learn):
             sigma_now = sigma_min + (sigma_max - sigma_min) * max(0, T - epoch) / T
             eta_aux = eta_aux_min + (eta_aux_max - eta_aux_min) * max(0, T - epoch) / T
 
-            self.loss_kwargs["blur_sigma_bins"] = sigma_now
-            criterion = LossSwitch().get(self.loss, **self.loss_kwargs)
-            loss_spec, (Lc, Ld, Lg) = criterion(batch.y, y_pred)
+            if self.loss == "specplus":
+                self.loss_params["blur_sigma_bins"] = sigma_now
+            criterion = LossSwitch().get(self.loss, **self.loss_params)
+            loss_spec = criterion(batch.y, y_pred)
             loss_aux = F.mse_loss(c_pred, batch.c_star)
 
             loss_total = loss_spec + eta_aux * loss_aux + lambda_neg * loss_neg
@@ -223,9 +216,6 @@ class SSLearn(Learn):
 
             epoch_losses["spec"] += loss_spec.item()
             epoch_losses["aux"] += loss_aux.item()
-            epoch_losses["Lc"] += Lc.item()
-            epoch_losses["Ld"] += Ld.item()
-            epoch_losses["Lg"] += Lg.item()
 
         train_losses = {k: v / len(loader) for k, v in epoch_losses.items()}
 
@@ -300,12 +290,11 @@ class SSLearn(Learn):
         logging.info(
             f"Epoch {epoch + 1:03d} | "
             f"Train Lspec={train_loss['spec']:.6f} "
-            f"(Lc={train_loss['Lc']:.6f}, Ld={train_loss['Ld']:.6f}, Lg={train_loss['Lg']:.6f}) | "
             f"Aux(c*)={train_loss['aux']:.6f} | "
             f"Val spectral MSE={valid_loss:.6f}"
         )
 
-        for key in ["spec", "Lc", "Ld", "Lg", "aux"]:
+        for key in ["spec", "aux"]:
             self.log_loss(f"loss/{key}", train_loss[key], epoch)
 
         self.log_loss("loss/SSE", valid_loss, epoch)

@@ -26,7 +26,7 @@ from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import SpectralBasis, SpectralPost
+from xanesnet.utils.gaussian import SpectralPost
 
 
 @dataclass
