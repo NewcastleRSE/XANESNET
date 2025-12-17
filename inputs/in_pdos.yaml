@@ -14,7 +14,7 @@ descriptors:
       basis: 3-21G
       init_guess: minao
       orb_type: p
-      max_scf_cycles: 0
+      max_cycles: 0
       num_points: 80
       e_min: -10.0
       e_max: 30.0
