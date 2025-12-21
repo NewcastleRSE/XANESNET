@@ -40,28 +40,25 @@ from xanesnet.utils.io import (
 )
 from xanesnet.utils.mode import Mode, get_mode
 
+###############################################################################
+#################################### TRAIN ####################################
+###############################################################################
+
 
 def train(config, args):
     """
     Main training entry
     """
-    logging.info(f">> Training mode: {args.mode}")
+    logging.info(f"Training mode: {args.mode}")
     mode = get_mode(args.mode)
 
-    # Initialise feature descriptor(s)
     descriptor_list = _setup_descriptors(config)
-
-    # Precess training dataset
     dataset = _setup_dataset(config, mode, descriptor_list)
-
-    # Setup model
     model = _setup_model(config, dataset)
-
-    # Setup training scheme
     scheme = _setup_scheme(config, args, model, dataset)
 
-    # Train the model
-    model_list, scheme_type, train_time = _train_model(config, scheme)
+    # Main training
+    model_list, scheme_type, train_time = _run_training(config, scheme)
 
     # Display model summary and training duration
     _summary_model(model_list[0], dataset)
@@ -76,31 +73,39 @@ def train(config, args):
             "descriptors": [desc.config for desc in descriptor_list],
             "scheme": scheme_type,
         }
-
         save_models(Path("models"), model_list, metadata, dataset.basis)
 
 
+###############################################################################
+############################### SETUP FUNCTIONS ###############################
+###############################################################################
+
+
 def _setup_descriptors(config: Dict) -> List:
-    """Initialise or load descriptors depending on the model type."""
+    """
+    Initialise or load descriptors depending on the model type.
+    """
     model_type = config["model"]["type"]
 
     if hasattr(PretrainedModels, model_type):
-        logging.info(f">> Loading pretrained model descriptors: {model_type}")
+        logging.info(f"Loading pretrained model descriptors: {model_type}")
         descriptor_list = load_pretrained_descriptors(model_type)
     else:
         descriptor_config = config["descriptors"]
         descriptor_types = ", ".join(d["type"] for d in descriptor_config)
-        logging.info(f">> Initialising descriptors: {descriptor_types}")
+        logging.info(f"Initialising descriptors: {descriptor_types}")
         descriptor_list = create_descriptors(config=descriptor_config)
 
     return descriptor_list
 
 
 def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDataset:
-    """Process the dataset using input configuration or load an existing one from disk"""
+    """
+    Process the dataset using input configuration or load an existing one from disk
+    """
     dataset_type = config["dataset"]["type"]
 
-    logging.info(f">> Initialising training dataset: {dataset_type}")
+    logging.info(f"Initialising training dataset: {dataset_type}")
     # Pack parameters
     kwargs = {
         "root": config["dataset"]["root_path"],
@@ -115,23 +120,25 @@ def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDatas
 
     # Log dataset summary
     logging.info(
-        f">> Dataset Summary: # of samples = {len(dataset)}, feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
+        f"Dataset Summary: # of samples = {len(dataset)}, feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
     )
 
     return dataset
 
 
 def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
-    """Initialises or loads the model and its descriptors."""
+    """
+    Initialises or loads the model and its descriptors.
+    """
     model_config = config["model"]
     model_type = model_config["type"]
 
     if hasattr(PretrainedModels, model_type):
-        logging.info(f">> Loading pretrained model: {model_type}")
+        logging.info(f"Loading pretrained model: {model_type}")
         model_params = model_config.get("params", {})
         model = load_pretrained_model(model_type, **model_params)
     else:
-        logging.info(f">> Initialising model: {model_type}")
+        logging.info(f"Initialising model: {model_type}")
         model_params = model_config.get("params", {})
 
         # Add additional model parameters
@@ -146,17 +153,19 @@ def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
         bias = weights_type.get("bias", "zeros")
         seed = weights_type.get("seed", None)
 
-        logging.info(f">> Initialising model weights: {kernel}")
+        logging.info(f"Initialising model weights: {kernel}")
         model.init_model_weights(kernel, bias, seed, **weights_params)
 
     return model
 
 
 def _setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Learn:
-    """Initialise training scheme (standard, k-fold, ensemble, etc.)."""
+    """
+    Initialise training scheme (standard, k-fold, ensemble, etc.).
+    """
     model_type = config["model"].get("type")
 
-    logging.info(">> Initialising training scheme")
+    logging.info("Initialising training scheme")
     # Pack parameters
     kwargs = {
         "model_config": config.get("model"),
@@ -175,37 +184,51 @@ def _setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Lea
     return scheme
 
 
-def _train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
+###############################################################################
+############################## TRAINING STARTER ###############################
+###############################################################################
+
+
+def _run_training(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
     """
-    Train model using the selected training scheme.
+    Train using the selected training scheme.
     """
     model_list = []
     start_time = time.time()
 
     if config["bootstrap"]:
-        logging.info(">> Training model using bootstrap resampling...\n")
+        logging.info("Training model using bootstrap resampling...")
         scheme_type = "bootstrap"
         model_list = scheme.train_bootstrap()
     elif config["ensemble"]:
-        logging.info(">> Training model using ensemble learning...\n")
+        logging.info("Training model using ensemble learning...")
         scheme_type = "ensemble"
         model_list = scheme.train_ensemble()
     elif config["kfold"]:
-        logging.info(">> Training model using kfold cross-validation...\n")
+        logging.info("Training model using kfold cross-validation...")
         scheme_type = "kfold"
         model_list.append(scheme.train_kfold())
     else:
-        logging.info(">> Training model using standard training procedure...\n")
+        logging.info("Training model using standard training procedure...")
         scheme_type = "std"
         model_list.append(scheme.train_std())
 
     train_time = time.time() - start_time
 
+    # Move to CPU
+    for model in model_list:
+        model.to(torch.device("cpu"))
+
     return model_list, scheme_type, train_time
 
 
+###############################################################################
+############################### SUMMARY LOGGING ###############################
+###############################################################################
+
+
 def _summary_model(model: Model, dataset: BaseDataset) -> None:
-    logging.info("\n--- Model Summary ---")
+    logging.info("--- Model Summary ---")
 
     if model.aegan_flag:
         dummy_x = torch.randn(1, dataset.x_size)
