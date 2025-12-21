@@ -15,41 +15,30 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import sys
-from typing import Tuple, Dict, List
-
-import torch
 import time
-
 from datetime import timedelta
 from pathlib import Path
+from typing import Dict, List, Tuple
+
+import torch
 from torchinfo import summary
 
+from xanesnet.creator import (
+    create_dataset,
+    create_descriptors,
+    create_learn_scheme,
+    create_model,
+)
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.models.base_model import Model
 from xanesnet.models.pre_trained import PretrainedModels
 from xanesnet.scheme import Learn
-from xanesnet.utils.mode import get_mode, Mode
 from xanesnet.utils.io import (
-    save_models,
     load_pretrained_descriptors,
     load_pretrained_model,
+    save_models,
 )
-from xanesnet.creator import (
-    create_learn_scheme,
-    create_descriptors,
-    create_model,
-    create_dataset,
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[
-        # logging.FileHandler("train.log", mode="w"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
+from xanesnet.utils.mode import Mode, get_mode
 
 
 def train(config, args):

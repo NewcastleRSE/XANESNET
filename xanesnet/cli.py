@@ -18,15 +18,23 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 ############################### LIBRARY IMPORTS ###############################
 ###############################################################################
 
+import logging
 import os
 import sys
 from argparse import ArgumentParser
-from pathlib import Path
 
 import yaml
 
 from xanesnet.core_learn import train
 from xanesnet.core_predict import predict
+from xanesnet.utils.logger import setup_file_logging, setup_logging
+
+###############################################################################
+################################### LOGGING ###################################
+###############################################################################
+
+setup_logging(logging.INFO)
+setup_file_logging("./")
 
 ###############################################################################
 ############################## ARGUMENT PARSING ###############################
@@ -82,7 +90,7 @@ def main(args: list[str]):
     # Parsing command line arguments
     args = parse_args(args)
 
-    print(f">> loading YAML configuration file @ {args.in_file}")
+    logging.info(f"Loading YAML configuration file @ {args.in_file}")
     with open(args.in_file, "r") as f:
         config = yaml.safe_load(f)
 
