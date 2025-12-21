@@ -18,65 +18,58 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 ############################### LIBRARY IMPORTS ###############################
 ###############################################################################
 
-import sys
-import yaml
 import os
-
-from pathlib import Path
+import sys
 from argparse import ArgumentParser
+from pathlib import Path
+
+import yaml
+
 from xanesnet.core_learn import train
 from xanesnet.core_predict import predict
-
 
 ###############################################################################
 ############################## ARGUMENT PARSING ###############################
 ###############################################################################
 
 
-def parse_args(args: list):
+def parse_args(args: list[str]):
     parser = ArgumentParser()
 
-    # available modes:
-    # train: train_xanes, train_xyz, train_all
-    # predict: predict_xyz, predict_xanes, predict_all
     parser.add_argument(
         "--mode",
         type=str,
-        help="the mode of the run",
         required=True,
-    )
-
-    parser.add_argument(
-        "--in_model",
-        type=str,
-        help="path to pre-trained model directory",
+        help="Run mode: train_xanes, train_xyz, train_all, predict_xanes, predict_xyz, predict_all.",
     )
     parser.add_argument(
         "--in_file",
         type=str,
-        help="path to .json input file",
         required=True,
+        help="Path to input YAML configuration file.",
+    )
+    parser.add_argument(
+        "--in_model",
+        type=str,
+        help="Path to a pre-trained model directory (optional).",
     )
     parser.add_argument(
         "--save",
         action="store_true",
-        help="save result to disk",
+        help="Save the results to disk.",
     )
-
     parser.add_argument(
         "--mlflow",
         action="store_true",
-        help="toggle mlflow on and save logs to disk",
+        help="Enable MLflow logging and save logs to disk.",
     )
-
     parser.add_argument(
         "--tensorboard",
         action="store_true",
-        help="toggle tensorboard on and save logs to disk",
+        help="Enable TensorBoard logging and save logs to disk.",
     )
 
-    args = parser.parse_args()
-
+    args = parser.parse_args(args)
     return args
 
 
@@ -85,32 +78,27 @@ def parse_args(args: list):
 ###############################################################################
 
 
-def main(args: list):
-    if len(args) == 0:
-        sys.exit()
-    else:
-        args = parse_args(args)
+def main(args: list[str]):
+    # Parsing command line arguments
+    args = parse_args(args)
 
-    print(f">> loading JSON input @ {args.in_file}")
-
+    print(f">> loading YAML configuration file @ {args.in_file}")
     with open(args.in_file, "r") as f:
         config = yaml.safe_load(f)
 
+    # Branching into training or prediction mode
     if "train" in args.mode:
-        train(config, args)
-
+        train(config, args)  # Run training
     elif "predict" in args.mode:
-        metadata_file = Path(f"{args.in_model}/metadata.yaml")
-        if os.path.isfile(metadata_file):
+        metadata_file = os.path.join(args.in_model, "metadata.yaml")
+        try:
             with open(metadata_file, "r") as f:
                 metadata = yaml.safe_load(f)
-        else:
-            raise ValueError(f"Cannot find metadata file in {args.in_model}.")
-
-        predict(config, args, metadata)
-
+        except:
+            raise ValueError(f"Something is wrong with your YAML metadata file @ {metadata_file}.")
+        predict(config, args, metadata)  # Run prediction
     else:
-        print(">>> Incorrect mode. Please try again.")
+        raise ValueError(f"Incorrect mode: {args.mode}.")
 
 
 ################################################################################
