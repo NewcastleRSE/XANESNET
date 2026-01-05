@@ -62,7 +62,7 @@ class AEGANLearn(Learn):
         """
         Main training loop
         """
-        train_loader, valid_loader, eval_loader = self.setup_dataloaders(dataset)
+        train_loader, valid_loader = self.setup_dataloaders(dataset)
 
         optimizers, criterion, regularizer, schedulers = self.setup_components(model)
         model.to(self.device)

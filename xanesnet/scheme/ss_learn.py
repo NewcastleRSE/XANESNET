@@ -54,7 +54,7 @@ class SSLearn(Learn):
             self._model_diagnostics(self.spectral_post, model, dataset)
 
     def train(self, model, dataset):
-        train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
+        train_loader, valid_loader = self.setup_dataloaders(dataset)
 
         optimizer, criterion, regularizer, scheduler = self.setup_components(model)
         model.to(self.device)
@@ -66,13 +66,11 @@ class SSLearn(Learn):
         for epoch in range(self.epochs):
             # Run training phase
             train_loss = self._run_one_epoch_train(
-                epoch, train_loader, model, optimizer, self.spectral_post
+                epoch, train_loader, model, optimizer
             )
 
             # Run validation phase
-            valid_loss = self._run_one_epoch_valid(
-                valid_loader, model, self.spectral_post
-            )
+            valid_loss = self._run_one_epoch_valid(valid_loader, model)
 
             # Adjust learning rate if scheduler is used
             if self.lr_scheduler:
@@ -172,7 +170,7 @@ class SSLearn(Learn):
 
         return best_model
 
-    def _run_one_epoch_train(self, epoch, loader, model, optimizer, spectral_post):
+    def _run_one_epoch_train(self, epoch, loader, model, optimizer):
         """
         Run one epoch of training.
         """
@@ -195,7 +193,7 @@ class SSLearn(Learn):
             optimizer.zero_grad(set_to_none=True)
 
             c_pred = model(batch)
-            y_pred = spectral_post.forward_from_coeffs(c_pred)
+            y_pred = self.spectral_post.forward_from_coeffs(c_pred)
 
             neg_part = F.relu(-y_pred)
             loss_neg = (neg_part**2).mean()
@@ -221,7 +219,7 @@ class SSLearn(Learn):
 
         return train_losses
 
-    def _run_one_epoch_valid(self, loader, model, spectral_post):
+    def _run_one_epoch_valid(self, loader, model):
         """Runs a single epoch of training or validation."""
         model.eval()
 
@@ -234,7 +232,7 @@ class SSLearn(Learn):
                 batch.to(device)
 
                 c_pred = model(batch)
-                y_pred = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
+                y_pred = self.spectral_post.forward_from_coeffs(c_pred)  # (B,N)
 
                 running_loss += F.mse_loss(y_pred, batch.y, reduction="sum").item()
                 n_elem += batch.y.numel()
@@ -251,7 +249,7 @@ class SSLearn(Learn):
 
     def _model_diagnostics(self, spectral_post, model, dataset):
         print("--- Model Diagnostics ---")
-        train_loader, valid_loader, _ = self.setup_dataloaders(dataset)
+        train_loader, valid_loader = self.setup_dataloaders(dataset)
 
         with torch.no_grad():
             for loader, tag in [(train_loader, "Train"), (valid_loader, "Val")]:

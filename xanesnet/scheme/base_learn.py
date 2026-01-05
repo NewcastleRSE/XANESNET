@@ -86,7 +86,6 @@ class Learn(ABC):
         self.epochs = hyper_params.get("epochs", 100)
         self.lr = hyper_params.get("lr", 0.001)
         self.optimizer = hyper_params.get("optimizer", "adam")
-        self.model_eval = hyper_params.get("model_eval", False)
         self.loss = hyper_params.get("loss", "mse")
         self.loss_reg = hyper_params.get("loss_reg", "None")
         self.loss_lambda = hyper_params.get("loss_lambda", 0.0001)
@@ -280,32 +279,14 @@ class Learn(ABC):
         """Splits the dataset and creates DataLoaders."""
         indices = dataset.indices
 
-        if self.model_eval:
-            # Data split: train/valid/test
-            train_ratio, valid_ratio, eval_ratio = 0.75, 0.15, 0.10
-
-            # First split: train vs (test + eval)
-            train_idx, valid_idx = train_test_split(
-                indices, test_size=1 - train_ratio, random_state=self.seed
-            )
-
-            # Second split: test vs eval
-            test_size = eval_ratio / (eval_ratio + valid_ratio)
-            valid_idx, eval_idx = train_test_split(
-                valid_idx, test_size=test_size, random_state=self.seed
-            )
-        else:
-            train_idx, valid_idx = train_test_split(
-                indices, test_size=0.2, random_state=self.seed
-            )
-
-            eval_idx = None
+        train_idx, valid_idx = train_test_split(
+            indices, test_size=0.2, random_state=self.seed
+        )
 
         train_loader = self._create_loader(dataset[train_idx], shuffle=True)
         valid_loader = self._create_loader(dataset[valid_idx])
-        eval_loader = self._create_loader(dataset[eval_idx]) if eval_idx else None
 
-        return train_loader, valid_loader, eval_loader
+        return train_loader, valid_loader
 
     def _create_loader(self, dataset, shuffle: bool = False, drop_last: bool = False):
         """Creates a DataLoader based on model type."""
