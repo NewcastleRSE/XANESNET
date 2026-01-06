@@ -14,8 +14,26 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-# from .pdos import PDOS
-from .direct import DIRECT
-from .mace import MACE
-from .rdc import RDC
-from .wacsf import WACSF
+
+class DatasetRegistry:
+    _registry = {}
+
+    @classmethod
+    def register(cls, name: str):
+        def decorator(ds_cls):
+            if name in cls._registry:
+                raise KeyError(f"Dataset '{name}' already registered")
+            cls._registry[name] = ds_cls
+            return ds_cls
+
+        return decorator
+
+    @classmethod
+    def get(cls, name):
+        if name not in cls._registry:
+            raise KeyError(f"Dataset '{name}' not found in registry")
+        return cls._registry[name]
+
+    @classmethod
+    def list(cls):
+        return list(cls._registry.keys())

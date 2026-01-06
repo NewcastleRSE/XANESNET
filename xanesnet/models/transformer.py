@@ -17,15 +17,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from typing import List
 
 import torch
-
 from torch import nn
 
-from xanesnet.registry import register_model, register_scheme
 from xanesnet.models.base_model import Model
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 
 
-@register_model("transformer")
-@register_scheme("transformer", scheme_name="nn")
+@ModelRegistry.register("transformer")
+@SchemeRegistry.register("transformer", scheme_name="nn")
 class Transformer(Model):
     def __init__(
         self,
@@ -62,20 +61,14 @@ class Transformer(Model):
 
         # Self-attention layers over atom descriptors
         self.self_blocks = nn.ModuleList(
-            [
-                SelfAttentionBlock(hidden_size, n_heads, dropout)
-                for _ in range(n_self_attn_layers)
-            ]
+            [SelfAttentionBlock(hidden_size, n_heads, dropout) for _ in range(n_self_attn_layers)]
         )
 
         self.energy_self_attn = SelfAttentionBlock(hidden_size, n_heads, dropout)
 
         # Cross-attention layers for energy queries
         self.cross_blocks = nn.ModuleList(
-            [
-                CrossAttentionBlock(hidden_size, n_heads, dropout)
-                for _ in range(n_cross_attn_layers)
-            ]
+            [CrossAttentionBlock(hidden_size, n_heads, dropout) for _ in range(n_cross_attn_layers)]
         )
 
         # Final output projection
@@ -134,9 +127,7 @@ class Transformer(Model):
 class SelfAttentionBlock(nn.Module):
     def __init__(self, hidden_dim, n_heads, dropout):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(
-            hidden_dim, n_heads, batch_first=True, dropout=dropout
-        )
+        self.self_attn = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True, dropout=dropout)
         self.norm1 = nn.LayerNorm(hidden_dim)
         self.ff = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 4),
@@ -155,9 +146,7 @@ class SelfAttentionBlock(nn.Module):
 class CrossAttentionBlock(nn.Module):
     def __init__(self, hidden_dim, n_heads, dropout):
         super().__init__()
-        self.cross_attn = nn.MultiheadAttention(
-            hidden_dim, n_heads, batch_first=True, dropout=dropout
-        )
+        self.cross_attn = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True, dropout=dropout)
         self.norm1 = nn.LayerNorm(hidden_dim)
         self.ff = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 4),

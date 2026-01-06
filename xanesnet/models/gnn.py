@@ -15,14 +15,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import inspect
+from typing import List, Optional
+
 import torch
 import torch_geometric.nn as geom_nn
-
-from typing import Optional, List
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 gnn_layer_by_name = {
@@ -33,8 +33,8 @@ gnn_layer_by_name = {
 }
 
 
-@register_model("gnn")
-@register_scheme("gnn", scheme_name="nn")
+@ModelRegistry.register("gnn")
+@SchemeRegistry.register("gnn", scheme_name="nn")
 class GNN(Model):
     """
     A class for constructing a customisable GNN (Graph Neural Network) model.
@@ -92,11 +92,7 @@ class GNN(Model):
         # --- Input and hidden Layers ---
         layers = []
         for i in range(num_hidden_layers):
-            layers.append(
-                gnn_layer(
-                    in_channels=gnn_feat_size, out_channels=hidden_size, **layer_params
-                )
-            )
+            layers.append(gnn_layer(in_channels=gnn_feat_size, out_channels=hidden_size, **layer_params))
             layers.append(nn.BatchNorm1d(hidden_size * heads))
             layers.append(act_fn)
             layers.append(nn.Dropout(dropout))
@@ -104,11 +100,7 @@ class GNN(Model):
             gnn_feat_size = hidden_size * heads
 
         # --- Output Layer ---
-        layers.append(
-            gnn_layer(
-                in_channels=gnn_feat_size, out_channels=hidden_size, **layer_params
-            )
-        )
+        layers.append(gnn_layer(in_channels=gnn_feat_size, out_channels=hidden_size, **layer_params))
 
         self.gnn_layers = nn.ModuleList(layers)
 

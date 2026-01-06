@@ -2,38 +2,32 @@
 XANESNET
 
 This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software 
-Foundation, either Version 3 of the License, or (at your option) any later 
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
 version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with 
+You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
-
-from tblite.interface import Calculator
 import numpy as np
-from pyscf import scf, gto
-
 from ase import Atoms
+from pyscf import gto, scf
+from tblite.interface import Calculator
 
 from xanesnet.descriptors.vector_descriptor import VectorDescriptor
-from xanesnet.registry import register_descriptor
-
+from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
 ################################## CLASSES ####################################
 ###############################################################################
 
 
-@register_descriptor("pdos")
+@DescriptorRegistry.register("pdos")
 class PDOS(VectorDescriptor):
     """
     A class for transforming a molecular system into a project density of
@@ -116,7 +110,7 @@ class PDOS(VectorDescriptor):
         self.register_config(locals(), type="pdos")
 
         self.code = code
-        self.method = method 
+        self.method = method
         self.e_min = e_min
         self.e_max = e_max
         self.num_points = num_points
@@ -149,13 +143,9 @@ class PDOS(VectorDescriptor):
         if self.use_spin and self.use_charge:
             # consistency between parity of electron count and spin multiplicity
             if (((total_electrons - charge) % 2) == 1) and (spin % 2) == 0:
-                raise ValueError(
-                    "The number of electrons is inconsistent with the spin state you have defined."
-                )
+                raise ValueError("The number of electrons is inconsistent with the spin state you have defined.")
             if (((total_electrons - charge) % 2) == 0) and (spin % 2) == 1:
-                raise ValueError(
-                    "The number of electrons is inconsistent with the spin state you have defined."
-                )
+                raise ValueError("The number of electrons is inconsistent with the spin state you have defined.")
 
     def _transform_xtb(self, system: Atoms) -> np.ndarray:
         numbers = system.get_atomic_numbers()
@@ -189,13 +179,11 @@ class PDOS(VectorDescriptor):
                 p_rows = slice(6, 8)
                 d_rows = slice(0, 4)
             else:
-                p_rows = slice(1, 3)   # lighter elements: p ~ rows 1-2 in that basis mapping
-                d_rows = slice(0, 0)   # unused unless quad requested for TMs
+                p_rows = slice(1, 3)  # lighter elements: p ~ rows 1-2 in that basis mapping
+                d_rows = slice(0, 0)  # unused unless quad requested for TMs
 
             # p-DOS fraction for each MO
-            p_dos = np.array([
-                np.sum(coeff[p_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])
-            ])
+            p_dos = np.array([np.sum(coeff[p_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
 
             # MO energies and occupations
             orbe = np.asarray(res.get("orbital-energies")) * 27.211324570273  # eV
@@ -211,9 +199,7 @@ class PDOS(VectorDescriptor):
 
             if self.use_quad:
                 if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
-                    d_dos = np.array([
-                        np.sum(coeff[d_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])
-                    ])
+                    d_dos = np.array([np.sum(coeff[d_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
                 else:
                     raise ValueError("d-orbitals are not considered for these atoms.")
 
@@ -256,14 +242,14 @@ class PDOS(VectorDescriptor):
 
         # MO coefficients and labels
         alpha_ao = mf.mo_coeff[0]  # (nao, nmo_a)
-        beta_ao = mf.mo_coeff[1]   # (nao, nmo_b)
+        beta_ao = mf.mo_coeff[1]  # (nao, nmo_b)
         ao_labels = mol.ao_labels()  # e.g. "0 C 1s", "0 C 2px", "1 O 2py", ...
 
         # Energies (Hartree -> eV) and occupations
         alpha_eps = np.asarray(mf.mo_energy[0]) * 27.211324570273
-        beta_eps  = np.asarray(mf.mo_energy[1]) * 27.211324570273
+        beta_eps = np.asarray(mf.mo_energy[1]) * 27.211324570273
         alpha_occ = np.asarray(mf.mo_occ[0])
-        beta_occ  = np.asarray(mf.mo_occ[1])
+        beta_occ = np.asarray(mf.mo_occ[1])
 
         # Normalize squared AO coeffs to percentages per MO
         a_sq = np.square(alpha_ao)
@@ -287,11 +273,11 @@ class PDOS(VectorDescriptor):
 
         # Sum contributions over matching AOs for each MO
         alpha_pdos = np.sum(a_pct[p_mask, :], axis=0)
-        beta_pdos  = np.sum(b_pct[p_mask, :], axis=0)
+        beta_pdos = np.sum(b_pct[p_mask, :], axis=0)
 
         if self.use_quad:
             alpha_ddos = np.sum(a_pct[d_mask, :], axis=0)
-            beta_ddos  = np.sum(b_pct[d_mask, :], axis=0)
+            beta_ddos = np.sum(b_pct[d_mask, :], axis=0)
 
         # Choose occupied vs unoccupied
         if self.use_occupied:
@@ -303,23 +289,23 @@ class PDOS(VectorDescriptor):
                 a_ddos_final = alpha_ddos[: mol.nelec[0] - 1]
                 b_ddos_final = beta_ddos[: mol.nelec[1] - 1]
         else:
-            a_eps_final = alpha_eps[mol.nelec[0]:]
-            a_pdos_final = alpha_pdos[mol.nelec[0]:]
-            b_eps_final = beta_eps[mol.nelec[1]:]
-            b_pdos_final = beta_pdos[mol.nelec[1]:]
+            a_eps_final = alpha_eps[mol.nelec[0] :]
+            a_pdos_final = alpha_pdos[mol.nelec[0] :]
+            b_eps_final = beta_eps[mol.nelec[1] :]
+            b_pdos_final = beta_pdos[mol.nelec[1] :]
             if self.use_quad:
-                a_ddos_final = alpha_ddos[mol.nelec[0]:]
-                b_ddos_final = beta_ddos[mol.nelec[1]:]
+                a_ddos_final = alpha_ddos[mol.nelec[0] :]
+                b_ddos_final = beta_ddos[mol.nelec[1] :]
 
         # Broaden
         x = np.linspace(self.e_min, self.e_max, num=self.num_points, endpoint=True)
         alpha_gE = np.asarray(spectrum(a_eps_final, a_pdos_final, self.sigma, x))
-        beta_gE  = np.asarray(spectrum(b_eps_final, b_pdos_final, self.sigma, x))
+        beta_gE = np.asarray(spectrum(b_eps_final, b_pdos_final, self.sigma, x))
         pdos_gauss = 0.5 * (alpha_gE + beta_gE)
 
         if self.use_quad:
             d_alpha_gE = np.asarray(spectrum(a_eps_final, a_ddos_final, self.sigma, x))
-            d_beta_gE  = np.asarray(spectrum(b_eps_final, b_ddos_final, self.sigma, x))
+            d_beta_gE = np.asarray(spectrum(b_eps_final, b_ddos_final, self.sigma, x))
             ddos_gauss = 0.5 * (d_alpha_gE + d_beta_gE)
             pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
 

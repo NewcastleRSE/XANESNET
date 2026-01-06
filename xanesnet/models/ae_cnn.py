@@ -18,12 +18,12 @@ import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("ae_cnn")
-@register_scheme("ae_cnn", scheme_name="ae")
+@ModelRegistry.register("ae_cnn")
+@SchemeRegistry.register("ae_cnn", scheme_name="ae")
 class AE_CNN(Model):
     """
     A class for constructing a AE-CNN (Autoencoder Convolutional Neural Network) model.
@@ -102,9 +102,7 @@ class AE_CNN(Model):
         self.encoder_layers = nn.Sequential(*enc_layers)
 
         # Construct predictor dense layers
-        dense_in_shape = (
-            out_channel * channel_mul ** (num_conv_layers - 1) * all_conv_shapes[-1]
-        )
+        dense_in_shape = out_channel * channel_mul ** (num_conv_layers - 1) * all_conv_shapes[-1]
 
         dense_layers = []
 

@@ -13,26 +13,19 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import TextIO
 
 import numpy as np
-
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
-
 from ase import Atoms
 
 from xanesnet.descriptors.base_descriptor import BaseDescriptor
-from xanesnet.registry import register_descriptor
-
+from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
 ################################## CLASSES ####################################
 ###############################################################################
 
 
-@register_descriptor("direct")
+@DescriptorRegistry.register("direct")
 class DIRECT(BaseDescriptor):
     """
     A class for reading the descriptor straight from a file. It tries to avoid

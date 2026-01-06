@@ -3,40 +3,32 @@ XANESNET
 Copyright (C) 2021  Conor D. Rankine
 
 This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software 
-Foundation, either Version 3 of the License, or (at your option) any later 
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
 version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with 
+You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Dict
-
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
+from abc import ABC, abstractmethod
 
 import numpy as np
-
 from ase import Atoms
-from abc import ABC
-from abc import abstractmethod
 
 from xanesnet.descriptors.vector_descriptor import VectorDescriptor
-from xanesnet.registry import register_descriptor
-
+from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
 ################################## CLASSES ####################################
 ###############################################################################
 
 
-@register_descriptor("wacsf")
+@DescriptorRegistry.register("wacsf")
 class WACSF(VectorDescriptor):
     """
     A class for transforming a molecular system into a weighted atom-centered
@@ -64,7 +56,6 @@ class WACSF(VectorDescriptor):
         use_charge=False,
         use_spin=False,
         absorber_atom_only: bool = True,
-
     ):
         """
         Args:
@@ -144,61 +135,58 @@ class WACSF(VectorDescriptor):
     def transform(self, system: Atoms) -> np.ndarray:
         positions = system.get_positions()
         n_atoms = len(system)
-    
+
         # Precompute pairwise distances (N × N)
         diff = positions[:, None, :] - positions[None, :, :]
         dist_matrix = np.linalg.norm(diff, axis=2)
-    
+
         if self.absorber_atom_only:
             return self.transform_single_index(system, 0, dist_matrix)
-    
+
         # Compute WACSF for all atoms
-        wacsf_list = [
-            self.transform_single_index(system, i, dist_matrix)
-            for i in range(n_atoms)
-        ]
-    
+        wacsf_list = [self.transform_single_index(system, i, dist_matrix) for i in range(n_atoms)]
+
         return np.vstack(wacsf_list)
-        
+
     def transform_single_index(self, system: Atoms, index: int, dist_matrix: np.ndarray) -> np.ndarray:
-    
+
         # -----------------------------
         # Neighbour detection
         # -----------------------------
-        rij_all = dist_matrix[index]                     # distances from index → all atoms
+        rij_all = dist_matrix[index]  # distances from index → all atoms
         mask = (rij_all < self.r_max) & (rij_all > 0.0)  # exclude self
         neighbours = np.where(mask)[0]
-    
+
         # If no neighbours, return zeros
         if len(neighbours) == 0:
             base_size = 1 + self.n_g2 + self.n_g4 + self.use_charge + self.use_spin
             return np.zeros(base_size)
-    
+
         # Atomic numbers (scaled by 0.1 like your original code)
         Z = 0.1 * system.get_atomic_numbers()
-    
+
         # -----------------------------
         # G1 term (radial cutoff sum)
         # -----------------------------
         rij = rij_all[neighbours]
         g1 = np.sum(cosine_cutoff(rij, self.r_max))
-    
+
         features = [np.array([g1], dtype=float)]
-    
+
         # -----------------------------
         # G2 symmetry functions
         # -----------------------------
         if self.n_g2:
             zj = Z[neighbours]
             cutoff_ij = cosine_cutoff(rij, self.r_max)
-    
+
             g2_vals = []
             for h, m in zip(self.g2_transformer.h, self.g2_transformer.m):
                 gauss = np.exp(-h * (rij - m) ** 2)
                 g2_vals.append(np.sum(zj * gauss * cutoff_ij))
-    
+
             features.append(np.array(g2_vals))
-    
+
         # -----------------------------
         # G4 symmetry functions
         # -----------------------------
@@ -206,31 +194,31 @@ class WACSF(VectorDescriptor):
             j_idx, k_idx = np.triu_indices(len(neighbours), k=1)
             j = neighbours[j_idx]
             k = neighbours[k_idx]
-    
+
             # Distances for pairs (all vectorized)
             rij = dist_matrix[index, j]
             rik = dist_matrix[index, k]
             rjk = dist_matrix[j, k]
-    
+
             # Cutoffs
             cutoff_ij = cosine_cutoff(rij, self.r_max)
             cutoff_ik = cosine_cutoff(rik, self.r_max)
             cutoff_jk = cosine_cutoff(rjk, self.r_max)
-    
+
             # Angles j–index–k
             # ajik shape = (#pairs,)
             pos = system.get_positions()
             vj = pos[j] - pos[index]
             vk = pos[k] - pos[index]
-    
-            dot = np.einsum('ij,ij->i', vj, vk)
+
+            dot = np.einsum("ij,ij->i", vj, vk)
             cosang = dot / (np.linalg.norm(vj, axis=1) * np.linalg.norm(vk, axis=1))
             ajik = np.arccos(np.clip(cosang, -1, 1))
-    
+
             # Element weights
             zj = Z[j]
             zk = Z[k]
-    
+
             # G4 full evaluation
             g4_vals = []
             i = 0
@@ -238,38 +226,34 @@ class WACSF(VectorDescriptor):
                 gauss_ij = np.exp(-h * (rij - m) ** 2)
                 gauss_ik = np.exp(-h * (rik - m) ** 2)
                 gauss_jk = np.exp(-h * (rjk - m) ** 2)
-    
-                base_val = (
-                    zj * zk *
-                    gauss_ij * cutoff_ij *
-                    gauss_ik * cutoff_ik *
-                    gauss_jk * cutoff_jk
-                )
-    
+
+                base_val = zj * zk * gauss_ij * cutoff_ij * gauss_ik * cutoff_ik * gauss_jk * cutoff_jk
+
                 for lam in self.g4_transformer.l:
                     cos_term = 1.0 + lam * cosang
                     for zeta in self.g4_transformer.z:
-                        g4_val = np.sum(base_val * (cos_term ** zeta)) * (2.0 ** (1 - zeta))
+                        g4_val = np.sum(base_val * (cos_term**zeta)) * (2.0 ** (1 - zeta))
                         g4_vals.append(g4_val)
                         i += 1
-    
+
             features.append(np.array(g4_vals))
         # -----------------------------
         # Optional spin / charge
         # -----------------------------
         if self.use_spin:
             features.append(np.array([system.info["S"]]))
-    
+
         if self.use_charge:
             features.append(np.array([system.info["q"]]))
         return np.concatenate(features)
-    
+
     def get_nfeatures(self) -> int:
         return int(1 + self.n_g2 + self.n_g4 + self.use_charge + self.use_spin)
 
     def get_type(self) -> str:
         return "wacsf"
-        
+
+
 #    def transform(self, system: Atoms) -> np.ndarray:
 #        rij_in_range = system.get_distances(0, range(len(system))) < self.r_max
 #        system = system[rij_in_range]
@@ -363,10 +347,7 @@ class SymmetryFunctionTransformer(ABC):
             self.h = np.array([1.0 / (2.0 * (i**2)) for i in r_aux])
             self.m = np.array([0.0 for _ in r_aux])
         else:
-            err_str = (
-                "parameterisation options: 'shifted' | 'centred'; "
-                "for details, see DOI: 10.1063/1.5019667"
-            )
+            err_str = "parameterisation options: 'shifted' | 'centred'; " "for details, see DOI: 10.1063/1.5019667"
             raise ValueError(err_str)
 
     @abstractmethod
@@ -466,8 +447,7 @@ class G4SymmetryFunctionTransformer(SymmetryFunctionTransformer):
 
         if self.n % (len(l) * len(z)):
             err_str = (
-                f"can't generate {self.n} G4 symmetry functions with "
-                f"{len(l)} lambda and {len(z)} zeta value(s)"
+                f"can't generate {self.n} G4 symmetry functions with " f"{len(l)} lambda and {len(z)} zeta value(s)"
             )
             raise ValueError(err_str)
         else:

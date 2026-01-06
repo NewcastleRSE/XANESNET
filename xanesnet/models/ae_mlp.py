@@ -18,12 +18,12 @@ import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("ae_mlp")
-@register_scheme("ae_mlp", scheme_name="ae")
+@ModelRegistry.register("ae_mlp")
+@SchemeRegistry.register("ae_mlp", scheme_name="ae")
 class AE_MLP(Model):
     """
     A class for constructing an AE-MLP (Autoencoder Multilayer Perceptron Network).
@@ -86,9 +86,7 @@ class AE_MLP(Model):
         dec_layers = []
         current_size = latent_size
         # Create a list of the encoder layer dimensions in reverse
-        layer_sizes = [in_size] + [
-            int(hidden_size * (shrink_rate**i)) for i in range(num_hidden_layers)
-        ]
+        layer_sizes = [in_size] + [int(hidden_size * (shrink_rate**i)) for i in range(num_hidden_layers)]
         for size in reversed(layer_sizes):
             dec_layers.append(nn.Linear(current_size, size))
             dec_layers.append(act_fn)

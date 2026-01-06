@@ -19,13 +19,13 @@ from typing import List
 import torch
 from torch import nn
 
-from xanesnet.registry import register_model, register_scheme
 from xanesnet.models.base_model import Model
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("mh_mlp")
-@register_scheme("mh_mlp", scheme_name="mh")
+@ModelRegistry.register("mh_mlp")
+@SchemeRegistry.register("mh_mlp", scheme_name="mh")
 class MultiHead_MLP(Model):
     """
     A class for constructing a customisable MLP (Multi-Layer Perceptron) model.
@@ -66,9 +66,7 @@ class MultiHead_MLP(Model):
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
-                raise ValueError(
-                    f"Hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate."
-                )
+                raise ValueError(f"Hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate.")
 
             layers.append(nn.Linear(current_size, next_size))
             layers.append(nn.BatchNorm1d(next_size))
@@ -147,9 +145,7 @@ class MLPHead(nn.Module):
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
-                raise ValueError(
-                    f"Hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate."
-                )
+                raise ValueError(f"Hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate.")
 
             layers.append(nn.Linear(current_size, next_size))
             layers.append(nn.BatchNorm1d(next_size))

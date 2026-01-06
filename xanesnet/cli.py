@@ -23,6 +23,13 @@ import yaml
 
 from xanesnet.core_learn import train
 from xanesnet.core_predict import predict
+from xanesnet.registry import (
+    DatasetRegistry,
+    DataSourceRegistry,
+    DescriptorRegistry,
+    ModelRegistry,
+    SchemeRegistry,
+)
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 
 ###############################################################################
@@ -83,6 +90,14 @@ def parse_args(args: list[str]):
 
 
 def main(args: list[str]):
+    logging.info("REGISTRY:")
+    logging.info(f"\tData Sources: {DataSourceRegistry.list()}")
+    logging.info(f"\tDatasets: {DatasetRegistry.list()}")
+    logging.info(f"\tDescriptors: {DescriptorRegistry.list()}")
+    logging.info(f"\tModels: {ModelRegistry.list()}")
+    logging.info(f"\tSchemes: {SchemeRegistry.list_schemes()}")
+    logging.info(f"\tModels with registered schemes: {SchemeRegistry.list_models()}")
+
     # Parsing command line arguments
     args = parse_args(args)
 

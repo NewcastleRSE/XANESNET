@@ -14,17 +14,17 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import torch
-
 from typing import List
+
+import torch
 from torch import nn
 
-from xanesnet.registry import register_model, register_scheme
 from xanesnet.models.base_model import Model
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 
 
-@register_model("softshell")
-@register_scheme("softshell", scheme_name="ss")
+@ModelRegistry.register("softshell")
+@SchemeRegistry.register("softshell", scheme_name="ss")
 class SoftShellSpectraNet(Model):
     """
     Wrapper class for SoftShell Model
@@ -248,13 +248,9 @@ class CoeffHeadGroupedResidualPreLN(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
         self.K_groups = K_groups
-        self.trunk = nn.Sequential(
-            *[ResidualPreLNBlock(latent_dim, hidden, dropout) for _ in range(depth)]
-        )
+        self.trunk = nn.Sequential(*[ResidualPreLNBlock(latent_dim, hidden, dropout) for _ in range(depth)])
         self.trunk_out_ln = nn.LayerNorm(latent_dim)
-        self.group_heads = nn.ModuleList(
-            [nn.Linear(latent_dim, k) for k in self.K_groups]
-        )
+        self.group_heads = nn.ModuleList([nn.Linear(latent_dim, k) for k in self.K_groups])
 
         for head in self.group_heads:
             nn.init.zeros_(head.weight)

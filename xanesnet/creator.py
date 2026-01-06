@@ -13,100 +13,51 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from typing import Dict, List
 
-from xanesnet.datasets.base_dataset import BaseDataset
+from xanesnet.datasets.dataset import Dataset
+from xanesnet.datasources import DataSource
 from xanesnet.descriptors.base_descriptor import BaseDescriptor
 from xanesnet.models.base_model import Model
 from xanesnet.registry import (
-    MODEL_REGISTRY,
-    LEARN_SCHEME_REGISTRY,
-    PREDICT_SCHEME_REGISTRY,
-    DESCRIPTOR_REGISTRY,
-    DATASET_REGISTRY,
+    DatasetRegistry,
+    DataSourceRegistry,
+    DescriptorRegistry,
+    ModelRegistry,
+    SchemeRegistry,
 )
 from xanesnet.scheme import Learn, Predict
-from xanesnet.utils.mode import Mode
+
+###############################################################################
+################################### FACTORY ###################################
+###############################################################################
 
 """
-Factory functions to create instance of model, descriptor or scheme
+Creates and returns instances of classes based on the given name.
+
+Ensure that classes are registered using the appropriate decorators in their respective modules.
+See 'xanesnet/registry' for more details.
 """
 
 
-def create_dataset(name: str, **kwargs) -> BaseDataset:
-    """
-    Create and return an instance of a dataset class based on the given name.
+def create_datasource(name: str, **kwargs) -> DataSource:
+    return DataSourceRegistry.get(name)(**kwargs)
 
-    Dataset must be registered using the @register_dataset("dataset_name") decorator.
-    See `dataset/xanesx.py` for an example of how to register a dataset class.
 
-    Args:
-        name (str): The name of the dataset to create.
-        **kwargs: Additional keyword arguments passed to the dataset constructor.
-
-    Returns:
-        An instance of the dataset.
-
-    Raises:
-        ValueError: If the specified dataset name is not registered.
-    """
-    if name in DATASET_REGISTRY:
-        return DATASET_REGISTRY[name](**kwargs)
-    else:
-        raise ValueError(f"Unsupported dataset name: {name}")
+def create_dataset(name: str, **kwargs) -> Dataset:
+    return DatasetRegistry.get(name)(**kwargs)
 
 
 def create_model(name: str, **kwargs) -> Model:
-    """
-    Create and return an instance of a model class based on the given name.
-
-    Models must be registered using the @register_model("model_name") decorator.
-    See `models/mlp.py` for an example of how to register a model class.
-
-    Args:
-        name (str): The name of the model to create.
-        **kwargs: Additional keyword arguments passed to the model constructor.
-
-    Returns:
-        An instance of the model.
-
-    Raises:
-        ValueError: If the specified model name is not registered.
-    """
-    if name in MODEL_REGISTRY:
-        return MODEL_REGISTRY[name](**kwargs)
-    else:
-        raise ValueError(f"Unsupported model name: {name}")
+    return ModelRegistry.get(name)(**kwargs)
 
 
 def create_descriptor(name: str, **kwargs) -> BaseDescriptor:
-    """
-    Create and return an instance of a descriptor class based on the given name.
-
-    Descriptors must be registered using the
-    @register_descriptor("descriptor_name") decorator.
-    See `descriptor/wacsf.py` for an example of how to register a descriptor class.
-
-    Args:
-        name (str): The name of the descriptor to create.
-        **kwargs: Additional keyword arguments passed to the descriptor constructor.
-
-    Returns:
-        An instance of the descriptor.
-
-    Raises:
-        ValueError: If the specified descriptor name is not registered.
-    """
-    if name in DESCRIPTOR_REGISTRY:
-        return DESCRIPTOR_REGISTRY[name](**kwargs)
-    else:
-        raise ValueError(f"Unsupported descriptor name: {name}")
+    return DescriptorRegistry.get(name)(**kwargs)
 
 
 def create_descriptors(config: Dict = None) -> List:
-    """
-    Create and return a list of descriptor instances.
-    """
     descriptor_list = []
 
     for descriptor in config:
@@ -117,53 +68,9 @@ def create_descriptors(config: Dict = None) -> List:
     return descriptor_list
 
 
-def create_learn_scheme(
-    name: str, model: Model, dataset: BaseDataset, **kwargs
-) -> Learn:
-    """
-    Create and return an instance of a learning scheme based on the given scheme name.
-
-    Learning schemes define how a model is trained and are registered using the
-    @register_scheme(model_name, scheme_name) decorator in MODEL classes.
-    See `models/mlp.py` for an example.
-
-    Args:
-        name (str): The name of the scheme.
-        model: The model instance to be trained.
-        dataset: The dataset instance used for training.
-        **kwargs: Additional keyword arguments passed to the learning scheme constructor.
-
-    Returns:
-        An instance of the learning scheme associated with the given model.
-
-    Raises:
-        ValueError: If the specified learning scheme name is not registered.
-    """
-    if name in LEARN_SCHEME_REGISTRY:
-        return LEARN_SCHEME_REGISTRY[name](model, dataset, **kwargs)
-    raise ValueError(f"Unsupported learn scheme for the model: {name}")
+def create_learn_scheme(name: str, model: Model, dataset: Dataset, **kwargs) -> Learn:
+    return SchemeRegistry.get_learn(name)(model, dataset, **kwargs)
 
 
-def create_predict_scheme(name: str, dataset: BaseDataset, **kwargs) -> Predict:
-    """
-    Create and return an instance of a prediction scheme based on the given scheme name.
-
-    Prediction schemes are registered using the
-    @register_scheme(model_name, scheme_name) decorator in MODEL classes.
-    See `models/mlp.py` for an example.
-
-    Args:
-        name (str): The name of the scheme.
-        dataset: The dataset instance used for prediction.
-        **kwargs: Additional keyword arguments passed to the prediction scheme constructor.
-
-    Returns:
-        An instance of the prediction scheme associated with the given model.
-
-    Raises:
-        ValueError: If the specified prediction scheme name is not registered.
-    """
-    if name in PREDICT_SCHEME_REGISTRY:
-        return PREDICT_SCHEME_REGISTRY[name](dataset, **kwargs)
-    else:
-        raise ValueError(f"Unsupported predict scheme for the model: {name}")
+def create_predict_scheme(name: str, dataset: Dataset, **kwargs) -> Predict:
+    return SchemeRegistry.get_predict(name)(dataset, **kwargs)

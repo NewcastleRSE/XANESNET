@@ -15,24 +15,18 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
-
 from ase import Atoms
 from mace.calculators import mace_mp
 
 from xanesnet.descriptors.base_descriptor import BaseDescriptor
-from xanesnet.registry import register_descriptor
-
+from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
 ################################## CLASSES ####################################
 ###############################################################################
 
 
-@register_descriptor("mace")
+@DescriptorRegistry.register("mace")
 class MACE(BaseDescriptor):
     def __init__(
         self,
@@ -47,9 +41,7 @@ class MACE(BaseDescriptor):
         self.mace = mace_mp()
 
     def transform(self, system: Atoms) -> np.ndarray:
-        tmp = self.mace.get_descriptors(
-            system, invariants_only=self.invariants_only, num_layers=self.num_layers
-        )
+        tmp = self.mace.get_descriptors(system, invariants_only=self.invariants_only, num_layers=self.num_layers)
         if self.absorber_atom_only:
             return tmp[0, :]
         else:
@@ -69,9 +61,7 @@ class MACE(BaseDescriptor):
         if self.invariants_only:
             total = 0
             for i in range(self.num_layers - 1):
-                total += (i * (l_max + 1) ** 2 + 1) * num_features - i * (
-                    l_max + 1
-                ) ** 2 * num_features
+                total += (i * (l_max + 1) ** 2 + 1) * num_features - i * (l_max + 1) ** 2 * num_features
             n_feats = num_features + total
         else:
             n_feats = ((num_interactions - 1) * (l_max + 1) ** 2 + 1) * num_features

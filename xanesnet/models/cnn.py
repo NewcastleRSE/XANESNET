@@ -18,12 +18,12 @@ import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("cnn")
-@register_scheme("cnn", scheme_name="nn")
+@ModelRegistry.register("cnn")
+@SchemeRegistry.register("cnn", scheme_name="nn")
 class CNN(Model):
     """
     A class for constructing a customisable CNN (Convolutional Neural Network) model.

@@ -18,12 +18,12 @@ import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("lstm")
-@register_scheme("lstm", scheme_name="nn")
+@ModelRegistry.register("lstm")
+@SchemeRegistry.register("lstm", scheme_name="nn")
 class LSTM(Model):
     """
     A class for constructing a customisable LSTM (Long Short-Term Memory) model.

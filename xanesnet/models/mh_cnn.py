@@ -13,18 +13,19 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from typing import List
 
 import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("mh_cnn")
-@register_scheme("mh_cnn", scheme_name="mh")
+@ModelRegistry.register("mh_cnn")
+@SchemeRegistry.register("mh_cnn", scheme_name="mh")
 class MultiHead_CNN(Model):
     """
     A class for constructing a customisable CNN (Convolutional Neural Network) model.
@@ -176,9 +177,7 @@ class CNNHead(nn.Module):
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
-                raise ValueError(
-                    f"Head hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate."
-                )
+                raise ValueError(f"Head hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate.")
 
             layers.append(nn.Linear(current_size, next_size))
             layers.append(nn.BatchNorm1d(next_size))

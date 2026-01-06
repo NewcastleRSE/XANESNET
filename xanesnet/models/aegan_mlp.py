@@ -14,16 +14,15 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import register_model, register_scheme
+from xanesnet.registry import ModelRegistry, SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 
-@register_model("aegan_mlp")
-@register_scheme("aegan_mlp", scheme_name="aegan")
+@ModelRegistry.register("aegan_mlp")
+@SchemeRegistry.register("aegan_mlp", scheme_name="aegan")
 class AEGAN_MLP(Model):
     def __init__(
         self,
