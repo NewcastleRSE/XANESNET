@@ -44,7 +44,7 @@ def parse_args(args: list[str]):
         "--mode",
         type=str,
         required=True,
-        help="Run mode: train_xanes, train_xyz, train_all, predict_xanes, predict_xyz, predict_all.",
+        help="Run mode: train_forward, train_reverse, train_bidirectional, predict_forward, predict_reverse, predict_bidirectional.",
     )
     parser.add_argument(
         "--in_file",

@@ -14,14 +14,13 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from enum import Enum
 
 
 class Mode(Enum):
-    XYZ_TO_XANES = ["train_xyz", "predict_xanes"]
-    XANES_TO_XYZ = ["train_xanes", "predict_xyz"]
-    BIDIRECTIONAL = ["train_all", "predict_all"]
+    FORWARD = ["train_forward", "predict_forward"]
+    REVERSE = ["train_reverse", "predict_reverse"]
+    BIDIRECTIONAL = ["train_bidirectional", "predict_bidirectional"]
 
 
 def get_mode(mode_str: str) -> Mode:
