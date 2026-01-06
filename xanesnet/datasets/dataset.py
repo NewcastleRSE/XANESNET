@@ -14,15 +14,18 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from abc import ABC, abstractmethod
+
 from xanesnet.datasources import DataSource
-from xanesnet.registry import DatasetRegistry
 from xanesnet.utils.mode import Mode
 
-from .torch_dataset import TorchDataset
 
+class Dataset(ABC):
+    """
+    Abstract base class for datasets.
+    All dataset classes should inherit from this class and implement the required methods.
+    """
 
-@DatasetRegistry.register("xanesx")
-class XanesXDataset(TorchDataset):
     def __init__(
         self,
         type: str,
@@ -30,8 +33,19 @@ class XanesXDataset(TorchDataset):
         root: str,
         mode: Mode,
         params: dict,
-        descriptors: list,
     ):
-        super().__init__(type, datasource, root, mode, params)
+        self.type = type
+        self.datasource = datasource
+        self.root = root
+        self.mode = mode
+        self.params = params
 
+        # TODO check if already processed
+
+    @abstractmethod
+    def process(self):
+        """
+        Process the raw data and prepare it for use in the model.
+        This method should be implemented by all subclasses.
+        """
         pass

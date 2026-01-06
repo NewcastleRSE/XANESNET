@@ -14,8 +14,28 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .xanesx import XanesXDataset
+import torch_geometric as tg
 
-__all__ = [
-    "XanesXDataset",
-]
+from xanesnet.datasources import DataSource
+from xanesnet.utils.mode import Mode
+
+from .dataset import Dataset
+
+
+class TorchGeometricDataset(Dataset, tg.data.Dataset):
+    """
+    A dataset class that combines BaseDataset and PyTorch Geometric's Dataset.
+    This class can be used to create datasets compatible with PyTorch Geometric's data handling.
+    """
+
+    def __init__(
+        self,
+        type: str,
+        datasource: DataSource,
+        root: str,
+        mode: Mode,
+        params: dict,
+    ):
+        super().__init__(type, datasource, root, mode, params)
+
+    pass
