@@ -1,8 +1,11 @@
-dataset:
-  type: xanesx
-  root_path: .github/workflows/data/fe/processed_train
+datasource:
+  type: xyzspec
   xyz_path: .github/workflows/data/fe/xyz_train
   xanes_path: .github/workflows/data/fe/xanes_train
+
+dataset:
+  type: xanesx
+  root: .github/workflows/data/fe/processed_train
   params:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
     fourier: False
@@ -10,15 +13,13 @@ dataset:
     gaussian: False                   # Gaussian transformation (default: False)
     widths_eV: [0.5, 1.0, 2.0, 4.0]
     basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
-
-
-descriptors:
-  - type: wacsf
-    params:
-      r_min: 1.0
-      r_max: 6.0
-      n_g2: 16
-      n_g4: 32
+  descriptors:
+    - type: wacsf
+      params:
+        r_min: 1.0
+        r_max: 6.0
+        n_g2: 16
+        n_g4: 32
 
 model:
   type: mlp

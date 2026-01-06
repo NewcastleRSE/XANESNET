@@ -25,19 +25,16 @@ from torchinfo import summary
 
 from xanesnet.creator import (
     create_dataset,
-    create_descriptors,
+    create_datasource,
     create_learn_scheme,
     create_model,
 )
-from xanesnet.datasets.base_dataset import BaseDataset
+from xanesnet.datasets.dataset import Dataset
+from xanesnet.datasources import DataSource
 from xanesnet.models.base_model import Model
 from xanesnet.models.pre_trained import PretrainedModels
 from xanesnet.scheme import Learn
-from xanesnet.utils.io import (
-    load_pretrained_descriptors,
-    load_pretrained_model,
-    save_models,
-)
+from xanesnet.utils.io import load_pretrained_model, save_models
 from xanesnet.utils.mode import Mode, get_mode
 
 ###############################################################################
@@ -52,8 +49,8 @@ def train(config, args):
     logging.info(f"Training mode: {args.mode}")
     mode = get_mode(args.mode)
 
-    descriptor_list = _setup_descriptors(config)
-    dataset = _setup_dataset(config, mode, descriptor_list)
+    datasource = _setup_datasource(config)
+    dataset = _setup_dataset(config, mode, datasource)
     model = _setup_model(config, dataset)
     scheme = _setup_scheme(config, args, model, dataset)
 
@@ -70,7 +67,6 @@ def train(config, args):
             "mode": args.mode,
             "dataset": dataset.config,
             "model": model.config,
-            "descriptors": [desc.config for desc in descriptor_list],
             "scheme": scheme_type,
         }
         save_models(Path("models"), model_list, metadata, dataset.basis)
@@ -81,52 +77,35 @@ def train(config, args):
 ###############################################################################
 
 
-def _setup_descriptors(config: Dict) -> List:
+def _setup_datasource(config: Dict) -> DataSource:
     """
-    Initialise or load descriptors depending on the model type.
+    Setup the data source from config
     """
-    model_type = config["model"]["type"]
+    datasource_type = config[f"datasource"]["type"]
+    logging.info(f"Initialising data source: {datasource_type}")
+    datasource = create_datasource(datasource_type, **config["datasource"])
 
-    if hasattr(PretrainedModels, model_type):
-        logging.info(f"Loading pretrained model descriptors: {model_type}")
-        descriptor_list = load_pretrained_descriptors(model_type)
-    else:
-        descriptor_config = config["descriptors"]
-        descriptor_types = ", ".join(d["type"] for d in descriptor_config)
-        logging.info(f"Initialising descriptors: {descriptor_types}")
-        descriptor_list = create_descriptors(config=descriptor_config)
-
-    return descriptor_list
+    return datasource
 
 
-def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDataset:
+def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
     dataset_type = config["dataset"]["type"]
-
     logging.info(f"Initialising training dataset: {dataset_type}")
-    # Pack parameters
-    kwargs = {
-        "root": config["dataset"]["root_path"],
-        "xyz_path": config["dataset"]["xyz_path"],
-        "xanes_path": config["dataset"]["xanes_path"],
-        "mode": mode,
-        "descriptors": descriptor_list,
-        **config["dataset"].get("params", {}),
-    }
-
-    dataset = create_dataset(dataset_type, **kwargs)
+    dataset = create_dataset(dataset_type, **config["dataset"], mode=mode, datasource=datasource)
 
     # Log dataset summary
     logging.info(
-        f"Dataset Summary: # of samples = {len(dataset)}, feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
+        f"Dataset Summary: # of samples = {len(dataset)}, "
+        f"feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
     )
 
     return dataset
 
 
-def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
+def _setup_model(config: Dict, dataset: Dataset) -> Model:
     """
     Initialises or loads the model and its descriptors.
     """
@@ -159,7 +138,7 @@ def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
     return model
 
 
-def _setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Learn:
+def _setup_scheme(config: Dict, args, model: Model, dataset: Dataset) -> Learn:
     """
     Initialise training scheme (standard, k-fold, ensemble, etc.).
     """
@@ -227,7 +206,7 @@ def _run_training(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
 ###############################################################################
 
 
-def _summary_model(model: Model, dataset: BaseDataset) -> None:
+def _summary_model(model: Model, dataset: Dataset) -> None:
     logging.info("--- Model Summary ---")
 
     if model.aegan_flag:
