@@ -145,9 +145,7 @@ class SSLearn(Learn):
             test_data = self.dataset[test_index]
             test_loader = self._create_loader(test_data)
 
-            test_score = self._run_one_epoch_valid(
-                test_loader, model, self.spectral_post
-            )
+            test_score = self._run_one_epoch_valid(test_loader, model)
 
             score_list["train_score"].append(train_score)
             score_list["test_score"].append(test_score)
