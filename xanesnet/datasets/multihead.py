@@ -26,6 +26,7 @@ from tqdm import tqdm
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
 from xanesnet.utils.fourier import fft
+from xanesnet.utils.gaussian import gaussian_fit
 from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
 from xanesnet.utils.mode import Mode
 
@@ -37,11 +38,12 @@ class Data:
     e: torch.Tensor = None
     head_idx: torch.Tensor = None  # multihead index
     fourier: torch.Tensor = None
+    c_star: torch.Tensor = None
     head_name: str = ""
 
     def to(self, device):
         # send batch do device
-        for attr in ["x", "y", "head_idx", "fourier"]:
+        for attr in ["x", "y", "head_idx", "fourier", "c_star"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -100,7 +102,7 @@ class MultiheadDataset(BaseDataset):
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            xyz = xanes = e = fourier = None
+            xyz = xanes = e = fourier = c_star = None
             head_idx_xyz = head_idx_xanes = None
             head_name_xyz = head_name_xanes = None
 
@@ -119,6 +121,8 @@ class MultiheadDataset(BaseDataset):
                 e, xanes = load_xanes(xanes_file)
                 if self.fft:
                     fourier = fft(xanes, self.fft_concat)
+                elif self.gaussian:
+                    c_star = gaussian_fit(basis=self.basis, xanes=xanes)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -133,7 +137,13 @@ class MultiheadDataset(BaseDataset):
 
             head_idx = torch.tensor(head_idx, dtype=torch.long)
             data = Data(
-                x=x, y=y, e=e, head_idx=head_idx, head_name=head_name, fourier=fourier
+                x=x,
+                y=y,
+                e=e,
+                head_idx=head_idx,
+                head_name=head_name,
+                fourier=fourier,
+                c_star=c_star,
             )
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
@@ -158,13 +168,21 @@ class MultiheadDataset(BaseDataset):
         y_list = [sample.y for sample in batch]
         idx_list = [sample.head_idx for sample in batch]
         fft_list = [sample.fourier for sample in batch]
+        cstar_list = [sample.c_star for sample in batch]
 
         batched_x = self.safe_stack(x_list)
         batched_y = self.safe_stack(y_list)
         batched_i = self.safe_stack(idx_list, dtype=torch.int32)
         batched_fft = self.safe_stack(fft_list)
+        batched_cstar = self.safe_stack(cstar_list)
 
-        return Data(x=batched_x, y=batched_y, head_idx=batched_i, fourier=batched_fft)
+        return Data(
+            x=batched_x,
+            y=batched_y,
+            head_idx=batched_i,
+            fourier=batched_fft,
+            c_star=batched_cstar,
+        )
 
     @property
     def x_size(self) -> Union[int, List[int]]:

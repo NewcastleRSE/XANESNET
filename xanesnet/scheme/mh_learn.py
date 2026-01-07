@@ -58,18 +58,20 @@ class MHLearn(NNLearn):
                 # predict shape = (Batch, Feat)
                 predict = predict[torch.arange(batch.x.shape[0]), head_idx]
 
-                if batch.fourier is not None:
+                if batch.c_star is not None:
+                    target = batch.c_star
+                elif batch.fourier is not None:
                     target = batch.fourier
                 else:
                     target = batch.y
 
                 loss = criterion(predict, target).mean() / target.abs().mean()
 
-                # Add regularization loss
-                loss_reg = regularizer.loss(model, self.loss_reg, device)
-                loss += self.loss_lambda * loss_reg
-
                 if is_train:
+                    # Add regularization loss
+                    loss_reg = regularizer.loss(model, self.loss_reg, device)
+                    loss += self.loss_lambda * loss_reg
+
                     loss.backward()
                     optimizer.step()
 
