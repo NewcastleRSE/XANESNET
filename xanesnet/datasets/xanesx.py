@@ -62,11 +62,12 @@ class XanesXDataset(TorchDataset):
         datasource: DataSource,
         root: str,
         mode: Mode,
+        preload: bool,
         params: dict,
         descriptors: list,
     ):
         # Calling parent init
-        super().__init__(type, datasource, root, mode, params)
+        super().__init__(type, datasource, root, mode, preload, params)
 
         # Some assertions
         if self.params.get("fourier", False) or self.params.get("gaussian", False):
@@ -86,8 +87,6 @@ class XanesXDataset(TorchDataset):
         # Setup spectral basis only if needed
         if self.params.get("gaussian", False):
             self._setup_spectral_basis()
-
-        pass
 
     def process(self):
         already_processed = super().process()
@@ -162,10 +161,15 @@ class XanesXDataset(TorchDataset):
     def metadata(self) -> dict:
         """Return dataset metadata as a dictionary."""
         metadata = super().metadata
-        metadata.update(
-            {
-                "in_size": None,
-                "out_size": None,
-            }
-        )
+        in_size = len(self[0].x)
+        if self.params.get("gaussian", False):
+            feature = self[0].c_star
+        elif self.params.get("fourier", False):
+            feature = self[0].fourier
+        else:
+            feature = self[0].y
+        out_size = 0 if feature is None else len(feature)
+
+        metadata.update({"in_size": in_size, "out_size": out_size})
+
         return metadata

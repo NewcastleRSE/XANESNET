@@ -8,8 +8,8 @@ datasource:
 dataset:
   type: xanesx
   root: .github/workflows/data/fe/processed_train
+  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   params:
-    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
     fourier: False
     fourier_concat: False
     gaussian: False                   # Gaussian transformation (default: False)

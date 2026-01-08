@@ -96,6 +96,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     logging.info(f"Initialising training dataset: {dataset_type}")
     dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
     dataset.process()
+    dataset.check_preload()  # may preload the dataset into memory
 
     # Log dataset summary
     logging.info(f"Dataset Summary: # of samples = {len(dataset)}")

@@ -38,8 +38,9 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
         datasource: DataSource,
         root: str,
         mode: Mode,
+        preload: bool,
         params: dict,
     ):
-        super().__init__(type, datasource, root, mode, params)
+        super().__init__(type, datasource, root, mode, preload, params)
 
     pass

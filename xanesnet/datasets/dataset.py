@@ -19,6 +19,10 @@ import os
 from abc import ABC, abstractmethod
 from typing import List
 
+import numpy as np
+import torch
+from tqdm import tqdm
+
 from xanesnet.datasources import DataSource
 from xanesnet.utils.mode import Mode
 
@@ -39,13 +43,18 @@ class Dataset(ABC):
         datasource: DataSource,
         root: str,
         mode: Mode,
+        preload: bool,
         params: dict,
     ):
         self.type = type
         self.datasource = datasource
         self.root = root
         self.mode = mode
+        self.preload = preload
         self.params = params
+
+        # preloaded dataset
+        self.inmemory_dataset = None
 
     @abstractmethod
     def process(self) -> bool:
@@ -60,6 +69,15 @@ class Dataset(ABC):
         if os.listdir(self.processed_dir):
             logging.warning("Processed data directory is not empty! Make sure this is intended.")
         return False
+
+    def check_preload(self) -> List[torch.Tensor]:
+        """Preload the entire dataset into memory."""
+        if self.preload:
+            logging.info(f"Preloading entire dataset into memory. (# Samples: {len(self)})")
+            preload_data = []
+            for file in tqdm(self.processed_files, desc="Preloading dataset", total=len(self)):
+                preload_data.append(torch.load(file))
+            self.inmemory_dataset = preload_data
 
     @property
     @abstractmethod
@@ -86,6 +104,17 @@ class Dataset(ABC):
         """Return the number of samples in the dataset."""
         return len(self.datasource)
 
-    def __get_item__(self, idx):
+    def __getitem__(self, idx):
         """Return the sample at the given index."""
-        pass
+        if (
+            isinstance(idx, (int, np.integer))
+            or (isinstance(idx, torch.Tensor) and idx.dim() == 0)
+            or (isinstance(idx, np.ndarray) and np.isscalar(idx))
+        ):
+            if self.preload:
+                return self.inmemory_dataset[idx]
+            else:
+                return torch.load(self.processed_paths[idx])
+        else:
+            raise ValueError("Indexing not implemented yet!")
+            # TODO : Implement advanced indexing if needed
