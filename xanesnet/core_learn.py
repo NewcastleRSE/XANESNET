@@ -111,17 +111,17 @@ def _setup_model(config: Dict, dataset: Dataset) -> Model:
     model_type = model_config["type"]
 
     if hasattr(PretrainedModels, model_type):
+        # TODO -----------------------------------------------------
+        # TODO check pretrained model loading
+        # TODO also check if descriptors are loaded correctly
         logging.info(f"Loading pretrained model: {model_type}")
         model_params = model_config.get("params", {})
         model = load_pretrained_model(model_type, **model_params)
+        # TODO -----------------------------------------------------
     else:
         logging.info(f"Initialising model: {model_type}")
         model_params = model_config.get("params", {})
-
-        # Add additional model parameters
-        model_params["in_size"] = dataset.x_size
-        model_params["out_size"] = dataset.y_size
-        model = ModelRegistry.get(model_type)(**model_params)
+        model = ModelRegistry.get(model_type)(**model_params, **dataset.metadata)
 
         # Intialise model weights
         weights_params = model_config.get("weights_params", {})

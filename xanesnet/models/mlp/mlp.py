@@ -38,6 +38,7 @@ class MLP(Model):
 
     def __init__(
         self,
+        type: str,
         in_size: int,
         out_size: int,
         hidden_size: int = 256,
@@ -45,9 +46,11 @@ class MLP(Model):
         num_hidden_layers: int = 3,
         shrink_rate: float = 1.0,
         activation: str = "relu",
-    ) -> None:
+        **_,  # ignore additional parameters (might come from dataset metadata)
+    ):
         """
         Args:
+            type (str): Model type identifier
             in_size (integer): Size of input data
             out_size (integer): Size of output data
             hidden_size (integer): Size of the initial hidden layer.
@@ -57,16 +60,13 @@ class MLP(Model):
             activation (str): Name of activation function for hidden layers.
         """
 
-        super().__init__()
-        self.nn_flag = 1
-
-        # Save model configuration
-        self.register_config(locals(), type="mlp")
+        params = {k: v for k, v in list(locals().items()) if k not in ("self") and not k.startswith("_")}
+        super().__init__(type, params)
 
         act_fn = ActivationSwitch().get(activation)
         layers = []
 
-        # --- Input and hidden Layers ---
+        # Initialise input and hidden layers
         current_size = in_size
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
@@ -78,7 +78,7 @@ class MLP(Model):
             layers.append(act_fn)
             current_size = next_size
 
-        # --- Output Layer ---
+        # Initialise output layer
         layers.append(nn.Linear(current_size, out_size))
 
         self.dense_layers = nn.Sequential(*layers)

@@ -15,52 +15,35 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
+from abc import abstractmethod
 
 import torch
 from torch import nn
 
-from xanesnet.utils.switch import KernelInitSwitch, BiasInitSwitch
+from xanesnet.utils.switch import BiasInitSwitch, KernelInitSwitch
+
+###############################################################################
+#################################### CLASS ####################################
+###############################################################################
 
 
 class Model(nn.Module):
     """
-    Abstract base class for XANESNET models.
+    Abstract base class for models.
+    All model classes should inherit from this class and implement the required methods.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        type: str,
+        params: dict,
+    ):
         super().__init__()
 
-        self.nn_flag = 0
-        self.ae_flag = 0
-        self.aegan_flag = 0
-        self.gnn_flag = 0
+        self.type = type
+        self.params = params
 
-        # 0 if forward() accepts a tensor x, 1 if forward() accepts a batch object
-        self.batch_flag = 0
-        self.config = {}
-
-    def register_config(self, args, **kwargs):
-        """
-        Assign arguments from the child class's constructor to self.config.
-
-        Args:
-            args: The dictionary of arguments from the child class's constructor
-            **kwargs: additional arguments to store
-        """
-        config = kwargs.copy()
-
-        # Extract parameters from the local_vars, excluding 'self' and '__class__'
-        args_dict = {
-            key: val for key, val in args.items() if key not in ["self", "__class__"]
-        }
-
-        config.update(args_dict)
-
-        self.config = config
-
-    def init_model_weights(
-        self, kernel: str, bias: str, seed: int | None = None, **kwargs
-    ):
+    def init_model_weights(self, kernel: str, bias: str, **kwargs):
         """
         Initialise model kernel and bias weights using user-defined methods.
         """
@@ -87,3 +70,13 @@ class Model(nn.Module):
         if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
             kernel_init_fn(m.weight)
             bias_init_fn(m.bias)
+
+    @property
+    @abstractmethod
+    def metadata(self) -> dict:
+        """Return model metadata as a dictionary."""
+        metadata = {
+            "type": self.type,
+            "params": self.params,
+        }
+        return metadata
