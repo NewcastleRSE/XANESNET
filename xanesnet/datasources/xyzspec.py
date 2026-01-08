@@ -25,6 +25,10 @@ from xanesnet.utils.io import list_filestems
 
 from .datasource import DataSource
 
+###############################################################################
+#################################### CLASS ####################################
+###############################################################################
+
 
 @DataSourceRegistry.register("xyzspec")
 class XYZSpecSource(DataSource):
