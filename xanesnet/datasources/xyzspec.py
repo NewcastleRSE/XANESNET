@@ -44,10 +44,14 @@ class XYZSpecSource(DataSource):
 
             molecule = XYZSpecSource.load_xyz(xyz_file)
             energies, intensities = XYZSpecSource.load_xanes(xanes_file)
-
-            # TODO add xanes to molecule
-
-            yield None
+            spectra_list = [None for _ in molecule.sites]
+            spectra_list[0] = {
+                "energies": energies,
+                "intensities": intensities,
+            }
+            molecule.add_site_property("XANES", spectra_list)
+            molecule.properties["file_name"] = file
+            yield molecule
 
     def __len__(self):
         return len(self.file_names)
