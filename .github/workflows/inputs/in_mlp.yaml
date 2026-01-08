@@ -1,3 +1,5 @@
+seed: 2025
+
 datasource:
   type: xyzspec
   xyz_path: .github/workflows/data/fe/xyz_train
@@ -32,7 +34,6 @@ model:
   weights:
     kernel: xavier_uniform
     bias: zeros
-    seed: 2025
 
 hyperparams:
   epochs: 10

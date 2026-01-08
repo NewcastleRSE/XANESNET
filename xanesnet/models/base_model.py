@@ -47,15 +47,6 @@ class Model(nn.Module):
         """
         Initialise model kernel and bias weights using user-defined methods.
         """
-        if seed is None:
-            seed = random.randrange(1000)
-
-        # Set random seed
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-        else:
-            torch.manual_seed(seed)
-
         kernel_init_fn = KernelInitSwitch().get(kernel, **kwargs)
         bias_init_fn = BiasInitSwitch().get(bias)
 
