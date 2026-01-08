@@ -31,6 +31,7 @@ from xanesnet.registry import (
     SchemeRegistry,
 )
 from xanesnet.utils.logger import setup_file_logging, setup_logging
+from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
 ################################### LOGGING ###################################
@@ -104,6 +105,13 @@ def main(args: list[str]):
     logging.info(f"Loading YAML configuration file @ {args.in_file}")
     with open(args.in_file, "r") as f:
         config = yaml.safe_load(f)
+
+    # Setting global seed for reproducibility
+    seed = config.get("seed", None)
+    if seed is None:
+        logging.warning("No global seed specified in configuration file. Choosing random seed.")
+    seed = set_global_seed(seed)
+    logging.info(f"Global random seed set to: {seed}")
 
     # Branching into training or prediction mode
     if "train" in args.mode:
