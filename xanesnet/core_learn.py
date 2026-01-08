@@ -23,16 +23,16 @@ from typing import Dict, List, Tuple
 import torch
 from torchinfo import summary
 
-from xanesnet.creator import (
-    create_dataset,
-    create_datasource,
-    create_learn_scheme,
-    create_model,
-)
 from xanesnet.datasets.dataset import Dataset
 from xanesnet.datasources import DataSource
 from xanesnet.models.base_model import Model
 from xanesnet.models.pre_trained import PretrainedModels
+from xanesnet.registry import (
+    DatasetRegistry,
+    DataSourceRegistry,
+    ModelRegistry,
+    SchemeRegistry,
+)
 from xanesnet.scheme import Learn
 from xanesnet.utils.io import load_pretrained_model, save_models
 from xanesnet.utils.mode import Mode, get_mode
@@ -83,7 +83,7 @@ def _setup_datasource(config: Dict) -> DataSource:
     """
     datasource_type = config[f"datasource"]["type"]
     logging.info(f"Initialising data source: {datasource_type}")
-    datasource = create_datasource(datasource_type, **config["datasource"])
+    datasource = DataSourceRegistry.get(datasource_type)(**config["datasource"])
 
     return datasource
 
@@ -94,7 +94,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     """
     dataset_type = config["dataset"]["type"]
     logging.info(f"Initialising training dataset: {dataset_type}")
-    dataset = create_dataset(dataset_type, **config["dataset"], mode=mode, datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
 
     # Log dataset summary
     logging.info(
@@ -123,7 +123,7 @@ def _setup_model(config: Dict, dataset: Dataset) -> Model:
         # Add additional model parameters
         model_params["in_size"] = dataset.x_size
         model_params["out_size"] = dataset.y_size
-        model = create_model(model_type, **model_params)
+        model = ModelRegistry.get(model_type)(**model_params)
 
         # Intialise model weights
         weights_params = model_config.get("weights_params", {})
@@ -159,7 +159,7 @@ def _setup_scheme(config: Dict, args, model: Model, dataset: Dataset) -> Learn:
         "tensorboard": args.tensorboard,
     }
 
-    scheme = create_learn_scheme(model_type, model, dataset, **kwargs)
+    scheme = SchemeRegistry.get_learn(model_type)(model, dataset, **kwargs)
     return scheme
 
 
