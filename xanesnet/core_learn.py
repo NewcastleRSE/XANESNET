@@ -95,6 +95,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     dataset_type = config["dataset"]["type"]
     logging.info(f"Initialising training dataset: {dataset_type}")
     dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
+    dataset.process()
 
     # Log dataset summary
     logging.info(f"Dataset Summary: # of samples = {len(dataset)}")

@@ -15,16 +15,13 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Dict
-
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
+from abc import ABC, abstractmethod
+from typing import Union
 
 import numpy as np
-
 from ase import Atoms
-from abc import ABC, abstractmethod
+from pymatgen.core import Molecule, Structure
+from pymatgen.io.ase import AseAtomsAdaptor
 
 ###############################################################################
 ################################## CLASSES ####################################
@@ -48,6 +45,18 @@ class BaseDescriptor(ABC):
         """
 
         pass
+
+    def transform_pmg(self, pmg_structure: Union[Structure, Molecule]) -> np.ndarray:
+        """
+        Args:
+            pmg_structure (Structure | Molecule): Pymatgen Structure or Molecule
+            representing the atomic system.
+
+        Returns:
+            np.ndarray: A fingerprint feature vector for the molecular system.
+        """
+        ase_structure = AseAtomsAdaptor.get_atoms(pmg_structure)
+        return self.transform(ase_structure)
 
     @abstractmethod
     def get_nfeatures(self) -> int:
@@ -78,9 +87,7 @@ class BaseDescriptor(ABC):
         config = kwargs.copy()
 
         # Extract parameters from the local_vars, excluding 'self' and '__class__'
-        args_dict = {
-            key: val for key, val in args.items() if key not in ["self", "__class__"]
-        }
+        args_dict = {key: val for key, val in args.items() if key not in ["self", "__class__"]}
 
         config.update(args_dict)
 
