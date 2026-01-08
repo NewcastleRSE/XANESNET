@@ -48,7 +48,7 @@ class Dataset(ABC):
         self.params = params
 
     @abstractmethod
-    def process(self):
+    def process(self) -> bool:
         """
         Process the raw data and prepare it for use in the model.
         This method should be implemented by all subclasses.
@@ -56,9 +56,10 @@ class Dataset(ABC):
         # Check if processing already done
         if all(os.path.exists(f) for f in self.processed_files):
             logging.info("Processed data files already exist. Skipping processing.")
-            return
+            return True
         if os.listdir(self.processed_dir):
             logging.warning("Processed data directory is not empty! Make sure this is intended.")
+        return False
 
     @property
     @abstractmethod
@@ -84,3 +85,7 @@ class Dataset(ABC):
     def __len__(self):
         """Return the number of samples in the dataset."""
         return len(self.datasource)
+
+    def __get_item__(self, idx):
+        """Return the sample at the given index."""
+        pass

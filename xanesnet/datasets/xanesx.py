@@ -90,7 +90,9 @@ class XanesXDataset(TorchDataset):
         pass
 
     def process(self):
-        super().process()
+        already_processed = super().process()
+        if already_processed:
+            return True
 
         for idx, data in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
             # Compute descriptor features
@@ -135,6 +137,8 @@ class XanesXDataset(TorchDataset):
             # Save processed data
             save_path = os.path.join(self.processed_dir, f"{idx}.pt")
             torch.save(data, save_path)
+
+        return True
 
     def _setup_spectral_basis(self):
         # Load directly from file
