@@ -57,6 +57,17 @@ class Dataset(ABC):
             logging.warning("Processed data directory is not empty! Make sure this is intended.")
 
     @property
+    @abstractmethod
+    def metadata(self) -> dict:
+        """Return dataset metadata as a dictionary."""
+        metadata = {
+            "type": self.type,
+            "mode": self.mode.name,
+            "params": self.params,
+        }
+        return metadata
+
+    @property
     def processed_dir(self) -> str:
         """Path to the processed data directory."""
         return os.path.join(self.root, "processed")

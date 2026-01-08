@@ -148,3 +148,15 @@ class XanesXDataset(TorchDataset):
                 normalize_atoms=True,
                 stride=self.params.get("basis_stride", 2),
             )
+
+    @property
+    def metadata(self) -> dict:
+        """Return dataset metadata as a dictionary."""
+        metadata = super().metadata
+        metadata.update(
+            {
+                "in_size": None,
+                "out_size": None,
+            }
+        )
+        return metadata
