@@ -97,10 +97,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
 
     # Log dataset summary
-    logging.info(
-        f"Dataset Summary: # of samples = {len(dataset)}, "
-        f"feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
-    )
+    logging.info(f"Dataset Summary: # of samples = {len(dataset)}")
 
     return dataset
 
