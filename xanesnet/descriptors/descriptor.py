@@ -28,7 +28,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 ###############################################################################
 
 
-class BaseDescriptor(ABC):
+class Descriptor(ABC):
     """Abstract base class for XANESNET descriptors."""
 
     def __init__(self):

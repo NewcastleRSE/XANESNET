@@ -18,8 +18,8 @@ from typing import Dict, List
 
 from xanesnet.datasets.dataset import Dataset
 from xanesnet.datasources import DataSource
-from xanesnet.descriptors.base_descriptor import BaseDescriptor
-from xanesnet.models.base_model import Model
+from xanesnet.descriptors.descriptor import Descriptor
+from xanesnet.models.model import Model
 from xanesnet.registry import (
     DatasetRegistry,
     DataSourceRegistry,
@@ -53,7 +53,7 @@ def create_model(name: str, **kwargs) -> Model:
     return ModelRegistry.get(name)(**kwargs)
 
 
-def create_descriptor(name: str, **kwargs) -> BaseDescriptor:
+def create_descriptor(name: str, **kwargs) -> Descriptor:
     return DescriptorRegistry.get(name)(**kwargs)
 
 

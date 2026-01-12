@@ -18,7 +18,7 @@ import numpy as np
 from ase import Atoms
 from mace.calculators import mace_mp
 
-from xanesnet.descriptors.base_descriptor import BaseDescriptor
+from xanesnet.descriptors.descriptor import Descriptor
 from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
@@ -27,7 +27,7 @@ from xanesnet.registry import DescriptorRegistry
 
 
 @DescriptorRegistry.register("mace")
-class MACE(BaseDescriptor):
+class MACE(Descriptor):
     def __init__(
         self,
         invariants_only: bool = False,

@@ -17,7 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 from ase import Atoms
 
-from xanesnet.descriptors.base_descriptor import BaseDescriptor
+from xanesnet.descriptors.descriptor import Descriptor
 from xanesnet.registry import DescriptorRegistry
 
 ###############################################################################
@@ -26,7 +26,7 @@ from xanesnet.registry import DescriptorRegistry
 
 
 @DescriptorRegistry.register("direct")
-class DIRECT(BaseDescriptor):
+class DIRECT(Descriptor):
     """
     A class for reading the descriptor straight from a file. It tries to avoid
     doing any of the fancy stuff the other descriptors do. Only reads the file
