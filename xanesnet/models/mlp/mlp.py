@@ -17,7 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 from torch import nn
 
-from xanesnet.models.base_model import Model
+from xanesnet.models.model import Model
 from xanesnet.registry import (
     BiasInitRegistry,
     ModelRegistry,

@@ -23,7 +23,7 @@ import torch
 import torch_geometric
 from sklearn.metrics import mean_squared_error
 
-from xanesnet.models.base_model import Model
+from xanesnet.models.model import Model
 
 
 class Predict(ABC):

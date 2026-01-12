@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 import torch
 
-from xanesnet.models.base_model import Model
+from xanesnet.models.model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.gaussian import SpectralPost

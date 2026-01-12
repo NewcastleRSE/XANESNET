@@ -25,7 +25,7 @@ from torchinfo import summary
 
 from xanesnet.datasets.dataset import Dataset
 from xanesnet.datasources import DataSource
-from xanesnet.models.base_model import Model
+from xanesnet.models.model import Model
 from xanesnet.models.pre_trained import PretrainedModels
 from xanesnet.registry import (
     DatasetRegistry,

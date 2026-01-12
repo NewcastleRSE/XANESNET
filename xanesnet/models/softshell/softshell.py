@@ -19,7 +19,7 @@ from typing import List
 import torch
 from torch import nn
 
-from xanesnet.models.base_model import Model
+from xanesnet.models.model import Model
 from xanesnet.registry import ModelRegistry, SchemeRegistry
 
 
