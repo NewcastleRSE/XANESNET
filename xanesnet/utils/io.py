@@ -2,46 +2,36 @@
 XANESNET
 
 This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software 
-Foundation, either Version 3 of the License, or (at your option) any later 
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
 version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with 
+You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import dataclasses
 import io
-
-###############################################################################
-############################### LIBRARY IMPORTS ###############################
-###############################################################################
-
-
 import logging
+from pathlib import Path
+from typing import Any, Dict, List, TextIO, Tuple
+
+import numpy as np
 import requests
 import torch
-import yaml
 import tqdm as tqdm
-import numpy as np
-
-from pathlib import Path
+import yaml
 from ase import Atoms
-from typing import TextIO, List, Any, Dict, Tuple
-from dataclasses import dataclass
-
 from torch import Tensor
 from torch.hub import load_state_dict_from_url
 
-from xanesnet.models.pre_trained import ModelInfo
+from xanesnet.models import ModelInfo
 from xanesnet.utils.gaussian import SpectralBasis
 from xanesnet.utils.mode import Mode
 from xanesnet.utils.xanes import XANES
-
 
 ###############################################################################
 ################################## FUNCTIONS ##################################
@@ -66,9 +56,7 @@ def _list_files(path: Path, with_ext: bool = True) -> list:
     # extensions are also omitted
 
     return [
-        (f if with_ext else f.with_suffix(""))
-        for f in path.iterdir()
-        if f.is_file() and not f.stem.startswith(".")
+        (f if with_ext else f.with_suffix("")) for f in path.iterdir() if f.is_file() and not f.stem.startswith(".")
     ]
 
 
@@ -111,9 +99,7 @@ def save_models(path: Path, models: list, metadata: dict, basis: SpectralBasis =
 
     mode_suffix = metadata["mode"].replace("train_", "")
     path.mkdir(parents=True, exist_ok=True)
-    save_path = _unique_path(
-        path, metadata["model"]["type"] + "_" + metadata["scheme"] + "_" + mode_suffix
-    )
+    save_path = _unique_path(path, metadata["model"]["type"] + "_" + metadata["scheme"] + "_" + mode_suffix)
     save_path.mkdir()
 
     if len(models) == 1:
@@ -152,27 +138,21 @@ def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: int
         if energy is None:
             energy = np.arange(result.xanes_pred[0].shape[1])
 
-        for id_, predict_, std_ in tqdm.tqdm(
-            zip(file_names, result.xanes_pred[0], result.xanes_pred[1])
-        ):
+        for id_, predict_, std_ in tqdm.tqdm(zip(file_names, result.xanes_pred[0], result.xanes_pred[1])):
             with open(save_path / f"{id_}.txt", "w") as f:
                 save_xanes_mean(f, XANES(energy, predict_), std_)
 
         # Save xyz reconstruction result to disk
         if recon_flag:
             save_path = mkdir_output(path, "xyz_recon")
-            for id_, recon_, std_ in tqdm.tqdm(
-                zip(file_names, result.xyz_recon[0], result.xyz_recon[1])
-            ):
+            for id_, recon_, std_ in tqdm.tqdm(zip(file_names, result.xyz_recon[0], result.xyz_recon[1])):
                 with open(save_path / f"{id_}.txt", "w") as f:
                     save_xyz_mean(f, recon_, std_)
 
     if mode in [Mode.XANES_TO_XYZ, Mode.BIDIRECTIONAL]:
         # Save xyz prediction result to disk
         save_path = mkdir_output(path, "xyz_pred")
-        for id_, predict_, std_ in tqdm.tqdm(
-            zip(file_names, result.xyz_pred[0], result.xyz_pred[1])
-        ):
+        for id_, predict_, std_ in tqdm.tqdm(zip(file_names, result.xyz_pred[0], result.xyz_pred[1])):
             with open(save_path / f"{id_}.txt", "w") as f:
                 save_xyz_mean(f, predict_, std_)
 
@@ -181,9 +161,7 @@ def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: int
             if energy is None:
                 energy = np.arange(result.xanes_recon[0].shape[1])
             save_path = mkdir_output(path, "xanes_recon")
-            for id_, recon_, std_ in tqdm.tqdm(
-                zip(file_names, result.xanes_recon[0], result.xanes_recon[1])
-            ):
+            for id_, recon_, std_ in tqdm.tqdm(zip(file_names, result.xanes_recon[0], result.xanes_recon[1])):
                 with open(save_path / f"{id_}.txt", "w") as f:
                     save_xanes_mean(f, XANES(energy, recon_), std_)
 
@@ -261,10 +239,7 @@ def load_models_from_local(path: Path) -> List[Any]:
     if not model_dirs:
         raise FileNotFoundError(f"No model subdirectories found in {path}")
 
-    model_list = [
-        _build_and_load_model(model_config, model_dir / "model_weights.pth")
-        for model_dir in model_dirs
-    ]
+    model_list = [_build_and_load_model(model_config, model_dir / "model_weights.pth") for model_dir in model_dirs]
 
     return model_list
 
@@ -340,9 +315,7 @@ def load_pretrained_model(name: str, **kwargs: Any):
 
     # Obtain weights file
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    state_dict = load_state_dict_from_url(
-        meta.weight_url, progress=True, map_location=device
-    )
+    state_dict = load_state_dict_from_url(meta.weight_url, progress=True, map_location=device)
 
     # Load weights to the model
     model.load_state_dict(state_dict)
@@ -372,12 +345,7 @@ def load_xyz(xyz_f: TextIO) -> Atoms:
 
     try:
         info = dict(
-            [
-                [key, _str_to_numeric(val)]
-                for key, val in [
-                    pair.split(" = ") for pair in comment_block.split(" | ")
-                ]
-            ]
+            [[key, _str_to_numeric(val)] for key, val in [pair.split(" = ") for pair in comment_block.split(" | ")]]
         )
     except ValueError:
         info = dict()

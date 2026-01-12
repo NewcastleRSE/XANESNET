@@ -23,9 +23,10 @@ import torch
 import torch.nn.functional as F
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import EarlyStopState, Learn
 from xanesnet.utils.gaussian import SpectralPost
 from xanesnet.utils.switch import LossSwitch
+
+from .base_learn import EarlyStopState, Learn
 
 
 class SSLearn(Learn):

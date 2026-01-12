@@ -17,7 +17,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 from torch import nn
 
-from xanesnet.models.model import Model
 from xanesnet.registry import (
     BiasInitRegistry,
     ModelRegistry,
@@ -25,6 +24,8 @@ from xanesnet.registry import (
     WeightInitRegistry,
 )
 from xanesnet.utils.switch import ActivationSwitch
+
+from ..base import Model
 
 
 @ModelRegistry.register("mlp")

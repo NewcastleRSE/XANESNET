@@ -21,8 +21,9 @@ import numpy as np
 import torch
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import EarlyStopState, Learn
 from xanesnet.utils.switch import LossRegSwitch, LossSwitch
+
+from .base_learn import EarlyStopState, Learn
 
 
 class NNLearn(Learn):

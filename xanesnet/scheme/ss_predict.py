@@ -21,9 +21,10 @@ from typing import List, Optional, Tuple
 import numpy as np
 import torch
 
-from xanesnet.models.model import Model
-from xanesnet.scheme.base_predict import Predict
+from xanesnet.models import Model
 from xanesnet.utils.gaussian import SpectralPost
+
+from .base_predict import Predict
 
 
 @dataclass

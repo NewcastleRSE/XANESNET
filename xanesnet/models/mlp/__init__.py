@@ -14,10 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Dataset
-from .xanesx import XanesXDataset
+from .mlp import MLP
 
 __all__ = [
-    "Dataset",
-    "XanesXDataset",
+    "MLP",
 ]

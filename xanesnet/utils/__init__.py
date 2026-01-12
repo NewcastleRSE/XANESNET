@@ -1,11 +1,17 @@
-from . import gaussian
-from . import fourier
-from . import freeze
-from . import loss
-from . import optuna
-from . import plot
-from . import shap
-from . import switch
-from . import io
-from . import xanes
-from . import xyz2graph
+"""
+XANESNET
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+# TODO Setup nice __init__ package import structure

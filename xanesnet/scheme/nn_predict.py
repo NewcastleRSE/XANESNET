@@ -21,11 +21,12 @@ from typing import List, Optional, Tuple
 import numpy as np
 import torch
 
-from xanesnet.models.model import Model
-from xanesnet.scheme.base_predict import Predict
+from xanesnet.models import Model
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.gaussian import SpectralPost
 from xanesnet.utils.mode import Mode
+
+from .base_predict import Predict
 
 
 @dataclass

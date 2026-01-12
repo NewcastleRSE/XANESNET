@@ -18,8 +18,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 from ase import Atoms
 
-from xanesnet.descriptors.vector_descriptor import VectorDescriptor
 from xanesnet.registry import DescriptorRegistry
+
+from .vector_descriptor import VectorDescriptor
 
 ###############################################################################
 ################################## CLASSES ####################################

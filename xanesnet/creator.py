@@ -16,10 +16,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Dict, List
 
-from xanesnet.datasets.dataset import Dataset
+from xanesnet.datasets import Dataset
 from xanesnet.datasources import DataSource
-from xanesnet.descriptors.descriptor import Descriptor
-from xanesnet.models.model import Model
+from xanesnet.descriptors import Descriptor
+from xanesnet.models import Model
 from xanesnet.registry import (
     DatasetRegistry,
     DataSourceRegistry,

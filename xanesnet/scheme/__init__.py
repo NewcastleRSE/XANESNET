@@ -14,12 +14,16 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from .base_learn import Learn
+from .base_predict import Predict
 from .nn_learn import NNLearn
 from .nn_predict import NNPredict
 from .ss_learn import SSLearn
 from .ss_predict import SSPredict
 
 __all__ = [
+    "Learn",
+    "Predict",
     "NNLearn",
     "NNPredict",
     "SSLearn",

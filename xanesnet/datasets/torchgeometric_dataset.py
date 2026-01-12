@@ -19,7 +19,7 @@ import torch_geometric as tg
 from xanesnet.datasources import DataSource
 from xanesnet.utils.mode import Mode
 
-from .dataset import Dataset
+from .base import Dataset
 
 ###############################################################################
 #################################### CLASS ####################################

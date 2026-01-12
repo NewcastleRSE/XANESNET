@@ -21,9 +21,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC
 
-import numpy as np
-
-from xanesnet.descriptors.descriptor import Descriptor
+from .base import Descriptor
 
 ###############################################################################
 ################################## CLASSES ####################################

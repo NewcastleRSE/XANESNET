@@ -18,8 +18,9 @@ import numpy as np
 from ase import Atoms
 from mace.calculators import mace_mp
 
-from xanesnet.descriptors.descriptor import Descriptor
 from xanesnet.registry import DescriptorRegistry
+
+from .base import Descriptor
 
 ###############################################################################
 ################################## CLASSES ####################################

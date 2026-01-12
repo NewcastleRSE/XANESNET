@@ -14,12 +14,15 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .mlp.mlp import MLP
-from .pre_trained import PretrainedModels
-from .softshell.softshell import SoftShellSpectraNet
+from .base import Model
+from .mlp import MLP
+from .pre_trained import ModelInfo, PretrainedModels
+from .softshell import SoftShellSpectraNet
 
 __all__ = [
+    "Model",
     "MLP",
     "SoftShellSpectraNet",
+    "ModelInfo",
     "PretrainedModels",
 ]

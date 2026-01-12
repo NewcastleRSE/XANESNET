@@ -32,7 +32,7 @@ import torch_geometric
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 
-from xanesnet.models.model import Model
+from xanesnet.models import Model
 from xanesnet.utils.switch import (
     LossRegSwitch,
     LossSwitch,

@@ -14,10 +14,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .datasource import DataSource
+from .base import DataSource
 from .xyzspec import XYZSpecSource
 
 __all__ = [
-    "XYZSpecSource",
     "DataSource",
+    "XYZSpecSource",
 ]

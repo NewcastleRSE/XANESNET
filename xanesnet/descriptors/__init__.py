@@ -15,7 +15,17 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 # from .pdos import PDOS
+from .base import Descriptor
 from .direct import DIRECT
 from .mace import MACE
 from .rdc import RDC
 from .wacsf import WACSF
+
+__all__ = [
+    "Descriptor",
+    "DIRECT",
+    "MACE",
+    "RDC",
+    "WACSF",
+    # "PDOS",
+]

@@ -23,7 +23,7 @@ from pymatgen.core import Molecule
 from xanesnet.registry import DataSourceRegistry
 from xanesnet.utils.io import list_filestems
 
-from .datasource import DataSource
+from .base import DataSource
 
 ###############################################################################
 #################################### CLASS ####################################
