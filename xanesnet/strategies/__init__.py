@@ -18,6 +18,7 @@ from .base import Strategy
 from .bootstrap import Bootstrap
 from .ensemble import Ensemble
 from .kfold import KFold
+from .registry import StrategyRegistry
 from .single import Single
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "Ensemble",
     "KFold",
     "Single",
+    "StrategyRegistry",
 ]

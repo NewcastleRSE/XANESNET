@@ -15,8 +15,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Strategy
+from .registry import StrategyRegistry
 
 
+@StrategyRegistry.register("bootstrap")
 class Bootstrap(Strategy):
 
     def __init__(self):

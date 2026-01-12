@@ -16,8 +16,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import Learner
 from .nn import NNLearner
+from .registry import LearnerRegistry
 
 __all__ = [
     "Learner",
     "NNLearner",
+    "LearnerRegistry",
 ]

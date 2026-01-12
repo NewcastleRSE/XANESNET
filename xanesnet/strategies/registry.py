@@ -14,11 +14,26 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Learner
-from .registry import LearnerRegistry
 
+class StrategyRegistry:
+    _registry = {}
 
-@LearnerRegistry.register("nnlearner")
-class NNLearner(Learner):
-    def __init__(self):
-        pass
+    @classmethod
+    def register(cls, name: str):
+        def decorator(ds_cls):
+            if name in cls._registry:
+                raise KeyError(f"Strategy '{name}' already registered")
+            cls._registry[name] = ds_cls
+            return ds_cls
+
+        return decorator
+
+    @classmethod
+    def get(cls, name: str):
+        if name not in cls._registry:
+            raise KeyError(f"Strategy '{name}' not found in registry")
+        return cls._registry[name]
+
+    @classmethod
+    def list(cls):
+        return list(cls._registry.keys())
