@@ -33,10 +33,7 @@ class SchemeRegistry:
         cls._schemes.update(
             {
                 "nn": {"learn": scheme.NNLearn, "predict": scheme.NNPredict},
-                "ae": {"learn": scheme.AELearn, "predict": scheme.AEPredict},
-                "mh": {"learn": scheme.MHLearn, "predict": None},
                 "ss": {"learn": scheme.SSLearn, "predict": scheme.SSPredict},
-                "aegan": {"learn": scheme.AEGANLearn, "predict": scheme.AEGANPredict},
             }
         )
         cls._initialized = True
