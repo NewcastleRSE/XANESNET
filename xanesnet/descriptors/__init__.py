@@ -19,6 +19,7 @@ from .base import Descriptor
 from .direct import DIRECT
 from .mace import MACE
 from .rdc import RDC
+from .registry import DescriptorRegistry
 from .wacsf import WACSF
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "RDC",
     "WACSF",
     # "PDOS",
+    "DescriptorRegistry",
 ]

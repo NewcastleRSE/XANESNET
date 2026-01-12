@@ -15,9 +15,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import DataSource
+from .registry import DataSourceRegistry
 from .xyzspec import XYZSpecSource
 
 __all__ = [
     "DataSource",
     "XYZSpecSource",
+    "DataSourceRegistry",
 ]

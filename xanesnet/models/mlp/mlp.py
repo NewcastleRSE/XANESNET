@@ -17,15 +17,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 from torch import nn
 
-from xanesnet.registry import (
-    BiasInitRegistry,
-    ModelRegistry,
-    SchemeRegistry,
-    WeightInitRegistry,
-)
+from xanesnet.registry import BiasInitRegistry, WeightInitRegistry
+from xanesnet.scheme import SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 from ..base import Model
+from ..registry import ModelRegistry
 
 
 @ModelRegistry.register("mlp")

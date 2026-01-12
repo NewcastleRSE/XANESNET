@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .base import Model
 from .mlp import MLP
 from .pre_trained import ModelInfo, PretrainedModels
+from .registry import ModelRegistry
 from .softshell import SoftShellSpectraNet
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "SoftShellSpectraNet",
     "ModelInfo",
     "PretrainedModels",
+    "ModelRegistry",
 ]

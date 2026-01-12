@@ -23,16 +23,10 @@ from typing import Dict, List, Tuple
 import torch
 from torchinfo import summary
 
-from xanesnet.datasets import Dataset
-from xanesnet.datasources import DataSource
-from xanesnet.models import Model, PretrainedModels
-from xanesnet.registry import (
-    DatasetRegistry,
-    DataSourceRegistry,
-    ModelRegistry,
-    SchemeRegistry,
-)
-from xanesnet.scheme import Learn
+from xanesnet.datasets import Dataset, DatasetRegistry
+from xanesnet.datasources import DataSource, DataSourceRegistry
+from xanesnet.models import Model, ModelRegistry, PretrainedModels
+from xanesnet.scheme import Learn, SchemeRegistry
 from xanesnet.utils.io import load_pretrained_model, save_models
 from xanesnet.utils.mode import Mode, get_mode
 

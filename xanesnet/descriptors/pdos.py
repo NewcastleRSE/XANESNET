@@ -19,8 +19,7 @@ from ase import Atoms
 from pyscf import gto, scf
 from tblite.interface import Calculator
 
-from xanesnet.registry import DescriptorRegistry
-
+from .registry import DescriptorRegistry
 from .vector_descriptor import VectorDescriptor
 
 ###############################################################################

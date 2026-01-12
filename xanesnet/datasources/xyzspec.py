@@ -20,10 +20,10 @@ from pathlib import Path
 import numpy as np
 from pymatgen.core import Molecule
 
-from xanesnet.registry import DataSourceRegistry
 from xanesnet.utils.io import list_filestems
 
 from .base import DataSource
+from .registry import DataSourceRegistry
 
 ###############################################################################
 #################################### CLASS ####################################

@@ -19,9 +19,10 @@ from typing import List
 import torch
 from torch import nn
 
-from xanesnet.registry import ModelRegistry, SchemeRegistry
+from xanesnet.scheme import SchemeRegistry
 
 from ..base import Model
+from ..registry import ModelRegistry
 
 
 @ModelRegistry.register("softshell")

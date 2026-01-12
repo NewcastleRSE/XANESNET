@@ -14,19 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .dataset import DatasetRegistry
-from .datasource import DataSourceRegistry
-from .descriptor import DescriptorRegistry
 from .init import BiasInitRegistry, WeightInitRegistry
-from .model import ModelRegistry
-from .scheme import SchemeRegistry
 
 __all__ = [
-    "DataSourceRegistry",
-    "DatasetRegistry",
-    "DescriptorRegistry",
-    "ModelRegistry",
-    "SchemeRegistry",
     "BiasInitRegistry",
     "WeightInitRegistry",
 ]

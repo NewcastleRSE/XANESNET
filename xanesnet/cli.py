@@ -23,13 +23,11 @@ import yaml
 
 from xanesnet.core_learn import train
 from xanesnet.core_predict import predict
-from xanesnet.registry import (
-    DatasetRegistry,
-    DataSourceRegistry,
-    DescriptorRegistry,
-    ModelRegistry,
-    SchemeRegistry,
-)
+from xanesnet.datasets import DatasetRegistry
+from xanesnet.datasources import DataSourceRegistry
+from xanesnet.descriptors import DescriptorRegistry
+from xanesnet.models import ModelRegistry
+from xanesnet.scheme import SchemeRegistry
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.random import set_global_seed
 

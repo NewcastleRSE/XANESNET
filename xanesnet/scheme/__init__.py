@@ -18,6 +18,7 @@ from .base_learn import Learn
 from .base_predict import Predict
 from .nn_learn import NNLearn
 from .nn_predict import NNPredict
+from .registry import SchemeRegistry
 from .ss_learn import SSLearn
 from .ss_predict import SSPredict
 
@@ -28,4 +29,5 @@ __all__ = [
     "NNPredict",
     "SSLearn",
     "SSPredict",
+    "SchemeRegistry",
 ]

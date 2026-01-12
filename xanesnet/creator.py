@@ -16,18 +16,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Dict, List
 
-from xanesnet.datasets import Dataset
-from xanesnet.datasources import DataSource
-from xanesnet.descriptors import Descriptor
-from xanesnet.models import Model
-from xanesnet.registry import (
-    DatasetRegistry,
-    DataSourceRegistry,
-    DescriptorRegistry,
-    ModelRegistry,
-    SchemeRegistry,
-)
-from xanesnet.scheme import Learn, Predict
+from xanesnet.datasets import Dataset, DatasetRegistry
+from xanesnet.datasources import DataSource, DataSourceRegistry
+from xanesnet.descriptors import Descriptor, DescriptorRegistry
+from xanesnet.models import Model, ModelRegistry
+from xanesnet.scheme import Learn, Predict, SchemeRegistry
 
 ###############################################################################
 ################################### FACTORY ###################################

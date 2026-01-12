@@ -17,9 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 from ase import Atoms
 
-from xanesnet.registry import DescriptorRegistry
-
 from .base import Descriptor
+from .registry import DescriptorRegistry
 
 ###############################################################################
 ################################## CLASSES ####################################
