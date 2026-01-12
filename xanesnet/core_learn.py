@@ -125,14 +125,11 @@ def _setup_model(config: Dict, dataset: Dataset) -> Model:
         model = ModelRegistry.get(model_type)(**model_params, **dataset.metadata)
 
         # Intialise model weights
-        # TODO why is this not in parameters above?
         weights_params = model_config.get("weights_params", {})
-        weights_type = model_config.get("weights", {})
-        kernel = weights_type.get("kernel", "default")
-        bias = weights_type.get("bias", "zeros")
-
-        logging.info(f"Initialising model weights: {kernel}")
-        model.init_model_weights(kernel, bias, **weights_params)
+        weights_init = model_config.get("weights_init", {}).get("weights", "default")
+        bias_init = model_config.get("weights_init", {}).get("bias", "zeros")
+        logging.info(f"Initialising weights with '{weights_init}' and bias with '{bias_init}'")
+        model.init_weights(weights_init, bias_init, **weights_params)
 
     return model
 

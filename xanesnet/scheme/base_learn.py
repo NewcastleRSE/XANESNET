@@ -16,33 +16,28 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import logging
+import pickle
 import random
+import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Dict, List
 
 import mlflow
-import torch
-import time
-import pickle
-import torch_geometric
 import numpy as np
-
-from abc import ABC, abstractmethod
-from datetime import datetime
-from pathlib import Path
-
+import torch
+import torch_geometric
 from sklearn.model_selection import train_test_split
-from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
 from xanesnet.models.base_model import Model
 from xanesnet.utils.switch import (
-    OptimSwitch,
+    LossRegSwitch,
     LossSwitch,
     LRSchedulerSwitch,
-    LossRegSwitch,
-    KernelInitSwitch,
-    BiasInitSwitch,
+    OptimSwitch,
 )
 
 # from xanesnet.param_optuna import ParamOptuna
@@ -103,22 +98,16 @@ class Learn(ABC):
         # --- Bootstrap learning parameters ---
         self.n_boot = bootstrap_params.get("n_boot", 3)
         self.n_size = bootstrap_params.get("n_size", 1.0)
-        self.weight_seed_boot = bootstrap_params.get(
-            "weight_seed", random.sample(range(1000), 3)
-        )
+        self.weight_seed_boot = bootstrap_params.get("weight_seed", random.sample(range(1000), 3))
 
         # --- Ensemble learning parameters ---
         self.n_ens = ensemble_params.get("n_ens", 3)
-        self.weight_seed_ens = ensemble_params.get(
-            "weight_seed", random.sample(range(1000), 3)
-        )
+        self.weight_seed_ens = ensemble_params.get("weight_seed", random.sample(range(1000), 3))
 
         # --- Learning rate scheduler ---
         self.lr_scheduler = kwargs.get("lr_scheduler")
         self.scheduler_type = scheduler_params.get("type")
-        self.scheduler_params = {
-            k: v for k, v in scheduler_params.items() if k != "type"
-        }
+        self.scheduler_params = {k: v for k, v in scheduler_params.items() if k != "type"}
 
         # --- logging ---
         self.mlflow_flag = kwargs.get("mlflow")
@@ -285,19 +274,13 @@ class Learn(ABC):
             train_ratio, valid_ratio, eval_ratio = 0.75, 0.15, 0.10
 
             # First split: train vs (test + eval)
-            train_idx, valid_idx = train_test_split(
-                indices, test_size=1 - train_ratio, random_state=self.seed
-            )
+            train_idx, valid_idx = train_test_split(indices, test_size=1 - train_ratio, random_state=self.seed)
 
             # Second split: test vs eval
             test_size = eval_ratio / (eval_ratio + valid_ratio)
-            valid_idx, eval_idx = train_test_split(
-                valid_idx, test_size=test_size, random_state=self.seed
-            )
+            valid_idx, eval_idx = train_test_split(valid_idx, test_size=test_size, random_state=self.seed)
         else:
-            train_idx, valid_idx = train_test_split(
-                indices, test_size=0.2, random_state=self.seed
-            )
+            train_idx, valid_idx = train_test_split(indices, test_size=0.2, random_state=self.seed)
 
             eval_idx = None
 
@@ -351,9 +334,7 @@ class Learn(ABC):
 
     def log_mlflow(self, model):
         """Log the model as an artifact of the MLflow run."""
-        mlflow.pytorch.log_model(
-            model, artifact_path="pytorch-model", pickle_module=pickle
-        )
+        mlflow.pytorch.log_model(model, artifact_path="pytorch-model", pickle_module=pickle)
 
         mlflow.pytorch.load_model(mlflow.get_artifact_uri("pytorch-model"))
 

@@ -14,13 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import random
 from abc import abstractmethod
 
-import torch
 from torch import nn
-
-from xanesnet.utils.switch import BiasInitSwitch, KernelInitSwitch
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -43,24 +39,13 @@ class Model(nn.Module):
         self.type = type
         self.params = params
 
-    def init_model_weights(self, kernel: str, bias: str, **kwargs):
+    @abstractmethod
+    def init_weights(self, weights_init, bias_init, **kwargs):
         """
-        Initialise model kernel and bias weights using user-defined methods.
+        Initialise model weights and bias.
+        This method should be implemented by all subclasses.
         """
-        kernel_init_fn = KernelInitSwitch().get(kernel, **kwargs)
-        bias_init_fn = BiasInitSwitch().get(bias)
-
-        # Apply initialisation to each applicable layer
-        self.apply(lambda m: self.init_layer_weights(m, kernel_init_fn, bias_init_fn))
-
-    def init_layer_weights(self, m, kernel_init_fn, bias_init_fn):
-        """
-        Initialise weights and bias for a single layer.
-        Function to be overridden by child classes if different layers are used.
-        """
-        if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
-            kernel_init_fn(m.weight)
-            bias_init_fn(m.bias)
+        return
 
     @property
     @abstractmethod

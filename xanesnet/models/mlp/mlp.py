@@ -18,7 +18,12 @@ import torch
 from torch import nn
 
 from xanesnet.models.base_model import Model
-from xanesnet.registry import ModelRegistry, SchemeRegistry
+from xanesnet.registry import (
+    BiasInitRegistry,
+    ModelRegistry,
+    SchemeRegistry,
+    WeightInitRegistry,
+)
 from xanesnet.utils.switch import ActivationSwitch
 
 
@@ -86,3 +91,15 @@ class MLP(Model):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.dense_layers(x)
         return out
+
+    def init_weights(self, weights_init, bias_init, **kwargs):
+        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
+        bias_init_fn = BiasInitRegistry.get(bias_init)
+
+        def _init_layer(m: nn.Module):
+            if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
+                weight_init_fn(m.weight)
+                bias_init_fn(m.bias)
+
+        # Apply to all modules
+        self.apply(_init_layer)

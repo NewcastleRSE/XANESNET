@@ -14,22 +14,19 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import random
 import warnings
-import numpy as np
+
 import torch
 import torch.optim.lr_scheduler as lr_scheduler
-
-from torch import optim
-from torch import nn
+from torch import nn, optim
 
 from xanesnet.utils.loss import (
-    EMDLoss,
     CosineSimilarityLoss,
-    WCCLoss,
+    EMDLoss,
     HybridLoss,
-    SpectralLossPlus,
     MutliWindowSSIM1DLoss,
+    SpectralLossPlus,
+    WCCLoss,
 )
 
 # Suppress non-significant warning for shap and WCCLoss function
@@ -116,54 +113,6 @@ class LossRegSwitch:
         # L2 regularization loss (sum of squared values).
         all_params = torch.cat([p.view(-1) for p in model.parameters()])
         return torch.norm(all_params, p=2)
-
-
-class BiasInitSwitch:
-    """
-    A factory class to get bias initializer functions from their names.
-    """
-
-    BIAS = {
-        "zeros": nn.init.zeros_,
-        "ones": nn.init.ones_,
-    }
-
-    def get(self, bias_name: str):
-        if bias_name.lower() not in self.BIAS:
-            raise TypeError(f"Invalided bias function name '{bias_name}'.")
-
-        return self.BIAS[bias_name.lower()]
-
-
-class KernelInitSwitch:
-    """
-    A factory class to get kernel/weight initializer functions from their names.
-    """
-
-    @staticmethod
-    def _noop(tensor, **kwargs):
-        return tensor
-
-    KERNEL = {
-        "uniform": nn.init.uniform_,
-        "normal": nn.init.normal_,
-        "xavier_uniform": nn.init.xavier_uniform_,
-        "xavier_normal": nn.init.xavier_normal_,
-        "kaiming_uniform": nn.init.kaiming_uniform_,
-        "kaiming_normal": nn.init.kaiming_normal_,
-        "default": _noop.__func__,
-    }
-
-    def get(self, kernel_name: str, **kwargs):
-        if kernel_name.lower() not in self.KERNEL:
-            raise TypeError(f"Invalided kernel function name '{kernel_name}'.")
-
-        fn = self.KERNEL[kernel_name.lower()]
-
-        def kernel_fn(tensor):
-            return fn(tensor, **kwargs)
-
-        return kernel_fn
 
 
 class LRSchedulerSwitch:

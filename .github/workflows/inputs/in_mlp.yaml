@@ -31,8 +31,8 @@ model:
     num_hidden_layers: 3
     shrink_rate: 0.5
     activation: prelu
-  weights:
-    kernel: xavier_uniform
+  weights_init:
+    weights: xavier_uniform
     bias: zeros
 
 hyperparams:

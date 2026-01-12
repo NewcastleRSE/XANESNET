@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .dataset import DatasetRegistry
 from .datasource import DataSourceRegistry
 from .descriptor import DescriptorRegistry
+from .init import BiasInitRegistry, WeightInitRegistry
 from .model import ModelRegistry
 from .scheme import SchemeRegistry
 
@@ -26,4 +27,6 @@ __all__ = [
     "DescriptorRegistry",
     "ModelRegistry",
     "SchemeRegistry",
+    "BiasInitRegistry",
+    "WeightInitRegistry",
 ]
