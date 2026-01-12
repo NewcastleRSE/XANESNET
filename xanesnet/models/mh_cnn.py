@@ -167,6 +167,7 @@ class CNNHead(nn.Module):
             activation (str): Name of activation function for hidden layers.
         """
         super().__init__()
+        self.mh_flag = 1
 
         act_fn = ActivationSwitch().get(activation)
         layers = []

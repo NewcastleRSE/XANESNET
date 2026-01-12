@@ -174,7 +174,7 @@ class NNLearn(Learn):
                 predict = model(input_data)
 
                 if model.gnn_flag:
-                    predict = torch.flatten(predict)
+                    predict = torch.view(-1)
                     target = batch.y.float()
                 else:
                     if batch.c_star is not None:

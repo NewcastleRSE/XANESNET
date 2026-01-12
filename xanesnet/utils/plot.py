@@ -28,8 +28,10 @@ from xanesnet.utils.mode import Mode
 from xanesnet.utils.xanes import XANES
 
 
-def plot(path: Path, mode: Mode, result, dataset, pred_eval, recon_flag):
-    if recon_flag:
+def plot(path: Path, mode: Mode, result, dataset, pred_eval, scheme, metadata):
+    if scheme.mh_flag and not pred_eval:
+        plot_predict_mh(path, mode, result, dataset, metadata)
+    elif scheme.recon_flag:
         plot_predict_recon(path, mode, result, dataset, pred_eval)
     else:
         plot_predict(path, mode, result, dataset, pred_eval)
@@ -79,6 +81,7 @@ def plot_predict(path: Path, mode: Mode, result, dataset, pred_eval):
         y_target = target[i] if pred_eval else None
         _plot_single(save_path, id_, y_pred, y_target)
         total_predict.append(y_pred)
+
         if pred_eval:
             total_target.append(y_target)
 
@@ -96,23 +99,60 @@ def plot_predict(path: Path, mode: Mode, result, dataset, pred_eval):
     plt.grid()
     plt.savefig(save_path / "avg_plot.pdf")
 
-    def save_plot(id_, panels):
-        """
-        panels: list of (data_pairs, title)
-        where data_pairs = [(series, label), (series, label), ...]
-        """
-        fig, axes = plt.subplots(len(panels), figsize=(20, 20))
-        if len(panels) == 1:
-            axes = [axes]
 
-        for ax, (series_list, title) in zip(axes, panels):
-            for series, label in series_list:
-                ax.plot(series, label=label)
-            ax.set_title(title)
-            ax.legend(loc="upper left")
+def plot_predict_mh(path, mode, result, dataset, metadata):
+    """
+    Plot prediction results for Multi-Head (MH) schemes.
+    Each head is plotted and saved in a separate sub-directory.
+    """
+    save_path = mkdir_output(path, "plot")
 
-        plt.savefig(save_path / f"{id_}.pdf")
-        plt.close(fig)
+    # Select prediction according to mode
+    if mode == Mode.XANES_TO_XYZ:
+        predict = result.xyz_pred[0]  # (N, H, M)
+    elif mode == Mode.XYZ_TO_XANES:
+        predict = result.xanes_pred[0]  # (N, H, M)
+    else:
+        raise ValueError("Unsupported prediction mode for MH plotting.")
+
+    file_names = dataset.file_names
+
+    nhead = predict.shape[1]
+    head_names = metadata["dataset"]["head_names"]
+
+    for h in range(nhead):
+        # ---- per-head directory ----
+        head_dir = save_path / head_names[h]
+        head_dir.mkdir(parents=True, exist_ok=True)
+
+        total_predict, total_target = [], []
+
+        # ---- per-sample plots ----
+        for i, id_ in enumerate(file_names):
+            y_pred = predict[i, h]
+
+            _plot_single(
+                head_dir,
+                id_,
+                y_pred,
+                None,
+            )
+
+            total_predict.append(y_pred)
+
+        total_predict = np.asarray(total_predict)
+
+        # ---- average plot for this head ----
+        sns.set_style("dark")
+        plt.figure()
+
+        _plot_mean_std(total_predict, label="Prediction")
+
+        plt.legend(loc="best")
+        plt.grid()
+        plt.title(head_names[h])
+        plt.savefig(head_dir / "avg_plot.pdf")
+        plt.close()
 
 
 def plot_predict_recon(path: Path, mode, result, dataset, pred_eval):

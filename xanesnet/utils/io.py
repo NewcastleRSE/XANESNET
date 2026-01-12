@@ -104,7 +104,7 @@ def mkdir_output(path: Path, name: str):
 
 def save_models(path: Path, models: list, metadata: dict, basis: SpectralBasis = None):
     """
-    Save trained models, descriptors, metadata, and datasets (if provided) to disk.
+    Save trained models, descriptors, metadata, and Gaussian reconstructor to disk.
     For bootstrap and ensemble training, the files are saved in a structured directory
     format.
     """
@@ -116,68 +116,106 @@ def save_models(path: Path, models: list, metadata: dict, basis: SpectralBasis =
     )
     save_path.mkdir()
 
+    # Save models(s)
     if len(models) == 1:
-        # Save single model
         torch.save(models[0].state_dict(), save_path / f"model_weights.pth")
         logging.info("Model saved to disk: %s" % save_path.resolve().as_uri())
-    else:
-        # Save multiple models
+    elif len(models) > 1:
         for model in models:
             model_dir = _unique_path(save_path, "model")
             model_dir.mkdir()
 
             torch.save(model.state_dict(), model_dir / f"model_weights.pth")
             logging.info("Model saved to disk: %s" % model_dir.resolve().as_uri())
+    else:
+        raise ValueError("Nothing to save.")
 
+    # Save Gaussian reconstructor
     if basis is not None:
         basis_path = save_path / f"spectral_basis.pt"
         torch.save(basis.cpu(), basis_path)
         metadata["dataset"]["params"]["basis_path"] = str(basis_path)
 
+    # Save meta data
     metadata["model_dir"] = str(save_path)
     with open(save_path / "metadata.yaml", "w") as f:
         yaml.dump_all([metadata], f)
 
 
-def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: int):
+def save_predict_result(path, mode, result, dataset, pred_eval, scheme, metadata):
     """
     Save prediction and reconstruction results to disk.
     """
     energy = dataset[0].e.numpy() if dataset[0].e is not None else None
     file_names = dataset.file_names
 
+    # Save xanes prediction result to disk
     if mode in [Mode.XYZ_TO_XANES, Mode.BIDIRECTIONAL]:
-        # Save xanes prediction result to disk
         save_path = mkdir_output(path, "xanes_pred")
         if energy is None:
-            energy = np.arange(result.xanes_pred[0].shape[1])
+            energy = np.arange(result.xanes_pred[0].shape[-1])
 
-        for id_, predict_, std_ in tqdm.tqdm(
-            zip(file_names, result.xanes_pred[0], result.xanes_pred[1])
-        ):
-            with open(save_path / f"{id_}.txt", "w") as f:
-                save_xanes_mean(f, XANES(energy, predict_), std_)
+        if scheme.mh_flag and not pred_eval:
+            # Multi-head scheme: result shapes = (N, H, M)
+            nhead = result.xanes_pred[0].shape[1]
+            head_names = metadata["dataset"]["head_names"]
 
-        # Save xyz reconstruction result to disk
-        if recon_flag:
+            for h in range(nhead):
+                # Create a directory for each head
+                head_dir = save_path / head_names[h]
+                head_dir.mkdir(parents=True, exist_ok=True)
+
+            for id_, predict_, std_ in tqdm.tqdm(
+                zip(file_names, result.xanes_pred[0], result.xanes_pred[1])
+            ):
+                for h in range(nhead):
+                    # Save each head separately in its directory
+                    file_head = save_path / head_names[h] / f"{id_}.txt"
+                    with open(file_head, "w") as f:
+                        print(predict_.shape, std_.shape, energy.shape)
+                        save_xanes_mean(f, XANES(energy, predict_[h]), std_[h])
+
+        elif scheme.recon_flag:
+            # AE and AEGON scheme: prediction and reconstruction
             save_path = mkdir_output(path, "xyz_recon")
             for id_, recon_, std_ in tqdm.tqdm(
                 zip(file_names, result.xyz_recon[0], result.xyz_recon[1])
             ):
                 with open(save_path / f"{id_}.txt", "w") as f:
                     save_xyz_mean(f, recon_, std_)
+        else:
+            # other schemes: result shape = (N, M)
+            for id_, predict_, std_ in tqdm.tqdm(
+                zip(file_names, result.xanes_pred[0], result.xanes_pred[1])
+            ):
+                with open(save_path / f"{id_}.txt", "w") as f:
+                    save_xanes_mean(f, XANES(energy, predict_), std_)
 
+    # Save XYZ prediction result to disk
     if mode in [Mode.XANES_TO_XYZ, Mode.BIDIRECTIONAL]:
-        # Save xyz prediction result to disk
         save_path = mkdir_output(path, "xyz_pred")
-        for id_, predict_, std_ in tqdm.tqdm(
-            zip(file_names, result.xyz_pred[0], result.xyz_pred[1])
-        ):
-            with open(save_path / f"{id_}.txt", "w") as f:
-                save_xyz_mean(f, predict_, std_)
 
-        # Save xanes reconstruction result to disk
-        if recon_flag:
+        if scheme.mh_flag and not pred_eval:
+            # Multi-head scheme: result shapes = (N, H, M)
+            nhead = result.xyz_pred[0].shape[1]
+            head_names = metadata["dataset"]["head_names"]
+
+            for h in range(nhead):
+                # Create a directory for each head
+                head_dir = save_path / head_names[h]
+                head_dir.mkdir(parents=True, exist_ok=True)
+
+            for id_, predict_, std_ in tqdm.tqdm(
+                zip(file_names, result.xyz_pred[0], result.xyz_pred[1])
+            ):
+                for h in range(nhead):
+                    # Save each head separately in its directory
+                    file_head = save_path / head_names[h] / f"{id_}.txt"
+                    with open(file_head, "w") as f:
+                        save_xyz_mean(f, predict_[h], std_[h])
+
+        elif scheme.recon_flag:
+            # AE and AEGON scheme: prediction and reconstruction
             if energy is None:
                 energy = np.arange(result.xanes_recon[0].shape[1])
             save_path = mkdir_output(path, "xanes_recon")
@@ -186,6 +224,14 @@ def save_predict_result(path: Path, mode: Mode, result, dataset, recon_flag: int
             ):
                 with open(save_path / f"{id_}.txt", "w") as f:
                     save_xanes_mean(f, XANES(energy, recon_), std_)
+
+        else:
+            # other schemes: result shape = (N, M)
+            for id_, predict_, std_ in tqdm.tqdm(
+                zip(file_names, result.xyz_pred[0], result.xyz_pred[1])
+            ):
+                with open(save_path / f"{id_}.txt", "w") as f:
+                    save_xyz_mean(f, predict_, std_)
 
 
 def _create_descriptors_from_meta(config: Dict = None):
@@ -436,7 +482,7 @@ def load_xanes(file_path: str) -> Tuple[Tensor, Tensor]:
 
 def transform_xyz(file_path: str, descriptor_list: List) -> Tensor:
     """
-    Encodes XYZ data using a list-append strategy.
+    Encodes XYZ data with descriptors
     """
     feature_arrays = []
     atoms_object = None

@@ -70,9 +70,9 @@ class MultiHead_GNN(Model):
                 to the hidden layers.
         """
         super().__init__()
-        self.nn_flag = 1
         self.gnn_flag = 1
         self.batch_flag = 1
+        self.mh_flag = 1
 
         # Save model configuration
         self.register_config(locals(), type="gnn")

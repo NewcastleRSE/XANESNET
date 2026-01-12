@@ -60,20 +60,18 @@ def predict(config, args, metadata):
     scheme = _setup_scheme(dataset, mode, metadata, pred_eval)
 
     # Predict with loaded models and scheme
-    saved_train_scheme = metadata["scheme"]
-    result = _run_prediction(scheme, model_path, saved_train_scheme)
+    result = _run_prediction(scheme, model_path, metadata["scheme"])
 
     # Set output path
-    path = Path("outputs") / args.in_model
-    path = Path(str(path).replace("models/", ""))
+    path = Path("outputs") / Path(args.in_model).relative_to("models")
 
     # Save raw prediction result
     if config["result_save"]:
-        save_predict_result(path, mode, result, dataset, scheme.recon_flag)
+        save_predict_result(path, mode, result, dataset, pred_eval, scheme, metadata)
 
     # Plot prediction result
     if config["plot_save"]:
-        plot(path, mode, result, dataset, pred_eval, scheme.recon_flag)
+        plot(path, mode, result, dataset, pred_eval, scheme, metadata)
 
     logging.info("\nPrediction results saved to disk: %s", path.resolve().as_uri())
 
@@ -153,13 +151,13 @@ def _verify_mode(xyz_path, xanes_path, metadata, mode):
     """
     train_mode = get_mode(metadata["mode"])
 
-    # inconsistent if
     if train_mode is not mode and mode in {Mode.XYZ_TO_XANES, Mode.XANES_TO_XYZ}:
         raise ValueError(
             f"Inconsistent prediction mode in training ({train_mode}) and prediction ({mode})"
         )
 
-    if (mode is Mode.XYZ_TO_XANES and xyz_path is None) or (
-        mode is Mode.XANES_TO_XYZ and xanes_path is None
-    ):
-        raise ValueError(f"Cannot find prediction dataset.")
+    if mode is Mode.XYZ_TO_XANES and xyz_path is None:
+        raise ValueError(f"Missing XYZ prediction data.")
+
+    if mode is Mode.XANES_TO_XYZ and xanes_path is None:
+        raise ValueError(f"Missing XANES prediction data.")

@@ -24,8 +24,11 @@ class Mode(Enum):
     BIDIRECTIONAL = ["train_all", "predict_all"]
 
 
+_MODE_LOOKUP = {s: mode for mode in Mode for s in mode.value}
+
+
 def get_mode(mode_str: str) -> Mode:
-    for mode in Mode:
-        if mode_str in mode.value:
-            return mode
-    raise ValueError(f"'{mode_str}' is not a valid mode.")
+    try:
+        return _MODE_LOOKUP[mode_str]
+    except KeyError:
+        raise ValueError(f"'{mode_str}' is not a valid mode.")

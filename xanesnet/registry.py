@@ -77,7 +77,7 @@ def register_scheme(model_name, scheme_name):
                 {
                     "nn": {"learn": scheme.NNLearn, "predict": scheme.NNPredict},
                     "ae": {"learn": scheme.AELearn, "predict": scheme.AEPredict},
-                    "mh": {"learn": scheme.MHLearn, "predict": None},
+                    "mh": {"learn": scheme.MHLearn, "predict": scheme.MHPredict},
                     "ss": {"learn": scheme.SSLearn, "predict": scheme.SSPredict},
                     "aegan": {
                         "learn": scheme.AEGANLearn,

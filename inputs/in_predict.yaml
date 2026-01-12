@@ -11,7 +11,3 @@ dataset:
 
 plot_save: True
 result_save: True
-
-shap: True
-shap_params:
-  nsamples: 5

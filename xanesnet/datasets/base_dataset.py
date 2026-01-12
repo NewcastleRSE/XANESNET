@@ -262,6 +262,9 @@ class BaseDataset(Dataset):
         self.config.update(selected)
 
     def setup_spectral_basis(self):
+        if not self.gaussian:
+            return
+
         if self.basis_path is not None:
             logging.info(f">> Loading spectral basis from {self.basis_path}")
             self.basis = torch.load(self.basis_path)
@@ -278,7 +281,7 @@ class BaseDataset(Dataset):
             if files:
                 e, xanes = load_xanes(str(files[0]))
             else:
-                raise ValueError("No xanes files found.")
+                raise ValueError(f"No XANES files were found in {path}.")
 
             self.basis = SpectralBasis(
                 energies=e,
@@ -308,9 +311,13 @@ class BaseDataset(Dataset):
         """
         Resolve list of paths
         """
+        if path is None:
+            return []
+
         if isinstance(path, list):
-            return [Path(x) for x in path] if path else None
-        return [path] if path is not None else None
+            return [Path(p) for p in path]
+
+        return [Path(path)]
 
     @staticmethod
     def files_exist(files: List[str]) -> bool:

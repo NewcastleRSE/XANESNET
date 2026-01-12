@@ -64,13 +64,14 @@ class MultiheadDataset(BaseDataset):
         # dataset accepts only one path each for the XYZ and XANES datasets.
         xyz_path = self.list_path(xyz_path)
         xanes_path = self.list_path(xanes_path)
+        head_names = [p.name for p in xanes_path]
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
         )
 
         # Save configuration
-        self.register_config(locals(), type="multihead")
+        self.register_config(locals(), type="multihead", head_names=head_names)
 
     def set_file_names(self):
         """
@@ -135,7 +136,9 @@ class MultiheadDataset(BaseDataset):
                 head_idx = head_idx_xanes
                 head_name = head_name_xanes
 
-            head_idx = torch.tensor(head_idx, dtype=torch.long)
+            if head_idx is not None:
+                head_idx = torch.tensor(head_idx, dtype=torch.long)
+
             data = Data(
                 x=x,
                 y=y,
@@ -172,7 +175,7 @@ class MultiheadDataset(BaseDataset):
 
         batched_x = self.safe_stack(x_list)
         batched_y = self.safe_stack(y_list)
-        batched_i = self.safe_stack(idx_list, dtype=torch.int32)
+        batched_i = self.safe_stack(idx_list, dtype=torch.long)
         batched_fft = self.safe_stack(fft_list)
         batched_cstar = self.safe_stack(cstar_list)
 
@@ -195,8 +198,17 @@ class MultiheadDataset(BaseDataset):
         # mapping each head index to the length of its label array.
 
         if self.fft:
+            if self[0].fourier is None:
+                return 0
             out_sizes = {int(data.head_idx): len(data.fourier) for data in self}
+        elif self.gaussian:
+            if self[0].c_star is None:
+                return 0
+            out_sizes = {int(data.head_idx): len(data.c_star) for data in self}
         else:
+            if self[0].y is None:
+                return 0
             out_sizes = {int(data.head_idx): len(data.y) for data in self}
+
         # return the dict values as a list
         return [int(v) for _, v in sorted(out_sizes.items())]

@@ -1,0 +1,10 @@
+dataset:
+  root_path: data/multihead/processed_predict
+  xyz_path:  data/multihead/test/xyz
+#  xanes_path:
+#    - data/multihead/test/xanes1     # Path to the directory containing XANES files
+#    - data/multihead/test/xanes2
+#    - data/multihead/test/xanes3
+
+plot_save: True
+result_save: True

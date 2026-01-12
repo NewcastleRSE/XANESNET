@@ -11,6 +11,7 @@ from .aegan_learn import AEGANLearn
 from .aegan_predict import AEGANPredict
 
 from .mh_learn import MHLearn
+from .mh_predict import MHPredict
 
 from .ss_learn import SSLearn
 from .ss_predict import SSPredict

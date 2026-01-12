@@ -50,7 +50,6 @@ class MHLearn(NNLearn):
                 input_data = batch if model.batch_flag else batch.x
                 # predict shape = (Head, Batch, Feat)
                 predict = model(input_data)
-
                 # Rearrange to (Batch, Head, Feat)
                 predict = predict.permute(1, 0, 2)
                 head_idx = batch.head_idx
