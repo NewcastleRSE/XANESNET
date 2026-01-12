@@ -40,9 +40,6 @@ from xanesnet.utils.switch import (
     OptimSwitch,
 )
 
-# from xanesnet.param_optuna import ParamOptuna
-# from xanesnet.param_freeze import Freeze
-
 
 @dataclass
 class EarlyStopState:

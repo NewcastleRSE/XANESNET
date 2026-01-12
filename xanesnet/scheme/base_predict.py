@@ -15,12 +15,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import List, Tuple
+from abc import ABC, abstractmethod
+from typing import List
 
 import numpy as np
-
-from abc import ABC, abstractmethod
-
 import torch
 import torch_geometric
 from sklearn.metrics import mean_squared_error
@@ -126,8 +124,6 @@ class Predict(ABC):
         )
 
     @staticmethod
-    def print_mse(
-        source_name: str, target_name: str, data: np.ndarray, result: np.ndarray
-    ):
+    def print_mse(source_name: str, target_name: str, data: np.ndarray, result: np.ndarray):
         mse = mean_squared_error(data, result)
         logging.info(f"Mean Squared Error ({source_name} → {target_name}): {mse:.6f}")

@@ -16,13 +16,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import logging
+
 import numpy as np
 import torch
-
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.scheme.base_learn import Learn, EarlyStopState
-from xanesnet.utils.switch import LossSwitch, LossRegSwitch
+from xanesnet.scheme.base_learn import EarlyStopState, Learn
+from xanesnet.utils.switch import LossRegSwitch, LossSwitch
 
 
 class NNLearn(Learn):
@@ -49,14 +49,10 @@ class NNLearn(Learn):
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
             # Run training phase
-            train_loss = self._run_one_epoch(
-                "train", train_loader, model, criterion, regularizer, optimizer
-            )
+            train_loss = self._run_one_epoch("train", train_loader, model, criterion, regularizer, optimizer)
 
             # Run validation phase
-            valid_loss = self._run_one_epoch(
-                "valid", valid_loader, model, criterion, regularizer, optimizer=None
-            )
+            valid_loss = self._run_one_epoch("valid", valid_loader, model, criterion, regularizer, optimizer=None)
 
             # Adjust learning rate if scheduler is used
             if self.lr_scheduler:
@@ -126,17 +122,13 @@ class NNLearn(Learn):
             test_data = self.dataset[test_index]
             test_loader = self._create_loader(test_data)
 
-            test_score = self._run_one_epoch(
-                "valid", test_loader, model, criterion, regularizer
-            )
+            test_score = self._run_one_epoch("valid", test_loader, model, criterion, regularizer)
 
             score_list["train_score"].append(train_score)
             score_list["test_score"].append(test_score)
 
             if test_score < best_score:
-                logging.info(
-                    f"--- [Fold {i+1}] New best model found with test score: {test_score:.6f} ---"
-                )
+                logging.info(f"--- [Fold {i+1}] New best model found with test score: {test_score:.6f} ---")
                 best_score = test_score
                 best_model = model
 
@@ -151,9 +143,7 @@ class NNLearn(Learn):
 
         return best_model
 
-    def _run_one_epoch(
-        self, phase, loader, model, criterion, regularizer, optimizer=None
-    ):
+    def _run_one_epoch(self, phase, loader, model, criterion, regularizer, optimizer=None):
         """Runs a single epoch of training or validation."""
         is_train = phase == "train"
         model.train() if is_train else model.eval()
@@ -207,8 +197,6 @@ class NNLearn(Learn):
         return layout
 
     def _log_epoch_loss(self, epoch, train_loss, valid_loss):
-        logging.info(
-            f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}"
-        )
+        logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}")
         self.log_loss("loss/train", train_loss, epoch)
         self.log_loss("loss/validation", valid_loss, epoch)

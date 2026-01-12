@@ -16,18 +16,16 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import logging
+from collections import defaultdict
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-
-from collections import defaultdict
 from sklearn.model_selection import RepeatedKFold
 
-from xanesnet.models.base_model import Model
-from xanesnet.scheme.base_learn import Learn, EarlyStopState
-from xanesnet.utils.switch import LossSwitch
+from xanesnet.scheme.base_learn import EarlyStopState, Learn
 from xanesnet.utils.gaussian import SpectralPost
+from xanesnet.utils.switch import LossSwitch
 
 
 class SSLearn(Learn):
@@ -65,14 +63,10 @@ class SSLearn(Learn):
         logging.info(f"--- Starting Training for {self.epochs} epochs ---")
         for epoch in range(self.epochs):
             # Run training phase
-            train_loss = self._run_one_epoch_train(
-                epoch, train_loader, model, optimizer, self.spectral_post
-            )
+            train_loss = self._run_one_epoch_train(epoch, train_loader, model, optimizer, self.spectral_post)
 
             # Run validation phase
-            valid_loss = self._run_one_epoch_valid(
-                valid_loader, model, self.spectral_post
-            )
+            valid_loss = self._run_one_epoch_valid(valid_loader, model, self.spectral_post)
 
             # Adjust learning rate if scheduler is used
             if self.lr_scheduler:
@@ -147,17 +141,13 @@ class SSLearn(Learn):
             test_data = self.dataset[test_index]
             test_loader = self._create_loader(test_data)
 
-            test_score = self._run_one_epoch_valid(
-                test_loader, model, self.spectral_post
-            )
+            test_score = self._run_one_epoch_valid(test_loader, model, self.spectral_post)
 
             score_list["train_score"].append(train_score)
             score_list["test_score"].append(test_score)
 
             if test_score < best_score:
-                logging.info(
-                    f"--- [Fold {i+1}] New best model found with test score: {test_score:.6f} ---"
-                )
+                logging.info(f"--- [Fold {i+1}] New best model found with test score: {test_score:.6f} ---")
                 best_score = test_score
                 best_model = model
 
@@ -180,9 +170,7 @@ class SSLearn(Learn):
         device = self.device
         epoch_losses = defaultdict(float)
 
-        model_params = list(model.encoder.parameters()) + list(
-            model.coeff_head.parameters()
-        )
+        model_params = list(model.encoder.parameters()) + list(model.coeff_head.parameters())
 
         # Setup constants
         sigma_max, sigma_min = 9.0, 5.0
@@ -270,12 +258,8 @@ class SSLearn(Learn):
         trainable_e, total_e = self._count_trainable_params(model.encoder)
         trainable_h, total_h = self._count_trainable_params(model.coeff_head)
 
-        logging.info(
-            f"Encoder parameters: {trainable_e:,} trainable / {total_e:,} total"
-        )
-        logging.info(
-            f"CoeffHead parameters: {trainable_h:,} trainable / {total_h:,} total"
-        )
+        logging.info(f"Encoder parameters: {trainable_e:,} trainable / {total_e:,} total")
+        logging.info(f"CoeffHead parameters: {trainable_h:,} trainable / {total_h:,} total")
         logging.info(f"TOTAL trainable parameters: {trainable_e + trainable_h:,}")
 
         return spectral_post

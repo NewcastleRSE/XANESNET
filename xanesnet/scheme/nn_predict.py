@@ -16,17 +16,16 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 
-from typing import List, Optional, Tuple
-
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
-from xanesnet.utils.mode import Mode
 from xanesnet.utils.gaussian import SpectralPost
+from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -88,9 +87,7 @@ class NNPredict(Predict):
 
     def predict_std(self, model: Model) -> Prediction:
         """Perform standard single-model prediction."""
-        logging.info(
-            f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---"
-        )
+        logging.info(f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---")
 
         predictions, targets = self.predict(model)
         # zero (dummy) standard deviation array.
@@ -125,9 +122,7 @@ class NNPredict(Predict):
         prediction_list, targets = [], []
 
         for i, model in enumerate(model_list, start=0):
-            logging.info(
-                f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
-            )
+            logging.info(f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})...")
             predictions, targets = self.predict(model)
             prediction_list.append(predictions)
 

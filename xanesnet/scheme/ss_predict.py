@@ -16,15 +16,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 
-from typing import List, Optional, Tuple
-
-from xanesnet.utils.gaussian import SpectralPost
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
+from xanesnet.utils.gaussian import SpectralPost
 
 
 @dataclass
@@ -78,9 +77,7 @@ class SSPredict(Predict):
         Performs a single prediction and returns the result with a zero (dummy)
         standard deviation array.
         """
-        logging.info(
-            f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---"
-        )
+        logging.info(f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---")
 
         predictions, targets = self.predict(model)
         std_pred = np.zeros_like(predictions)
@@ -110,9 +107,7 @@ class SSPredict(Predict):
         prediction_list, targets = [], []
 
         for i, model in enumerate(model_list, start=0):
-            logging.info(
-                f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
-            )
+            logging.info(f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})...")
             predictions, targets = self.predict(model)
             prediction_list.append(predictions)
 
