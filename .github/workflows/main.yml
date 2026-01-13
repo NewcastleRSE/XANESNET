@@ -263,7 +263,7 @@ jobs:
       - name: MultiHead-MLP (STD)
         run: |
           echo "--- Running: MH-MLP (STD) XYZ -> XANES ---"
-          python3 -m xanesnet.cli --mode train_xanes --in_file ./.github/workflows/inputs/in_mh_mlp.yaml --save
+          python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_mh_mlp.yaml --save
           python3 -m xanesnet.cli --mode predict_xanes --in_model models/mh_mlp_std_xyz_001 --in_file ./.github/workflows/inputs/in_predict_mh.yaml
           rm -rf ./.github/workflows/data/fe/processed*.
           echo "--- Running: MH-MLP (STD) XANES -> XYZ ---"
