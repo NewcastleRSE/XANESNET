@@ -43,4 +43,6 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
     ):
         super().__init__(type, datasource, root, mode, preload, params)
 
-    pass
+    def get_dataloader(self):
+        """Returns the dataloader class that should be used."""
+        return torch.utils.data.DataLoader

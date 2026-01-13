@@ -43,4 +43,6 @@ class TorchGeometricDataset(Dataset, tg.data.Dataset):
     ):
         super().__init__(type, datasource, root, mode, preload, params)
 
-    pass
+    def get_dataloader(self):
+        """Returns the dataloader class that should be used."""
+        return tg.data.DataLoader

@@ -79,6 +79,11 @@ class Dataset(ABC):
                 preload_data.append(torch.load(file))
             self.inmemory_dataset = preload_data
 
+    @abstractmethod
+    def get_dataloader(self):
+        """Returns the dataloader class that should be used."""
+        return None
+
     @property
     @abstractmethod
     def metadata(self) -> dict:
