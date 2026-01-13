@@ -15,8 +15,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .init import BiasInitRegistry, WeightInitRegistry
+from .optim import OptimizerRegistry
 
 __all__ = [
     "BiasInitRegistry",
     "WeightInitRegistry",
+    "OptimizerRegistry",
 ]
