@@ -39,6 +39,7 @@ class Predict(ABC):
         self.pred_eval = kwargs.get("pred_eval")
 
         self.recon_flag = 0
+        self.mh_flag = 0
 
     @abstractmethod
     def predict(self, model: Model):

@@ -64,6 +64,7 @@ class Learn(ABC):
         self.dataset = dataset
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.recon_flag = 0  # 1 for AELearn or AEGANLearn
+        self.mh_flag = 0  # 1 for MHLEARN
         self.earlystop_flag = 0
 
         # ---Unpack kwargs
