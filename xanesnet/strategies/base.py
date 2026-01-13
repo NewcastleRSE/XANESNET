@@ -14,10 +14,23 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 
 class Strategy(ABC):
 
-    def __init__(self):
+    def __init__(
+        self,
+        type: str,
+        params: dict,
+    ):
+        self.type = type
+        self.params = params
+
+    @abstractmethod
+    def run_training(self):
+        """
+        Starts training with strategy and returns a list of trained models.
+        This method should be implemented by all subclasses.
+        """
         pass

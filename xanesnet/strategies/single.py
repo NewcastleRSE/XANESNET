@@ -21,5 +21,12 @@ from .registry import StrategyRegistry
 @StrategyRegistry.register("single")
 class Single(Strategy):
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        type: str,
+        params: dict,
+    ):
+        super().__init__(type, params)
+
+    def run_training(self):
+        return []  # TODO Implement
