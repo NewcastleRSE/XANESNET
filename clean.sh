@@ -3,9 +3,18 @@
 set -e
 
 echo "Cleaning up generated files..."
+# Remove specific directories
 rm -rf ./models/
 rm -rf ./outputs/
-rm -rf ./data/fe/processed*
-rm -rf ./data/graph-set/processed*
-rm -rf ./multihead/processed*
-rm -rf ./data/multihead/processed*
+
+dirs=(./data .github/workflows/data)
+
+for base_dir in "${dirs[@]}"; do
+    if [ -d "$base_dir" ]; then
+        # Find all directories starting with "processed" recursively
+        find "$base_dir" -type d -name 'processed*' -print0 | while IFS= read -r -d '' dir; do
+            echo "Deleting $dir"
+            rm -rf "$dir"
+        done
+    fi
+done
