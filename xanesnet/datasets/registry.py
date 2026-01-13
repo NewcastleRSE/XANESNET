@@ -20,6 +20,8 @@ class DatasetRegistry:
 
     @classmethod
     def register(cls, name: str):
+        name = name.lower()
+
         def decorator(ds_cls):
             if name in cls._registry:
                 raise KeyError(f"Dataset '{name}' already registered")
@@ -30,6 +32,8 @@ class DatasetRegistry:
 
     @classmethod
     def get(cls, name):
+        name = name.lower()
+
         if name not in cls._registry:
             raise KeyError(f"Dataset '{name}' not found in registry")
         return cls._registry[name]

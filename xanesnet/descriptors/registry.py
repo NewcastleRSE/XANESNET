@@ -20,6 +20,8 @@ class DescriptorRegistry:
 
     @classmethod
     def register(cls, name: str):
+        name = name.lower()
+
         def decorator(ds_cls):
             if name in cls._registry:
                 raise KeyError(f"Descriptor '{name}' already registered")
@@ -30,6 +32,8 @@ class DescriptorRegistry:
 
     @classmethod
     def get(cls, name: str):
+        name = name.lower()
+
         if name not in cls._registry:
             raise KeyError(f"Descriptor '{name}' not found in registry")
         return cls._registry[name]

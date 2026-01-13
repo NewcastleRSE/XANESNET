@@ -30,6 +30,8 @@ class WeightInitRegistry:
 
     @classmethod
     def register(cls, name: str):
+        name = name.lower()
+
         def decorator(fn):
             if name in cls._registry:
                 raise KeyError(f"Weight initializer '{name}' already registered")
@@ -40,6 +42,8 @@ class WeightInitRegistry:
 
     @classmethod
     def get(cls, name: str, **kwargs):
+        name = name.lower()
+
         if name not in cls._registry:
             raise KeyError(f"Weight initializer '{name}' not found in registry")
 
@@ -74,6 +78,8 @@ class BiasInitRegistry:
 
     @classmethod
     def register(cls, name: str):
+        name = name.lower()
+
         def decorator(fn):
             if name in cls._registry:
                 raise KeyError(f"Bias initializer '{name}' already registered")
@@ -84,6 +90,8 @@ class BiasInitRegistry:
 
     @classmethod
     def get(cls, name: str):
+        name = name.lower()
+
         if name not in cls._registry:
             raise KeyError(f"Bias initializer '{name}' not found in registry")
         return cls._registry[name]
