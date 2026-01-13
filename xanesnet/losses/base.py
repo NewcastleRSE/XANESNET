@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from abc import abstractmethod
+
 from torch import nn
 
 
@@ -23,3 +25,7 @@ class Loss(nn.Module):
         super().__init__()
 
         self.type = type
+
+    @abstractmethod
+    def forward(self, preds, targets):
+        raise NotImplementedError
