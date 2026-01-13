@@ -93,7 +93,7 @@ class MultiheadDataset(BaseDataset):
             xanes_stems = set(stem for d in xanes_path for stem in list_filestems(d))
             file_names = sorted(list(xanes_stems))
         else:
-            raise ValueError("At least one data dataset path must be provided.")
+            raise ValueError("At least one data path must be provided.")
 
         if not file_names:
             raise ValueError("No matching files found in the provided paths.")
@@ -154,7 +154,7 @@ class MultiheadDataset(BaseDataset):
 
     def find_file(self, stem, dirs, ext):
         """
-        Return the first matching file in dirs, or (None, None) if not found.
+        Return the first matching file in dirs
         """
         for idx, d in enumerate(dirs):
             file = os.path.join(d, f"{stem}{ext}")
