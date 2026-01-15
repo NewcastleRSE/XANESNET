@@ -75,6 +75,6 @@ class Single(Strategy):
     def run_training(self):
         super().run_training()
 
-        model = self.learner.train()
+        _ = self.learner.train()  # TODO should we do something with the returned score?
 
-        return [model]
+        return [self.model]

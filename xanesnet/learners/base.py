@@ -59,7 +59,7 @@ class Learner(ABC):
         logging.info(f"Start training: {self.params["epochs"]} epochs.")
         for epoch in range(self.params["epochs"]):
             # Run training
-            train_loss = self._train_one_epoch()
+            train_loss, train_regularization, train_total = self._train_one_epoch()
 
             # Run validation
             valid_loss = None
@@ -69,7 +69,7 @@ class Learner(ABC):
             # TODO learning rate scheduler
 
             # Logging
-            self._log_epoch_loss(epoch, train_loss, valid_loss)
+            self._log_epoch_loss(epoch, train_loss, train_regularization, train_total, valid_loss)
 
             # Early stopping
             # TODO early stopping
@@ -85,6 +85,8 @@ class Learner(ABC):
         self.model.train()
 
         epoch_loss = 0.0
+        epoch_regularization = 0.0
+        epoch_total = 0.0
 
         for batch in self.dataloader:
             batch.to(self.device)
@@ -102,16 +104,22 @@ class Learner(ABC):
             loss = self.loss(predictions, targets)
 
             # Regularization
-            # TODO add regularizer
+            regularization = self.regularizer(self.model)
 
             # Gradient computation
-            loss.backward()
+            total = loss + regularization
+            total.backward()
+            self.optimizer.step()
 
             epoch_loss += loss.item()
+            epoch_regularization += regularization.item()
+            epoch_total += total.item()
 
         epoch_loss = epoch_loss / len(self.dataloader)
+        epoch_regularization = epoch_regularization / len(self.dataloader)
+        epoch_total = epoch_total / len(self.dataloader)
 
-        return epoch_loss
+        return epoch_loss, epoch_regularization, epoch_total
 
     def _setup_batchprocessor(self):
         batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)
@@ -155,12 +163,23 @@ class Learner(ABC):
 
         return regularizer
 
-    def _log_epoch_loss(self, epoch, train_loss, valid_loss=None):
+    def _log_epoch_loss(self, epoch, train_loss, train_regularization, train_total, valid_loss=None):
         # TODO better logging?
 
         if valid_loss is not None:
-            logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}")
+            logging.info(
+                f"Epoch {epoch + 1:03d} | "
+                f"Loss: {train_loss:.6f} | "
+                f"Regularization: {train_regularization:.6f} | "
+                f"Total: {train_total:.6f} | "
+                f"Validation: {valid_loss:.6f}"
+            )
         else:
-            logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f}")
+            logging.info(
+                f"Epoch {epoch + 1:03d} | "
+                f"Loss: {train_loss:.6f} | "
+                f"Regularization: {train_regularization:.6f} | "
+                f"Total: {train_total:.6f} | "
+            )
 
         # TODO mlflow|tensorboard logging?
