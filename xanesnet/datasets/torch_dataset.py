@@ -46,3 +46,7 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
     def get_dataloader(self):
         """Returns the dataloader class that should be used."""
         return torch.utils.data.DataLoader
+
+    def collate_fn(self, batch):
+        """Uses the default collate function from pytorch."""
+        return default_collate(batch)

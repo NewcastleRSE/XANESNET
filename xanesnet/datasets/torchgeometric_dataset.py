@@ -46,3 +46,7 @@ class TorchGeometricDataset(Dataset, tg.data.Dataset):
     def get_dataloader(self):
         """Returns the dataloader class that should be used."""
         return tg.data.DataLoader
+
+    def collate_fn(self, batch):
+        """Uses the default collate function from torch_geometric."""
+        return Batch.from_data_list(batch)

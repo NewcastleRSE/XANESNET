@@ -122,4 +122,11 @@ class Dataset(ABC):
                 return torch.load(self.processed_paths[idx])
         else:
             raise ValueError("Indexing not implemented yet!")
-            # TODO : Implement advanced indexing if needed
+            # TODO : Implement advanced indexing if needed\
+
+    @abstractmethod
+    def collate_fn(self, batch):
+        """
+        Collate function for the dataloader.
+        """
+        pass

@@ -174,3 +174,22 @@ class XanesXDataset(TorchDataset):
         metadata.update({"in_size": in_size, "out_size": out_size})
 
         return metadata
+
+    def collate_fn(self, batch):
+        """
+        Collates a list of Data objects into a single Data object with batched tensors.
+        """
+
+        def _stack(tensors):
+            if any(t is None for t in tensors):
+                return None
+            return torch.stack(tensors)
+
+        return Data(
+            x=_stack([b.x for b in batch]),
+            y=_stack([b.y for b in batch]),
+            e=_stack([b.e for b in batch]),
+            fourier=_stack([b.fourier for b in batch]),
+            c_star=_stack([b.c_star for b in batch]),
+            file_name=[b.file_name for b in batch],  # keep as list
+        )
