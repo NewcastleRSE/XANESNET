@@ -21,13 +21,15 @@ from argparse import ArgumentParser
 
 import yaml
 
+from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.core_learn import train
 from xanesnet.core_predict import predict
 from xanesnet.datasets import DatasetRegistry
 from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
+from xanesnet.learners import LearnerRegistry
 from xanesnet.models import ModelRegistry
-from xanesnet.scheme import SchemeRegistry
+from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.random import set_global_seed
 
@@ -94,8 +96,9 @@ def main(args: list[str]):
     logging.info(f"\tDatasets: {DatasetRegistry.list()}")
     logging.info(f"\tDescriptors: {DescriptorRegistry.list()}")
     logging.info(f"\tModels: {ModelRegistry.list()}")
-    logging.info(f"\tSchemes: {SchemeRegistry.list_schemes()}")
-    logging.info(f"\tModels with registered schemes: {SchemeRegistry.list_models()}")
+    logging.info(f"\tLearners: {LearnerRegistry.list()}")
+    logging.info(f"\tBatchProcessers: {BatchProcessorRegistry.list()}")
+    logging.info(f"\tStrategies: {StrategyRegistry.list()}")
 
     # Parsing command line arguments
     args = parse_args(args)
