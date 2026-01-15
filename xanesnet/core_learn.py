@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 
 
-def train(config, args):
+def train(config: Dict, args):
     """
     Main training entry
     """
@@ -60,162 +60,168 @@ def train(config, args):
     mode = get_mode(args.mode)
 
     # Initialise feature descriptor(s)
-    descriptor_list = _setup_descriptors(config)
+    descriptors = setup_descriptors(config)
 
     # Precess training dataset
-    dataset = _setup_dataset(config, mode, descriptor_list)
+    dataset = setup_dataset(config, mode, descriptors)
 
     # Setup model
-    model = _setup_model(config, dataset)
+    model = setup_model(config, dataset)
 
     # Setup training scheme
-    scheme = _setup_scheme(config, args, model, dataset)
+    scheme = setup_scheme(config, args, model, dataset)
 
     # Train the model
-    model_list, scheme_type, train_time = _train_model(config, scheme)
+    models, scheme_type, elapsed = train_model(config, scheme)
 
     # Display model summary and training duration
-    _summary_model(model_list[0], dataset)
-    logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
+    summarise_model(models[0], dataset)
+    logging.info(f"Training completed in {str(timedelta(seconds=int(elapsed)))}")
 
     # Save model(s) and metadata to disk if requested
     if args.save:
-        metadata = {
-            "mode": args.mode,
-            "dataset": dataset.config,
-            "model": model.config,
-            "descriptors": [desc.config for desc in descriptor_list],
-            "scheme": scheme_type,
-        }
+        save_training_outputs(
+            models=models,
+            scheme_type=scheme_type,
+            dataset=dataset,
+            model=model,
+            descriptors=descriptors,
+            mode=args.mode,
+        )
 
-        save_models(Path("models"), model_list, metadata, dataset.basis)
 
-
-def _setup_descriptors(config: Dict) -> List:
+def setup_descriptors(config: Dict) -> List:
     """Initialise or load descriptors depending on the model type."""
     model_type = config["model"]["type"]
 
     if hasattr(PretrainedModels, model_type):
         logging.info(f">> Loading pretrained model descriptors: {model_type}")
-        descriptor_list = load_pretrained_descriptors(model_type)
-    else:
-        descriptor_config = config["descriptors"]
-        descriptor_types = ", ".join(d["type"] for d in descriptor_config)
-        logging.info(f">> Initialising descriptors: {descriptor_types}")
-        descriptor_list = create_descriptors(config=descriptor_config)
+        return load_pretrained_descriptors(model_type)
 
-    return descriptor_list
+    descriptor_cfg = config["descriptors"]
+    descriptor_types = ", ".join(d["type"] for d in descriptor_cfg)
+    logging.info(f">> Initialising descriptors: {descriptor_types}")
+
+    return create_descriptors(config=descriptor_cfg)
 
 
-def _setup_dataset(config: Dict, mode: Mode, descriptor_list: List) -> BaseDataset:
-    """Process the dataset using input configuration or load an existing one from disk"""
-    dataset_type = config["dataset"]["type"]
+def setup_dataset(config: Dict, mode: Mode, descriptors: List) -> BaseDataset:
+    """Create and preprocess dataset."""
+    dataset_cfg = config["dataset"]
+    dataset_type = dataset_cfg["type"]
 
-    logging.info(f">> Initialising training dataset: {dataset_type}")
-    # Pack parameters
-    kwargs = {
-        "root": config["dataset"]["root_path"],
-        "xyz_path": config["dataset"]["xyz_path"],
-        "xanes_path": config["dataset"]["xanes_path"],
-        "mode": mode,
-        "descriptors": descriptor_list,
-        **config["dataset"].get("params", {}),
-    }
+    logging.info(f">> Initialising dataset: {dataset_type}")
 
-    dataset = create_dataset(dataset_type, **kwargs)
+    dataset = create_dataset(
+        dataset_type,
+        root=dataset_cfg["root_path"],
+        xyz_path=dataset_cfg["xyz_path"],
+        xanes_path=dataset_cfg["xanes_path"],
+        mode=mode,
+        descriptors=descriptors,
+        **dataset_cfg.get("params", {}),
+    )
 
     # Log dataset summary
     logging.info(
-        f">> Dataset Summary: # of samples = {len(dataset)}, feature(X) size = {dataset.x_size}, label(y) size = {dataset.y_size}"
+        ">> Dataset Summary: # of samples=%d, X=%s, y=%s",
+        len(dataset),
+        dataset.x_size,
+        dataset.y_size,
     )
 
     return dataset
 
 
-def _setup_model(config: Dict, dataset: BaseDataset) -> Model:
-    """Initialises or loads the model and its descriptors."""
-    model_config = config["model"]
-    model_type = model_config["type"]
+def setup_model(config: Dict, dataset: BaseDataset) -> Model:
+    """Initialise or load model."""
+    model_cfg = config["model"]
+    model_type = model_cfg["type"]
+    model_params = model_cfg.get("params", {})
 
     if hasattr(PretrainedModels, model_type):
-        logging.info(f">> Loading pretrained model: {model_type}")
-        model_params = model_config.get("params", {})
-        model = load_pretrained_model(model_type, **model_params)
-    else:
-        logging.info(f">> Initialising model: {model_type}")
-        model_params = model_config.get("params", {})
+        logging.info(">> Loading pretrained model: %s", model_type)
+        return load_pretrained_model(model_type, **model_params)
 
-        # Add additional model parameters
-        model_params["in_size"] = dataset.x_size
-        model_params["out_size"] = dataset.y_size
-        model = create_model(model_type, **model_params)
+    logging.info(">> Initialising model: %s", model_type)
+    model_params = {
+        **model_params,
+        "in_size": dataset.x_size,
+        "out_size": dataset.y_size,
+    }
 
-        # Intialise model weights
-        weights_params = model_config.get("weights_params", {})
-        weights_type = model_config.get("weights", {})
-        kernel = weights_type.get("kernel", "default")
-        bias = weights_type.get("bias", "zeros")
-        seed = weights_type.get("seed", None)
-
-        logging.info(f">> Initialising model weights: {kernel}")
-        model.init_model_weights(kernel, bias, seed, **weights_params)
+    model = create_model(model_type, **model_params)
+    initialise_weights(model, model_cfg)
 
     return model
 
 
-def _setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Learn:
-    """Initialise training scheme (standard, k-fold, ensemble, etc.)."""
-    model_type = config["model"].get("type")
+def initialise_weights(model: Model, model_cfg: Dict) -> None:
+    """Initialise model weights."""
+    weights_cfg = model_cfg.get("weights", {})
+    weights_params = model_cfg.get("weights_params", {})
 
+    kernel = weights_cfg.get("kernel", "default")
+    bias = weights_cfg.get("bias", "zeros")
+    seed = weights_cfg.get("seed")
+
+    logging.info(">> Initialising weights: kernel=%s", kernel)
+    model.init_model_weights(kernel, bias, seed, **weights_params)
+
+
+def setup_scheme(config: Dict, args, model: Model, dataset: BaseDataset) -> Learn:
+    """Create training scheme."""
     logging.info(">> Initialising training scheme")
-    # Pack parameters
-    kwargs = {
-        "model_config": config.get("model"),
-        "hyper_params": config.get("hyperparams", {}),
-        "earlystop_params": config.get("earlystop_params", {}),
-        "kfold_params": config.get("kfold_params", {}),
-        "bootstrap_params": config.get("bootstrap_params", {}),
-        "ensemble_params": config.get("ensemble_params", {}),
-        "lr_scheduler": config.get("lr_scheduler", False),
-        "scheduler_params": config.get("scheduler_params", {}),
-        "mlflow": args.mlflow,
-        "tensorboard": args.tensorboard,
-    }
+    return create_learn_scheme(
+        config["model"]["type"],
+        model,
+        dataset,
+        model_config=config.get("model"),
+        hyper_params=config.get("hyperparams", {}),
+        earlystop_params=config.get("earlystop_params", {}),
+        kfold_params=config.get("kfold_params", {}),
+        bootstrap_params=config.get("bootstrap_params", {}),
+        ensemble_params=config.get("ensemble_params", {}),
+        lr_scheduler=config.get("lr_scheduler", False),
+        scheduler_params=config.get("scheduler_params", {}),
+        mlflow=args.mlflow,
+        tensorboard=args.tensorboard,
+    )
 
-    scheme = create_learn_scheme(model_type, model, dataset, **kwargs)
-    return scheme
 
-
-def _train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
+def train_model(config: Dict, scheme: Learn) -> Tuple[List, str, float]:
     """
     Train model using the selected training scheme.
     """
-    model_list = []
     start_time = time.time()
 
     if config["bootstrap"]:
-        logging.info(">> Training model using bootstrap resampling...\n")
+        logging.info(">> Bootstrap training...\n")
+        models = scheme.train_bootstrap()
         scheme_type = "bootstrap"
-        model_list = scheme.train_bootstrap()
+
     elif config["ensemble"]:
-        logging.info(">> Training model using ensemble learning...\n")
+        logging.info(">> Ensemble training...\n")
+        models = scheme.train_ensemble()
         scheme_type = "ensemble"
-        model_list = scheme.train_ensemble()
-    elif config["kfold"]:
-        logging.info(">> Training model using kfold cross-validation...\n")
+
+    elif config.get("kfold"):
+        logging.info(">> K-fold training...\n")
+        models = [scheme.train_kfold()]
         scheme_type = "kfold"
-        model_list.append(scheme.train_kfold())
+
     else:
-        logging.info(">> Training model using standard training procedure...\n")
+        logging.info(">> Standard training...\n")
+        models = [scheme.train_std()]
         scheme_type = "std"
-        model_list.append(scheme.train_std())
 
     train_time = time.time() - start_time
 
-    return model_list, scheme_type, train_time
+    return models, scheme_type, train_time
 
 
-def _summary_model(model: Model, dataset: BaseDataset) -> None:
+def summarise_model(model: Model, dataset: BaseDataset) -> None:
+    """Print torchinfo summary."""
     logging.info("\n--- Model Summary ---")
 
     if model.aegan_flag:
@@ -229,3 +235,24 @@ def _summary_model(model: Model, dataset: BaseDataset) -> None:
         input_data = dummy_x
 
     summary(model, input_data=input_data)
+
+
+def save_training_outputs(
+    *,
+    models: List[Model],
+    scheme_type: str,
+    dataset: BaseDataset,
+    model: Model,
+    descriptors: List,
+    mode: str,
+) -> None:
+    """Save models and metadata to disk"""
+    metadata = {
+        "mode": mode,
+        "dataset": dataset.config,
+        "model": model.config,
+        "descriptors": [d.config for d in descriptors],
+        "scheme": scheme_type,
+    }
+
+    save_models(Path("models"), models, metadata, dataset.basis)

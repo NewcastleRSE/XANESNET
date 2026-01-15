@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 
 from pathlib import Path
+from typing import Dict
 
 from xanesnet.creator import create_predict_scheme, create_dataset
 from xanesnet.utils.mode import get_mode, Mode
@@ -28,124 +29,120 @@ from xanesnet.utils.io import (
     load_model_from_local,
 )
 
-# from xanesnet.post_shap import shap_analysis, shap_analysis_gnn
 
-
-def predict(config, args, metadata):
+def predict(config: Dict, args, metadata: Dict):
     """
-    Prediction pipeline for non-GNN models.
+    Main prediction entry
     """
     logging.info(f">> Prediction mode: {args.mode}")
     mode = get_mode(args.mode)
 
-    model_path = Path(args.in_model)
-    root_path = config["dataset"].get("root_path")
-    xyz_path = config["dataset"].get("xyz_path", None)
-    xanes_path = config["dataset"].get("xanes_path", None)
+    model_dir = Path(args.in_model)
+    dataset_cfg = config["dataset"]
 
-    _verify_mode(xyz_path, xanes_path, metadata, mode)
+    root_path = dataset_cfg.get("root_path")
+    xyz_path = dataset_cfg.get("xyz_path")
+    xanes_path = dataset_cfg.get("xanes_path")
+
+    _verify_mode_consistency(xyz_path, xanes_path, metadata, mode)
 
     # Load descriptor list
-    descriptor_list = load_descriptors_from_local(model_path)
-
-    # Enable model evaluation if test data is present
+    descriptors = load_descriptors_from_local(model_dir)
     pred_eval = xyz_path is not None and xanes_path is not None
 
     # Load, encode, and preprocess data
-    dataset = _setup_datasets(
-        root_path, xyz_path, xanes_path, metadata, mode, descriptor_list
+    dataset = setup_datasets(
+        root_path, xyz_path, xanes_path, metadata, mode, descriptors
     )
 
     # Setup prediction scheme
-    scheme = _setup_scheme(dataset, mode, metadata, pred_eval)
+    scheme = setup_scheme(dataset, mode, metadata, pred_eval)
 
     # Predict with loaded models and scheme
-    result = _run_prediction(scheme, model_path, metadata["scheme"])
+    result = run_prediction(scheme, model_dir, metadata["scheme"])
 
     # Set output path
-    path = Path("outputs") / Path(args.in_model).relative_to("models")
+    output_path = Path("outputs") / Path(args.in_model).relative_to("models")
 
     # Save raw prediction result
-    if config["result_save"]:
-        save_predict_result(path, mode, result, dataset, pred_eval, scheme, metadata)
+    if config.get("result_save", True):
+        save_predict_result(
+            output_path, mode, result, dataset, pred_eval, scheme, metadata
+        )
 
     # Plot prediction result
-    if config["plot_save"]:
-        plot(path, mode, result, dataset, pred_eval, scheme, metadata)
-
-    logging.info("\nPrediction results saved to disk: %s", path.resolve().as_uri())
-
-    # SHAP analysis
-    # if config["shap"] and predict_scheme == "std":
-    #     xyz_data = scheme.xyz_data
-    #     nsamples = config["shap_params"]["nsamples"]
-    #     shap_analysis_gnn(path, mode, model, index, xyz_data, xanes_data, nsamples)
-
-
-def _setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptor_list):
-    dataset_type = metadata["dataset"]["type"]
-    logging.info(">> Initialising prediction datasets...")
-
-    # Pack kwargs
-    kwargs = {
-        "root": root_path,
-        "xyz_path": xyz_path,
-        "xanes_path": xanes_path,
-        "mode": mode,
-        "descriptors": descriptor_list,
-        **metadata["dataset"]["params"],
-    }
-
-    dataset = create_dataset(dataset_type, **kwargs)
+    if config.get("plot_save", True):
+        plot(output_path, mode, result, dataset, pred_eval, scheme, metadata)
 
     logging.info(
-        f">> Dataset Summary: # of samples = {len(dataset)}, feature size = {dataset.x_size}, label(y) size = {dataset.y_size}"
+        "Prediction results saved to disk: %s",
+        output_path.resolve().as_uri(),
+    )
+
+
+def setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptors):
+    """Initialise prediction dataset."""
+    dataset_type = metadata["dataset"]["type"]
+    logging.info(">> Initialising prediction dataset: %s", dataset_type)
+
+    dataset = create_dataset(
+        dataset_type,
+        root=root_path,
+        xyz_path=xyz_path,
+        xanes_path=xanes_path,
+        mode=mode,
+        descriptors=descriptors,
+        **metadata["dataset"]["params"],
+    )
+
+    logging.info(
+        ">> Dataset summary: samples=%d | X=%s | y=%s",
+        len(dataset),
+        dataset.x_size,
+        dataset.y_size,
     )
 
     return dataset
 
 
-def _setup_scheme(dataset, mode, metadata, pred_eval):
+def setup_scheme(dataset, mode: Mode, metadata: Dict, pred_eval: bool):
+    """Initialise prediction scheme."""
     model_type = metadata["model"]["type"]
 
-    kwargs = {
-        "pred_mode": mode,
-        "pred_eval": pred_eval,
+    return create_predict_scheme(
+        model_type,
+        dataset,
+        pred_mode=mode,
+        pred_eval=pred_eval,
         **metadata["dataset"]["params"],
-    }
-
-    scheme = create_predict_scheme(model_type, dataset, **kwargs)
-    return scheme
+    )
 
 
-def _run_prediction(scheme, model_dir: Path, predict_scheme: str):
+def run_prediction(scheme, model_dir: Path, scheme_type: str):
     """
-    Loads models and runs the prediction based on the specified scheme.
+    Load model(s) and run prediction.
     """
-    if predict_scheme == "bootstrap":
-        if "bootstrap" not in str(model_dir):
-            raise ValueError("Invalid bootstrap directory")
+    if scheme_type in {"bootstrap", "ensemble"}:
+        _validate_model_dir(model_dir, scheme_type)
+        models = load_models_from_local(model_dir)
 
-        model_list = load_models_from_local(model_dir)
-        result = scheme.predict_bootstrap(model_list)
+        if scheme_type == "bootstrap":
+            return scheme.predict_bootstrap(models)
+        return scheme.predict_ensemble(models)
 
-    elif predict_scheme == "ensemble":
-        if "ensemble" not in str(model_dir):
-            raise ValueError("Invalid ensemble directory")
-        model_list = load_models_from_local(model_dir)
-        result = scheme.predict_ensemble(model_list)
-
-    elif predict_scheme == "std" or predict_scheme == "kfold":
+    if scheme_type in {"std", "kfold"}:
         model = load_model_from_local(model_dir)
-        result = scheme.predict_std(model)
+        return scheme.predict_std(model)
 
-    else:
-        raise ValueError("Unsupported prediction scheme.")
-
-    return result
+    raise ValueError(f"Unsupported prediction scheme: {scheme_type}")
 
 
-def _verify_mode(xyz_path, xanes_path, metadata, mode):
+def _validate_model_dir(model_dir: Path, scheme_type: str) -> None:
+    if scheme_type not in str(model_dir):
+        raise ValueError(f"Invalid {scheme_type} model directory: {model_dir}")
+
+
+def _verify_mode_consistency(xyz_path, xanes_path, metadata, mode):
     """
     Checks for consistency between training mode and prediction mode/data.
     """
