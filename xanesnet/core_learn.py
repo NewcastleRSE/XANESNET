@@ -72,11 +72,11 @@ def train(config: Dict, args):
     scheme = setup_scheme(config, args, model, dataset)
 
     # Train the model
-    models, scheme_type, elapsed = train_model(config, scheme)
+    models, scheme_type, train_time = train_model(config, scheme)
 
     # Display model summary and training duration
     summarise_model(models[0], dataset)
-    logging.info(f"Training completed in {str(timedelta(seconds=int(elapsed)))}")
+    logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
 
     # Save model(s) and metadata to disk if requested
     if args.save:
@@ -255,4 +255,9 @@ def save_training_outputs(
         "scheme": scheme_type,
     }
 
-    save_models(Path("models"), models, metadata, dataset.basis)
+    save_models(
+        path=Path("models"),
+        models=models,
+        metadata=metadata,
+        gauss_basis=dataset.gauss_basis,
+    )

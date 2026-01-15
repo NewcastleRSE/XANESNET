@@ -17,7 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 
 
-def fft(x: torch.Tensor, concat: bool) -> torch.Tensor:
+def fft(x: torch.Tensor, concat: bool = False) -> torch.Tensor:
     x = x.to(dtype=torch.float32)
     x_rev = torch.flip(x, dims=[-1])
     y = torch.cat([x, x_rev], dim=-1)
@@ -30,7 +30,7 @@ def fft(x: torch.Tensor, concat: bool) -> torch.Tensor:
     return z
 
 
-def inverse_fft(z: torch.Tensor, concat: bool) -> torch.Tensor:
+def inverse_fft(z: torch.Tensor, concat: bool = False) -> torch.Tensor:
     z = z.to(dtype=torch.float32)
     L = z.shape[-1]
 

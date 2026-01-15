@@ -22,7 +22,7 @@ import torch
 
 from typing import List, Optional, Tuple
 
-from xanesnet.utils.gaussian import SpectralPost
+from xanesnet.utils.gaussian import GaussianSynthesis
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 
@@ -48,14 +48,16 @@ class SSPredict(Predict):
         model.eval()
         predictions, targets = [], []
 
-        spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
-        spectral_post.eval()
+        synthesis = GaussianSynthesis(
+            basis=self.dataset.gauss_basis, nonneg_output=False
+        )
+        synthesis.eval()
 
         # ---- Run inference ----
         with torch.no_grad():
             for data in data_loader:
                 c_pred = model(data)
-                output = spectral_post.forward_from_coeffs(c_pred)  # (B,N)
+                output = synthesis.forward_from_coeffs(c_pred)  # (B,N)
                 output = self.to_numpy(output.squeeze(0))
 
                 predictions.append(output)

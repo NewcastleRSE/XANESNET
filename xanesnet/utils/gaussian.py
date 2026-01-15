@@ -23,7 +23,7 @@ import torch.nn as nn
 from torch import Tensor
 
 
-class SpectralBasis(nn.Module):
+class GaussianBasis(nn.Module):
     def __init__(
         self,
         energies: torch.Tensor,
@@ -67,13 +67,13 @@ class SpectralBasis(nn.Module):
         return coeffs @ self.Phi.T
 
 
-class SpectralPost(nn.Module):
+class GaussianSynthesis(nn.Module):
     """
     Stage 1: parameter-free (no training).
       y = Φ c    (optionally clamped to nonnegative)
     """
 
-    def __init__(self, basis: "SpectralBasis", nonneg_output: bool = False):
+    def __init__(self, basis: "GaussianBasis", nonneg_output: bool = False):
         super().__init__()
         self.basis = basis
         self.nonneg_output = bool(nonneg_output)
@@ -115,7 +115,7 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     return A.to(torch.float32)
 
 
-def gaussian_fit(basis: SpectralBasis, xanes: Tensor) -> Tensor:
+def gaussian_fit(basis: GaussianBasis, xanes: Tensor) -> Tensor:
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T

@@ -119,7 +119,7 @@ class SoftShellDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
 
-                c_star = gaussian_fit(basis=self.basis, xanes=xanes)
+                c_star = gaussian_fit(basis=self.gauss_basis, xanes=xanes)
 
             # initialise data object
             data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
@@ -154,7 +154,7 @@ class SoftShellDataset(BaseDataset):
     def x_size(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         x_size = []
-        e = self.basis.E
+        e = self.gauss_basis.E
 
         # Per-width group sizes for grouped head
         dE = e[1] - e[0]
@@ -162,7 +162,7 @@ class SoftShellDataset(BaseDataset):
         n_width_groups = len(widths_bins)
 
         # Number of centers per width (should be equal for each width given same stride)
-        K = self.basis.Phi.shape[1]
+        K = self.gauss_basis.Phi.shape[1]
         per_width = K // n_width_groups
         K_groups = [per_width] * n_width_groups
 

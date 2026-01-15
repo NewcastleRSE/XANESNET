@@ -38,7 +38,7 @@ from torch import Tensor
 from torch.hub import load_state_dict_from_url
 
 from xanesnet.models.pre_trained import ModelInfo
-from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.gaussian import GaussianBasis
 from xanesnet.utils.mode import Mode
 from xanesnet.utils.xanes import XANES
 
@@ -102,7 +102,9 @@ def mkdir_output(path: Path, name: str):
     return save_path
 
 
-def save_models(path: Path, models: list, metadata: dict, basis: SpectralBasis = None):
+def save_models(
+    path: Path, models: list, metadata: dict, gauss_basis: GaussianBasis = None
+):
     """
     Save trained models, descriptors, metadata, and Gaussian reconstructor to disk.
     For bootstrap and ensemble training, the files are saved in a structured directory
@@ -131,9 +133,9 @@ def save_models(path: Path, models: list, metadata: dict, basis: SpectralBasis =
         raise ValueError("Nothing to save.")
 
     # Save Gaussian reconstructor
-    if basis is not None:
-        basis_path = save_path / f"spectral_basis.pt"
-        torch.save(basis.cpu(), basis_path)
+    if gauss_basis is not None:
+        basis_path = save_path / f"gaussian_basis.pt"
+        torch.save(gauss_basis.cpu(), basis_path)
         metadata["dataset"]["params"]["basis_path"] = str(basis_path)
 
     # Save meta data

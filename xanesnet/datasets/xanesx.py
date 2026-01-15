@@ -112,9 +112,9 @@ class XanesXDataset(BaseDataset):
                 e, xanes = load_xanes(raw_path)
 
                 if self.fft:
-                    fourier = fft(xanes, self.fft_concat)
+                    fourier = fft(xanes)
                 elif self.gaussian:
-                    c_star = gaussian_fit(basis=self.basis, xanes=xanes)
+                    c_star = gaussian_fit(basis=self.gauss_basis, xanes=xanes)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes

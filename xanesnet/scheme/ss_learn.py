@@ -27,7 +27,7 @@ from sklearn.model_selection import RepeatedKFold
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_learn import Learn, EarlyStopState
 from xanesnet.utils.switch import LossSwitch
-from xanesnet.utils.gaussian import SpectralPost
+from xanesnet.utils.gaussian import GaussianSynthesis
 
 
 class SSLearn(Learn):
@@ -45,13 +45,14 @@ class SSLearn(Learn):
         hyper_params = self.hyper_params
         diagnostics = hyper_params.get("diagnostics", True)
 
-        # Build post processor
-        self.spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
-        self.spectral_post.to(self.device)
-        self.spectral_post.eval()
+        self.synthesis = GaussianSynthesis(
+            basis=self.dataset.gauss_basis, nonneg_output=False
+        )
+        self.synthesis.to(self.device)
+        self.synthesis.eval()
 
         if diagnostics:
-            self._model_diagnostics(self.spectral_post, model, dataset)
+            self._model_diagnostics(self.synthesis, model, dataset)
 
     def train(self, model, dataset):
         train_loader, valid_loader = self.setup_dataloaders(dataset)
@@ -191,7 +192,7 @@ class SSLearn(Learn):
             optimizer.zero_grad(set_to_none=True)
 
             c_pred = model(batch)
-            y_pred = self.spectral_post.forward_from_coeffs(c_pred)
+            y_pred = self.synthesis.forward_from_coeffs(c_pred)
 
             neg_part = F.relu(-y_pred)
             loss_neg = (neg_part**2).mean()
@@ -230,7 +231,7 @@ class SSLearn(Learn):
                 batch.to(device)
 
                 c_pred = model(batch)
-                y_pred = self.spectral_post.forward_from_coeffs(c_pred)  # (B,N)
+                y_pred = self.synthesis.forward_from_coeffs(c_pred)  # (B,N)
 
                 running_loss += F.mse_loss(y_pred, batch.y, reduction="sum").item()
                 n_elem += batch.y.numel()
@@ -245,7 +246,7 @@ class SSLearn(Learn):
         }
         return layout
 
-    def _model_diagnostics(self, spectral_post, model, dataset):
+    def _model_diagnostics(self, synthesis, model, dataset):
         print("--- Model Diagnostics ---")
         train_loader, valid_loader = self.setup_dataloaders(dataset)
 
@@ -257,12 +258,12 @@ class SSLearn(Learn):
                     c_batch = batch.c_star
                     y_batch = batch.y
 
-                    y_gauss = spectral_post.basis.synthesize(c_batch)  # (B, N)
+                    y_gauss = synthesis.forward_from_coeffs(c_batch)  # (B, N)
                     sse += F.mse_loss(y_gauss, y_batch, reduction="sum").item()
                     n_elem += y_batch.numel()
                 mse_gauss = sse / max(1, n_elem)
 
-        trainable, total = self._count_trainable_params(spectral_post)
+        trainable, total = self._count_trainable_params(synthesis)
         trainable_e, total_e = self._count_trainable_params(model.encoder)
         trainable_h, total_h = self._count_trainable_params(model.coeff_head)
 
@@ -273,8 +274,6 @@ class SSLearn(Learn):
             f"CoeffHead parameters: {trainable_h:,} trainable / {total_h:,} total"
         )
         logging.info(f"TOTAL trainable parameters: {trainable_e + trainable_h:,}")
-
-        return spectral_post
 
     @staticmethod
     def _count_trainable_params(m):

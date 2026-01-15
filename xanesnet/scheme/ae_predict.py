@@ -42,7 +42,6 @@ class AEPredict(Predict):
         super().__init__(dataset, **kwargs)
 
         self.fft = kwargs.get("fourier")
-        self.fft_concat = kwargs.get("fourier_concat")
 
         self.recon_flag = 1
 
@@ -67,9 +66,9 @@ class AEPredict(Predict):
 
                 if self.fft:
                     if self.mode is Mode.XYZ_TO_XANES:
-                        pred = inverse_fft(pred, self.fft_concat)
+                        pred = inverse_fft(pred)
                     else:
-                        recon = inverse_fft(recon, self.fft_concat)
+                        recon = inverse_fft(recon)
 
                 predictions.append(pred)
                 reconstructions.append(recon)

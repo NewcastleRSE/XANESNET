@@ -117,7 +117,7 @@ class GraphDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
                 if self.fft:
-                    xanes = fft(xanes, self.fft_concat)
+                    xanes = fft(xanes)
 
             mg = MolGraph()
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
@@ -178,7 +178,7 @@ class GraphDataset(BaseDataset):
         cutoffs = (np.cos((np.pi * bond_lengths) / self.r_max) + 1.0) / 2.0
 
         for i in range(num_edges):
-            g2 = gaussian(bond_lengths[i], width, grid)
+            g2 = _gaussian(bond_lengths[i], width, grid)
             all_edge_feats[i, :] = np.sum(g2 * cutoffs[i], axis=0)
 
         return torch.tensor(all_edge_feats, dtype=torch.float)
@@ -203,6 +203,6 @@ class GraphDataset(BaseDataset):
         return torch.tensor(all_graph_feats, dtype=torch.float)
 
 
-def gaussian(r: np.ndarray, h: float, m: float) -> np.ndarray:
+def _gaussian(r: np.ndarray, h: float, m: float) -> np.ndarray:
     """returns a gaussian-like function defined over `r`"""
     return np.exp(-1.0 * h * (r - m) ** 2)

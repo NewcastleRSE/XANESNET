@@ -42,7 +42,6 @@ class AEGANPredict(Predict):
         super().__init__(dataset, **kwargs)
 
         self.fft = kwargs.get("fourier")
-        self.fft_concat = kwargs.get("fourier_concat")
 
         self.recon_flag = 1
 
@@ -90,9 +89,9 @@ class AEGANPredict(Predict):
                     predict_xyz.append(pred_xyz)
 
                 if self.fft and self.mode in [Mode.XYZ_TO_XANES, Mode.BIDIRECTIONAL]:
-                    pred_xanes = inverse_fft(pred_xanes, self.fft_concat)
+                    pred_xanes = inverse_fft(pred_xanes)
                 if self.fft and self.mode in [Mode.XANES_TO_XYZ, Mode.BIDIRECTIONAL]:
-                    recon_xanes = inverse_fft(recon_xanes, self.fft_concat)
+                    recon_xanes = inverse_fft(recon_xanes)
 
                 if pred_xanes is not None:
                     predict_xanes.append(pred_xanes)

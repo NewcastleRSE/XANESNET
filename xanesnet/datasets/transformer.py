@@ -147,7 +147,7 @@ class TransformerDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
                 if self.fft:
-                    fourier = fft(xanes, self.fft_concat)
+                    fourier = fft(xanes)
                     fft_list.append(fourier)
 
                 spec_list.append(xanes)

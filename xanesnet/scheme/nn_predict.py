@@ -26,7 +26,7 @@ from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import SpectralPost
+from xanesnet.utils.gaussian import GaussianSynthesis
 
 
 @dataclass
@@ -42,8 +42,6 @@ class NNPredict(Predict):
         super().__init__(dataset, **kwargs)
 
         self.fft = kwargs.get("fourier")
-        self.fft_concat = kwargs.get("fourier_concat")
-
         self.gaussian = kwargs.get("gaussian")
 
     def predict(self, model):
@@ -54,10 +52,12 @@ class NNPredict(Predict):
         model.eval()
         predictions, targets = [], []
 
-        spectral_post = None
+        synthesis = None
         if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
-            spectral_post = SpectralPost(basis=self.dataset.basis, nonneg_output=False)
-            spectral_post.eval()
+            synthesis = GaussianSynthesis(
+                basis=self.dataset.gauss_basis, nonneg_output=False
+            )
+            synthesis.eval()
 
         with torch.no_grad():
             for data in data_loader:
@@ -66,10 +66,10 @@ class NNPredict(Predict):
                 output = model(input_data)
                 # Inverse FFT transform
                 if self.fft:
-                    output = inverse_fft(output, self.fft_concat)
-                # Gaussian reconstruction
+                    output = inverse_fft(output)
+                # Gaussian synthesis
                 if self.gaussian:
-                    output = spectral_post.forward_from_coeffs(output)
+                    output = synthesis.forward_from_coeffs(output)
 
                 output = self.to_numpy(output)
                 predictions.append(output)

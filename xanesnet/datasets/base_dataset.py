@@ -28,7 +28,7 @@ from typing import Union, List, Any, Callable
 from torch import Tensor
 from torch_geometric.io import fs
 
-from xanesnet.utils.gaussian import SpectralBasis
+from xanesnet.utils.gaussian import GaussianBasis
 from xanesnet.utils.io import load_xanes
 from xanesnet.utils.mode import Mode
 
@@ -64,16 +64,15 @@ class BaseDataset(Dataset):
         self.xanes_path = xanes_path
         self.mode = mode
         self.descriptors = descriptors
-        self.basis = None
+        self.gauss_basis = None
 
         # Unpack kwargs
         self.preload = kwargs.get("preload", True)
+        self.fft = kwargs.get("fourier", False)
         self.gaussian = kwargs.get("gaussian", False)
         self.widths_eV = kwargs.get("widths_eV", [0.5, 1.0, 2.0, 4.0])
         self.basis_stride = kwargs.get("basis_stride", 2)
         self.basis_path = kwargs.get("basis_path", None)
-        self.fft = kwargs.get("fourier", False)
-        self.fft_concat = kwargs.get("fourier_concat", False)
 
         if self.fft or self.gaussian:
             if mode is not Mode.XYZ_TO_XANES:
@@ -89,7 +88,7 @@ class BaseDataset(Dataset):
         self.preload_dataset = []
         self.file_names = None
 
-        self.setup_spectral_basis()
+        self.setup_gaussian_basis()
         self.set_file_names()
         self._process()
 
@@ -98,7 +97,6 @@ class BaseDataset(Dataset):
             "widths_eV": self.widths_eV,
             "basis_stride": self.basis_stride,
             "fourier": self.fft,
-            "fourier_concat": self.fft_concat,
         }
         self.register_config(locals())
 
@@ -261,13 +259,10 @@ class BaseDataset(Dataset):
         self.config.update(kwargs)
         self.config.update(selected)
 
-    def setup_spectral_basis(self):
-        if not self.gaussian:
-            return
-
+    def setup_gaussian_basis(self):
         if self.basis_path is not None:
-            logging.info(f">> Loading spectral basis from {self.basis_path}")
-            self.basis = torch.load(self.basis_path)
+            logging.info(f">> Loading Gaussian basis from {self.basis_path}")
+            self.gauss_basis = torch.load(self.basis_path)
             return
 
         if self.xanes_path:
@@ -283,14 +278,14 @@ class BaseDataset(Dataset):
             else:
                 raise ValueError(f"No XANES files were found in {path}.")
 
-            self.basis = SpectralBasis(
+            self.gauss_basis = GaussianBasis(
                 energies=e,
                 widths_eV=self.widths_eV,
                 normalize_atoms=True,
                 stride=self.basis_stride,
             )
         else:
-            raise ValueError("XANES path must be provided to set up spectral basis.")
+            raise ValueError("XANES path must be provided to set up Gaussian basis.")
 
     @staticmethod
     def unique_path(path) -> Path:
