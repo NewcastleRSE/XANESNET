@@ -23,9 +23,9 @@ from typing import Dict, List, Tuple
 import torch
 from torchinfo import summary
 
+from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
-from xanesnet.learners import Learner, LearnerRegistry
 from xanesnet.models import Model
 from xanesnet.strategies import Strategy, StrategyRegistry
 from xanesnet.utils.io import save_models
@@ -53,8 +53,9 @@ def train(config, args):
     model_list, train_time = _run_training(strategy)
 
     # Display model summary and training duration
-    _summary_model(model_list[0], dataset)
+    logging.info(f"Number of trained models: {len(model_list)}")
     logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
+    _summary_models(model_list, dataset)
 
     # Save model(s) and metadata to disk if requested
     # TODO check metadata saving !!!
@@ -148,18 +149,13 @@ def _run_training(strategy: Strategy) -> Tuple[List, float]:
 ###############################################################################
 
 
-# TODO Check this !!!
-def _summary_model(model: Model, dataset: Dataset) -> None:
-    logging.info("--- Model Summary ---")
+def _summary_models(model_list: List[Model], dataset: Dataset) -> None:
+    logging.info("Model Summary")
 
-    if model.aegan_flag:
-        dummy_x = torch.randn(1, dataset.x_size)
-        dummy_y = torch.randn(1, dataset.y_size)
-        input_data = (dummy_x, dummy_y)
-    elif model.batch_flag:
-        input_data = None
-    else:
-        dummy_x = torch.randn(1, dataset.x_size)
-        input_data = dummy_x
-
-    summary(model, input_data=input_data)
+    for idx, model in enumerate(model_list):
+        batchprocessor = BatchProcessorRegistry.get(dataset.dataset_type, model.model_type)
+        sample = dataset[0]
+        inputs = batchprocessor.input_preparation_single(sample)
+        logging.info(f"Model  {idx}:")
+        summary(model, input_data=inputs)
+        logging.info("")
