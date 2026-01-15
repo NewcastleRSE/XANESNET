@@ -21,10 +21,13 @@ from torch import nn
 
 class Loss(nn.Module):
 
-    def __init__(self, type: str):
+    def __init__(
+        self,
+        loss_type: str,
+    ):
         super().__init__()
 
-        self.type = type
+        self.loss_type = loss_type
 
     @abstractmethod
     def forward(self, preds, targets):

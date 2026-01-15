@@ -26,8 +26,11 @@ class DataSource(ABC):
     Abstract base class for data sources.
     """
 
-    def __init__(self, type: str):
-        self.type = type
+    def __init__(
+        self,
+        datasource_type: str,
+    ):
+        self.datasource_type = datasource_type
 
     @abstractmethod
     def __iter__(self):

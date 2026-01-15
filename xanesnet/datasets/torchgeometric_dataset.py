@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import torch_geometric as tg
+from torch_geometric.data import Batch
 
 from xanesnet.datasources import DataSource
 from xanesnet.utils.mode import Mode
@@ -34,14 +35,14 @@ class TorchGeometricDataset(Dataset, tg.data.Dataset):
 
     def __init__(
         self,
-        type: str,
+        dataset_type: str,
         datasource: DataSource,
         root: str,
         mode: Mode,
         preload: bool,
         params: dict,
     ):
-        super().__init__(type, datasource, root, mode, preload, params)
+        super().__init__(dataset_type, datasource, root, mode, preload, params)
 
     def get_dataloader(self):
         """Returns the dataloader class that should be used."""

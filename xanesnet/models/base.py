@@ -31,12 +31,12 @@ class Model(nn.Module):
 
     def __init__(
         self,
-        type: str,
+        model_type: str,
         params: dict,
     ):
         super().__init__()
 
-        self.type = type
+        self.model_type = model_type
         self.params = params
 
     @abstractmethod
@@ -52,7 +52,7 @@ class Model(nn.Module):
     def metadata(self) -> dict:
         """Return model metadata as a dictionary."""
         metadata = {
-            "type": self.type,
+            "model_type": self.model_type,
             "params": self.params,
         }
         return metadata

@@ -32,8 +32,13 @@ from .registry import DataSourceRegistry
 
 @DataSourceRegistry.register("xyzspec")
 class XYZSpecSource(DataSource):
-    def __init__(self, type: str, xyz_path: str, xanes_path: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        datasource_type: str,
+        xyz_path: str,
+        xanes_path: str,
+    ):
+        super().__init__(datasource_type)
 
         # ? Currently the paths cannot be None
         self.xyz_path = xyz_path

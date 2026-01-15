@@ -39,14 +39,14 @@ class Dataset(ABC):
 
     def __init__(
         self,
-        type: str,
+        dataset_type: str,
         datasource: DataSource,
         root: str,
         mode: Mode,
         preload: bool,
         params: dict,
     ):
-        self.type = type
+        self.dataset_type = dataset_type
         self.datasource = datasource
         self.root = root
         self.mode = mode
@@ -89,7 +89,7 @@ class Dataset(ABC):
     def metadata(self) -> dict:
         """Return dataset metadata as a dictionary."""
         metadata = {
-            "type": self.type,
+            "dataset_type": self.dataset_type,
             "mode": self.mode.name,
             "params": self.params,
         }

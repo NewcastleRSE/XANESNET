@@ -26,8 +26,11 @@ class BCEWithLogitsLoss(Loss):
     Computes binary cross-entropy loss with logits
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        loss_type: str,
+    ):
+        super().__init__(loss_type)
         self.loss = nn.BCEWithLogitsLoss()
 
     def forward(self, preds, targets):

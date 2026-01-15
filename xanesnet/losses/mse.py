@@ -26,8 +26,11 @@ class MSELoss(Loss):
     Computes the Mean Squared Error
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        loss_type: str,
+    ):
+        super().__init__(loss_type)
         self.loss = nn.MSELoss()
 
     def forward(self, preds, targets):

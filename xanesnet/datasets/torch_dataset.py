@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import torch
+from torch.utils.data._utils.collate import default_collate
 
 from xanesnet.datasources import DataSource
 from xanesnet.utils.mode import Mode
@@ -34,14 +35,14 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
 
     def __init__(
         self,
-        type: str,
+        dataset_type: str,
         datasource: DataSource,
         root: str,
         mode: Mode,
         preload: bool,
         params: dict,
     ):
-        super().__init__(type, datasource, root, mode, preload, params)
+        super().__init__(dataset_type, datasource, root, mode, preload, params)
 
     def get_dataloader(self):
         """Returns the dataloader class that should be used."""

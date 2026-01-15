@@ -21,10 +21,13 @@ from torch import nn
 
 class Regularizer(nn.Module):
 
-    def __init__(self, type: str):
+    def __init__(
+        self,
+        regularizer_type: str,
+    ):
         super().__init__()
 
-        self.type = type
+        self.regularizer_type = regularizer_type
 
     @abstractmethod
     def forward(self, model):

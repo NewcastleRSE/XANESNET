@@ -37,10 +37,10 @@ class WCCLoss(Loss):
 
     def __init__(
         self,
-        type: str,
+        loss_type: str,
         gaussian_hwhm: int = 10,
     ):
-        super().__init__(type)
+        super().__init__(loss_type)
         self.gaussian_hwhm = gaussian_hwhm
 
     def forward(self, y_true, y_pred):

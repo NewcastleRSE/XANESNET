@@ -26,8 +26,11 @@ class L2Reg(Regularizer):
     L2 regularization (sum of squared parameter values)
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        regularizer_type: str,
+    ):
+        super().__init__(regularizer_type)
 
     def forward(self, model):
         params = torch.cat([p.view(-1) for p in model.parameters()])

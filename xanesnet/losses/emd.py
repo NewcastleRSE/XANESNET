@@ -26,8 +26,11 @@ class EMDLoss(Loss):
     Computes the Earth Mover (Wasserstein) distance
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        loss_type: str,
+    ):
+        super().__init__(loss_type)
 
     def forward(self, preds, targets):
         return torch.mean(

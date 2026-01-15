@@ -21,13 +21,17 @@ from .registry import RegularizerRegistry
 
 
 @RegularizerRegistry.register("no")
+@RegularizerRegistry.register("none")
 class NoReg(Regularizer):
     """
     No regularization
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        regularizer_type: str,
+    ):
+        super().__init__(regularizer_type)
 
     def forward(self, model):
         return torch.tensor(0.0, device=next(model.parameters()).device)

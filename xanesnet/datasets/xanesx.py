@@ -59,7 +59,7 @@ class Data:
 class XanesXDataset(TorchDataset):
     def __init__(
         self,
-        type: str,
+        dataset_type: str,
         datasource: DataSource,
         root: str,
         mode: Mode,
@@ -68,7 +68,7 @@ class XanesXDataset(TorchDataset):
         descriptors: list,
     ):
         # Calling parent init
-        super().__init__(type, datasource, root, mode, preload, params)
+        super().__init__(dataset_type, datasource, root, mode, preload, params)
 
         # Some assertions
         if self.params.get("fourier", False) or self.params.get("gaussian", False):
@@ -79,10 +79,12 @@ class XanesXDataset(TorchDataset):
 
         # Create descriptors
         self.descriptor_list = []
-        descriptor_types = ", ".join(d["type"] for d in descriptors)
+        descriptor_types = ", ".join(d["descriptor_type"] for d in descriptors)
         logging.info(f"Initialising descriptors: {descriptor_types}")
         for descriptor_config in descriptors:
-            descriptor = DescriptorRegistry.get(descriptor_config["type"])(**descriptor_config.get("params", {}))
+            descriptor = DescriptorRegistry.get(descriptor_config["descriptor_type"])(
+                **descriptor_config.get("params", {})
+            )
             self.descriptor_list.append(descriptor)
 
         # Setup spectral basis only if needed

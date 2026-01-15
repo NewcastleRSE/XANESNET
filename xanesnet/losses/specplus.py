@@ -25,7 +25,7 @@ from .registry import LossRegistry
 class SpectralLossPlus(Loss):
     def __init__(
         self,
-        type: str,
+        loss_type: str,
         blur_sigma_bins: float = 5.0,
         alpha: float = 0.4,
         beta: float = 0.6,
@@ -33,7 +33,7 @@ class SpectralLossPlus(Loss):
         huber_delta: float = 0.01,
         kappa_peak: float = 0.15,
     ):
-        super().__init__(type)
+        super().__init__(loss_type)
         self.blur_sigma_bins = blur_sigma_bins
         self.alpha = alpha
         self.beta = beta

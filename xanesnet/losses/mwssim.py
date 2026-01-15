@@ -25,12 +25,12 @@ from .registry import LossRegistry
 class MultiWindowSSIMLoss(Loss):
     def __init__(
         self,
-        type: str,
+        loss_type: str,
         spec_size,
         weights,
         fractions,
     ):
-        super().__init__(type)
+        super().__init__(loss_type)
 
         self.fractions = fractions
         self.weights = weights

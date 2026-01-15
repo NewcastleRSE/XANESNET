@@ -26,8 +26,11 @@ class L1Loss(Loss):
     Computes the L1 loss
     """
 
-    def __init__(self, type: str):
-        super().__init__(type)
+    def __init__(
+        self,
+        loss_type: str,
+    ):
+        super().__init__(loss_type)
         self.loss = nn.L1Loss()
 
     def forward(self, preds, targets):
