@@ -1,12 +1,12 @@
 seed: 2025
 
 datasource:
-  type: xyzspec
+  datasource_type: xyzspec
   xyz_path: .github/workflows/data/fe/xyz_train
   xanes_path: .github/workflows/data/fe/xanes_train
 
 dataset:
-  type: xanesx
+  dataset_type: xanesx
   root: .github/workflows/data/fe/processed_train
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   params:
@@ -16,7 +16,7 @@ dataset:
     widths_eV: [0.5, 1.0, 2.0, 4.0]
     basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
   descriptors:
-    - type: wacsf
+    - descriptor_type: wacsf
       params:
         r_min: 1.0
         r_max: 6.0
@@ -24,7 +24,7 @@ dataset:
         n_g4: 32
 
 model:
-  type: mlp
+  model_type: mlp
   params:
     hidden_size: 256
     dropout: 0.1
@@ -35,35 +35,50 @@ model:
     weights: xavier_uniform
     bias: zeros
 
-hyperparams:
-  epochs: 10
-  batch_size: 3
-  lr: 0.001
-  optim_fn: Adam
-  seed: 2021
-  loss: mse
-  loss_reg: None #None L1 L2
-  loss_lambda: 0.001
-
-kfold: False
-kfold_params:
-  n_splits: 2
-  n_repeats: 1
-  seed: 2021
-
-bootstrap: False
-bootstrap_params:
-  n_boot: 3
-  n_size: 1.0
-  weight_seed: [97, 39, 22]
-
-ensemble: False
-ensemble_params:
-  n_ens: 3
-  weight_seed: [97, 39, 22]
+learner:
+  learner_type: nnlearner
+  params:
+    epochs: 10
+    batch_size: 3
+    learning_rate: 0.001
+    optimizer: Adam
+    loss:
+      loss_type: mse
+    regularizer:
+      regularizer_type: none
+      
+    loss_lambda: 0.001
+  
+strategy:
+  strategy_type: single
 
 lr_scheduler: False
 scheduler_params:
-  type: step
+  scheduler_type: step
   step_size: 1
   gamma: 0.1
+
+
+# Other strategies
+# // strategy:
+# //   type: kfold
+# //   params:
+# //     n_splits: 2
+# //     n_repeats: 1
+# //     seed: 2021
+
+# // strategy:
+# //   type: bootstrap
+# //   params:
+# //     n_boot: 3
+# //     n_size: 1.0
+# //     weight_seed: [97, 39, 22]
+
+# // strategy: 
+# //   type: ensemble
+# //   params:
+# //     n_ens: 3
+# //     weight_seed: [97, 39, 22]
+
+
+
