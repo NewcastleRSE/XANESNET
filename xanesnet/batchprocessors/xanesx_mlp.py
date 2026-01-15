@@ -24,5 +24,11 @@ class XanesXMLP(BatchProcessor):
     def input_preparation(self, batch):
         return batch.x
 
+    def input_preparation_single(self, sample):
+        return sample.x.unsqueeze(0)
+
     def target_preparation(self, batch):
         return batch.y
+
+    def target_preparation_single(self, sample):
+        return sample.y.unsqueeze(0)
