@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from xanesnet.datasets import Dataset
+
 from .base import Strategy
 from .registry import StrategyRegistry
 
@@ -23,10 +25,21 @@ class Ensemble(Strategy):
 
     def __init__(
         self,
-        type: str,
-        params: dict,
+        strategy_type: str,
+        dataset: Dataset,
+        model_config: dict,
+        learner_config: dict,
+        params: dict = {},
     ):
-        super().__init__(type, params)
+        super().__init__(strategy_type, dataset, model_config, learner_config, params)
+
+    def setup_models(self):
+        pass  # TODO Implement
+
+    def setup_learners(self):
+        pass  # TODO Implement
 
     def run_training(self):
+        super().run_training()
+
         return []  # TODO Implement
