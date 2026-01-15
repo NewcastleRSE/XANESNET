@@ -96,10 +96,13 @@ class Learner(ABC):
             predictions = self.model(inputs)
 
             # Target
-            targets = None  # TODO
+            targets = self.batchprocessor.target_preparation(batch)
 
             # Criterion
             loss = self.loss(predictions, targets)
+
+            # Regularization
+            # TODO add regularizer
 
             # Gradient computation
             loss.backward()
@@ -153,6 +156,11 @@ class Learner(ABC):
         return regularizer
 
     def _log_epoch_loss(self, epoch, train_loss, valid_loss=None):
-        logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}")
+        # TODO better logging?
+
+        if valid_loss is not None:
+            logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f} | Valid Loss: {valid_loss:.6f}")
+        else:
+            logging.info(f"Epoch {epoch + 1:03d} | Train Loss: {train_loss:.6f}")
 
         # TODO mlflow|tensorboard logging?

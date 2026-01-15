@@ -25,4 +25,4 @@ class XanesXMLP(BatchProcessor):
         return batch.x
 
     def target_preparation(self, batch):
-        return None  # TODO Implement
+        return batch.y

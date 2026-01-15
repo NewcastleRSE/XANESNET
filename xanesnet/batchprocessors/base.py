@@ -31,7 +31,7 @@ class BatchProcessor(ABC):
         pass
 
     @abstractmethod
-    def target_preparation(self, batch):
+    def target_preparation(self, predictions):
         """
         Prepares the model targets from a batch.
         """
