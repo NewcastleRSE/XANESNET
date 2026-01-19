@@ -18,12 +18,16 @@ from enum import Enum
 
 
 class Mode(Enum):
-    FORWARD = ["train_forward", "predict_forward"]
-    REVERSE = ["train_reverse", "predict_reverse"]
-    BIDIRECTIONAL = ["train_bidirectional", "predict_bidirectional"]
+    FORWARD = ["forward"]
+    REVERSE = ["reverse"]
+    BIDIRECTIONAL = ["bidirectional"]
+
+    def __str__(self):
+        return self.value[0]
 
 
 def get_mode(mode_str: str) -> Mode:
+    mode_str = mode_str.lower()
     for mode in Mode:
         if mode_str in mode.value:
             return mode

@@ -1,5 +1,6 @@
 seed: 2025
 device: cuda
+mode: forward
 
 datasource:
   datasource_type: xyzspec

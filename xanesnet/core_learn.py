@@ -40,8 +40,10 @@ def train(config, args):
     """
     Main training entry
     """
-    logging.info(f"Training mode: {args.mode}")
-    mode = get_mode(args.mode)
+    mode = get_mode(config.get("mode", None))
+    if mode is None:
+        raise ValueError("No mode specified in configuration file. Choose between: 'forward', 'inverse'.")
+    logging.info(f"Training mode: {mode}")
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, mode, datasource)
@@ -158,4 +160,3 @@ def _summary_models(model_list: List[Model], dataset: Dataset) -> None:
         inputs = batchprocessor.input_preparation_single(sample)
         logging.info(f"Model  {idx}:")
         summary(model, input_data=inputs)
-        logging.info("")
