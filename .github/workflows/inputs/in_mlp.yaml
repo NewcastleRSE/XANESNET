@@ -1,4 +1,5 @@
 seed: 2025
+device: cuda
 
 datasource:
   datasource_type: xyzspec

@@ -36,7 +36,7 @@ class Ensemble(Strategy):
     def setup_models(self):
         pass  # TODO Implement
 
-    def setup_learners(self):
+    def setup_learners(self, device: str):
         pass  # TODO Implement
 
     def run_training(self):

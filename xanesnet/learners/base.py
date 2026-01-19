@@ -32,13 +32,14 @@ class Learner(ABC):
         params: dict,
         dataset: Dataset,
         model: Model,
+        device: str,
     ):
         self.learner_type = learner_type
         self.params = params
         self.dataset = dataset
         self.model = model
 
-        self.device = "cuda"  # TODO add global device config
+        self.device = device
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()

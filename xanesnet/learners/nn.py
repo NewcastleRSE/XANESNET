@@ -29,5 +29,6 @@ class NNLearner(Learner):
         params: dict,
         dataset: Dataset,
         model: Model,
+        device: str,
     ):
-        super().__init__(learner_type, params, dataset, model)
+        super().__init__(learner_type, params, dataset, model, device)

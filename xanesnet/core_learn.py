@@ -47,7 +47,7 @@ def train(config, args):
     dataset = _setup_dataset(config, mode, datasource)
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
-    strategy.setup_learners()
+    strategy.setup_learners(config.get("device", "cpu"))
 
     # Main training
     model_list, train_time = _run_training(strategy)

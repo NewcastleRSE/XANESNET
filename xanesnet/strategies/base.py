@@ -47,7 +47,7 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
-    def setup_learners(self):
+    def setup_learners(self, device: str):
         """
         Instantiates the learners that will be used for training.
         This method should be implemented by all subclasses.

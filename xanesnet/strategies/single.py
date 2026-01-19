@@ -63,12 +63,17 @@ class Single(Strategy):
 
         self.model = model
 
-    def setup_learners(self):
+    def setup_learners(self, device: str):
         learner_type = self.learner_config["learner_type"]
 
         logging.info(f"Initialising learner: {learner_type}")
 
-        learner = LearnerRegistry.get(learner_type)(**self.learner_config, dataset=self.dataset, model=self.model)
+        learner = LearnerRegistry.get(learner_type)(
+            **self.learner_config,
+            dataset=self.dataset,
+            model=self.model,
+            device=device,
+        )
 
         self.learner = learner
 

@@ -112,7 +112,7 @@ def main(args: list[str]):
     if seed is None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)
-    logging.info(f"Global random seed set to: {seed}")
+    logging.info(f"Global seed: {seed}")
 
     # Branching into training or prediction mode
     if "train" in args.mode:
