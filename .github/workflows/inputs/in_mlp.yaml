@@ -37,8 +37,8 @@ model:
     weights: xavier_uniform
     bias: zeros
 
-learner:
-  learner_type: nnlearner
+trainer:
+  trainer_type: nntrainer
   params:
     epochs: 10
     batch_size: 3
