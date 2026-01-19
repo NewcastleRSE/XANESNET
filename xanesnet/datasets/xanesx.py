@@ -78,6 +78,7 @@ class XanesXDataset(TorchDataset):
                 raise NotImplementedError("Fourier and Gaussian features cannot be used together.")
 
         # Create descriptors
+        self.descriptor_configs = descriptors
         self.descriptor_list = []
         descriptor_types = ", ".join(d["descriptor_type"] for d in descriptors)
         logging.info(f"Initialising descriptors: {descriptor_types}")
@@ -174,6 +175,7 @@ class XanesXDataset(TorchDataset):
         out_size = 0 if feature is None else len(feature)
 
         metadata.update({"in_size": in_size, "out_size": out_size})
+        metadata.update({"descriptors": self.descriptor_configs})
 
         return metadata
 

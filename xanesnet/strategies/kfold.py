@@ -43,3 +43,6 @@ class KFold(Strategy):
         super().run_training()
 
         return []  # TODO Implement
+
+    def model_metadata(self) -> dict:
+        pass  # TODO Implement

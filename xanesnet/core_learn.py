@@ -28,7 +28,7 @@ from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils.io import save_models
+from xanesnet.utils.io import copy_yaml, save_dict_as_yaml, save_models
 from xanesnet.utils.mode import Mode, get_mode
 
 ###############################################################################
@@ -36,7 +36,7 @@ from xanesnet.utils.mode import Mode, get_mode
 ###############################################################################
 
 
-def train(config, args):
+def train(config, args, save_dir: Path):
     """
     Main training entry
     """
@@ -51,6 +51,19 @@ def train(config, args):
     strategy.setup_models()
     strategy.setup_learners(config.get("device", "cpu"))
 
+    # Save config and metadata
+    if args.save:
+        config_save_path = copy_yaml(args.in_file, save_dir, new_name="train_config.yaml")
+        logging.info(f"Configuration file saved to: {config_save_path}")
+        metadata = {
+            "mode": str(mode),
+            "dataset": dataset.metadata,
+            "model": strategy.model_metadata,
+            "strategy": strategy.metadata,
+        }
+        metadata_save_path = save_dict_as_yaml(metadata, save_dir / "models", "metadata")
+        logging.info(f"Metadata saved to: {metadata_save_path}")
+
     # Main training
     model_list, train_time = _run_training(strategy)
 
@@ -59,16 +72,10 @@ def train(config, args):
     logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
     _summary_models(model_list, dataset)
 
-    # Save model(s) and metadata to disk if requested
-    # TODO check metadata saving !!!
+    # Save model(s)
     if args.save:
-        metadata = {
-            "mode": args.mode,
-            "dataset": dataset.config,
-            "model": None,  # TODO
-            "scheme": None,  # TODO
-        }
-        save_models(Path("models"), model_list, metadata, dataset.basis)  # TODO
+        save_models(save_dir / "models", model_list)
+        logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
 
 
 ###############################################################################

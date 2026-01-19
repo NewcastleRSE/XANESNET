@@ -83,3 +83,10 @@ class Single(Strategy):
         _ = self.learner.train()  # TODO should we do something with the returned score?
 
         return [self.model]
+
+    @property
+    def model_metadata(self) -> dict:
+        if self.model is None:
+            raise ValueError("Model is not initialized. Cannot retrieve metadata.")
+
+        return self.model.metadata

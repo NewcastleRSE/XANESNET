@@ -64,3 +64,23 @@ class Strategy(ABC):
         """
 
         logging.info("Start strategy...")
+
+    @property
+    @abstractmethod
+    def model_metadata(self) -> dict:
+        """
+        Return model metadata as a dictionary.
+        This method should be implemented by all subclasses.
+        """
+        pass
+
+    @property
+    def metadata(self) -> dict:
+        """
+        Returns strategy metadata as a dictionary.
+        """
+
+        return {
+            "strategy_type": self.strategy_type,
+            # TODO add more metadata?
+        }
