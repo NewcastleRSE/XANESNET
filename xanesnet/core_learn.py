@@ -28,7 +28,12 @@ from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils.io import copy_yaml, save_dict_as_yaml, save_models
+from xanesnet.utils.io import (
+    copy_yaml,
+    save_checkpoints,
+    save_dict_as_yaml,
+    save_models,
+)
 from xanesnet.utils.mode import Mode, get_mode
 
 ###############################################################################
@@ -75,6 +80,7 @@ def train(config, args, save_dir: Path):
     # Save model(s)
     if args.save:
         save_models(save_dir / "models", model_list)
+        save_checkpoints(save_dir / "models", model_list, metadata=metadata, name="final")
         logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
 
 

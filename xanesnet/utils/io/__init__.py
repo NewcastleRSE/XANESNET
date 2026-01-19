@@ -14,8 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from .checkpoints import Checkpoint, save_checkpoint, save_checkpoints
 from .config import copy_yaml, save_dict_as_yaml
-from .models import load_pretrained_model, save_models
+from .models import load_pretrained_model, save_model, save_models
 from .paths import create_run_dir, create_subfolders, list_filestems
 
 __all__ = [
@@ -23,7 +24,11 @@ __all__ = [
     "list_filestems",
     "load_pretrained_model",
     "save_models",
+    "save_model",
     "copy_yaml",
     "save_dict_as_yaml",
     "create_subfolders",
+    "Checkpoint",
+    "save_checkpoint",
+    "save_checkpoints",
 ]

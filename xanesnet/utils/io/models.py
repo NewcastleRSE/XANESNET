@@ -19,11 +19,7 @@ import torch
 from xanesnet.models import Model
 
 
-def load_pretrained_model():
-    raise NotImplementedError("Pretrained model loading not implemented yet.")
-
-
-def _save_model(dst_dir, model: Model):
+def save_model(dst_dir, model: Model):
     torch.save(model.state_dict(), dst_dir / "model_weights.pth")
 
 
@@ -32,9 +28,13 @@ def save_models(dst_dir, model_list: list[Model]):
     if len(model_list) == 0:
         raise ValueError("No models to save.")
     elif len(model_list) == 1:
-        _save_model(dst_dir, model_list[0])
+        save_model(dst_dir, model_list[0])
     else:
         for idx, model in enumerate(model_list):
             model_dir = dst_dir / f"model_{idx}"
             model_dir.mkdir(parents=True, exist_ok=True)
-            _save_model(model_dir, model)
+            save_model(model_dir, model)
+
+
+def load_pretrained_model():
+    raise NotImplementedError("Pretrained model loading not implemented yet.")
