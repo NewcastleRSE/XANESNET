@@ -29,13 +29,13 @@ class Strategy(ABC):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        learner_config: dict,
+        trainer_config: dict,
         params: dict = {},
     ):
         self.strategy_type = strategy_type
         self.dataset = dataset
         self.model_config = model_config
-        self.learner_config = learner_config
+        self.trainer_config = trainer_config
         self.params = params
 
     @abstractmethod
@@ -47,9 +47,9 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
-    def setup_learners(self, device: str):
+    def setup_trainers(self, device: str):
         """
-        Instantiates the learners that will be used for training.
+        Instantiates the trainers that will be used for training.
         This method should be implemented by all subclasses.
         """
         pass

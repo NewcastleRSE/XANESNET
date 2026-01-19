@@ -14,12 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Learner
-from .nn import NNLearner
-from .registry import LearnerRegistry
+from .base import Trainer
+from .nn import NNTrainer
+from .registry import TrainerRegistry
 
 __all__ = [
-    "Learner",
-    "NNLearner",
-    "LearnerRegistry",
+    "Trainer",
+    "NNTrainer",
+    "TrainerRegistry",
 ]

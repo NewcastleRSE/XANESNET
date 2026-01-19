@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-class LearnerRegistry:
+class TrainerRegistry:
     _registry = {}
 
     @classmethod
@@ -24,7 +24,7 @@ class LearnerRegistry:
 
         def decorator(ds_cls):
             if name in cls._registry:
-                raise KeyError(f"Learner '{name}' already registered")
+                raise KeyError(f"Trainer '{name}' already registered")
             cls._registry[name] = ds_cls
             return ds_cls
 
@@ -35,7 +35,7 @@ class LearnerRegistry:
         name = name.lower()
 
         if name not in cls._registry:
-            raise KeyError(f"Learner '{name}' not found in registry")
+            raise KeyError(f"Trainer '{name}' not found in registry")
         return cls._registry[name]
 
     @classmethod

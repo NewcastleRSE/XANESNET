@@ -20,13 +20,13 @@ from argparse import ArgumentParser
 import yaml
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
-from xanesnet.core_learn import train
+from xanesnet.core_train import train
 from xanesnet.datasets import DatasetRegistry
 from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
-from xanesnet.learners import LearnerRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.strategies import StrategyRegistry
+from xanesnet.trainers import TrainerRegistry
 from xanesnet.utils.io import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.random import set_global_seed
@@ -90,7 +90,7 @@ def main(args: list[str]):
     logging.debug(f"\tDatasets: {DatasetRegistry.list()}")
     logging.debug(f"\tDescriptors: {DescriptorRegistry.list()}")
     logging.debug(f"\tModels: {ModelRegistry.list()}")
-    logging.debug(f"\tLearners: {LearnerRegistry.list()}")
+    logging.debug(f"\tTrainers: {TrainerRegistry.list()}")
     logging.debug(f"\tBatchProcessers: {BatchProcessorRegistry.list()}")
     logging.debug(f"\tStrategies: {StrategyRegistry.list()}")
 

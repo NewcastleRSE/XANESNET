@@ -17,8 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 
 from xanesnet.datasets import Dataset
-from xanesnet.learners import LearnerRegistry
 from xanesnet.models import ModelRegistry, PretrainedModels
+from xanesnet.trainers import TrainerRegistry
 from xanesnet.utils.io import load_pretrained_model
 
 from .base import Strategy
@@ -33,10 +33,10 @@ class Single(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        learner_config: dict,
+        trainer_config: dict,
         params: dict = {},
     ):
-        super().__init__(strategy_type, dataset, model_config, learner_config, params)
+        super().__init__(strategy_type, dataset, model_config, trainer_config, params)
 
     def setup_models(self):
         model_type = self.model_config["model_type"]
@@ -63,24 +63,24 @@ class Single(Strategy):
 
         self.model = model
 
-    def setup_learners(self, device: str):
-        learner_type = self.learner_config["learner_type"]
+    def setup_trainers(self, device: str):
+        trainer_type = self.trainer_config["trainer_type"]
 
-        logging.info(f"Initialising learner: {learner_type}")
+        logging.info(f"Initialising trainer: {trainer_type}")
 
-        learner = LearnerRegistry.get(learner_type)(
-            **self.learner_config,
+        trainer = TrainerRegistry.get(trainer_type)(
+            **self.trainer_config,
             dataset=self.dataset,
             model=self.model,
             device=device,
         )
 
-        self.learner = learner
+        self.trainer = trainer
 
     def run_training(self):
         super().run_training()
 
-        _ = self.learner.train()  # TODO should we do something with the returned score?
+        _ = self.trainer.train()  # TODO should we do something with the returned score?
 
         return [self.model]
 

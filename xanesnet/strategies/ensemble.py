@@ -28,15 +28,15 @@ class Ensemble(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        learner_config: dict,
+        trainer_config: dict,
         params: dict = {},
     ):
-        super().__init__(strategy_type, dataset, model_config, learner_config, params)
+        super().__init__(strategy_type, dataset, model_config, trainer_config, params)
 
     def setup_models(self):
         pass  # TODO Implement
 
-    def setup_learners(self, device: str):
+    def setup_trainers(self, device: str):
         pass  # TODO Implement
 
     def run_training(self):

@@ -25,16 +25,16 @@ from xanesnet.registry import OptimizerRegistry
 from xanesnet.regularizers import RegularizerRegistry
 
 
-class Learner(ABC):
+class Trainer(ABC):
     def __init__(
         self,
-        learner_type: str,
+        trainer_type: str,
         params: dict,
         dataset: Dataset,
         model: Model,
         device: str,
     ):
-        self.learner_type = learner_type
+        self.trainer_type = trainer_type
         self.params = params
         self.dataset = dataset
         self.model = model

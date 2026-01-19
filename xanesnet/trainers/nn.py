@@ -17,18 +17,18 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
 
-from .base import Learner
-from .registry import LearnerRegistry
+from .base import Trainer
+from .registry import TrainerRegistry
 
 
-@LearnerRegistry.register("nnlearner")
-class NNLearner(Learner):
+@TrainerRegistry.register("nntrainer")
+class NNTrainer(Trainer):
     def __init__(
         self,
-        learner_type: str,
+        trainer_type: str,
         params: dict,
         dataset: Dataset,
         model: Model,
         device: str,
     ):
-        super().__init__(learner_type, params, dataset, model, device)
+        super().__init__(trainer_type, params, dataset, model, device)

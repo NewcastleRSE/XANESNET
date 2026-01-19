@@ -54,7 +54,7 @@ def train(config, args, save_dir: Path):
     dataset = _setup_dataset(config, mode, datasource)
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
-    strategy.setup_learners(config.get("device", "cpu"))
+    strategy.setup_trainers(config.get("device", "cpu"))
 
     # Save config and metadata
     if args.save:
@@ -118,20 +118,20 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
 
 def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
     """
-    Initialises the learning strategy.
+    Initialises the training strategy.
     """
     strategy_config = config["strategy"]
     strategy_type = strategy_config["strategy_type"]
 
     model_config = config["model"]
-    learner_config = config["learner"]
+    trainer_config = config["trainer"]
 
     logging.info(f"Initialising strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config,
         dataset=dataset,
         model_config=model_config,
-        learner_config=learner_config,
+        trainer_config=trainer_config,
     )
 
     return strategy
