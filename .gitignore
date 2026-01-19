@@ -24,3 +24,4 @@ data/graph-set/xyz_train/graph
 tests/data/xyz/graph
 tests/data/xyz_predict/graph
 .idea/
+runs/
