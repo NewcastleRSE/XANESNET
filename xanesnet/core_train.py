@@ -54,20 +54,21 @@ def train(config, args, save_dir: Path):
     dataset = _setup_dataset(config, mode, datasource)
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
+    strategy.init_model_weights()
     strategy.setup_trainers(config.get("device", "cpu"))
 
-    # Save config and metadata
+    # Save training config and signature
     if args.save:
         config_save_path = copy_yaml(args.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
-        metadata = {
+        signature = {
             "mode": str(mode),
-            "dataset": dataset.metadata,
-            "model": strategy.model_metadata,
-            "strategy": strategy.metadata,
+            "dataset": dataset.signature,
+            "model": strategy.model_signature,
+            "strategy": strategy.signature,
         }
-        metadata_save_path = save_dict_as_yaml(metadata, save_dir / "models", "metadata")
-        logging.info(f"Metadata saved to: {metadata_save_path}")
+        signature_save_path = save_dict_as_yaml(signature, save_dir / "models", "signature")
+        logging.info(f"Signature saved to: {signature_save_path}")
 
     # Main training
     model_list, train_time = _run_training(strategy)
@@ -80,7 +81,7 @@ def train(config, args, save_dir: Path):
     # Save model(s)
     if args.save:
         save_models(save_dir / "models", model_list)
-        save_checkpoints(save_dir / "models", model_list, metadata=metadata, name="final")
+        save_checkpoints(save_dir / "models", model_list, signature=signature, name="final")
         logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
 
 
@@ -144,7 +145,7 @@ def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
 
 def _run_training(strategy: Strategy) -> Tuple[List, float]:
     """
-    Train using the selected training scheme.
+    Train using the selected training strategy.
     """
     start_time = time.time()
 

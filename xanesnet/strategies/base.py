@@ -67,20 +67,20 @@ class Strategy(ABC):
 
     @property
     @abstractmethod
-    def model_metadata(self) -> dict:
+    def model_signature(self) -> dict:
         """
-        Return model metadata as a dictionary.
+        Return model signature as a dictionary.
         This method should be implemented by all subclasses.
         """
         pass
 
     @property
-    def metadata(self) -> dict:
+    def signature(self) -> dict:
         """
-        Returns strategy metadata as a dictionary.
+        Returns strategy signature as a dictionary.
         """
 
         return {
             "strategy_type": self.strategy_type,
-            # TODO add more metadata?
+            # TODO more signature entries?
         }

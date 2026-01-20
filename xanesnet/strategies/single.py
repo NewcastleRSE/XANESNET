@@ -85,8 +85,8 @@ class Single(Strategy):
         return [self.model]
 
     @property
-    def model_metadata(self) -> dict:
+    def model_signature(self) -> dict:
         if self.model is None:
-            raise ValueError("Model is not initialized. Cannot retrieve metadata.")
+            raise ValueError("Model is not initialized. Cannot retrieve signature.")
 
-        return self.model.metadata
+        return self.model.signature

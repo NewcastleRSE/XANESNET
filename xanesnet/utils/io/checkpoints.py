@@ -15,61 +15,64 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, Optional
+from pathlib import Path
 
 import torch
+
+from xanesnet.models import Model
 
 
 @dataclass
 class Checkpoint:
-    model_state: Dict[str, Any]
-    metadata: Dict[str, Any]
-    optimizer_state: Optional[Dict[str, Any]] = None
-    epoch: Optional[int] = None
+    model_states: list[dict]
+    signature: dict
+    optimizer_states: list[dict] | None = None
+    epochs: list[int] | None = None
 
-    def save(self, path):
+    def save(self, path: str | Path):
         """Save checkpoint as a .pth file"""
         torch.save(asdict(self), path)
 
     @classmethod
-    def load(cls, path, map_location="cpu"):
+    def load(cls, path: str | Path, map_location: str = "cpu") -> "Checkpoint":
         """Load checkpoint from a file"""
         data = torch.load(path, map_location=map_location)
         return cls(**data)
 
 
-def save_checkpoint(dst_dir, model, metadata, optimizer_state=None, epoch=None, name=None):
-    checkpoint = Checkpoint(
-        model_state=model.state_dict(),
-        metadata=metadata,
-        optimizer_state=optimizer_state,
-        epoch=epoch,
+def save_checkpoint(
+    dst_dir: str | Path,
+    model: Model,
+    signature: dict,
+    optimizer_state: dict | None = None,
+    epoch: int | None = None,
+    name: str | None = None,
+):
+    save_checkpoints(
+        dst_dir=dst_dir,
+        model_list=[model],
+        signature=signature,
+        optimizer_states=[optimizer_state] if optimizer_state is not None else None,
+        epochs=[epoch] if epoch is not None else None,
+        name=name,
     )
-    if name:
-        checkpoint.save(dst_dir / f"{name}.pth")
-    else:
-        checkpoint.save(dst_dir / "checkpoint.pth")
 
 
-def save_checkpoints(dst_dir, model_list, metadata, optimizer_states=None, epochs=None, name=None):
+def save_checkpoints(
+    dst_dir: str | Path,
+    model_list: list[Model],
+    signature: dict,
+    optimizer_states: list[dict] | None = None,
+    epochs: list[int] | None = None,
+    name: str | None = None,
+):
     if len(model_list) == 0:
         raise ValueError("No models to save.")
-    elif len(model_list) == 1:
-        save_checkpoint(
-            dst_dir,
-            model_list[0],
-            metadata,
-            optimizer_state=optimizer_states[0] if optimizer_states else None,
-            epoch=epochs[0] if epochs else None,
-            name=name,
-        )
     else:
-        for idx, model in enumerate(model_list):
-            save_checkpoint(
-                dst_dir,
-                model,
-                metadata,
-                optimizer_state=optimizer_states[idx] if optimizer_states else None,
-                epoch=epochs[idx] if epochs else None,
-                name=f"{idx}_{name}" if name else f"{idx}",
-            )
+        checkpoint = Checkpoint(
+            model_states=[model.state_dict() for model in model_list],
+            signature=signature,
+            optimizer_states=optimizer_states,
+            epochs=epochs,
+        )
+        checkpoint.save(dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth")

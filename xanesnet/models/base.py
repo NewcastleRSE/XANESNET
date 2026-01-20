@@ -48,11 +48,11 @@ class Model(nn.Module):
         return
 
     @property
-    @abstractmethod
-    def metadata(self) -> dict:
-        """Return model metadata as a dictionary."""
-        metadata = {
+    def signature(self) -> dict:
+        """Return model signature as a dictionary."""
+        signature = {
             "model_type": self.model_type,
             "params": self.params,
         }
-        return metadata
+        signature["params"].pop("model_type", None)  # Remove redundant model_type from params
+        return signature

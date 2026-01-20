@@ -162,6 +162,17 @@ class XanesXDataset(TorchDataset):
             )
 
     @property
+    def signature(self) -> dict:
+        """Return dataset signature as a dictionary."""
+        signature = super().signature
+        signature.update(
+            {
+                "descriptors": self.descriptor_configs,
+            }
+        )
+        return signature
+
+    @property
     def metadata(self) -> dict:
         """Return dataset metadata as a dictionary."""
         metadata = super().metadata
@@ -175,8 +186,6 @@ class XanesXDataset(TorchDataset):
         out_size = 0 if feature is None else len(feature)
 
         metadata.update({"in_size": in_size, "out_size": out_size})
-        metadata.update({"descriptors": self.descriptor_configs})
-
         return metadata
 
     def collate_fn(self, batch):

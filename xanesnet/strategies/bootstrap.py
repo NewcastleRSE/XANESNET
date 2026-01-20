@@ -44,5 +44,5 @@ class Bootstrap(Strategy):
 
         return []  # TODO Implement
 
-    def model_metadata(self) -> dict:
+    def model_signature(self) -> dict:
         pass  # TODO Implement

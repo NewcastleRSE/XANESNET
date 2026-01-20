@@ -28,6 +28,8 @@ dataset:
 model:
   model_type: mlp
   params:
+    in_size: 49
+    out_size: 226
     hidden_size: 256
     dropout: 0.1
     num_hidden_layers: 3

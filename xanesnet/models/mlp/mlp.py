@@ -49,7 +49,6 @@ class MLP(Model):
         num_hidden_layers: int = 3,
         shrink_rate: float = 1.0,
         activation: str = "relu",
-        **_,  # ignore additional parameters (might come from dataset metadata)
     ):
         """
         Args:

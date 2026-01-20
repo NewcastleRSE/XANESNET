@@ -85,14 +85,18 @@ class Dataset(ABC):
         return None
 
     @property
-    @abstractmethod
-    def metadata(self) -> dict:
-        """Return dataset metadata as a dictionary."""
-        metadata = {
+    def signature(self) -> dict:
+        """Return dataset signature as a dictionary."""
+        signature = {
             "dataset_type": self.dataset_type,
-            "mode": self.mode.name,
             "params": self.params,
         }
+        return signature
+
+    @property
+    def metadata(self) -> dict:
+        """Return dataset metadata as a dictionary."""
+        metadata = {}
         return metadata
 
     @property
