@@ -29,25 +29,25 @@ class BatchProcessor(ABC):
         """
         Prepares the model inputs from a batch.
         """
-        pass
+        ...
 
     @abstractmethod
     def input_preparation_single(self, sample: Any) -> Any:
         """
         Prepares the model inputs from a single sample.
         """
-        pass
+        ...
 
     @abstractmethod
     def target_preparation(self, batch: Any) -> Any:
         """
         Prepares the model targets from a batch.
         """
-        pass
+        ...
 
     @abstractmethod
     def target_preparation_single(self, sample: Any) -> Any:
         """
         Prepares the model targets from a single sample.
         """
-        pass
+        ...
