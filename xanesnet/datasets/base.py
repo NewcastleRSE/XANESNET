@@ -17,9 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Any
 
-import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -34,7 +33,6 @@ from xanesnet.utils.mode import Mode
 class Dataset(ABC):
     """
     Abstract base class for datasets.
-    All dataset classes should inherit from this class and implement the required methods.
     """
 
     def __init__(
@@ -44,8 +42,8 @@ class Dataset(ABC):
         root: str,
         mode: Mode,
         preload: bool,
-        params: dict,
-    ):
+        params: dict[str, Any],
+    ) -> None:
         self.dataset_type = dataset_type
         self.datasource = datasource
         self.root = root
@@ -54,13 +52,12 @@ class Dataset(ABC):
         self.params = params
 
         # preloaded dataset
-        self.inmemory_dataset = None
+        self.inmemory_dataset: list[Any] = []
 
     @abstractmethod
     def process(self) -> bool:
         """
         Process the raw data and prepare it for use in the model.
-        This method should be implemented by all subclasses.
         """
         # Check if processing already done
         if all(os.path.exists(f) for f in self.processed_files):
@@ -68,25 +65,33 @@ class Dataset(ABC):
             return True
         if os.listdir(self.processed_dir):
             logging.warning("Processed data directory is not empty! Make sure this is intended.")
+
         return False
 
-    def check_preload(self) -> List[torch.Tensor]:
-        """Preload the entire dataset into memory."""
+    def check_preload(self) -> bool:
+        """
+        Preload the entire dataset into memory.
+        """
         if self.preload:
             logging.info(f"Preloading entire dataset into memory. (# Samples: {len(self)})")
             preload_data = []
             for file in tqdm(self.processed_files, desc="Preloading dataset", total=len(self)):
                 preload_data.append(torch.load(file))
             self.inmemory_dataset = preload_data
+        return self.preload
 
     @abstractmethod
-    def get_dataloader(self):
-        """Returns the dataloader class that should be used."""
-        return None
+    def get_dataloader(self) -> Any:
+        """
+        Returns the dataloader class that should be used.
+        """
+        ...
 
     @property
-    def signature(self) -> dict:
-        """Return dataset signature as a dictionary."""
+    def signature(self) -> dict[str, Any]:
+        """
+        Return dataset signature as a dictionary.
+        """
         signature = {
             "dataset_type": self.dataset_type,
             "params": self.params,
@@ -94,43 +99,45 @@ class Dataset(ABC):
         return signature
 
     @property
-    def metadata(self) -> dict:
-        """Return dataset metadata as a dictionary."""
+    def metadata(self) -> dict[str, Any]:
+        """
+        Return dataset metadata as a dictionary.
+        """
         metadata = {}
         return metadata
 
     @property
     def processed_dir(self) -> str:
-        """Path to the processed data directory."""
+        """
+        Path to the processed data directory.
+        """
         return os.path.join(self.root, "processed")
 
     @property
-    def processed_files(self) -> List[str]:
-        """List of processed data files according to datasource length."""
+    def processed_files(self) -> list[str]:
+        """
+        List of processed data files according to datasource length.
+        """
         return [os.path.join(self.processed_dir, f"{i}.pt") for i in range(len(self.datasource))]
 
-    def __len__(self):
-        """Return the number of samples in the dataset."""
+    def __len__(self) -> int:
+        """
+        Return the number of samples in the dataset.
+        """
         return len(self.datasource)
 
-    def __getitem__(self, idx):
-        """Return the sample at the given index."""
-        if (
-            isinstance(idx, (int, np.integer))
-            or (isinstance(idx, torch.Tensor) and idx.dim() == 0)
-            or (isinstance(idx, np.ndarray) and np.isscalar(idx))
-        ):
-            if self.preload:
-                return self.inmemory_dataset[idx]
-            else:
-                return torch.load(self.processed_paths[idx])
+    def __getitem__(self, idx: int) -> Any:
+        """
+        Return the sample at the given index.
+        """
+        if self.preload:
+            return self.inmemory_dataset[idx]
         else:
-            raise NotImplementedError("Indexing not implemented yet!")
-            # TODO : Implement advanced indexing if needed
+            return torch.load(self.processed_files[idx])
 
     @abstractmethod
-    def collate_fn(self, batch):
+    def collate_fn(self, batch: list[Any]) -> Any:
         """
         Collate function for the dataloader.
         """
-        pass
+        ...

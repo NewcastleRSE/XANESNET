@@ -14,15 +14,19 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Callable
+
+from .base import Dataset
+
 
 class DatasetRegistry:
-    _registry = {}
+    _registry: dict[str, type[Dataset]] = {}
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[type[Dataset]], type[Dataset]]:
         name = name.lower()
 
-        def decorator(ds_cls):
+        def decorator(ds_cls: type[Dataset]) -> type[Dataset]:
             if name in cls._registry:
                 raise KeyError(f"Dataset '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -31,7 +35,7 @@ class DatasetRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name):
+    def get(cls, name: str) -> type[Dataset]:
         name = name.lower()
 
         if name not in cls._registry:
@@ -39,5 +43,5 @@ class DatasetRegistry:
         return cls._registry[name]
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[str]:
         return list(cls._registry.keys())

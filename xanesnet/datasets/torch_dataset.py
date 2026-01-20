@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Any
+
 import torch
 from torch.utils.data._utils.collate import default_collate
 
@@ -40,14 +42,18 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
         root: str,
         mode: Mode,
         preload: bool,
-        params: dict,
-    ):
+        params: dict[str, Any],
+    ) -> None:
         super().__init__(dataset_type, datasource, root, mode, preload, params)
 
-    def get_dataloader(self):
-        """Returns the dataloader class that should be used."""
+    def get_dataloader(self) -> type[torch.utils.data.DataLoader]:
+        """
+        Returns the dataloader class that should be used.
+        """
         return torch.utils.data.DataLoader
 
-    def collate_fn(self, batch):
-        """Uses the default collate function from pytorch."""
+    def collate_fn(self, batch: list[Any]) -> Any:
+        """
+        Uses the default collate function from pytorch.
+        """
         return default_collate(batch)

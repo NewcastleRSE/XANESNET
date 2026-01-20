@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import torch
@@ -34,14 +35,14 @@ from .torch_dataset import TorchDataset
 
 @dataclass
 class Data:
-    x: torch.Tensor = None
-    y: torch.Tensor = None
-    e: torch.Tensor = None
-    fourier: torch.Tensor = None
-    c_star: torch.Tensor = None
-    file_name: str = None
+    x: torch.Tensor | None = None
+    y: torch.Tensor | None = None
+    e: torch.Tensor | None = None
+    fourier: torch.Tensor | None = None
+    c_star: torch.Tensor | None = None
+    file_name: str | list[Any] | None = None
 
-    def to(self, device):
+    def to(self, device: str | torch.device) -> "Data":
         # send batch do device
         for attr in ["x", "y", "fourier", "c_star"]:
             val = getattr(self, attr)
@@ -64,9 +65,9 @@ class XanesXDataset(TorchDataset):
         root: str,
         mode: Mode,
         preload: bool,
-        params: dict,
-        descriptors: list,
-    ):
+        params: dict[str, Any],
+        descriptors: list[dict[str, Any]],
+    ) -> None:
         # Calling parent init
         super().__init__(dataset_type, datasource, root, mode, preload, params)
 
@@ -92,7 +93,7 @@ class XanesXDataset(TorchDataset):
         if self.params.get("gaussian", False):
             self._setup_spectral_basis()
 
-    def process(self):
+    def process(self) -> bool:
         already_processed = super().process()
         if already_processed:
             return True
@@ -117,12 +118,12 @@ class XanesXDataset(TorchDataset):
             # FFT
             fourier = None
             if self.params.get("fourier", False):
-                fourier = fft(intensities.numpy(), self.params.get("fourier_concat", False))
+                fourier = fft(intensities, self.params.get("fourier_concat", False))
 
             # Gaussian
             c_star = None
             if self.params.get("gaussian", False):
-                c_star = gaussian_fit(basis=self.basis, xanes=intensities.numpy())
+                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
             # Mode
             if self.mode == Mode.FORWARD:
@@ -143,7 +144,7 @@ class XanesXDataset(TorchDataset):
 
         return True
 
-    def _setup_spectral_basis(self):
+    def _setup_spectral_basis(self) -> None:
         # Load directly from file
         if self.params.get("basis_path", None) is not None:
             logging.info(f"Loading spectral basis from file @ {self.params['basis_path']}")
@@ -162,7 +163,7 @@ class XanesXDataset(TorchDataset):
             )
 
     @property
-    def signature(self) -> dict:
+    def signature(self) -> dict[str, Any]:
         """Return dataset signature as a dictionary."""
         signature = super().signature
         signature.update(
@@ -173,7 +174,7 @@ class XanesXDataset(TorchDataset):
         return signature
 
     @property
-    def metadata(self) -> dict:
+    def metadata(self) -> dict[str, Any]:
         """Return dataset metadata as a dictionary."""
         metadata = super().metadata
         in_size = len(self[0].x)
@@ -188,7 +189,7 @@ class XanesXDataset(TorchDataset):
         metadata.update({"in_size": in_size, "out_size": out_size})
         return metadata
 
-    def collate_fn(self, batch):
+    def collate_fn(self, batch: list[Data]) -> Data:
         """
         Collates a list of Data objects into a single Data object with batched tensors.
         """
