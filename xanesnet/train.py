@@ -52,27 +52,27 @@ def parse_args(args: list[str]):
         help="Path to input YAML configuration file.",
     )
     parser.add_argument(
+        "--in_model",  # TODO pretrained model loading
+        type=str,
+        help="Path to a pre-trained model directory (optional).",
+    )
+    parser.add_argument(
         "--save",
         action="store_true",
         help="Save the results to disk.",
     )
 
-    # TODO these arguments are not tested yet !!!
-    parser.add_argument(
-        "--in_model",
-        type=str,
-        help="Path to a pre-trained model directory (optional).",
-    )
-    parser.add_argument(
-        "--mlflow",
-        action="store_true",
-        help="Enable MLflow logging and save logs to disk.",
-    )
-    parser.add_argument(
-        "--tensorboard",
-        action="store_true",
-        help="Enable TensorBoard logging and save logs to disk.",
-    )
+    # TODO mlflow / tensorboard
+    # // parser.add_argument(
+    # //     "--mlflow",
+    # //     action="store_true",
+    # //     help="Enable MLflow logging and save logs to disk.",
+    # // )
+    # // parser.add_argument(
+    # //     "--tensorboard",
+    # //     action="store_true",
+    # //     help="Enable TensorBoard logging and save logs to disk.",
+    # // )
 
     args = parser.parse_args(args)
     return args
@@ -103,7 +103,10 @@ def main(args: list[str]):
         config = yaml.safe_load(f)
 
     # Get saving directory
-    save_dir = create_run_dir("./runs", name=f"{config["model"]["model_type"]}_{config["strategy"]["strategy_type"]}")
+    save_dir = create_run_dir(
+        "./runs",
+        name=f"train_{config["model"]["model_type"]}_{config["strategy"]["strategy_type"]}",
+    )
     logging.info(f"Run directory: {save_dir}")
     create_subfolders(save_dir, subfolder_names=["models", "plots", "checkpoints"])
 
