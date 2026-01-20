@@ -49,7 +49,7 @@ class MLP(Model):
         num_hidden_layers: int = 3,
         shrink_rate: float = 1.0,
         activation: str = "relu",
-    ):
+    ) -> None:
         """
         Args:
             model_type (str): Model type identifier
@@ -89,13 +89,14 @@ class MLP(Model):
         out = self.dense_layers(x)
         return out
 
-    def init_weights(self, weights_init, bias_init, **kwargs):
+    def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
 
-        def _init_layer(m: nn.Module):
+        def _init_layer(m: nn.Module) -> None:
             if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
                 weight_init_fn(m.weight)
+                assert m.bias is not None, "Bias is None, cannot initialize."
                 bias_init_fn(m.bias)
 
         # Apply to all modules

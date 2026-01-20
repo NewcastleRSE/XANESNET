@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import abstractmethod
+from typing import Any
 
 from torch import nn
 
@@ -26,30 +27,30 @@ from torch import nn
 class Model(nn.Module):
     """
     Abstract base class for models.
-    All model classes should inherit from this class and implement the required methods.
     """
 
     def __init__(
         self,
         model_type: str,
-        params: dict,
-    ):
+        params: dict[str, Any],
+    ) -> None:
         super().__init__()
 
         self.model_type = model_type
         self.params = params
 
     @abstractmethod
-    def init_weights(self, weights_init, bias_init, **kwargs):
+    def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
         """
         Initialise model weights and bias.
-        This method should be implemented by all subclasses.
         """
-        return
+        ...
 
     @property
-    def signature(self) -> dict:
-        """Return model signature as a dictionary."""
+    def signature(self) -> dict[str, Any]:
+        """
+        Return model signature as a dictionary.
+        """
         signature = {
             "model_type": self.model_type,
             "params": self.params,
