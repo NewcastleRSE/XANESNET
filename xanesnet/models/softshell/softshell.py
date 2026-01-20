@@ -19,14 +19,11 @@ from typing import List
 import torch
 from torch import nn
 
-from xanesnet.scheme import SchemeRegistry
-
 from ..base import Model
 from ..registry import ModelRegistry
 
 
 @ModelRegistry.register("softshell")
-@SchemeRegistry.register("softshell", scheme_name="ss")
 class SoftShellSpectraNet(Model):
     """
     Wrapper class for SoftShell Model

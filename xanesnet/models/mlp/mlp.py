@@ -18,7 +18,6 @@ import torch
 from torch import nn
 
 from xanesnet.registry import BiasInitRegistry, WeightInitRegistry
-from xanesnet.scheme import SchemeRegistry
 from xanesnet.utils.switch import ActivationSwitch
 
 from ..base import Model
@@ -26,7 +25,6 @@ from ..registry import ModelRegistry
 
 
 @ModelRegistry.register("mlp")
-@SchemeRegistry.register("mlp", scheme_name="nn")
 class MLP(Model):
     """
     A class for constructing a customisable MLP (Multi-Layer Perceptron) model.
