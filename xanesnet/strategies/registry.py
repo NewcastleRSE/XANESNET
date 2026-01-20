@@ -14,15 +14,19 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Callable
+
+from .base import Strategy
+
 
 class StrategyRegistry:
-    _registry = {}
+    _registry: dict[str, type[Strategy]] = {}
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[type[Strategy]], type[Strategy]]:
         name = name.lower()
 
-        def decorator(ds_cls):
+        def decorator(ds_cls: type[Strategy]) -> type[Strategy]:
             if name in cls._registry:
                 raise KeyError(f"Strategy '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -31,7 +35,7 @@ class StrategyRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str):
+    def get(cls, name: str) -> type[Strategy]:
         name = name.lower()
 
         if name not in cls._registry:
@@ -39,5 +43,5 @@ class StrategyRegistry:
         return cls._registry[name]
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[str]:
         return list(cls._registry.keys())

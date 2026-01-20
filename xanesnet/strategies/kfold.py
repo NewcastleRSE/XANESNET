@@ -14,9 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import List
+from typing import Any
+
+import torch
 
 from xanesnet.datasets import Dataset
+from xanesnet.models import Model
 
 from .base import Strategy
 from .registry import StrategyRegistry
@@ -29,37 +32,38 @@ class KFold(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: dict,
-        trainer_config: dict = None,
-        inferencer_config: dict = None,
-        params: dict = {},
-    ):
+        model_config: dict[str, Any],
+        trainer_config: dict[str, Any] | None = None,
+        inferencer_config: dict[str, Any] | None = None,
+        params: dict[str, Any] = {},
+    ) -> None:
         super().__init__(strategy_type, dataset, model_config, trainer_config, inferencer_config, params)
 
-    def setup_models(self):
-        pass  # TODO Implement
+    def setup_models(self) -> None:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def init_model_weights(self):
-        pass  # TODO Implement
+    def init_model_weights(self) -> None:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def set_state_dicts(self, state_dicts: List[dict]):
-        pass  # TODO Implement
+    def set_state_dicts(self, state_dicts: list[dict]) -> None:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def setup_trainers(self, device: str):
-        pass  # TODO Implement
+    def setup_trainers(self, device: str | torch.device) -> None:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def run_training(self):
+    def run_training(self) -> list[Model]:
         super().run_training()
 
-        return []  # TODO Implement
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def setup_inferencers(self, device: str):
-        pass  # TODO Implement
+    def setup_inferencers(self, device: str | torch.device) -> None:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def run_inference(self):
+    def run_inference(self) -> None:
         super().run_inference()
 
-        pass  # TODO Implement
+        raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def model_signature(self) -> dict:
-        pass  # TODO Implement
+    @property
+    def model_signature(self) -> dict[str, Any]:
+        raise NotImplementedError("Not implemented!")  # TODO Implement
