@@ -29,10 +29,10 @@ class EMDLoss(Loss):
     def __init__(
         self,
         loss_type: str,
-    ):
+    ) -> None:
         super().__init__(loss_type)
 
-    def forward(self, preds, targets):
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return torch.mean(
             torch.square(torch.cumsum(targets, dim=-1) - torch.cumsum(preds, dim=-1)),
             dim=-1,

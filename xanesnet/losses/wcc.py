@@ -39,19 +39,20 @@ class WCCLoss(Loss):
         self,
         loss_type: str,
         gaussian_hwhm: int = 10,
-    ):
+    ) -> None:
         super().__init__(loss_type)
+
         self.gaussian_hwhm = gaussian_hwhm
 
-    def forward(self, y_true, y_pred):
-        n_features = y_true.shape[1]
-        n_samples = y_true.shape[0]
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        n_features = targets.shape[1]
+        n_samples = targets.shape[0]
 
         width2 = (self.gaussian_hwhm / np.sqrt(2.0 * np.log(2))) * 2
 
-        corr = nn.functional.conv1d(y_true.unsqueeze(0), y_pred.unsqueeze(1), padding="same", groups=n_samples)
-        corr1 = nn.functional.conv1d(y_true.unsqueeze(0), y_true.unsqueeze(1), padding="same", groups=n_samples)
-        corr2 = nn.functional.conv1d(y_pred.unsqueeze(0), y_pred.unsqueeze(1), padding="same", groups=n_samples)
+        corr = nn.functional.conv1d(targets.unsqueeze(0), preds.unsqueeze(1), padding="same", groups=n_samples)
+        corr1 = nn.functional.conv1d(targets.unsqueeze(0), targets.unsqueeze(1), padding="same", groups=n_samples)
+        corr2 = nn.functional.conv1d(preds.unsqueeze(0), preds.unsqueeze(1), padding="same", groups=n_samples)
 
         corr = corr.squeeze(0)
         corr1 = corr1.squeeze(0)

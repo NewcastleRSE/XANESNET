@@ -14,6 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import torch
 from torch import nn
 
 from .base import Loss
@@ -29,9 +30,10 @@ class MSELoss(Loss):
     def __init__(
         self,
         loss_type: str,
-    ):
+    ) -> None:
         super().__init__(loss_type)
+
         self.loss = nn.MSELoss()
 
-    def forward(self, preds, targets):
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return self.loss(preds, targets)

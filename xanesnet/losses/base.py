@@ -16,19 +16,22 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import abstractmethod
 
+import torch
 from torch import nn
 
 
 class Loss(nn.Module):
+    """
+    Abstract base class for loss functions.
+    """
 
     def __init__(
         self,
         loss_type: str,
-    ):
+    ) -> None:
         super().__init__()
 
         self.loss_type = loss_type
 
     @abstractmethod
-    def forward(self, preds, targets):
-        raise NotImplementedError
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor: ...
