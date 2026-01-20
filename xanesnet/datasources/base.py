@@ -15,6 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
+from typing import Any, Iterator
+
+from pymatgen.core import Molecule, Structure
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -29,13 +32,11 @@ class DataSource(ABC):
     def __init__(
         self,
         datasource_type: str,
-    ):
+    ) -> None:
         self.datasource_type = datasource_type
 
     @abstractmethod
-    def __iter__(self):
-        pass
+    def __iter__(self) -> Iterator[Molecule | Structure]: ...
 
     @abstractmethod
-    def __len__(self):
-        pass
+    def __len__(self) -> int: ...
