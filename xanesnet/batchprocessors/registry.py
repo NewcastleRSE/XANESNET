@@ -14,16 +14,20 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Callable
+
+from .base import BatchProcessor
+
 
 class BatchProcessorRegistry:
-    _registry = {}
+    _registry: dict[tuple[str, str], type[BatchProcessor]] = {}
 
     @classmethod
-    def register(cls, dataset_type: str, model_type: str):
+    def register(cls, dataset_type: str, model_type: str) -> Callable[[type[BatchProcessor]], type[BatchProcessor]]:
         dataset_type = dataset_type.lower()
         model_type = model_type.lower()
 
-        def decorator(adapter_cls):
+        def decorator(adapter_cls: type[BatchProcessor]) -> type[BatchProcessor]:
             key = (dataset_type, model_type)
             if key in cls._registry:
                 raise KeyError(f"BatchProcessor for {dataset_type}, {model_type} already registered")
@@ -33,12 +37,12 @@ class BatchProcessorRegistry:
         return decorator
 
     @classmethod
-    def get(cls, dataset_type: str, model_type: str):
+    def get(cls, dataset_type: str, model_type: str) -> BatchProcessor:
         key = (dataset_type.lower(), model_type.lower())
         if key not in cls._registry:
             raise KeyError(f"No BatchProcessor registered for {dataset_type}, {model_type}")
         return cls._registry[key]()
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[tuple[str, str]]:
         return list(cls._registry.keys())

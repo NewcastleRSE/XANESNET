@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Any
+
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
@@ -21,14 +23,14 @@ from .registry import BatchProcessorRegistry
 @BatchProcessorRegistry.register("xanesx", "mlp")
 class XanesXMLP(BatchProcessor):
 
-    def input_preparation(self, batch):
+    def input_preparation(self, batch: Any) -> Any:
         return batch.x
 
-    def input_preparation_single(self, sample):
+    def input_preparation_single(self, sample: Any) -> Any:
         return sample.x.unsqueeze(0)
 
-    def target_preparation(self, batch):
+    def target_preparation(self, batch: Any) -> Any:
         return batch.y
 
-    def target_preparation_single(self, sample):
+    def target_preparation_single(self, sample: Any) -> Any:
         return sample.y.unsqueeze(0)

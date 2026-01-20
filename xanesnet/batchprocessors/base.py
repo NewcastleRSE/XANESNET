@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BatchProcessor(ABC):
@@ -24,28 +25,28 @@ class BatchProcessor(ABC):
     """
 
     @abstractmethod
-    def input_preparation(self, batch):
+    def input_preparation(self, batch: Any) -> Any:
         """
         Prepares the model inputs from a batch.
         """
         pass
 
     @abstractmethod
-    def input_preparation_single(self, sample):
+    def input_preparation_single(self, sample: Any) -> Any:
         """
         Prepares the model inputs from a single sample.
         """
         pass
 
     @abstractmethod
-    def target_preparation(self, predictions):
+    def target_preparation(self, batch: Any) -> Any:
         """
         Prepares the model targets from a batch.
         """
         pass
 
     @abstractmethod
-    def target_preparation_single(self, sample):
+    def target_preparation_single(self, sample: Any) -> Any:
         """
         Prepares the model targets from a single sample.
         """
