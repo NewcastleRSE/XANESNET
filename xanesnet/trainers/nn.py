@@ -14,6 +14,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Any
+
+import torch
+
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
 
@@ -26,9 +30,9 @@ class NNTrainer(Trainer):
     def __init__(
         self,
         trainer_type: str,
-        params: dict,
+        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
-        device: str,
+        device: str | torch.device,
     ):
         super().__init__(trainer_type, params, dataset, model, device)

@@ -16,24 +16,27 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from abc import ABC
+from typing import Any
 
-from xanesnet.batchprocessors import BatchProcessorRegistry
+import torch
+
+from xanesnet.batchprocessors import BatchProcessor, BatchProcessorRegistry
 from xanesnet.datasets import Dataset
-from xanesnet.losses import LossRegistry
+from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
 from xanesnet.registry import OptimizerRegistry
-from xanesnet.regularizers import RegularizerRegistry
+from xanesnet.regularizers import Regularizer, RegularizerRegistry
 
 
 class Trainer(ABC):
     def __init__(
         self,
         trainer_type: str,
-        params: dict,
+        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
-        device: str,
-    ):
+        device: str | torch.device,
+    ) -> None:
         self.trainer_type = trainer_type
         self.params = params
         self.dataset = dataset
@@ -50,14 +53,14 @@ class Trainer(ABC):
         # TODO setup learning rate scheduler
         # TODO setup early stopping mechanism
 
-    def train(self):
+    def train(self) -> float | None:
         """
         Core training loop.
         """
-
         self.model.to(self.device)
 
         logging.info(f"Start training: {self.params["epochs"]} epochs.")
+        valid_loss = None
         for epoch in range(self.params["epochs"]):
             # Run training
             train_loss, train_regularization, train_total = self._train_one_epoch()
@@ -81,8 +84,10 @@ class Trainer(ABC):
 
         return score
 
-    def _train_one_epoch(self):
-        """Runs a single training epoch."""
+    def _train_one_epoch(self) -> tuple[float, float, float]:
+        """
+        Runs a single training epoch.
+        """
         self.model.train()
 
         epoch_loss = 0.0
@@ -122,11 +127,11 @@ class Trainer(ABC):
 
         return epoch_loss, epoch_regularization, epoch_total
 
-    def _setup_batchprocessor(self):
+    def _setup_batchprocessor(self) -> BatchProcessor:
         batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)()
         return batchprocessor
 
-    def _setup_dataloader(self):
+    def _setup_dataloader(self) -> Any:
         dataloader_cls = self.dataset.get_dataloader()
 
         dataloader = dataloader_cls(
@@ -140,13 +145,13 @@ class Trainer(ABC):
 
         return dataloader
 
-    def _setup_optimizer(self):
+    def _setup_optimizer(self) -> torch.optim.Optimizer:
         optimizer_cls = OptimizerRegistry.get(self.params.get("optimizer", "adam"))
         optimizer = optimizer_cls(self.model.parameters(), self.params.get("learning_rate", 0.001))
 
         return optimizer
 
-    def _setup_loss(self):
+    def _setup_loss(self) -> Loss:
         loss_config = self.params["loss"]
         loss_type = loss_config["loss_type"]
 
@@ -154,19 +159,25 @@ class Trainer(ABC):
 
         return loss
 
-    def _setup_regularizer(self):
+    def _setup_regularizer(self) -> Regularizer:
         regularizer_config = self.params.get("regularizer", None)
         if regularizer_config is None:
-            return None
-        regularizer_type = regularizer_config["regularizer_type"]
+            return RegularizerRegistry.get("none")("none")
 
+        regularizer_type = regularizer_config["regularizer_type"]
         regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
 
         return regularizer
 
-    def _log_epoch_loss(self, epoch, train_loss, train_regularization, train_total, valid_loss=None):
+    def _log_epoch_loss(
+        self,
+        epoch: int,
+        train_loss: float,
+        train_regularization: float,
+        train_total: float,
+        valid_loss: float | None = None,
+    ) -> None:
         # TODO better logging?
-
         if valid_loss is not None:
             logging.info(
                 f"Epoch {epoch + 1:03d} | "
