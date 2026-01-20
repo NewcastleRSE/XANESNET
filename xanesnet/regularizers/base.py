@@ -16,19 +16,24 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import abstractmethod
 
+import torch
 from torch import nn
+
+from xanesnet.models import Model
 
 
 class Regularizer(nn.Module):
+    """
+    Abstract base class for regularizers.
+    """
 
     def __init__(
         self,
         regularizer_type: str,
-    ):
+    ) -> None:
         super().__init__()
 
         self.regularizer_type = regularizer_type
 
     @abstractmethod
-    def forward(self, model):
-        raise NotImplementedError
+    def forward(self, model: Model) -> torch.Tensor: ...

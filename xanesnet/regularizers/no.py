@@ -16,6 +16,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import torch
 
+from xanesnet.models import Model
+
 from .base import Regularizer
 from .registry import RegularizerRegistry
 
@@ -33,5 +35,5 @@ class NoReg(Regularizer):
     ):
         super().__init__(regularizer_type)
 
-    def forward(self, model):
+    def forward(self, model: Model) -> torch.Tensor:
         return torch.tensor(0.0, device=next(model.parameters()).device)
