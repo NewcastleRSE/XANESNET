@@ -37,11 +37,11 @@ class BatchProcessorRegistry:
         return decorator
 
     @classmethod
-    def get(cls, dataset_type: str, model_type: str) -> BatchProcessor:
+    def get(cls, dataset_type: str, model_type: str) -> type[BatchProcessor]:
         key = (dataset_type.lower(), model_type.lower())
         if key not in cls._registry:
             raise KeyError(f"No BatchProcessor registered for {dataset_type}, {model_type}")
-        return cls._registry[key]()
+        return cls._registry[key]
 
     @classmethod
     def list(cls) -> list[tuple[str, str]]:

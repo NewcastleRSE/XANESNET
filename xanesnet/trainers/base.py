@@ -123,7 +123,7 @@ class Trainer(ABC):
         return epoch_loss, epoch_regularization, epoch_total
 
     def _setup_batchprocessor(self):
-        batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)
+        batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)()
         return batchprocessor
 
     def _setup_dataloader(self):
