@@ -32,7 +32,7 @@ class NoReg(Regularizer):
     def __init__(
         self,
         regularizer_type: str,
-    ):
+    ) -> None:
         super().__init__(regularizer_type)
 
     def forward(self, model: Model) -> torch.Tensor:
