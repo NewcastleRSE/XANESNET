@@ -14,6 +14,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Callable
+from typing import Any, Protocol
+
+import torch
 from torch import nn
 
 ###############################################################################
@@ -21,18 +25,22 @@ from torch import nn
 ###############################################################################
 
 
+class WeightInitFn(Protocol):
+    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
+
+
 class WeightInitRegistry:
-    _registry = {}
+    _registry: dict[str, WeightInitFn] = {}
 
     @staticmethod
-    def _noop(tensor, **_):
+    def _noop(tensor: torch.Tensor, **_) -> torch.Tensor:
         return tensor
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[WeightInitFn], WeightInitFn]:
         name = name.lower()
 
-        def decorator(fn):
+        def decorator(fn: WeightInitFn) -> WeightInitFn:
             if name in cls._registry:
                 raise KeyError(f"Weight initializer '{name}' already registered")
             cls._registry[name] = fn
@@ -41,7 +49,7 @@ class WeightInitRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str, **kwargs):
+    def get(cls, name: str, **kwargs) -> Callable[[torch.Tensor], torch.Tensor]:
         name = name.lower()
 
         if name not in cls._registry:
@@ -49,13 +57,13 @@ class WeightInitRegistry:
 
         fn = cls._registry[name]
 
-        def wrapped(tensor):
+        def wrapped(tensor: torch.Tensor) -> torch.Tensor:
             return fn(tensor, **kwargs)
 
         return wrapped
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[str]:
         return list(cls._registry.keys())
 
 
@@ -73,14 +81,18 @@ WeightInitRegistry.register("default")(WeightInitRegistry._noop)
 ###############################################################################
 
 
+class BiasInitFn(Protocol):
+    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
+
+
 class BiasInitRegistry:
-    _registry = {}
+    _registry: dict[str, BiasInitFn] = {}
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[BiasInitFn], BiasInitFn]:
         name = name.lower()
 
-        def decorator(fn):
+        def decorator(fn: BiasInitFn) -> BiasInitFn:
             if name in cls._registry:
                 raise KeyError(f"Bias initializer '{name}' already registered")
             cls._registry[name] = fn
@@ -89,7 +101,7 @@ class BiasInitRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str):
+    def get(cls, name: str) -> BiasInitFn:
         name = name.lower()
 
         if name not in cls._registry:
@@ -97,7 +109,7 @@ class BiasInitRegistry:
         return cls._registry[name]
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[str]:
         return list(cls._registry.keys())
 
 

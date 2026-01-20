@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Callable
+
 import torch.optim as optim
 
 ###############################################################################
@@ -22,13 +24,13 @@ import torch.optim as optim
 
 
 class OptimizerRegistry:
-    _registry = {}
+    _registry: dict[str, type[optim.Optimizer]] = {}
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[type[optim.Optimizer]], type[optim.Optimizer]]:
         name = name.lower()
 
-        def decorator(optim_cls):
+        def decorator(optim_cls: type[optim.Optimizer]) -> type[optim.Optimizer]:
             if name in cls._registry:
                 raise KeyError(f"Optimizer '{name}' already registered")
             cls._registry[name] = optim_cls
@@ -37,18 +39,18 @@ class OptimizerRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str):
+    def get(cls, name: str) -> type[optim.Optimizer]:
         name = name.lower()
         if name not in cls._registry:
             raise KeyError(f"Optimizer '{name}' not found in registry")
         return cls._registry[name]
 
     @classmethod
-    def list(cls):
+    def list(cls) -> list[str]:
         return list(cls._registry.keys())
 
 
-# register optimizers (all should be lower case)
+# register optimizers
 OptimizerRegistry.register("adam")(optim.Adam)
 OptimizerRegistry.register("sgd")(optim.SGD)
 OptimizerRegistry.register("rmsprop")(optim.RMSprop)
