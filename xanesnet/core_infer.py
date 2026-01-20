@@ -15,151 +15,118 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-
+import time
+from datetime import timedelta
 from pathlib import Path
+from typing import Dict
 
-from xanesnet.creator import create_predict_scheme, create_dataset
-from xanesnet.utils.mode import get_mode, Mode
-from xanesnet.utils.plot import plot
-from xanesnet.utils.io import (
-    save_predict_result,
-    load_descriptors_from_local,
-    load_models_from_local,
-    load_model_from_local,
-)
+from xanesnet.datasets import Dataset, DatasetRegistry
+from xanesnet.datasources import DataSource, DataSourceRegistry
+from xanesnet.strategies import Strategy, StrategyRegistry
+from xanesnet.utils.io import Checkpoint, copy_yaml
+from xanesnet.utils.mode import Mode, get_mode
 
-# from xanesnet.post_shap import shap_analysis, shap_analysis_gnn
+###############################################################################
+#################################### INFER ####################################
+###############################################################################
 
 
-def predict(config, args, metadata):
+def infer(config, args, save_dir: Path, checkpoint: Checkpoint):
     """
-    Prediction pipeline for non-GNN models.
+    Main inference entry
     """
-    logging.info(f">> Prediction mode: {args.mode}")
-    mode = get_mode(args.mode)
+    mode = get_mode(config["mode"])
+    logging.info(f"Inference mode from checkpoint: {mode}")
 
-    model_path = Path(args.in_model)
-    root_path = config["dataset"].get("root_path")
-    xyz_path = config["dataset"].get("xyz_path", None)
-    xanes_path = config["dataset"].get("xanes_path", None)
+    datasource = _setup_datasource(config)
+    dataset = _setup_dataset(config, mode, datasource)
+    strategy = _setup_strategy(config, dataset)
+    strategy.setup_models()
+    strategy.set_state_dicts(checkpoint.model_states)
+    strategy.setup_inferencers(config.get("device", "cpu"))  # TODO
 
-    _verify_mode(xyz_path, xanes_path, metadata, mode)
+    # Save inference config
+    if args.save:
+        config_save_path = copy_yaml(args.in_file, save_dir, new_name="infer_config.yaml")
+        logging.info(f"Configuration file saved to: {config_save_path}")
 
-    # Load descriptor list
-    descriptor_list = load_descriptors_from_local(model_path)
+    # Main inference
+    _, inference_time = _run_inference(strategy)  # TODO
 
-    # Enable model evaluation if test data is present
-    pred_eval = xyz_path is not None and xanes_path is not None
+    # Summary
+    logging.info(f"Inference completed in {str(timedelta(seconds=int(inference_time)))}")
+    # TODO add inference summary
 
-    # Load, encode, and preprocess data
-    dataset = _setup_datasets(
-        root_path, xyz_path, xanes_path, metadata, mode, descriptor_list
-    )
-
-    # Setup prediction scheme
-    scheme = _setup_scheme(dataset, mode, metadata, pred_eval)
-
-    # Predict with loaded models and scheme
-    saved_train_scheme = metadata["scheme"]
-    result = _run_prediction(scheme, model_path, saved_train_scheme)
-
-    # Set output path
-    path = Path("outputs") / args.in_model
-    path = Path(str(path).replace("models/", ""))
-
-    # Save raw prediction result
-    if config["result_save"]:
-        save_predict_result(path, mode, result, dataset, scheme.recon_flag)
-
-    # Plot prediction result
-    if config["plot_save"]:
-        plot(path, mode, result, dataset, pred_eval, scheme.recon_flag)
-
-    logging.info("\nPrediction results saved to disk: %s", path.resolve().as_uri())
-
-    # SHAP analysis
-    # if config["shap"] and predict_scheme == "std":
-    #     xyz_data = scheme.xyz_data
-    #     nsamples = config["shap_params"]["nsamples"]
-    #     shap_analysis_gnn(path, mode, model, index, xyz_data, xanes_data, nsamples)
+    # Saving
+    if args.save:
+        pass
+        # TODO save inference results
 
 
-def _setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptor_list):
-    dataset_type = metadata["dataset"]["type"]
-    logging.info(">> Initialising prediction datasets...")
+###############################################################################
+############################### SETUP FUNCTIONS ###############################
+###############################################################################
 
-    # Pack kwargs
-    kwargs = {
-        "root": root_path,
-        "xyz_path": xyz_path,
-        "xanes_path": xanes_path,
-        "mode": mode,
-        "descriptors": descriptor_list,
-        **metadata["dataset"]["params"],
-    }
 
-    dataset = create_dataset(dataset_type, **kwargs)
+def _setup_datasource(config: Dict) -> DataSource:
+    """
+    Setup the data source from config
+    """
+    datasource_type = config[f"datasource"]["datasource_type"]
+    logging.info(f"Initialising data source: {datasource_type}")
+    datasource = DataSourceRegistry.get(datasource_type)(**config["datasource"])
 
-    logging.info(
-        f">> Dataset Summary: # of samples = {len(dataset)}, feature size = {dataset.x_size}, label(y) size = {dataset.y_size}"
-    )
+    return datasource
+
+
+def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
+    """
+    Process the dataset using input configuration or load an existing one from disk
+    """
+    dataset_type = config["dataset"]["dataset_type"]
+    logging.info(f"Initialising inference dataset: {dataset_type}")
+    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
+    dataset.process()
+    dataset.check_preload()  # may preload the dataset into memory
+
+    # Log dataset summary
+    logging.info(f"Dataset Summary: # of samples = {len(dataset)}")
 
     return dataset
 
 
-def _setup_scheme(dataset, mode, metadata, pred_eval):
-    model_type = metadata["model"]["type"]
+def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
+    strategy_config = config["strategy"]
+    strategy_type = strategy_config["strategy_type"]
 
-    kwargs = {
-        "pred_mode": mode,
-        "pred_eval": pred_eval,
-        **metadata["dataset"]["params"],
-    }
+    model_config = config["model"]
+    inferencer_config = config["inferencer"]
 
-    scheme = create_predict_scheme(model_type, dataset, **kwargs)
-    return scheme
+    logging.info(f"Initialising strategy: {strategy_type}")
+    strategy = StrategyRegistry.get(strategy_type)(
+        **strategy_config,
+        dataset=dataset,
+        model_config=model_config,
+        inferencer_config=inferencer_config,
+    )
+
+    return strategy
 
 
-def _run_prediction(scheme, model_dir: Path, predict_scheme: str):
+###############################################################################
+############################## INFERENCE STARTER ##############################
+###############################################################################
+
+
+def _run_inference(strategy: Strategy):
     """
-    Loads models and runs the prediction based on the specified scheme.
+    Run inference using the selected inference strategy.
     """
-    if predict_scheme == "bootstrap":
-        if "bootstrap" not in str(model_dir):
-            raise ValueError("Invalid bootstrap directory")
+    start_time = time.time()
 
-        model_list = load_models_from_local(model_dir)
-        result = scheme.predict_bootstrap(model_list)
+    # TODO run inference
+    strategy.run_inference()
 
-    elif predict_scheme == "ensemble":
-        if "ensemble" not in str(model_dir):
-            raise ValueError("Invalid ensemble directory")
-        model_list = load_models_from_local(model_dir)
-        result = scheme.predict_ensemble(model_list)
+    inference_time = time.time() - start_time
 
-    elif predict_scheme == "std" or predict_scheme == "kfold":
-        model = load_model_from_local(model_dir)
-        result = scheme.predict_std(model)
-
-    else:
-        raise ValueError("Unsupported prediction scheme.")
-
-    return result
-
-
-def _verify_mode(xyz_path, xanes_path, metadata, mode):
-    """
-    Checks for consistency between training mode and prediction mode/data.
-    """
-    train_mode = get_mode(metadata["mode"])
-
-    # inconsistent if
-    if train_mode is not mode and mode in {Mode.XYZ_TO_XANES, Mode.XANES_TO_XYZ}:
-        raise ValueError(
-            f"Inconsistent prediction mode in training ({train_mode}) and prediction ({mode})"
-        )
-
-    if (mode is Mode.XYZ_TO_XANES and xyz_path is None) or (
-        mode is Mode.XANES_TO_XYZ and xanes_path is None
-    ):
-        raise ValueError(f"Cannot find prediction dataset.")
+    return None, inference_time  # TODO ?

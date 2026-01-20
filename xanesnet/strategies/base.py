@@ -29,19 +29,40 @@ class Strategy(ABC):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        trainer_config: dict,
+        trainer_config: dict = None,
+        inferencer_config: dict = None,
         params: dict = {},
     ):
         self.strategy_type = strategy_type
         self.dataset = dataset
         self.model_config = model_config
         self.trainer_config = trainer_config
+        self.inferencer_config = inferencer_config
         self.params = params
+
+        if self.trainer_config is None and self.inferencer_config is None:
+            raise ValueError("Either trainer_config or inferencer_config must be provided.")
 
     @abstractmethod
     def setup_models(self):
         """
         Instantiates the models that will be used for training.
+        This method should be implemented by all subclasses.
+        """
+        pass
+
+    @abstractmethod
+    def init_model_weights(self):
+        """
+        Initialises the model weights.
+        This method should be implemented by all subclasses.
+        """
+        pass
+
+    @abstractmethod
+    def set_state_dicts(self, state_dicts: List[dict]):
+        """
+        Sets the state dictionaries for the models.
         This method should be implemented by all subclasses.
         """
         pass
@@ -64,6 +85,23 @@ class Strategy(ABC):
         """
 
         logging.info("Start strategy...")
+
+    @abstractmethod
+    def setup_inferencers(self, device: str):
+        """
+        Instantiates the inferencers that will be used for inference.
+        This method should be implemented by all subclasses.
+        """
+        pass
+
+    @abstractmethod
+    def run_inference(self):
+        """
+        Starts inference with strategy.
+        This method should be implemented by all subclasses.
+        """
+
+        logging.info("Start inference...")
 
     @property
     @abstractmethod

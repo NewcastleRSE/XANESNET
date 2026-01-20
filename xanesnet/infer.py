@@ -15,19 +15,25 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from argparse import ArgumentParser
 
 import yaml
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
-from xanesnet.core_infer import predict
+from xanesnet.core_infer import infer
 from xanesnet.datasets import DatasetRegistry
 from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.trainers import TrainerRegistry
+from xanesnet.utils.io import (
+    Checkpoint,
+    create_run_dir,
+    create_subfolders,
+    merge_configs,
+    save_dict_as_yaml,
+)
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.random import set_global_seed
 
@@ -35,8 +41,7 @@ from xanesnet.utils.random import set_global_seed
 ################################### LOGGING ###################################
 ###############################################################################
 
-setup_logging(logging.INFO)
-setup_file_logging("./")
+setup_logging(logging.DEBUG)
 
 ###############################################################################
 ############################## ARGUMENT PARSING ###############################
@@ -53,27 +58,28 @@ def parse_args(args: list[str]):
         help="Path to input YAML configuration file.",
     )
     parser.add_argument(
+        "-m",
+        "--in_model",
+        type=str,
+        help="Path to a trained model .pth file.",
+    )
+    parser.add_argument(
         "--save",
         action="store_true",
         help="Save the results to disk.",
     )
 
-    # TODO these arguments are not tested yet !!!
-    parser.add_argument(
-        "--in_model",
-        type=str,
-        help="Path to a pre-trained model directory (optional).",
-    )
-    parser.add_argument(
-        "--mlflow",
-        action="store_true",
-        help="Enable MLflow logging and save logs to disk.",
-    )
-    parser.add_argument(
-        "--tensorboard",
-        action="store_true",
-        help="Enable TensorBoard logging and save logs to disk.",
-    )
+    # TODO mlflow / tensorboard
+    # // parser.add_argument(
+    # //     "--mlflow",
+    # //     action="store_true",
+    # //     help="Enable MLflow logging and save logs to disk.",
+    # // )
+    # // parser.add_argument(
+    # //     "--tensorboard",
+    # //     action="store_true",
+    # //     help="Enable TensorBoard logging and save logs to disk.",
+    # // )
 
     args = parser.parse_args(args)
     return args
@@ -102,6 +108,30 @@ def main(args: list[str]):
     with open(args.in_file, "r") as f:
         config = yaml.safe_load(f)
 
+    # Loading model/signature for inference
+    checkpoint = Checkpoint.load(args.in_model)
+
+    # Get saving directory
+    save_dir = create_run_dir(
+        "./runs",
+        name=f"infer_{checkpoint.signature['model']['model_type']}_{checkpoint.signature['strategy']['strategy_type']}",
+    )
+    logging.info(f"Run directory: {save_dir}")
+    create_subfolders(save_dir, subfolder_names=["plots"])
+
+    # Merge inference config and checkpoint config
+    config = merge_configs(config, checkpoint.signature)
+    merged_config_save_path = save_dict_as_yaml(
+        config,
+        save_dir,
+        "merged_infer_config",
+    )
+    config["dataset"].pop("mode", None)  # Remove redundant mode from dataset config
+    logging.info(f"Merged configuration file saved to: {merged_config_save_path}")
+
+    # Setup file logging
+    setup_file_logging(save_dir)
+
     # Setting global seed for reproducibility
     seed = config.get("seed", None)
     if seed is None:
@@ -110,11 +140,4 @@ def main(args: list[str]):
     logging.info(f"Global seed: {seed}")
 
     # Branching into inference mode
-    # TODO test prediction mode !!!
-    metadata_file = os.path.join(args.in_model, "metadata.yaml")
-    try:
-        with open(metadata_file, "r") as f:
-            metadata = yaml.safe_load(f)
-    except:
-        raise ValueError(f"Something is wrong with your YAML metadata file @ {metadata_file}.")
-    predict(config, args, metadata)  # Run prediction
+    infer(config, args, save_dir, checkpoint)  # Run inference

@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import List
+
 from xanesnet.datasets import Dataset
 
 from .base import Strategy
@@ -28,12 +30,19 @@ class Ensemble(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        trainer_config: dict,
+        trainer_config: dict = None,
+        inferencer_config: dict = None,
         params: dict = {},
     ):
-        super().__init__(strategy_type, dataset, model_config, trainer_config, params)
+        super().__init__(strategy_type, dataset, model_config, trainer_config, inferencer_config, params)
 
     def setup_models(self):
+        pass  # TODO Implement
+
+    def init_model_weights(self):
+        pass  # TODO Implement
+
+    def set_state_dicts(self, state_dicts: List[dict]):
         pass  # TODO Implement
 
     def setup_trainers(self, device: str):
@@ -44,6 +53,13 @@ class Ensemble(Strategy):
 
         return []  # TODO Implement
 
+    def setup_inferencers(self, device: str):
+        pass  # TODO Implement
+
+    def run_inference(self):
+        super().run_inference()
+
+        pass  # TODO Implement
 
     def model_signature(self) -> dict:
         pass  # TODO Implement

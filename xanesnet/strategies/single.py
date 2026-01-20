@@ -15,11 +15,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+from typing import List
 
 from xanesnet.datasets import Dataset
-from xanesnet.models import ModelRegistry, PretrainedModels
+from xanesnet.models import ModelRegistry
 from xanesnet.trainers import TrainerRegistry
-from xanesnet.utils.io import load_pretrained_model
 
 from .base import Strategy
 from .registry import StrategyRegistry
@@ -33,35 +33,30 @@ class Single(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict,
-        trainer_config: dict,
+        trainer_config: dict = None,
+        inferencer_config: dict = None,
         params: dict = {},
     ):
-        super().__init__(strategy_type, dataset, model_config, trainer_config, params)
+        super().__init__(strategy_type, dataset, model_config, trainer_config, inferencer_config, params)
 
     def setup_models(self):
         model_type = self.model_config["model_type"]
-
-        if hasattr(PretrainedModels, model_type):
-            # TODO -----------------------------------------------------
-            # TODO check pretrained model loading
-            # TODO also check if descriptors are loaded correctly
-            logging.info(f"Loading pretrained model: {model_type}")
-            model_params = self.model_config.get("params", {})
-            model = load_pretrained_model(model_type, **model_params)
-            # TODO -----------------------------------------------------
-        else:
-            logging.info(f"Initialising model: {model_type}")
-            model_params = self.model_config.get("params", {})
-            model = ModelRegistry.get(model_type)(model_type=model_type, **model_params, **self.dataset.metadata)
-
-            # Intialise model weights
-            weights_params = self.model_config.get("weights_params", {})
-            weights_init = self.model_config.get("weights_init", {}).get("weights", "default")
-            bias_init = self.model_config.get("weights_init", {}).get("bias", "zeros")
-            logging.info(f"Initialising weights with '{weights_init}' and bias with '{bias_init}'")
-            model.init_weights(weights_init, bias_init, **weights_params)
+        logging.info(f"Initialising model: {model_type}")
+        model_params = self.model_config.get("params", {})
+        model = ModelRegistry.get(model_type)(model_type=model_type, **model_params)
 
         self.model = model
+
+    def init_model_weights(self):
+        # Intialise model weights
+        weights_params = self.model_config.get("weights_params", {})
+        weights_init = self.model_config.get("weights_init", {}).get("weights", "default")
+        bias_init = self.model_config.get("weights_init", {}).get("bias", "zeros")
+        logging.info(f"Initialising weights with '{weights_init}' and bias with '{bias_init}'")
+        self.model.init_weights(weights_init, bias_init, **weights_params)
+
+    def set_state_dicts(self, state_dicts: List[dict]):
+        self.model.load_state_dict(state_dicts[0])
 
     def setup_trainers(self, device: str):
         trainer_type = self.trainer_config["trainer_type"]
@@ -83,6 +78,14 @@ class Single(Strategy):
         _ = self.trainer.train()  # TODO should we do something with the returned score?
 
         return [self.model]
+
+    def setup_inferencers(self, device: str):
+        pass  # TODO Implement
+
+    def run_inference(self):
+        super().run_inference()
+
+        pass  # TODO Implement
 
     @property
     def model_signature(self) -> dict:
