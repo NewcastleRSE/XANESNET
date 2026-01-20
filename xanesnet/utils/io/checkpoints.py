@@ -16,6 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -25,17 +26,21 @@ from xanesnet.models import Model
 @dataclass
 class Checkpoint:
     model_states: list[dict]
-    signature: dict
+    signature: dict[str, Any]
     optimizer_states: list[dict] | None = None
     epochs: list[int] | None = None
 
-    def save(self, path: str | Path):
-        """Save checkpoint as a .pth file"""
+    def save(self, path: str | Path) -> None:
+        """
+        Save checkpoint as a .pth file
+        """
         torch.save(asdict(self), path)
 
     @classmethod
     def load(cls, path: str | Path, map_location: str = "cpu") -> "Checkpoint":
-        """Load checkpoint from a file"""
+        """
+        Load checkpoint from a file
+        """
         data = torch.load(path, map_location=map_location)
         return cls(**data)
 
@@ -43,11 +48,11 @@ class Checkpoint:
 def save_checkpoint(
     dst_dir: str | Path,
     model: Model,
-    signature: dict,
+    signature: dict[str, Any],
     optimizer_state: dict | None = None,
     epoch: int | None = None,
     name: str | None = None,
-):
+) -> None:
     save_checkpoints(
         dst_dir=dst_dir,
         model_list=[model],
@@ -61,11 +66,11 @@ def save_checkpoint(
 def save_checkpoints(
     dst_dir: str | Path,
     model_list: list[Model],
-    signature: dict,
+    signature: dict[str, Any],
     optimizer_states: list[dict] | None = None,
     epochs: list[int] | None = None,
     name: str | None = None,
-):
+) -> None:
     if len(model_list) == 0:
         raise ValueError("No models to save.")
     else:
@@ -75,4 +80,6 @@ def save_checkpoints(
             optimizer_states=optimizer_states,
             epochs=epochs,
         )
+        if not isinstance(dst_dir, Path):
+            dst_dir = Path(dst_dir)
         checkpoint.save(dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth")

@@ -22,11 +22,13 @@ class Mode(Enum):
     REVERSE = ["reverse"]
     BIDIRECTIONAL = ["bidirectional"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value[0]
 
 
-def get_mode(mode_str: str) -> Mode:
+def get_mode(mode_str: str | None) -> Mode | None:
+    if mode_str is None:
+        return None
     mode_str = mode_str.lower()
     for mode in Mode:
         if mode_str in mode.value:

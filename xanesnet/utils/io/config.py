@@ -16,16 +16,19 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import shutil
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 
-def copy_yaml(yaml_path, dst_dir, new_name=None):
+def copy_yaml(yaml_path: str | Path, dst_dir: str | Path, new_name: str | None = None) -> Path:
     """
     Copy a .yaml file from `yaml_path` to `dst_dir`.
     """
-    yaml_path = Path(yaml_path)
-    dst_dir = Path(dst_dir)
+    if not isinstance(yaml_path, Path):
+        yaml_path = Path(yaml_path)
+    if not isinstance(dst_dir, Path):
+        dst_dir = Path(dst_dir)
 
     if not yaml_path.exists():
         raise FileNotFoundError(f"Source file does not exist: {yaml_path}")
@@ -42,11 +45,13 @@ def copy_yaml(yaml_path, dst_dir, new_name=None):
     return dst_file
 
 
-def save_dict_as_yaml(config: dict, dst_dir, name: str):
+def save_dict_as_yaml(config: dict[str, Any], dst_dir: str | Path, name: str) -> Path:
     """
     Save a dictionary as a YAML file in the destination folder.
     """
-    dst_dir = Path(dst_dir)
+    if not isinstance(dst_dir, Path):
+        dst_dir = Path(dst_dir)
+
     if not dst_dir.exists() or not dst_dir.is_dir():
         raise FileNotFoundError(f"Destination directory does not exist: {dst_dir}")
 
@@ -61,7 +66,7 @@ def save_dict_as_yaml(config: dict, dst_dir, name: str):
     return dst_file
 
 
-def merge_configs(a: dict, b: dict) -> dict:
+def merge_configs(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     """
     Merge two dictionaries strictly.
     """

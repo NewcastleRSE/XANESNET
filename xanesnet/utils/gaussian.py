@@ -15,22 +15,19 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import math
-from typing import List
 
-import numpy as np
 import torch
 import torch.nn as nn
-from torch import Tensor
 
 
 class SpectralBasis(nn.Module):
     def __init__(
         self,
         energies: torch.Tensor,
-        widths_eV: List,
-        normalize_atoms=True,
-        stride=1,
-    ):
+        widths_eV: list[float],
+        normalize_atoms: bool = True,
+        stride: int = 1,
+    ) -> None:
         super().__init__()
 
         self.register_buffer("E", energies.detach().clone())
@@ -63,7 +60,7 @@ class SpectralBasis(nn.Module):
         self.register_buffer("Phi", Phi)
         self.register_buffer("centers", centers)
 
-    def synthesize(self, coeffs: torch.Tensor):
+    def synthesize(self, coeffs: torch.Tensor) -> torch.Tensor:
         return coeffs @ self.Phi.T
 
 
@@ -73,40 +70,44 @@ class SpectralPost(nn.Module):
       y = Φ c    (optionally clamped to nonnegative)
     """
 
-    def __init__(self, basis: "SpectralBasis", nonneg_output: bool = False):
+    def __init__(
+        self,
+        basis: "SpectralBasis",
+        nonneg_output: bool = False,
+    ) -> None:
         super().__init__()
         self.basis = basis
         self.nonneg_output = bool(nonneg_output)
 
-    def forward_from_coeffs(self, coeffs: torch.Tensor):
+    def forward_from_coeffs(self, coeffs: torch.Tensor) -> torch.Tensor:
         y = self.basis.synthesize(coeffs)
         if self.nonneg_output:
             y = y.clamp_min_(0)
         return y
 
 
-def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
+def build_ridge_operator(phi: torch.Tensor, lam: float = 1e-2) -> torch.Tensor:
     """
     A = (Φᵀ Φ + λ I)^{-1} Φᵀ  with Cholesky; fallback to augmented LSQ.
     Returns A: (K, N_E) on same device/dtype as Phi.
     """
-    Phi = Phi.contiguous()
-    N_E, K = Phi.shape
-    I_K = torch.eye(K, dtype=Phi.dtype, device=Phi.device)
+    phi = phi.contiguous()
+    N_E, K = phi.shape
+    I_K = torch.eye(K, dtype=phi.dtype, device=phi.device)
 
-    G = Phi.T @ Phi
+    G = phi.T @ phi
     G = G + lam * I_K
     try:
         L = torch.linalg.cholesky(G)  # (K,K)
-        A = torch.cholesky_solve(Phi.T, L)  # (K,N_E)
+        A = torch.cholesky_solve(phi.T, L)  # (K,N_E)
     except RuntimeError:
-        top = Phi
+        top = phi
         bot = math.sqrt(lam) * I_K
         A_aug = torch.cat([top, bot], dim=0)  # ((N_E+K), K)
         rhs = torch.cat(
             [
-                torch.eye(N_E, dtype=Phi.dtype, device=Phi.device),
-                torch.zeros((K, N_E), dtype=Phi.dtype, device=Phi.device),
+                torch.eye(N_E, dtype=phi.dtype, device=phi.device),
+                torch.zeros((K, N_E), dtype=phi.dtype, device=phi.device),
             ],
             dim=0,
         )  # ((N_E+K), N_E)
@@ -115,7 +116,7 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     return A.to(torch.float32)
 
 
-def gaussian_fit(basis: SpectralBasis, xanes: Tensor) -> Tensor:
+def gaussian_fit(basis: SpectralBasis, xanes: torch.Tensor) -> torch.Tensor:
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T

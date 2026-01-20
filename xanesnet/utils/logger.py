@@ -17,9 +17,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 import sys
 from os.path import join
+from pathlib import Path
+from typing import Any
 
 
-def setup_logging(log_level=logging.INFO):
+def setup_logging(log_level: int = logging.INFO) -> None:
     """
     Set up logging with different formats for various levels and a critical exit handler.
     """
@@ -72,7 +74,7 @@ def setup_logging(log_level=logging.INFO):
     root_logger.addHandler(critical_handler)
 
 
-def setup_file_logging(out_dir):
+def setup_file_logging(out_dir: str | Path) -> None:
     log_file = join(out_dir, "out.txt")
 
     root_logger = logging.getLogger()
@@ -129,7 +131,7 @@ def setup_file_logging(out_dir):
     root_logger.addHandler(critical_exit_handler)
 
     # Set up exception hook to log uncaught exceptions.
-    def handle_exception(exc_type, exc_value, exc_traceback):
+    def handle_exception(exc_type, exc_value, exc_traceback) -> None:
         logging.critical("Uncaught Exception:", exc_info=(exc_type, exc_value, exc_traceback))
 
     sys.excepthook = handle_exception
@@ -145,7 +147,7 @@ class CriticalExitHandler(logging.StreamHandler):
     Custom handler that terminates the program on CRITICAL logs.
     """
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         super().emit(record)
         if record.levelno >= logging.CRITICAL:
             self.flush()
@@ -158,28 +160,28 @@ class LevelFilter(logging.Filter):
     Only pass log records that match the specified level.
     """
 
-    def __init__(self, level):
+    def __init__(self, level: int) -> None:
         self.level = level
         super().__init__()
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno == self.level
 
 
-class TeeLogger(object):
+class TeeLogger:
     """
     Redirects stdout and stderr to both console and a file.
     """
 
-    def __init__(self, filename, stream):
+    def __init__(self, filename: str | Path, stream: Any) -> None:
         self.file = open(filename, "a")
         self.stream = stream
 
-    def write(self, message):
+    def write(self, message: str) -> None:
         self.stream.write(message)
         self.file.write(message)
         self.file.flush()
 
-    def flush(self):
+    def flush(self) -> None:
         self.stream.flush()
         self.file.flush()

@@ -22,7 +22,7 @@ from pathlib import Path
 ###############################################################################
 
 
-def _list_files(path: Path, with_ext: bool = True) -> list:
+def _list_files(path: Path, with_ext: bool = True) -> list[Path]:
     # returns a list of files (as POSIX paths) found in a directory (`d`);
     # 'hidden' files are always omitted and, if with_ext == False, file
     # extensions are also omitted
@@ -32,7 +32,7 @@ def _list_files(path: Path, with_ext: bool = True) -> list:
     ]
 
 
-def list_filestems(d: Path) -> list:
+def list_filestems(d: Path) -> list[str]:
     # returns a list of file stems (as strings) found in a directory (`d`);
     # 'hidden' files are always omitted
     return [f.stem for f in _list_files(d)]
@@ -43,12 +43,14 @@ def list_filestems(d: Path) -> list:
 ###############################################################################
 
 
-def create_run_dir(base_dir="./runs", name=None):
+def create_run_dir(base_dir: str | Path = "./runs", name: str | None = None) -> Path:
     """
     Create a unique run directory under `base_dir` with timestamp.
     Optionally appends a custom `name` to the directory.
     """
-    base_dir = Path(base_dir)
+    if not isinstance(base_dir, Path):
+        base_dir = Path(base_dir)
+
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     folder_name = f"{timestamp}"
     if name:
@@ -67,11 +69,13 @@ def create_run_dir(base_dir="./runs", name=None):
     return unique_dir
 
 
-def create_subfolders(parent_dir, subfolder_names):
+def create_subfolders(parent_dir: str | Path, subfolder_names: list[str]) -> dict[str, Path]:
     """
     Create subfolders under an existing parent directory.
     """
-    parent_dir = Path(parent_dir)
+    if not isinstance(parent_dir, Path):
+        parent_dir = Path(parent_dir)
+
     if not parent_dir.exists() or not parent_dir.is_dir():
         raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
 

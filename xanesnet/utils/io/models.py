@@ -14,16 +14,24 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from pathlib import Path
+from typing import Any
+
 import torch
 
 from xanesnet.models import Model
 
 
-def save_model(dst_dir, model: Model):
+def save_model(dst_dir: str | Path, model: Model) -> None:
+    if not isinstance(dst_dir, Path):
+        dst_dir = Path(dst_dir)
+
     torch.save(model.state_dict(), dst_dir / "model_weights.pth")
 
 
-def save_models(dst_dir, model_list: list[Model]):
+def save_models(dst_dir: str | Path, model_list: list[Model]) -> None:
+    if not isinstance(dst_dir, Path):
+        dst_dir = Path(dst_dir)
 
     if len(model_list) == 0:
         raise ValueError("No models to save.")
@@ -36,5 +44,5 @@ def save_models(dst_dir, model_list: list[Model]):
             save_model(model_dir, model)
 
 
-def load_pretrained_model():
+def load_pretrained_model() -> Any:
     raise NotImplementedError("Pretrained model loading not implemented yet.")
