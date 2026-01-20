@@ -59,3 +59,21 @@ def save_dict_as_yaml(config: dict, dst_dir, name: str):
         yaml.dump(config, f, sort_keys=False)
 
     return dst_file
+
+
+def merge_configs(a: dict, b: dict) -> dict:
+    """
+    Merge two dictionaries strictly.
+    """
+    merged = a.copy()
+
+    for k, v in b.items():
+        if k in merged:
+            if isinstance(merged[k], dict) and isinstance(v, dict):
+                merged[k] = merge_configs(merged[k], v)
+            elif merged[k] != v:
+                raise ValueError(f"Conflict for key '{k}': {merged[k]} != {v}")
+        else:
+            merged[k] = v
+
+    return merged
