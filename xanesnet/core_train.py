@@ -16,9 +16,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 import time
+from argparse import Namespace
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any
 
 import torch
 from torchinfo import summary
@@ -41,7 +42,7 @@ from xanesnet.utils.mode import Mode, get_mode
 ###############################################################################
 
 
-def train(config, args, save_dir: Path):
+def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> None:
     """
     Main training entry
     """
@@ -58,8 +59,9 @@ def train(config, args, save_dir: Path):
     strategy.setup_trainers(config.get("device", "cpu"))
 
     # Save training config and signature
-    if args.save:
-        config_save_path = copy_yaml(args.in_file, save_dir, new_name="train_config.yaml")
+    signature = None
+    if args_namespace.save:
+        config_save_path = copy_yaml(args_namespace.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
         signature = {
             "mode": str(mode),
@@ -79,8 +81,9 @@ def train(config, args, save_dir: Path):
     _summary_models(model_list, dataset)
 
     # Save model(s)
-    if args.save:
+    if args_namespace.save:
         save_models(save_dir / "models", model_list)
+        assert signature is not None
         save_checkpoints(save_dir / "models", model_list, signature=signature, name="final")
         logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
 
@@ -90,7 +93,7 @@ def train(config, args, save_dir: Path):
 ###############################################################################
 
 
-def _setup_datasource(config: Dict) -> DataSource:
+def _setup_datasource(config: dict[str, Any]) -> DataSource:
     """
     Setup the data source from config
     """
@@ -101,7 +104,7 @@ def _setup_datasource(config: Dict) -> DataSource:
     return datasource
 
 
-def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
+def _setup_dataset(config: dict[str, Any], mode: Mode, datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
@@ -117,7 +120,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
+def _setup_strategy(config: dict[str, Any], dataset: Dataset) -> Strategy:
     """
     Initialises the training strategy.
     """
@@ -143,7 +146,7 @@ def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
 ###############################################################################
 
 
-def _run_training(strategy: Strategy) -> Tuple[List, float]:
+def _run_training(strategy: Strategy) -> tuple[list[Model], float]:
     """
     Train using the selected training strategy.
     """
@@ -165,7 +168,7 @@ def _run_training(strategy: Strategy) -> Tuple[List, float]:
 ###############################################################################
 
 
-def _summary_models(model_list: List[Model], dataset: Dataset) -> None:
+def _summary_models(model_list: list[Model], dataset: Dataset) -> None:
     logging.info("Model Summary")
 
     for idx, model in enumerate(model_list):

@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 
 import yaml
 
@@ -48,7 +48,7 @@ setup_logging(logging.DEBUG)
 ###############################################################################
 
 
-def parse_args(args: list[str]):
+def parse_args(args: list[str]) -> Namespace:
     parser = ArgumentParser()
     parser.add_argument(
         "-i",
@@ -69,20 +69,8 @@ def parse_args(args: list[str]):
         help="Save the results to disk.",
     )
 
-    # TODO mlflow / tensorboard
-    # // parser.add_argument(
-    # //     "--mlflow",
-    # //     action="store_true",
-    # //     help="Enable MLflow logging and save logs to disk.",
-    # // )
-    # // parser.add_argument(
-    # //     "--tensorboard",
-    # //     action="store_true",
-    # //     help="Enable TensorBoard logging and save logs to disk.",
-    # // )
-
-    args = parser.parse_args(args)
-    return args
+    args_namespace = parser.parse_args(args)
+    return args_namespace
 
 
 ###############################################################################
@@ -90,7 +78,7 @@ def parse_args(args: list[str]):
 ###############################################################################
 
 
-def main(args: list[str]):
+def main(args: list[str]) -> None:
     logging.debug("REGISTRY:")
     logging.debug(f"\tData Sources: {DataSourceRegistry.list()}")
     logging.debug(f"\tDatasets: {DatasetRegistry.list()}")
@@ -101,15 +89,15 @@ def main(args: list[str]):
     logging.debug(f"\tStrategies: {StrategyRegistry.list()}")
 
     # Parsing command line arguments
-    args = parse_args(args)
+    args_namespace = parse_args(args)
 
     # Loading configuration file
-    logging.info(f"Loading YAML configuration file @ {args.in_file}")
-    with open(args.in_file, "r") as f:
+    logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
+    with open(args_namespace.in_file, "r") as f:
         config = yaml.safe_load(f)
 
     # Loading model/signature for inference
-    checkpoint = Checkpoint.load(args.in_model)
+    checkpoint = Checkpoint.load(args_namespace.in_model)
 
     # Get saving directory
     save_dir = create_run_dir(
@@ -140,4 +128,4 @@ def main(args: list[str]):
     logging.info(f"Global seed: {seed}")
 
     # Branching into inference mode
-    infer(config, args, save_dir, checkpoint)  # Run inference
+    infer(config, args_namespace, save_dir, checkpoint)  # Run inference

@@ -22,30 +22,30 @@ import sys
 ################################################################################
 
 
-def main(args: list[str]):
+def main(args: list[str]) -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("train")
     sub.add_parser("infer")
 
-    args, remaining = parser.parse_known_args(args)
+    args_namespace, remaining = parser.parse_known_args(args)
 
-    if args.command == "train":
+    if args_namespace.command == "train":
         # Dispatching to training mode
 
         from .train import main
 
         main(remaining)
 
-    elif args.command == "infer":
+    elif args_namespace.command == "infer":
         # Dispatching to inference mode
 
         from .infer import main
 
         main(remaining)
     else:
-        raise ValueError(f"Incorrect mode: {args.command}.")
+        raise ValueError(f"Incorrect mode: {args_namespace.command}.")
 
 
 if __name__ == "__main__":

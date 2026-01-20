@@ -16,9 +16,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 import time
+from argparse import Namespace
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict
+from typing import Any
 
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
@@ -31,11 +32,12 @@ from xanesnet.utils.mode import Mode, get_mode
 ###############################################################################
 
 
-def infer(config, args, save_dir: Path, checkpoint: Checkpoint):
+def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, checkpoint: Checkpoint) -> None:
     """
     Main inference entry
     """
     mode = get_mode(config["mode"])
+    assert mode is not None
     logging.info(f"Inference mode from checkpoint: {mode}")
 
     datasource = _setup_datasource(config)
@@ -46,8 +48,8 @@ def infer(config, args, save_dir: Path, checkpoint: Checkpoint):
     strategy.setup_inferencers(config.get("device", "cpu"))  # TODO
 
     # Save inference config
-    if args.save:
-        config_save_path = copy_yaml(args.in_file, save_dir, new_name="infer_config.yaml")
+    if args_namespace.save:
+        config_save_path = copy_yaml(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Main inference
@@ -58,7 +60,7 @@ def infer(config, args, save_dir: Path, checkpoint: Checkpoint):
     # TODO add inference summary
 
     # Saving
-    if args.save:
+    if args_namespace.save:
         pass
         # TODO save inference results
 
@@ -68,7 +70,7 @@ def infer(config, args, save_dir: Path, checkpoint: Checkpoint):
 ###############################################################################
 
 
-def _setup_datasource(config: Dict) -> DataSource:
+def _setup_datasource(config: dict[str, Any]) -> DataSource:
     """
     Setup the data source from config
     """
@@ -79,7 +81,7 @@ def _setup_datasource(config: Dict) -> DataSource:
     return datasource
 
 
-def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
+def _setup_dataset(config: dict[str, Any], mode: Mode, datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
@@ -95,7 +97,7 @@ def _setup_dataset(config: Dict, mode: Mode, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
+def _setup_strategy(config: dict[str, Any], dataset: Dataset) -> Strategy:
     strategy_config = config["strategy"]
     strategy_type = strategy_config["strategy_type"]
 
@@ -118,7 +120,7 @@ def _setup_strategy(config: Dict, dataset: Dataset) -> Strategy:
 ###############################################################################
 
 
-def _run_inference(strategy: Strategy):
+def _run_inference(strategy: Strategy) -> tuple[Any, float]:
     """
     Run inference using the selected inference strategy.
     """
