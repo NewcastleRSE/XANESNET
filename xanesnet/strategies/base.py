@@ -25,6 +25,9 @@ from xanesnet.models import Model
 
 
 class Strategy(ABC):
+    """
+    Abstract base class for strategies.
+    """
 
     def __init__(
         self,
@@ -49,7 +52,6 @@ class Strategy(ABC):
     def setup_models(self) -> None:
         """
         Instantiates the models that will be used for training.
-        This method should be implemented by all subclasses.
         """
         ...
 
@@ -57,7 +59,6 @@ class Strategy(ABC):
     def init_model_weights(self) -> None:
         """
         Initialises the model weights.
-        This method should be implemented by all subclasses.
         """
         ...
 
@@ -65,7 +66,6 @@ class Strategy(ABC):
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
         """
         Sets the state dictionaries for the models.
-        This method should be implemented by all subclasses.
         """
         ...
 
@@ -73,7 +73,6 @@ class Strategy(ABC):
     def setup_trainers(self, device: str | torch.device) -> None:
         """
         Instantiates the trainers that will be used for training.
-        This method should be implemented by all subclasses.
         """
         ...
 
@@ -81,7 +80,6 @@ class Strategy(ABC):
     def run_training(self) -> list[Model]:
         """
         Starts training with strategy and returns a list of trained models.
-        This method should be implemented by all subclasses.
 
         Returns a list of trained models.
         """
@@ -91,7 +89,6 @@ class Strategy(ABC):
     def setup_inferencers(self, device: str | torch.device) -> None:
         """
         Instantiates the inferencers that will be used for inference.
-        This method should be implemented by all subclasses.
         """
         ...
 
@@ -99,7 +96,6 @@ class Strategy(ABC):
     def run_inference(self) -> None:
         """
         Starts inference with strategy.
-        This method should be implemented by all subclasses.
         """
         logging.info("Start inference...")
 
@@ -108,7 +104,6 @@ class Strategy(ABC):
     def model_signature(self) -> dict[str, Any]:
         """
         Return model signature as a dictionary.
-        This method should be implemented by all subclasses.
         """
         ...
 
