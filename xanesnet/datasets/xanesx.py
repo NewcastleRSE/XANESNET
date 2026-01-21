@@ -25,9 +25,8 @@ from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import DescriptorRegistry
-from xanesnet.utils.fourier import fft
-from xanesnet.utils.gaussian import SpectralBasis, gaussian_fit
-from xanesnet.utils.mode import Mode
+from xanesnet.utils import Mode
+from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 
 from .registry import DatasetRegistry
 from .torch_dataset import TorchDataset

@@ -27,6 +27,7 @@ from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.trainers import TrainerRegistry
+from xanesnet.utils import set_global_seed, setup_file_logging, setup_logging
 from xanesnet.utils.io import (
     Checkpoint,
     create_run_dir,
@@ -34,8 +35,6 @@ from xanesnet.utils.io import (
     merge_configs,
     save_dict_as_yaml,
 )
-from xanesnet.utils.logger import setup_file_logging, setup_logging
-from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
 ################################### LOGGING ###################################

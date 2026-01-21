@@ -23,7 +23,7 @@ import torch
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils.mode import Mode
+from xanesnet.utils import Mode
 
 ###############################################################################
 #################################### CLASS ####################################

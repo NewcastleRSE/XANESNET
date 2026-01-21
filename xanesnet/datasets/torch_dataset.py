@@ -20,7 +20,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils.mode import Mode
+from xanesnet.utils import Mode
 
 from .base import Dataset
 

@@ -29,13 +29,13 @@ from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
 from xanesnet.strategies import Strategy, StrategyRegistry
+from xanesnet.utils import Mode, get_mode
 from xanesnet.utils.io import (
     copy_yaml,
     save_checkpoints,
     save_dict_as_yaml,
     save_models,
 )
-from xanesnet.utils.mode import Mode, get_mode
 
 ###############################################################################
 #################################### TRAIN ####################################

@@ -21,7 +21,7 @@ from torch_geometric.data.data import BaseData
 from torch_geometric.loader import DataLoader
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils.mode import Mode
+from xanesnet.utils import Mode
 
 from .base import Dataset
 

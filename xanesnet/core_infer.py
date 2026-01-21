@@ -24,8 +24,8 @@ from typing import Any
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.strategies import Strategy, StrategyRegistry
+from xanesnet.utils import Mode, get_mode
 from xanesnet.utils.io import Checkpoint, copy_yaml
-from xanesnet.utils.mode import Mode, get_mode
 
 ###############################################################################
 #################################### INFER ####################################
