@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Protocol
 
 import torch
 from torch import nn

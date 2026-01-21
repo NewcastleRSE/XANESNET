@@ -17,8 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 from torch import nn
 
-from xanesnet.registry import BiasInitRegistry, WeightInitRegistry
-from xanesnet.utils.switch import ActivationSwitch
+from xanesnet.registry import ActivationRegistry, BiasInitRegistry, WeightInitRegistry
 
 from ..base import Model
 from ..registry import ModelRegistry
@@ -63,7 +62,7 @@ class MLP(Model):
         params = {k: v for k, v in list(locals().items()) if k not in ("self") and not k.startswith("_")}
         super().__init__(model_type, params)
 
-        act_fn = ActivationSwitch().get(activation)
+        act_fn = ActivationRegistry.get(activation)
         layers = []
 
         # Initialise input and hidden layers
