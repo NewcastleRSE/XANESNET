@@ -25,8 +25,8 @@ from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft
-from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
+from xanesnet.utils.fourier import fft_forward
+from xanesnet.utils.io import list_filestems, load_xanes, load_xyz
 from xanesnet.utils.mode import Mode
 
 
@@ -63,8 +63,8 @@ class TransformerDataset(BaseDataset):
         **kwargs,
     ):
         # dataset accepts only one path each for the XYZ and XANES datasets.
-        xyz_path = self.unique_path(xyz_path)
-        xanes_path = self.unique_path(xanes_path)
+        xyz_path = self._unique_path(xyz_path)
+        xanes_path = self._unique_path(xanes_path)
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
@@ -77,7 +77,7 @@ class TransformerDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        self.register_config(locals(), type="transformer")
+        self._register_config(locals(), type="transformer")
 
     def set_file_names(self):
         """
@@ -114,12 +114,12 @@ class TransformerDataset(BaseDataset):
 
         for stem in tqdm(self.file_names, total=len(self.file_names)):
             if self.xyz_path:
-                raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
-                with open(raw_path, "r") as f:
+                xyz_file = os.path.join(self.xyz_path, f"{stem}.xyz")
+                with open(xyz_file, "r") as f:
                     atoms = load_xyz(f)
 
                 # non-MACE descriptor feature
-                desc = transform_xyz(raw_path, feat_desc)
+                desc = self.transform_xyz(xyz_file, feat_desc)
                 desc_list.append(desc)
 
                 # MACE feature
@@ -144,11 +144,8 @@ class TransformerDataset(BaseDataset):
 
             # process xanes
             if self.xanes_path:
-                raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
-                e, xanes = load_xanes(raw_path)
-                if self.fft:
-                    fourier = fft(xanes)
-                    fft_list.append(fourier)
+                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
+                e, xanes = self.transform_xanes(xanes_file)
 
                 spec_list.append(xanes)
                 e_list.append(e)
@@ -185,24 +182,24 @@ class TransformerDataset(BaseDataset):
 
         for key in to_stack:
             lst = [getattr(sample, key) for sample in batch]
-            batched[key] = self.safe_stack(lst)
+            batched[key] = self._safe_stack(lst)
 
         for key in to_pad:
             lst = [getattr(sample, key) for sample in batch]
             if key == "mask":
-                batched[key] = self.safe_pad(lst, dtype=bool)
+                batched[key] = self._safe_pad(lst, dtype=bool)
             else:
-                batched[key] = self.safe_pad(lst)
+                batched[key] = self._safe_pad(lst)
 
         return Data(**batched)
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
+    def x_shape(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         return [self[0].mace.shape[1], self[0].desc.shape[0]]
 
     @property
-    def y_size(self) -> int:
+    def y_shape(self) -> int:
         """Size of the label array."""
         if self.fft:
             fourier = self[0].fourier

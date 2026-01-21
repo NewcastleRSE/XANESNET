@@ -74,10 +74,7 @@ def predict(config: Dict, args, metadata: Dict):
     if config.get("plot_save", True):
         plot(output_path, mode, result, dataset, pred_eval, scheme, metadata)
 
-    logging.info(
-        "Prediction results saved to disk: %s",
-        output_path.resolve().as_uri(),
-    )
+    logging.info("Prediction results saved to disk: %s", output_path.resolve().as_uri())
 
 
 def setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptors):
@@ -98,8 +95,8 @@ def setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptors)
     logging.info(
         ">> Dataset summary: samples=%d | X=%s | y=%s",
         len(dataset),
-        dataset.x_size,
-        dataset.y_size,
+        dataset.x_shape,
+        dataset.y_shape,
     )
 
     return dataset

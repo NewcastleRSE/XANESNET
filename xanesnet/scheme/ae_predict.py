@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import inverse_fft
+from xanesnet.utils.fourier import fft_inverse
 from xanesnet.utils.mode import Mode
 
 
@@ -66,9 +66,9 @@ class AEPredict(Predict):
 
                 if self.fft:
                     if self.mode is Mode.XYZ_TO_XANES:
-                        pred = inverse_fft(pred)
+                        pred = fft_inverse(pred)
                     else:
-                        recon = inverse_fft(recon)
+                        recon = fft_inverse(recon)
 
                 predictions.append(pred)
                 reconstructions.append(recon)

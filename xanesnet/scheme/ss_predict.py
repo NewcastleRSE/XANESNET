@@ -22,9 +22,9 @@ import torch
 
 from typing import List, Optional, Tuple
 
-from xanesnet.utils.gaussian import GaussianSynthesis
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
+from xanesnet.utils.gaussian import gaussian_inverse
 
 
 @dataclass
@@ -48,16 +48,11 @@ class SSPredict(Predict):
         model.eval()
         predictions, targets = [], []
 
-        synthesis = GaussianSynthesis(
-            basis=self.dataset.gauss_basis, nonneg_output=False
-        )
-        synthesis.eval()
-
         # ---- Run inference ----
         with torch.no_grad():
             for data in data_loader:
                 c_pred = model(data)
-                output = synthesis.forward_from_coeffs(c_pred)  # (B,N)
+                output = gaussian_inverse(self.dataset.gauss_basis, c_pred)  # (B,N)
                 output = self.to_numpy(output.squeeze(0))
 
                 predictions.append(output)

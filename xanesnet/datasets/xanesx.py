@@ -19,15 +19,13 @@ import torch
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Union
+from typing import List
 from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft
-from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
+from xanesnet.utils.io import list_filestems
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import gaussian_fit
 
 
 @dataclass
@@ -35,12 +33,10 @@ class Data:
     x: torch.Tensor = None
     y: torch.Tensor = None
     e: torch.Tensor = None
-    fourier: torch.Tensor = None
-    c_star: torch.Tensor = None
 
     def to(self, device):
         # send batch do device
-        for attr in ["x", "y", "fourier", "c_star"]:
+        for attr in ["x", "y"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -59,15 +55,15 @@ class XanesXDataset(BaseDataset):
         **kwargs,
     ):
         # dataset accepts only one path each for the XYZ and XANES datasets.
-        xyz_path = self.unique_path(xyz_path)
-        xanes_path = self.unique_path(xanes_path)
+        xyz_path = self._unique_path(xyz_path)
+        xanes_path = self._unique_path(xanes_path)
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
         )
 
         # Save configuration
-        self.register_config(locals(), type="xanesx")
+        self._register_config(locals(), type="xanesx")
 
     def set_file_names(self):
         """
@@ -99,22 +95,18 @@ class XanesXDataset(BaseDataset):
         """Processes raw XYZ and XANES file to convert them into data objects."""
 
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            xyz = xanes = e = fourier = c_star = None
 
-            # transform xyz file into feature array
+            # XYZ
+            xyz = None
             if self.xyz_path:
-                raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
-                xyz = transform_xyz(raw_path, self.descriptors)
+                xyz_file = os.path.join(self.xyz_path, f"{stem}.xyz")
+                xyz = self.transform_xyz(xyz_file)
 
-            # get xanes and energy arrays
+            # XANES
+            e = xanes = None
             if self.xanes_path:
-                raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
-                e, xanes = load_xanes(raw_path)
-
-                if self.fft:
-                    fourier = fft(xanes)
-                elif self.gaussian:
-                    c_star = gaussian_fit(basis=self.gauss_basis, xanes=xanes)
+                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
+                e, xanes = self.transform_xanes(xanes_file)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -123,8 +115,7 @@ class XanesXDataset(BaseDataset):
                 x = xyz
                 y = xanes
 
-            data = Data(x=x, y=y, e=e, fourier=fourier, c_star=c_star)
-
+            data = Data(x=x, y=y, e=e)
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
 
@@ -132,29 +123,21 @@ class XanesXDataset(BaseDataset):
         """
         Collates a list of Data objects into a single Data object  with batched tensors.
         """
-        keys = ["x", "y", "fourier", "c_star"]
+        keys = ["x", "y"]
         batched = {}
 
         for k in keys:
             lst = [getattr(sample, k) for sample in batch]
-            batched[k] = self.safe_stack(lst)
+            batched[k] = self._safe_stack(lst)
 
         return Data(**batched)
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
-        """Size of the feature array."""
-        return len(self[0].x)
+    def x_shape(self) -> List[int]:
+        """Shape of the feature array."""
+        return self._shape(self[0].x)
 
     @property
-    def y_size(self) -> Union[int, List[int]]:
-        """Size of the label array."""
-        if self.gaussian:
-            c_star = self[0].c_star
-            return 0 if c_star is None else len(c_star)
-        elif self.fft:
-            fourier = self[0].fourier
-            return 0 if fourier is None else len(fourier)
-        else:
-            y = self[0].y
-            return 0 if y is None else len(y)
+    def y_shape(self) -> List[int]:
+        """Shape of the label array."""
+        return self._shape(self[0].y)

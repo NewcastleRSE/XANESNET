@@ -14,9 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import dataclasses
-import io
-
 ###############################################################################
 ############################### LIBRARY IMPORTS ###############################
 ###############################################################################
@@ -32,7 +29,6 @@ import numpy as np
 from pathlib import Path
 from ase import Atoms
 from typing import TextIO, List, Any, Dict, Tuple
-from dataclasses import dataclass
 
 from torch import Tensor
 from torch.hub import load_state_dict_from_url
@@ -480,32 +476,6 @@ def load_xanes(file_path: str) -> Tuple[Tensor, Tensor]:
     m = torch.tensor([float(l[1]) for l in xanes_block], dtype=torch.float32)
 
     return e, m
-
-
-def transform_xyz(file_path: str, descriptor_list: List) -> Tensor:
-    """
-    Encodes XYZ data with descriptors
-    """
-    feature_arrays = []
-    atoms_object = None
-
-    with open(file_path, "r") as f:
-        file_lines = f.read()
-
-    for descriptor in descriptor_list:
-        if descriptor.get_type() == "direct":
-            with io.StringIO(file_lines) as file_stream:
-                feature = np.loadtxt(file_stream).flatten()
-                feature_arrays.append(feature)
-        else:
-            if atoms_object is None:
-                with io.StringIO(file_lines) as file_stream:
-                    atoms_object = load_xyz(file_stream)
-            feature = np.asarray(descriptor.transform(atoms_object))
-            feature_arrays.append(feature)
-
-    features = np.concatenate(feature_arrays, axis=0)
-    return torch.tensor(features, dtype=torch.float32)
 
 
 def save_xanes(xanes_f: TextIO, xanes: XANES):

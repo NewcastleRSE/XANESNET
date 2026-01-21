@@ -14,20 +14,14 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
-from dataclasses import dataclass
-
 import numpy as np
 import torch
 
-from typing import List, Optional, Tuple
 
-from xanesnet.models.base_model import Model
 from xanesnet.scheme import NNPredict
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import inverse_fft
-from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import GaussianSynthesis
+from xanesnet.utils.fourier import fft_inverse
+from xanesnet.utils.gaussian import gaussian_inverse
 
 
 class MHPredict(NNPredict):
@@ -44,13 +38,6 @@ class MHPredict(NNPredict):
         model.eval()
         predictions, targets = [], []
 
-        synthesis = None
-        if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
-            synthesis = GaussianSynthesis(
-                basis=self.dataset.gauss_basis, nonneg_output=False
-            )
-            synthesis.eval()
-
         with torch.no_grad():
             for data in data_loader:
                 # Pass X or batch object to model
@@ -59,10 +46,10 @@ class MHPredict(NNPredict):
 
                 # Inverse FFT transform
                 if self.fft:
-                    output = inverse_fft(output)
+                    output = fft_inverse(output)
                 # Gaussian synthesis
                 if self.gaussian:
-                    output = synthesis.forward_from_coeffs(output)
+                    output = gaussian_inverse(self.dataset.gauss_basis, output)
 
                 if self.pred_eval:
                     # Select the prediction corresponding to head index (xanes)

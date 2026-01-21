@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import copy
+import io
 import logging
 import os
 import numpy as np
@@ -24,12 +25,13 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Union, List, Any, Callable
+from typing import Union, List, Any, Callable, Tuple
 from torch import Tensor
 from torch_geometric.io import fs
 
-from xanesnet.utils.gaussian import GaussianBasis
-from xanesnet.utils.io import load_xanes
+from xanesnet.utils.fourier import fft_forward
+from xanesnet.utils.gaussian import GaussianBasis, gaussian_forward
+from xanesnet.utils.io import load_xanes, load_xyz
 from xanesnet.utils.mode import Mode
 
 IndexType = Union[slice, Tensor, np.ndarray, Sequence]
@@ -74,11 +76,6 @@ class BaseDataset(Dataset):
         self.basis_stride = kwargs.get("basis_stride", 2)
         self.basis_path = kwargs.get("basis_path", None)
 
-        if self.fft or self.gaussian:
-            if mode is not Mode.XYZ_TO_XANES:
-                raise ValueError(
-                    "FFT and Gaussian transformation are only supported in XYZ_TO_XANES mode."
-                )
         if self.fft and self.gaussian:
             raise ValueError(
                 "FFT and Gaussian transformations cannot be applied at the same time"
@@ -88,7 +85,7 @@ class BaseDataset(Dataset):
         self.preload_dataset = []
         self.file_names = None
 
-        self.setup_gaussian_basis()
+        self._setup_gaussian_basis()
         self.set_file_names()
         self._process()
 
@@ -98,7 +95,7 @@ class BaseDataset(Dataset):
             "basis_stride": self.basis_stride,
             "fourier": self.fft,
         }
-        self.register_config(locals())
+        self._register_config(locals())
 
     def set_file_names(self):
         """Set a list of file names (stems) in the dataset."""
@@ -113,13 +110,13 @@ class BaseDataset(Dataset):
         raise NotImplementedError
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
-        """Size or shape of the input feature tensor."""
+    def x_shape(self) -> List[int]:
+        """Shape of the input feature tensor."""
         raise NotImplementedError
 
     @property
-    def y_size(self) -> Union[int, List[int]]:
-        """Size or shape of the target label tensor."""
+    def y_shape(self) -> List[int]:
+        """Shape of the target label tensor."""
         raise NotImplementedError
 
     @property
@@ -145,7 +142,13 @@ class BaseDataset(Dataset):
         # defined as a property.
         if isinstance(files, Callable):
             files = files()
-        return [os.path.join(self.processed_dir, f) for f in self.to_list(files)]
+        return [os.path.join(self.processed_dir, f) for f in self._to_list(files)]
+
+    def shuffle(self) -> "BaseDataset":
+        """Randomly shuffles the examples in the dataset."""
+        perm = torch.randperm(len(self))
+        dataset = self._index_select(perm)
+        return dataset
 
     def __len__(self) -> int:
         """Number of data object in the dataset."""
@@ -174,13 +177,13 @@ class BaseDataset(Dataset):
                 return torch.load(self.processed_paths[idx])
 
         else:
-            return self.index_select(idx)
+            return self._index_select(idx)
 
     def _process(self):
         """
         Process raw data file. If processed files exist, skip processing.
         """
-        if self.files_exist(self.processed_paths):
+        if self._files_exist(self.processed_paths):
             logging.info(
                 f">> Processed files exist in {self.processed_dir}, skipping data processing."
             )
@@ -193,7 +196,7 @@ class BaseDataset(Dataset):
             logging.info(">> Preloading dataset into memory...")
             self.preload_dataset = [torch.load(path) for path in self.processed_paths]
 
-    def index_select(self, idx: IndexType) -> "BaseDataset":
+    def _index_select(self, idx: IndexType) -> "BaseDataset":
         """Creates a subset of the dataset from specified indices.
         Indices can be a slicing object, *e.g.*, :obj:`[2:5]`, a
         list, a tuple, or a :obj:`torch.Tensor` or :obj:`np.ndarray` of type
@@ -213,18 +216,18 @@ class BaseDataset(Dataset):
             index = index[idx]
 
         elif isinstance(idx, Tensor) and idx.dtype == torch.long:
-            return self.index_select(idx.flatten().tolist())
+            return self._index_select(idx.flatten().tolist())
 
         elif isinstance(idx, Tensor) and idx.dtype == torch.bool:
             idx = idx.flatten().nonzero(as_tuple=False)
-            return self.index_select(idx.flatten().tolist())
+            return self._index_select(idx.flatten().tolist())
 
         elif isinstance(idx, np.ndarray) and idx.dtype == np.int64:
-            return self.index_select(idx.flatten().tolist())
+            return self._index_select(idx.flatten().tolist())
 
         elif isinstance(idx, np.ndarray) and idx.dtype == bool:
             idx = idx.flatten().nonzero()[0]
-            return self.index_select(idx.flatten().tolist())
+            return self._index_select(idx.flatten().tolist())
 
         elif isinstance(idx, Sequence) and not isinstance(idx, str):
             index = [index[i] for i in idx]
@@ -240,13 +243,7 @@ class BaseDataset(Dataset):
         dataset.file_names = index
         return dataset
 
-    def shuffle(self) -> "BaseDataset":
-        """Randomly shuffles the examples in the dataset."""
-        perm = torch.randperm(len(self))
-        dataset = self.index_select(perm)
-        return dataset
-
-    def register_config(self, args, **kwargs):
+    def _register_config(self, args, **kwargs):
         """
         Assign arguments from the child class's constructor to self.config.
 
@@ -259,7 +256,7 @@ class BaseDataset(Dataset):
         self.config.update(kwargs)
         self.config.update(selected)
 
-    def setup_gaussian_basis(self):
+    def _setup_gaussian_basis(self):
         if self.basis_path is not None:
             logging.info(f">> Loading Gaussian basis from {self.basis_path}")
             self.gauss_basis = torch.load(self.basis_path)
@@ -287,8 +284,48 @@ class BaseDataset(Dataset):
         else:
             raise ValueError("XANES path must be provided to set up Gaussian basis.")
 
+    def transform_xanes(self, file_path: str):
+        e, xanes = load_xanes(file_path)
+
+        if self.fft:
+            xanes = fft_forward(xanes)
+        if self.gaussian:
+            xanes = gaussian_forward(self.gauss_basis, xanes)
+
+        return e, xanes
+
+    def transform_xyz(self, file_path: str, descriptors: List = None) -> Tensor:
+        """
+        Encodes XYZ data with descriptors
+        """
+        feature_arrays = []
+        atoms_object = None
+        if descriptors is None:
+            descriptors = self.descriptors
+
+        with open(file_path, "r") as f:
+            file_lines = f.read()
+
+        numeric_array = None
+        if any(d.get_type() == "direct" for d in descriptors):
+            with io.StringIO(file_lines) as file_stream:
+                numeric_array = np.loadtxt(file_stream).flatten()
+
+        for descriptor in descriptors:
+            if descriptor.get_type() == "direct":
+                feature_arrays.append(numeric_array)
+            else:
+                if atoms_object is None:
+                    with io.StringIO(file_lines) as file_stream:
+                        atoms_object = load_xyz(file_stream)
+                feature_arrays.append(np.asarray(descriptor.transform(atoms_object)))
+
+        # Concatenate all features and convert to torch tensor
+        features = np.concatenate(feature_arrays, axis=0)
+        return torch.tensor(features, dtype=torch.float32)
+
     @staticmethod
-    def unique_path(path) -> Path:
+    def _unique_path(path) -> Path:
         """
         Resolve single path
         """
@@ -302,7 +339,7 @@ class BaseDataset(Dataset):
         return Path(path) if path is not None else None
 
     @staticmethod
-    def list_path(path) -> List[Path]:
+    def _list_path(path) -> List[Path]:
         """
         Resolve list of paths
         """
@@ -315,14 +352,14 @@ class BaseDataset(Dataset):
         return [Path(path)]
 
     @staticmethod
-    def files_exist(files: List[str]) -> bool:
+    def _files_exist(files: List[str]) -> bool:
         """
         Check whether all given file paths exist.
         """
         return len(files) != 0 and all([fs.exists(f) for f in files])
 
     @staticmethod
-    def to_list(value: Any) -> Sequence:
+    def _to_list(value: Any) -> Sequence:
         """
         Ensure the input is returned as a list.
         """
@@ -332,7 +369,7 @@ class BaseDataset(Dataset):
             return [value]
 
     @staticmethod
-    def safe_stack(lst, dtype=torch.float32):
+    def _safe_stack(lst, dtype=torch.float32):
         """
         Stacks tensor list.
         Returns None if any element in the list is None.
@@ -342,7 +379,7 @@ class BaseDataset(Dataset):
         return torch.stack(lst).to(dtype)
 
     @staticmethod
-    def safe_pad(lst, batch_first=True, dtype=torch.float32):
+    def _safe_pad(lst, batch_first=True, dtype=torch.float32):
         """
         Pads tensor list.
         Returns None if any element in the list is None.
@@ -352,3 +389,12 @@ class BaseDataset(Dataset):
 
         padded = nn.utils.rnn.pad_sequence(lst, batch_first=batch_first).to(dtype)
         return padded
+
+    @staticmethod
+    def _shape(arr: Any) -> List[int]:
+        """Return array shape"""
+        if arr is None:
+            return []
+        if hasattr(arr, "shape"):
+            return list(arr.shape)
+        return [len(arr),]

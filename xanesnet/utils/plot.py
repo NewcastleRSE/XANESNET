@@ -69,16 +69,12 @@ def plot_predict(path: Path, mode: Mode, result, dataset, pred_eval):
     else:
         raise ValueError("Unsupported prediction mode.")
 
-    target = None
-    if pred_eval:
-        target = np.array([data.y.cpu().numpy() for data in dataset])
-
     file_names = dataset.file_names
     total_target, total_predict = [], []
 
     for i, id_ in enumerate(file_names):
         y_pred = predict[i]
-        y_target = target[i] if pred_eval else None
+        y_target = result.targets[i] if pred_eval else None
         _plot_single(save_path, id_, y_pred, y_target)
         total_predict.append(y_pred)
 

@@ -28,9 +28,9 @@ from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz, load_xyz
+from xanesnet.utils.io import list_filestems, load_xanes, load_xyz
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import gaussian_fit
+from xanesnet.utils.gaussian import gaussian_forward
 
 
 @dataclass
@@ -63,8 +63,8 @@ class SoftShellDataset(BaseDataset):
         **kwargs,
     ):
         # dataset accepts only one path each for the XYZ and XANES datasets.
-        xyz_path = self.unique_path(xyz_path)
-        xanes_path = self.unique_path(xanes_path)
+        xyz_path = self._unique_path(xyz_path)
+        xanes_path = self._unique_path(xanes_path)
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
@@ -77,7 +77,7 @@ class SoftShellDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        self.register_config(locals(), type="softshell")
+        self._register_config(locals(), type="softshell")
 
     def set_file_names(self):
         """
@@ -105,10 +105,10 @@ class SoftShellDataset(BaseDataset):
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")
-            desc = transform_xyz(raw_path, self.descriptors)
+            xyz_file = os.path.join(self.xyz_path, f"{stem}.xyz")
+            desc = self.transform_xyz(xyz_file)
 
-            with open(raw_path, "r") as f:
+            with open(xyz_file, "r") as f:
                 mol = load_xyz(f)
 
             # distance feature tensor
@@ -116,10 +116,10 @@ class SoftShellDataset(BaseDataset):
 
             e = c_star = xanes = None
             if self.xanes_path:
-                raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
-                e, xanes = load_xanes(raw_path)
+                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
+                e, xanes = load_xanes(xanes_file)
 
-                c_star = gaussian_fit(basis=self.gauss_basis, xanes=xanes)
+                c_star = gaussian_forward(basis=self.gauss_basis, xanes=xanes)
 
             # initialise data object
             data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
@@ -137,10 +137,10 @@ class SoftShellDataset(BaseDataset):
         c_list = [sample.c_star for sample in batch]
         lengths = torch.tensor([d.size(0) for d in desc_list], dtype=torch.long)
 
-        batched_desc = self.safe_pad(desc_list)
-        batched_dist = self.safe_pad(dist_list)
-        batched_y = self.safe_stack(y_list)
-        batched_c = self.safe_stack(c_list)
+        batched_desc = self._safe_pad(desc_list)
+        batched_dist = self._safe_pad(dist_list)
+        batched_y = self._safe_stack(y_list)
+        batched_c = self._safe_stack(c_list)
 
         return Data(
             desc=batched_desc,
@@ -151,7 +151,7 @@ class SoftShellDataset(BaseDataset):
         )
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
+    def x_shape(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         x_size = []
         e = self.gauss_basis.E
@@ -176,7 +176,7 @@ class SoftShellDataset(BaseDataset):
         return x_size
 
     @property
-    def y_size(self) -> int:
+    def y_shape(self) -> int:
         """Size of the label array."""
         y = self[0].y
         return 0 if y is None else y.shape[0]

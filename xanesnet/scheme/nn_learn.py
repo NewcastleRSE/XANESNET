@@ -171,20 +171,9 @@ class NNLearn(Learn):
 
                 # Pass X or batch object to model
                 input_data = batch if model.batch_flag else batch.x
-                predict = model(input_data)
 
-                if model.gnn_flag:
-                    predict = predict.view(-1)
-                    target = batch.y.float()
-                else:
-                    if batch.c_star is not None:
-                        target = batch.c_star
-                    elif batch.fourier is not None:
-                        target = batch.fourier
-                    else:
-                        target = batch.y
-
-                loss = criterion(predict, target)
+                predict = predict.view(-1) if model.gnn_flag else model(input_data)
+                loss = criterion(predict, batch.y)
 
                 if is_train:
                     # Add regularization loss

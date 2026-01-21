@@ -24,9 +24,9 @@ from typing import List, Optional, Tuple
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import inverse_fft
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.gaussian import GaussianSynthesis
+from xanesnet.utils.fourier import fft_inverse
+from xanesnet.utils.gaussian import gaussian_inverse
 
 
 @dataclass
@@ -35,14 +35,12 @@ class Prediction:
 
     xyz_pred: Optional[Tuple[np.ndarray, np.ndarray]] = None
     xanes_pred: Optional[Tuple[np.ndarray, np.ndarray]] = None
+    targets: Optional[np.ndarray] = None
 
 
 class NNPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
-
-        self.fft = kwargs.get("fourier")
-        self.gaussian = kwargs.get("gaussian")
 
     def predict(self, model):
         """Perform standard single-model prediction."""
@@ -52,30 +50,19 @@ class NNPredict(Predict):
         model.eval()
         predictions, targets = [], []
 
-        synthesis = None
-        if self.mode is Mode.XYZ_TO_XANES and self.gaussian:
-            synthesis = GaussianSynthesis(
-                basis=self.dataset.gauss_basis, nonneg_output=False
-            )
-            synthesis.eval()
-
         with torch.no_grad():
             for data in data_loader:
                 # Pass X or batch object to model
                 input_data = data if model.batch_flag else data.x
                 output = model(input_data)
-                # Inverse FFT transform
-                if self.fft:
-                    output = inverse_fft(output)
-                # Gaussian synthesis
-                if self.gaussian:
-                    output = synthesis.forward_from_coeffs(output)
 
+                output = self.inverse_transform(output)
                 output = self.to_numpy(output)
                 predictions.append(output)
 
                 if self.pred_eval:
-                    target = self.to_numpy(data.y)
+                    target = self.inverse_transform(data.y)
+                    target = self.to_numpy(target)
                     targets.append(target)
 
         predictions = np.array(predictions)
@@ -97,8 +84,8 @@ class NNPredict(Predict):
         std_pred = np.zeros_like(predictions)
 
         if self.mode is Mode.XANES_TO_XYZ:
-            return Prediction(xyz_pred=(predictions, std_pred))
-        return Prediction(xanes_pred=(predictions, std_pred))
+            return Prediction(xyz_pred=(predictions, std_pred), targets=targets)
+        return Prediction(xanes_pred=(predictions, std_pred), targets=targets)
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
         """Aggregate predictions from multiple bootstrap-trained models."""
@@ -113,8 +100,8 @@ class NNPredict(Predict):
             Predict.print_mse("target", "mean prediction", targets, mean_pred)
 
         if self.mode is Mode.XANES_TO_XYZ:
-            return Prediction(xyz_pred=(mean_pred, std_pred))
-        return Prediction(xanes_pred=(mean_pred, std_pred))
+            return Prediction(xyz_pred=(mean_pred, std_pred), targets=targets)
+        return Prediction(xanes_pred=(mean_pred, std_pred), targets=targets)
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
         """Aggregate predictions from an ensemble of models."""

@@ -25,9 +25,9 @@ from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft
-from xanesnet.utils.gaussian import gaussian_fit
-from xanesnet.utils.io import list_filestems, load_xanes, transform_xyz
+from xanesnet.utils.fourier import fft_forward
+from xanesnet.utils.gaussian import gaussian_forward
+from xanesnet.utils.io import list_filestems, load_xanes
 from xanesnet.utils.mode import Mode
 
 
@@ -62,8 +62,8 @@ class MultiheadDataset(BaseDataset):
         **kwargs,
     ):
         # dataset accepts only one path each for the XYZ and XANES datasets.
-        xyz_path = self.list_path(xyz_path)
-        xanes_path = self.list_path(xanes_path)
+        xyz_path = self._list_path(xyz_path)
+        xanes_path = self._list_path(xanes_path)
         head_names = [p.name for p in xanes_path]
 
         BaseDataset.__init__(
@@ -71,7 +71,7 @@ class MultiheadDataset(BaseDataset):
         )
 
         # Save configuration
-        self.register_config(locals(), type="multihead", head_names=head_names)
+        self._register_config(locals(), type="multihead", head_names=head_names)
 
     def set_file_names(self):
         """
@@ -112,18 +112,15 @@ class MultiheadDataset(BaseDataset):
                 xyz_file, head_idx_xyz, head_name_xyz = self.find_file(
                     stem, self.xyz_path, ".xyz"
                 )
-                xyz = transform_xyz(xyz_file, self.descriptors)
+                xyz = self.transform_xyz(xyz_file)
 
             # get xanes, energy, head index and name
             if self.xanes_path:
                 xanes_file, head_idx_xanes, head_name_xanes = self.find_file(
                     stem, self.xanes_path, ".txt"
                 )
-                e, xanes = load_xanes(xanes_file)
-                if self.fft:
-                    fourier = fft(xanes)
-                elif self.gaussian:
-                    c_star = gaussian_fit(basis=self.gauss_basis, xanes=xanes)
+                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
+                e, xanes = self.transform_xanes(xanes_file)
 
             if self.mode == Mode.XANES_TO_XYZ:
                 x = xanes
@@ -173,11 +170,11 @@ class MultiheadDataset(BaseDataset):
         fft_list = [sample.fourier for sample in batch]
         cstar_list = [sample.c_star for sample in batch]
 
-        batched_x = self.safe_stack(x_list)
-        batched_y = self.safe_stack(y_list)
-        batched_i = self.safe_stack(idx_list, dtype=torch.long)
-        batched_fft = self.safe_stack(fft_list)
-        batched_cstar = self.safe_stack(cstar_list)
+        batched_x = self._safe_stack(x_list)
+        batched_y = self._safe_stack(y_list)
+        batched_i = self._safe_stack(idx_list, dtype=torch.long)
+        batched_fft = self._safe_stack(fft_list)
+        batched_cstar = self._safe_stack(cstar_list)
 
         return Data(
             x=batched_x,
@@ -188,12 +185,12 @@ class MultiheadDataset(BaseDataset):
         )
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
+    def x_shape(self) -> Union[int, List[int]]:
         """Size of the feature array."""
         return len(self[0].x)
 
     @property
-    def y_size(self) -> Union[int, List[int]]:
+    def y_shape(self) -> Union[int, List[int]]:
         """Size of the label array."""
         # mapping each head index to the length of its label array.
 

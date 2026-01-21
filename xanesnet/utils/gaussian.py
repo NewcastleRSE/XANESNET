@@ -67,24 +67,6 @@ class GaussianBasis(nn.Module):
         return coeffs @ self.Phi.T
 
 
-class GaussianSynthesis(nn.Module):
-    """
-    Stage 1: parameter-free (no training).
-      y = Φ c    (optionally clamped to nonnegative)
-    """
-
-    def __init__(self, basis: "GaussianBasis", nonneg_output: bool = False):
-        super().__init__()
-        self.basis = basis
-        self.nonneg_output = bool(nonneg_output)
-
-    def forward_from_coeffs(self, coeffs: torch.Tensor):
-        y = self.basis.synthesize(coeffs)
-        if self.nonneg_output:
-            y = y.clamp_min_(0)
-        return y
-
-
 def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     """
     A = (Φᵀ Φ + λ I)^{-1} Φᵀ  with Cholesky; fallback to augmented LSQ.
@@ -115,7 +97,16 @@ def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
     return A.to(torch.float32)
 
 
-def gaussian_fit(basis: GaussianBasis, xanes: Tensor) -> Tensor:
+def gaussian_forward(basis: GaussianBasis, xanes: Tensor) -> Tensor:
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T
+
+
+def gaussian_inverse(
+    basis: GaussianBasis, coeffs: Tensor, nonneg_output: bool = False
+) -> Tensor:
+    y = basis.synthesize(coeffs)
+    if nonneg_output:
+        y = y.clamp_min_(0)
+    return y

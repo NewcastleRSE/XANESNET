@@ -26,8 +26,8 @@ from sklearn.model_selection import RepeatedKFold
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_learn import Learn, EarlyStopState
+from xanesnet.utils.gaussian import gaussian_inverse
 from xanesnet.utils.switch import LossSwitch
-from xanesnet.utils.gaussian import GaussianSynthesis
 
 
 class SSLearn(Learn):
@@ -43,16 +43,9 @@ class SSLearn(Learn):
         super().__init__(model, dataset, **kwargs)
 
         hyper_params = self.hyper_params
-        diagnostics = hyper_params.get("diagnostics", True)
 
-        self.synthesis = GaussianSynthesis(
-            basis=self.dataset.gauss_basis, nonneg_output=False
-        )
-        self.synthesis.to(self.device)
-        self.synthesis.eval()
-
-        if diagnostics:
-            self._model_diagnostics(self.synthesis, model, dataset)
+        if hyper_params.get("diagnostics", True):
+            self._model_diagnostics(self.dataset.gauss_basis, model, dataset)
 
     def train(self, model, dataset):
         train_loader, valid_loader = self.setup_dataloaders(dataset)
@@ -246,7 +239,7 @@ class SSLearn(Learn):
         }
         return layout
 
-    def _model_diagnostics(self, synthesis, model, dataset):
+    def _model_diagnostics(self, basis, model, dataset):
         print("--- Model Diagnostics ---")
         train_loader, valid_loader = self.setup_dataloaders(dataset)
 
@@ -258,12 +251,11 @@ class SSLearn(Learn):
                     c_batch = batch.c_star
                     y_batch = batch.y
 
-                    y_gauss = synthesis.forward_from_coeffs(c_batch)  # (B, N)
+                    y_gauss = gaussian_inverse(basis, c_batch)  # (B, N)
                     sse += F.mse_loss(y_gauss, y_batch, reduction="sum").item()
                     n_elem += y_batch.numel()
                 mse_gauss = sse / max(1, n_elem)
 
-        trainable, total = self._count_trainable_params(synthesis)
         trainable_e, total_e = self._count_trainable_params(model.encoder)
         trainable_h, total_h = self._count_trainable_params(model.coeff_head)
 

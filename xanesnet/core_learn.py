@@ -126,8 +126,8 @@ def setup_dataset(config: Dict, mode: Mode, descriptors: List) -> BaseDataset:
     logging.info(
         ">> Dataset Summary: # of samples=%d, X=%s, y=%s",
         len(dataset),
-        dataset.x_size,
-        dataset.y_size,
+        dataset.x_shape,
+        dataset.y_shape,
     )
 
     return dataset
@@ -146,8 +146,8 @@ def setup_model(config: Dict, dataset: BaseDataset) -> Model:
     logging.info(">> Initialising model: %s", model_type)
     model_params = {
         **model_params,
-        "in_size": dataset.x_size,
-        "out_size": dataset.y_size,
+        "in_shape": dataset.x_shape,
+        "out_shape": dataset.y_shape,
     }
 
     model = create_model(model_type, **model_params)
@@ -225,13 +225,13 @@ def summarise_model(model: Model, dataset: BaseDataset) -> None:
     logging.info("\n--- Model Summary ---")
 
     if model.aegan_flag:
-        dummy_x = torch.randn(1, dataset.x_size)
-        dummy_y = torch.randn(1, dataset.y_size)
+        dummy_x = torch.randn(1, dataset.x_shape[0])
+        dummy_y = torch.randn(1, dataset.y_shape[0])
         input_data = (dummy_x, dummy_y)
     elif model.batch_flag:
         input_data = None
     else:
-        dummy_x = torch.randn(1, dataset.x_size)
+        dummy_x = torch.randn(1, dataset.x_shape[0])
         input_data = dummy_x
 
     summary(model, input_data=input_data)

@@ -26,6 +26,9 @@ import torch_geometric
 from sklearn.metrics import mean_squared_error
 
 from xanesnet.models.base_model import Model
+from xanesnet.utils.fourier import fft_inverse
+from xanesnet.utils.gaussian import gaussian_inverse
+from xanesnet.utils.mode import Mode
 
 
 class Predict(ABC):
@@ -37,6 +40,9 @@ class Predict(ABC):
         # Unpack parameters
         self.mode = kwargs.get("pred_mode")
         self.pred_eval = kwargs.get("pred_eval")
+
+        self.fft = kwargs.get("fourier")
+        self.gaussian = kwargs.get("gaussian")
 
         self.recon_flag = 0
         self.mh_flag = 0
@@ -107,6 +113,14 @@ class Predict(ABC):
             A `Prediction` dataclass object.
         """
         pass
+
+    def inverse_transform(self, y: torch.Tensor):
+        if self.mode == Mode.XYZ_TO_XANES:
+            if self.fft:
+                y = fft_inverse(y)
+            if self.gaussian:
+                y = gaussian_inverse(self.dataset.gauss_basis, y)
+        return y
 
     @staticmethod
     def to_numpy(tensor):

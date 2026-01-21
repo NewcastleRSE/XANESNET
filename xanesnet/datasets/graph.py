@@ -26,7 +26,7 @@ from torch_geometric.data import Data
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft
+from xanesnet.utils.fourier import fft_forward
 from xanesnet.utils.io import list_filestems, load_xanes
 from xanesnet.utils.mode import Mode
 from xanesnet.utils.xyz2graph import MolGraph
@@ -49,8 +49,8 @@ class GraphDataset(BaseDataset):
         self.r_max = kwargs.get("r_max", 4.0)
 
         # dataset accepts only one path each for the XYZ and XANES datasets.
-        xyz_path = self.unique_path(xyz_path)
-        xanes_path = self.unique_path(xanes_path)
+        xyz_path = self._unique_path(xyz_path)
+        xanes_path = self._unique_path(xanes_path)
 
         BaseDataset.__init__(
             self, Path(root), xyz_path, xanes_path, mode, descriptors, **kwargs
@@ -65,7 +65,7 @@ class GraphDataset(BaseDataset):
             "r_min": self.r_min,
             "r_max": self.r_max,
         }
-        self.register_config(locals(), type="graph")
+        self._register_config(locals(), type="graph")
 
     def set_file_names(self):
         """
@@ -96,12 +96,12 @@ class GraphDataset(BaseDataset):
         pass
 
     @property
-    def x_size(self) -> Union[int, List[int]]:
+    def x_shape(self) -> Union[int, List[int]]:
         # node feature size and graph attribute size
         return [self[0].x.shape[1], self[0].graph_attr.shape[0]]
 
     @property
-    def y_size(self) -> Union[int, List[int]]:
+    def y_shape(self) -> Union[int, List[int]]:
         # xanes (label) size
         y = self[0].y
         return 0 if y is None else len(y)
@@ -117,7 +117,7 @@ class GraphDataset(BaseDataset):
                 raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = load_xanes(raw_path)
                 if self.fft:
-                    xanes = fft(xanes)
+                    xanes = fft_forward(xanes)
 
             mg = MolGraph()
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.fourier import inverse_fft
+from xanesnet.utils.fourier import fft_inverse
 from xanesnet.utils.mode import Mode
 
 
@@ -89,9 +89,9 @@ class AEGANPredict(Predict):
                     predict_xyz.append(pred_xyz)
 
                 if self.fft and self.mode in [Mode.XYZ_TO_XANES, Mode.BIDIRECTIONAL]:
-                    pred_xanes = inverse_fft(pred_xanes)
+                    pred_xanes = fft_inverse(pred_xanes)
                 if self.fft and self.mode in [Mode.XANES_TO_XYZ, Mode.BIDIRECTIONAL]:
-                    recon_xanes = inverse_fft(recon_xanes)
+                    recon_xanes = fft_inverse(recon_xanes)
 
                 if pred_xanes is not None:
                     predict_xanes.append(pred_xanes)
