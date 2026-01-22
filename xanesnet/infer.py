@@ -25,8 +25,8 @@ from xanesnet.datasets import DatasetRegistry
 from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
+from xanesnet.runners.trainers import TrainerRegistry
 from xanesnet.strategies import StrategyRegistry
-from xanesnet.trainers import TrainerRegistry
 from xanesnet.utils import set_global_seed, setup_file_logging, setup_logging
 from xanesnet.utils.io import (
     Checkpoint,

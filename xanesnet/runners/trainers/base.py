@@ -15,20 +15,18 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from abc import ABC
 from typing import Any
 
 import torch
 
-from xanesnet.batchprocessors import BatchProcessor, BatchProcessorRegistry
 from xanesnet.datasets import Dataset
-from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
 from xanesnet.registry import OptimizerRegistry
-from xanesnet.regularizers import Regularizer, RegularizerRegistry
+
+from ..base import Runner
 
 
-class Trainer(ABC):
+class Trainer(Runner):
     def __init__(
         self,
         trainer_type: str,
@@ -37,12 +35,9 @@ class Trainer(ABC):
         model: Model,
         device: str | torch.device,
     ) -> None:
-        self.trainer_type = trainer_type
-        self.params = params
-        self.dataset = dataset
-        self.model = model
+        super().__init__(params, dataset, model, device)
 
-        self.device = device
+        self.trainer_type = trainer_type
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()
@@ -73,12 +68,12 @@ class Trainer(ABC):
             # TODO learning rate scheduler
 
             # Logging
-            self._log_epoch_loss(epoch, train_loss, train_regularization, train_total, valid_loss)
+            self._log_epoch_loss(train_loss, train_regularization, train_total, valid_loss, epoch)
 
             # Early stopping
             # TODO early stopping
 
-        logging.info(f"Finished training.")
+        logging.info("Finished training.")
 
         score = valid_loss
 
@@ -127,71 +122,8 @@ class Trainer(ABC):
 
         return epoch_loss, epoch_regularization, epoch_total
 
-    def _setup_batchprocessor(self) -> BatchProcessor:
-        batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)()
-        return batchprocessor
-
-    def _setup_dataloader(self) -> Any:
-        dataloader_cls = self.dataset.get_dataloader()
-
-        dataloader = dataloader_cls(
-            self.dataset,
-            batch_size=self.params.get("batch_size", 2),
-            shuffle=self.params.get("shuffle", True),
-            collate_fn=self.dataset.collate_fn,
-            drop_last=self.params.get("drop_last", False),
-            num_workers=self.params.get("num_workers", 0),
-        )
-
-        return dataloader
-
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         optimizer_cls = OptimizerRegistry.get(self.params.get("optimizer", "adam"))
         optimizer = optimizer_cls(self.model.parameters(), self.params.get("learning_rate", 0.001))
 
         return optimizer
-
-    def _setup_loss(self) -> Loss:
-        loss_config = self.params["loss"]
-        loss_type = loss_config["loss_type"]
-
-        loss = LossRegistry.get(loss_type)(**loss_config)
-
-        return loss
-
-    def _setup_regularizer(self) -> Regularizer:
-        regularizer_config = self.params.get("regularizer", None)
-        if regularizer_config is None:
-            return RegularizerRegistry.get("none")("none")
-
-        regularizer_type = regularizer_config["regularizer_type"]
-        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
-
-        return regularizer
-
-    def _log_epoch_loss(
-        self,
-        epoch: int,
-        train_loss: float,
-        train_regularization: float,
-        train_total: float,
-        valid_loss: float | None = None,
-    ) -> None:
-        # TODO better logging?
-        if valid_loss is not None:
-            logging.info(
-                f"Epoch {epoch + 1:03d} | "
-                f"Loss: {train_loss:.6f} | "
-                f"Regularization: {train_regularization:.6f} | "
-                f"Total: {train_total:.6f} | "
-                f"Validation: {valid_loss:.6f}"
-            )
-        else:
-            logging.info(
-                f"Epoch {epoch + 1:03d} | "
-                f"Loss: {train_loss:.6f} | "
-                f"Regularization: {train_regularization:.6f} | "
-                f"Total: {train_total:.6f} | "
-            )
-
-        # TODO mlflow|tensorboard logging?

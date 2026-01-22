@@ -21,7 +21,7 @@ import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.trainers import TrainerRegistry
+from xanesnet.runners.trainers import TrainerRegistry
 
 from .base import Strategy
 from .registry import StrategyRegistry
