@@ -16,39 +16,32 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections.abc import Callable
 
-import torch.optim as optim
+from .base import EarlyStopper
 
 
-class OptimizerRegistry:
-    _registry: dict[str, type[optim.Optimizer]] = {}
+class EarlyStopperRegistry:
+    _registry: dict[str, type[EarlyStopper]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[type[optim.Optimizer]], type[optim.Optimizer]]:
+    def register(cls, name: str) -> Callable[[type[EarlyStopper]], type[EarlyStopper]]:
         name = name.lower()
 
-        def decorator(optim_cls: type[optim.Optimizer]) -> type[optim.Optimizer]:
+        def decorator(stopper_cls: type[EarlyStopper]) -> type[EarlyStopper]:
             if name in cls._registry:
-                raise KeyError(f"Optimizer '{name}' already registered")
-            cls._registry[name] = optim_cls
-            return optim_cls
+                raise KeyError(f"EarlyStopper '{name}' already registered")
+            cls._registry[name] = stopper_cls
+            return stopper_cls
 
         return decorator
 
     @classmethod
-    def get(cls, name: str) -> type[optim.Optimizer]:
+    def get(cls, name: str) -> type[EarlyStopper]:
         name = name.lower()
+
         if name not in cls._registry:
-            raise KeyError(f"Optimizer '{name}' not found in registry")
+            raise KeyError(f"EarlyStopper '{name}' not found in registry")
         return cls._registry[name]
 
     @classmethod
     def list(cls) -> list[str]:
         return list(cls._registry.keys())
-
-
-# register optimizers
-OptimizerRegistry.register("adam")(optim.Adam)
-OptimizerRegistry.register("sgd")(optim.SGD)
-OptimizerRegistry.register("rmsprop")(optim.RMSprop)
-OptimizerRegistry.register("adamw")(optim.AdamW)
-OptimizerRegistry.register("adagrad")(optim.Adagrad)

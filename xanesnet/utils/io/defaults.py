@@ -61,6 +61,10 @@ TRAINER_DEFAULTS = {
         "params.shuffle": True,
         "params.drop_last": False,
         "params.num_workers": 0,
+        "params.lr_scheduler.lr_scheduler_type": "none",
+        "params.lr_scheduler.params": {},
+        "params.early_stopper.early_stopper_type": "none",
+        "params.early_stopper.params.restore_best": True,
     },
 }
 

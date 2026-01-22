@@ -14,15 +14,14 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .activation import ActivationRegistry
-from .init import BiasInitRegistry, WeightInitRegistry
-from .lrscheduler import LRSchedulerRegistry
-from .optim import OptimizerRegistry
+from .base import EarlyStopper
+from .basic import BasicStopper
+from .no import NoStopper
+from .registry import EarlyStopperRegistry
 
 __all__ = [
-    "BiasInitRegistry",
-    "WeightInitRegistry",
-    "OptimizerRegistry",
-    "ActivationRegistry",
-    "LRSchedulerRegistry",
+    "EarlyStopper",
+    "BasicStopper",
+    "EarlyStopperRegistry",
+    "NoStopper",
 ]

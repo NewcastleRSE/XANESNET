@@ -50,15 +50,13 @@ trainer:
       loss_type: mse
     regularizer:
       regularizer_type: none
+    lr_scheduler:
+      lr_scheduler_type: none
+    early_stopper:
+      early_stopper_type: none
   
 strategy:
   strategy_type: single
-
-lr_scheduler: False
-scheduler_params:
-  scheduler_type: step
-  step_size: 1
-  gamma: 0.1
 
 
 # Other strategies
