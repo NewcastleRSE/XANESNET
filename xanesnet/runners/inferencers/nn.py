@@ -22,8 +22,10 @@ from xanesnet.datasets import Dataset
 from xanesnet.models import Model
 
 from .base import Inferencer
+from .registry import InferencerRegistry
 
 
+@InferencerRegistry.register("nninferencer")
 class NNInferencer(Inferencer):
     def __init__(
         self,

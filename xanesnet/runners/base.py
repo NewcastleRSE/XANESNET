@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any
 
 import torch

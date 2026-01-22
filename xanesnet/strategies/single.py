@@ -21,6 +21,7 @@ import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
+from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
 
 from .base import Strategy
@@ -78,6 +79,9 @@ class Single(Strategy):
         self.trainer = trainer
 
     def run_training(self) -> list[Model]:
+        if self.trainer is None:
+            raise ValueError("Cannot run training because the trainer is not initialised.")
+
         super().run_training()
 
         _ = self.trainer.train()  # TODO should we do something with the returned score?
@@ -88,12 +92,28 @@ class Single(Strategy):
         if self.inferencer_config is None:
             raise ValueError("Can not setup inferencers because there is no inferencer config.")
 
-        raise NotImplementedError("Not implemented!")  # TODO Implement
+        inferencer_type = self.inferencer_config["inferencer_type"]
+
+        logging.info(f"Initialising inferencer: {inferencer_type}")
+
+        inferencer = InferencerRegistry.get(inferencer_type)(
+            **self.inferencer_config,
+            dataset=self.dataset,
+            model=self.model,
+            device=device,
+        )
+
+        self.inferencer = inferencer
 
     def run_inference(self) -> None:
+        if self.inferencer is None:
+            raise ValueError("Cannot run inference because the Inferencer is not initialised.")
+
         super().run_inference()
 
-        raise NotImplementedError("Not implemented!")  # TODO Implement
+        _ = self.inferencer.infer()  # TODO should we do something with the returned score?
+
+        return None
 
     @property
     def model_signature(self) -> dict[str, Any]:
