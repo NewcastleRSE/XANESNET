@@ -123,7 +123,7 @@ class Trainer(Runner):
         return epoch_loss, epoch_regularization, epoch_total
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
-        optimizer_cls = OptimizerRegistry.get(self.params.get("optimizer", "adam"))
-        optimizer = optimizer_cls(self.model.parameters(), self.params.get("learning_rate", 0.001))
+        optimizer_cls = OptimizerRegistry.get(self.params["optimizer"])
+        optimizer = optimizer_cls(self.model.parameters(), self.params["learning_rate"])
 
         return optimizer

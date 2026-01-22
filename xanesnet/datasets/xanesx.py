@@ -71,10 +71,10 @@ class XanesXDataset(TorchDataset):
         super().__init__(dataset_type, datasource, root, mode, preload, params)
 
         # Some assertions
-        if self.params.get("fourier", False) or self.params.get("gaussian", False):
+        if self.params["fourier"] or self.params["gaussian"]:
             if self.mode is not Mode.FORWARD:
                 raise NotImplementedError("Fourier and Gaussian features are only allowed in FORWARD mode.")
-            if self.params.get("fourier", False) and self.params.get("gaussian", False):
+            if self.params["fourier"] and self.params["gaussian"]:
                 raise NotImplementedError("Fourier and Gaussian features cannot be used together.")
 
         # Create descriptors
@@ -89,7 +89,7 @@ class XanesXDataset(TorchDataset):
             self.descriptor_list.append(descriptor)
 
         # Setup spectral basis only if needed
-        if self.params.get("gaussian", False):
+        if self.params["gaussian"]:
             self._setup_spectral_basis()
 
     def process(self) -> bool:
@@ -116,12 +116,12 @@ class XanesXDataset(TorchDataset):
 
             # FFT
             fourier = None
-            if self.params.get("fourier", False):
-                fourier = fft(intensities, self.params.get("fourier_concat", False))
+            if self.params["fourier"]:
+                fourier = fft(intensities, self.params["fourier_concat"])
 
             # Gaussian
             c_star = None
-            if self.params.get("gaussian", False):
+            if self.params["gaussian"]:
                 c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
             # Mode
@@ -145,7 +145,7 @@ class XanesXDataset(TorchDataset):
 
     def _setup_spectral_basis(self) -> None:
         # Load directly from file
-        if self.params.get("basis_path", None) is not None:
+        if self.params["basis_path"] is not None:
             logging.info(f"Loading spectral basis from file @ {self.params['basis_path']}")
             self.basis = torch.load(self.params["basis_path"])
         # Create from datasource
@@ -156,9 +156,9 @@ class XanesXDataset(TorchDataset):
             energies = first_data.site_properties["XANES"][0]["energies"]
             self.basis = SpectralBasis(
                 energies=energies,
-                widths_eV=self.params.get("widths_eV", [0.5, 1.0, 2.0, 4.0]),
+                widths_eV=self.params["widths_eV"],
                 normalize_atoms=True,
-                stride=self.params.get("basis_stride", 2),
+                stride=self.params["basis_stride"],
             )
 
     @property
@@ -177,9 +177,9 @@ class XanesXDataset(TorchDataset):
         """Return dataset metadata as a dictionary."""
         metadata = super().metadata
         in_size = len(self[0].x)
-        if self.params.get("gaussian", False):
+        if self.params["gaussian"]:
             feature = self[0].c_star
-        elif self.params.get("fourier", False):
+        elif self.params["fourier"]:
             feature = self[0].fourier
         else:
             feature = self[0].y

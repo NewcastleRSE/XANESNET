@@ -45,16 +45,16 @@ class Single(Strategy):
     def setup_models(self) -> None:
         model_type = self.model_config["model_type"]
         logging.info(f"Initialising model: {model_type}")
-        model_params = self.model_config.get("params", {})
+        model_params = self.model_config["params"]
         model = ModelRegistry.get(model_type)(model_type=model_type, **model_params)
 
         self.model = model
 
     def init_model_weights(self) -> None:
         # Intialise model weights
-        weights_params = self.model_config.get("weights_params", {})
-        weights_init = self.model_config.get("weights_init", {}).get("weights", "default")
-        bias_init = self.model_config.get("weights_init", {}).get("bias", "zeros")
+        weights_params = self.model_config["weights_init"]["weights_params"]
+        weights_init = self.model_config["weights_init"]["weights"]
+        bias_init = self.model_config["weights_init"]["bias"]
         logging.info(f"Initialising weights with '{weights_init}' and bias with '{bias_init}'")
         self.model.init_weights(weights_init, bias_init, **weights_params)
 

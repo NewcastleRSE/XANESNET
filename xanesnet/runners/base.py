@@ -49,11 +49,11 @@ class Runner(ABC):
 
         dataloader = dataloader_cls(
             self.dataset,
-            batch_size=self.params.get("batch_size", 2),
-            shuffle=self.params.get("shuffle", True),
+            batch_size=self.params["batch_size"],
+            shuffle=self.params["shuffle"],
             collate_fn=self.dataset.collate_fn,
-            drop_last=self.params.get("drop_last", False),
-            num_workers=self.params.get("num_workers", 0),
+            drop_last=self.params["drop_last"],
+            num_workers=self.params["num_workers"],
         )
 
         return dataloader
@@ -67,10 +67,7 @@ class Runner(ABC):
         return loss
 
     def _setup_regularizer(self) -> Regularizer:
-        regularizer_config = self.params.get("regularizer", None)
-        if regularizer_config is None:
-            return RegularizerRegistry.get("none")("none")
-
+        regularizer_config = self.params["regularizer"]
         regularizer_type = regularizer_config["regularizer_type"]
         regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
 

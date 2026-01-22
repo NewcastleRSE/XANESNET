@@ -46,7 +46,7 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     """
     Main training entry
     """
-    mode = get_mode(config.get("mode", None))
+    mode = get_mode(config["mode"])
     if mode is None:
         raise ValueError("No mode specified in configuration file. Choose between: 'forward', 'inverse'.")
     logging.info(f"Training mode: {mode}")
@@ -56,7 +56,7 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
     strategy.init_model_weights()
-    strategy.setup_trainers(config.get("device", "cpu"))
+    strategy.setup_trainers(config["device"])
 
     # Save training config and signature
     signature = None

@@ -50,8 +50,6 @@ trainer:
       loss_type: mse
     regularizer:
       regularizer_type: none
-      
-    loss_lambda: 0.001
   
 strategy:
   strategy_type: single

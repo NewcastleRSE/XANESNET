@@ -28,7 +28,12 @@ from xanesnet.models import ModelRegistry
 from xanesnet.runners.trainers import TrainerRegistry
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils import set_global_seed, setup_file_logging, setup_logging
-from xanesnet.utils.io import create_run_dir, create_subfolders
+from xanesnet.utils.io import (
+    create_run_dir,
+    create_subfolders,
+    save_dict_as_yaml,
+    validate_config,
+)
 
 ###############################################################################
 ################################### LOGGING ###################################
@@ -100,8 +105,13 @@ def main(args: list[str]) -> None:
     # Setup file logging
     setup_file_logging(save_dir)
 
+    # Config validation
+    config = validate_config(config)
+    validate_config_save_path = save_dict_as_yaml(config, save_dir, "validated_config")
+    logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+
     # Setting global seed for reproducibility
-    seed = config.get("seed", None)
+    seed = config["seed"]
     if seed is None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)

@@ -45,7 +45,7 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
     strategy.set_state_dicts(checkpoint.model_states)
-    strategy.setup_inferencers(config.get("device", "cpu"))
+    strategy.setup_inferencers(config["device"])
 
     # Save inference config
     if args_namespace.save:

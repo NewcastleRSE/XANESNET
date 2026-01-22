@@ -34,6 +34,7 @@ from xanesnet.utils.io import (
     create_subfolders,
     merge_configs,
     save_dict_as_yaml,
+    validate_config,
 )
 
 ###############################################################################
@@ -106,21 +107,22 @@ def main(args: list[str]) -> None:
     logging.info(f"Run directory: {save_dir}")
     create_subfolders(save_dir, subfolder_names=["plots"])
 
-    # Merge inference config and checkpoint config
-    config = merge_configs(config, checkpoint.signature)
-    merged_config_save_path = save_dict_as_yaml(
-        config,
-        save_dir,
-        "merged_infer_config",
-    )
-    config["dataset"].pop("mode", None)  # Remove redundant mode from dataset config
-    logging.info(f"Merged configuration file saved to: {merged_config_save_path}")
-
     # Setup file logging
     setup_file_logging(save_dir)
 
+    # Merge inference config and checkpoint config
+    config = merge_configs(config, checkpoint.signature)
+    merged_config_save_path = save_dict_as_yaml(config, save_dir, "merged_infer_config")
+    config["dataset"].pop("mode", None)  # Remove redundant mode from dataset config
+    logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
+
+    # Config validation
+    config = validate_config(config)
+    validate_config_save_path = save_dict_as_yaml(config, save_dir, "validated_config")
+    logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+
     # Setting global seed for reproducibility
-    seed = config.get("seed", None)
+    seed = config["seed"]
     if seed is None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)
