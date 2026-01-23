@@ -80,7 +80,13 @@ class Trainer(Runner):
 
         if self.early_stopper.restore_best:
             score, best_epoch = self.early_stopper.restore(self.model)
-            logging.info(f"Restored best model from epoch {best_epoch} with score {score}.")
+            if score is not None and best_epoch is not None:
+                logging.info(f"Restored best model from epoch {best_epoch} with score {score}.")
+            else:
+                logging.warning(
+                    f"Did not find a best model."
+                    f" Something might be wrong in your EarlyStopper {self.early_stopper.stopper_type}."
+                )
         else:
             score = valid_loss
             logging.info(f"Using last model as final model.")
