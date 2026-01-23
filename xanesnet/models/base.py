@@ -32,12 +32,10 @@ class Model(nn.Module):
     def __init__(
         self,
         model_type: str,
-        params: dict[str, Any],
     ) -> None:
         super().__init__()
 
         self.model_type = model_type
-        self.params = params
 
     @abstractmethod
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
@@ -47,13 +45,12 @@ class Model(nn.Module):
         ...
 
     @property
+    @abstractmethod
     def signature(self) -> dict[str, Any]:
         """
         Return model signature as a dictionary.
         """
         signature = {
             "model_type": self.model_type,
-            "params": self.params,
         }
-        signature["params"].pop("model_type", None)  # Remove redundant model_type from params
         return signature

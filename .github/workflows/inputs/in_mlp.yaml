@@ -28,18 +28,16 @@ dataset:
         n_g4: 32
 
 model:
+  # general:
   model_type: mlp
-  params:
-    in_size: 49
-    out_size: 226
-    hidden_size: 256
-    dropout: 0.1
-    num_hidden_layers: 3
-    shrink_rate: 0.5
-    activation: prelu
-  weights_init:
-    weights: xavier_uniform
-    bias: zeros
+  # params:
+  in_size: 49
+  out_size: 226
+  hidden_size: 256
+  dropout: 0.1
+  num_hidden_layers: 3
+  shrink_rate: 0.5
+  activation: prelu
 
 trainer:
   trainer_type: nntrainer
@@ -68,28 +66,8 @@ trainer:
   
 strategy:
   strategy_type: single
-
-
-# Other strategies
-# // strategy:
-# //   type: kfold
-# //   params:
-# //     n_splits: 2
-# //     n_repeats: 1
-# //     seed: 2021
-
-# // strategy:
-# //   type: bootstrap
-# //   params:
-# //     n_boot: 3
-# //     n_size: 1.0
-# //     weight_seed: [97, 39, 22]
-
-# // strategy: 
-# //   type: ensemble
-# //   params:
-# //     n_ens: 3
-# //     weight_seed: [97, 39, 22]
+  weight_init: xavier_uniform
+  bias_init: zeros
 
 
 

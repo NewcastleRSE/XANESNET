@@ -83,12 +83,11 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
-    dataset_type = config["dataset"]["dataset_type"]
-
-    # TODO
+    dataset_config = config["dataset"]
+    dataset_type = dataset_config["dataset_type"]
 
     logging.info(f"Initialising inference dataset: {dataset_type}")
-    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
     dataset.process()
     dataset.check_preload()  # may preload the dataset into memory
 

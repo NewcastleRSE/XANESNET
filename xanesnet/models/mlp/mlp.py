@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Any
+
 import torch
 from torch import nn
 
@@ -39,13 +41,14 @@ class MLP(Model):
     def __init__(
         self,
         model_type: str,
+        # params:
         in_size: int,
         out_size: int,
-        hidden_size: int = 256,
-        dropout: float = 0.1,
-        num_hidden_layers: int = 3,
-        shrink_rate: float = 1.0,
-        activation: str = "relu",
+        hidden_size: int,
+        dropout: float,
+        num_hidden_layers: int,
+        shrink_rate: float,
+        activation: str,
     ) -> None:
         """
         Args:
@@ -58,9 +61,15 @@ class MLP(Model):
             shrink_rate (float): Rate to reduce the hidden layer size multiplicatively.
             activation (str): Name of activation function for hidden layers.
         """
+        super().__init__(model_type)
 
-        params = {k: v for k, v in list(locals().items()) if k not in ("self") and not k.startswith("_")}
-        super().__init__(model_type, params)
+        self.in_size = in_size
+        self.out_size = out_size
+        self.hidden_size = hidden_size
+        self.dropout = dropout
+        self.num_hidden_layers = num_hidden_layers
+        self.shrink_rate = shrink_rate
+        self.activation = activation
 
         act_fn = ActivationRegistry.get(activation)
         layers = []
@@ -98,3 +107,22 @@ class MLP(Model):
 
         # Apply to all modules
         self.apply(_init_layer)
+
+    @property
+    def signature(self) -> dict[str, Any]:
+        """
+        Return model signature as a dictionary.
+        """
+        signature = super().signature
+        signature.update(
+            {
+                "in_size": self.in_size,
+                "out_size": self.out_size,
+                "hidden_size": self.hidden_size,
+                "dropout": self.dropout,
+                "num_hidden_layers": self.num_hidden_layers,
+                "shrink_rate": self.shrink_rate,
+                "activation": self.activation,
+            }
+        )
+        return signature

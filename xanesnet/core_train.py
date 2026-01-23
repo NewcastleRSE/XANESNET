@@ -103,7 +103,7 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     dataset_type = dataset_config["dataset_type"]
 
     logging.info(f"Initialising training dataset: {dataset_type}")
-    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
     dataset.process()
     dataset.check_preload()  # may preload the dataset into memory
 

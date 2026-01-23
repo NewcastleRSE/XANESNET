@@ -34,16 +34,22 @@ class Strategy(ABC):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict[str, Any],
+        weight_init: str,
+        weight_init_params: dict[str, Any],
+        bias_init: str,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
-        params: dict[str, Any] = {},
     ) -> None:
         self.strategy_type = strategy_type
         self.dataset = dataset
         self.model_config = model_config
+
+        self.weight_init = weight_init
+        self.weight_init_params = weight_init_params
+        self.bias_init = bias_init
+
         self.trainer_config = trainer_config
         self.inferencer_config = inferencer_config
-        self.params = params
 
         if self.trainer_config is None and self.inferencer_config is None:
             raise ValueError("Either trainer_config or inferencer_config must be provided.")
@@ -108,11 +114,14 @@ class Strategy(ABC):
         ...
 
     @property
+    @abstractmethod
     def signature(self) -> dict[str, Any]:
         """
         Returns strategy signature as a dictionary.
         """
-        return {
+        signature = {
             "strategy_type": self.strategy_type,
-            # TODO more signature entries?
+            "weight_init": self.weight_init,
+            "bias_init": self.bias_init,
         }
+        return signature

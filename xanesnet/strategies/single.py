@@ -36,27 +36,34 @@ class Single(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict[str, Any],
+        weight_init: str,
+        weight_init_params: dict[str, Any],
+        bias_init: str,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
-        params: dict[str, Any] = {},
     ) -> None:
-        super().__init__(strategy_type, dataset, model_config, trainer_config, inferencer_config, params)
+        super().__init__(
+            strategy_type,
+            dataset,
+            model_config,
+            weight_init,
+            weight_init_params,
+            bias_init,
+            trainer_config,
+            inferencer_config,
+        )
 
     def setup_models(self) -> None:
         model_type = self.model_config["model_type"]
         logging.info(f"Initialising model: {model_type}")
-        model_params = self.model_config["params"]
-        model = ModelRegistry.get(model_type)(model_type=model_type, **model_params)
+        model = ModelRegistry.get(model_type)(**self.model_config)
 
         self.model = model
 
     def init_model_weights(self) -> None:
         # Intialise model weights
-        weights_params = self.model_config["weights_init"]["weights_params"]
-        weights_init = self.model_config["weights_init"]["weights"]
-        bias_init = self.model_config["weights_init"]["bias"]
-        logging.info(f"Initialising weights with '{weights_init}' and bias with '{bias_init}'")
-        self.model.init_weights(weights_init, bias_init, **weights_params)
+        logging.info(f"Initialising weights with '{self.weight_init}' and bias with '{self.bias_init}'")
+        self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params)
 
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
         self.model.load_state_dict(state_dicts[0])
@@ -121,3 +128,12 @@ class Single(Strategy):
             raise ValueError("Model is not initialized. Cannot retrieve signature.")
 
         return self.model.signature
+
+    @property
+    def signature(self) -> dict[str, Any]:
+        """
+        Returns strategy signature as a dictionary.
+        """
+        signature = super().signature
+        signature.update({})
+        return signature

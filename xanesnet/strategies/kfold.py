@@ -33,11 +33,22 @@ class KFold(Strategy):
         strategy_type: str,
         dataset: Dataset,
         model_config: dict[str, Any],
+        weight_init: str,
+        weight_init_params: dict[str, Any],
+        bias_init: str,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
-        params: dict[str, Any] = {},
     ) -> None:
-        super().__init__(strategy_type, dataset, model_config, trainer_config, inferencer_config, params)
+        super().__init__(
+            strategy_type,
+            dataset,
+            model_config,
+            weight_init,
+            weight_init_params,
+            bias_init,
+            trainer_config,
+            inferencer_config,
+        )
 
     def setup_models(self) -> None:
         raise NotImplementedError("Not implemented!")  # TODO Implement
@@ -67,3 +78,12 @@ class KFold(Strategy):
     @property
     def model_signature(self) -> dict[str, Any]:
         raise NotImplementedError("Not implemented!")  # TODO Implement
+
+    @property
+    def signature(self) -> dict[str, Any]:
+        """
+        Returns strategy signature as a dictionary.
+        """
+        signature = super().signature
+        signature.update({})
+        return signature

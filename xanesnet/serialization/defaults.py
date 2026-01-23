@@ -40,14 +40,11 @@ DATASET_DEFAULT = {
 
 MODEL_DEFAULTS = {
     "mlp": {
-        "params.hidden_size": 226,
-        "params.dropout": 0.1,
-        "params.num_hidden_layers": 3,
-        "params.shrink_rate": 0.5,
-        "params.activation": "prelu",
-        "weights_init.weights": "default",
-        "weights_init.bias": "zeros",
-        "weights_init.weights_params": {},
+        "hidden_size": 226,
+        "dropout": 0.1,
+        "num_hidden_layers": 3,
+        "shrink_rate": 0.5,
+        "activation": "prelu",
     },
 }
 
@@ -83,10 +80,26 @@ INFERENCER_DEFAULTS = {
 }
 
 STRATEGY_DEFAULTS = {
-    "single": {"params": {}},
-    "bootstrap": {"params": {}},
-    "ensemble": {"params": {}},
-    "kfold": {"params": {}},
+    "single": {
+        "weight_init": "default",
+        "weight_init_params": {},
+        "bias_init": "zeros",
+    },
+    "bootstrap": {
+        "weight_init": "default",
+        "weight_init_params": {},
+        "bias_init": "zeros",
+    },
+    "ensemble": {
+        "weight_init": "default",
+        "weight_init_params": {},
+        "bias_init": "zeros",
+    },
+    "kfold": {
+        "weight_init": "default",
+        "weight_init_params": {},
+        "bias_init": "zeros",
+    },
 }
 
 ###############################################################################
@@ -104,7 +117,7 @@ DATASET_REQUIRED = {
 }
 
 MODEL_REQUIRED = {
-    "mlp": ["params.out_size", "params.in_size"],
+    "mlp": ["out_size", "in_size"],
 }
 
 TRAINER_REQUIRED = {
