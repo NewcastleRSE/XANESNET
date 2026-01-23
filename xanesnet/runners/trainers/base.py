@@ -30,15 +30,32 @@ from ..base import Runner
 class Trainer(Runner):
     def __init__(
         self,
-        trainer_type: str,
-        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
+        # runner params:
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool,
+        num_workers: int,
+        loss: dict[str, Any],
+        regularizer: dict[str, Any],
+        # trainer params:
+        trainer_type: str,
+        epochs: int,
+        learning_rate: float,
+        optimizer: str,
+        lr_scheduler: dict[str, Any],
+        early_stopper: dict[str, Any],
     ) -> None:
-        super().__init__(params, dataset, model, device)
+        super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers, loss, regularizer)
 
         self.trainer_type = trainer_type
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+        self.optimizer_type = optimizer
+        self.lr_scheduler_config = lr_scheduler
+        self.early_stopper_config = early_stopper
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()
@@ -55,9 +72,9 @@ class Trainer(Runner):
         """
         self.model.to(self.device)
 
-        logging.info(f"Start training: {self.params["epochs"]} epochs.")
+        logging.info(f"Start training: {self.epochs} epochs.")
         valid_loss = None
-        for epoch in range(self.params["epochs"]):
+        for epoch in range(self.epochs):
             # Run training
             train_loss, train_regularization, train_total = self._train_one_epoch()
 
@@ -73,7 +90,7 @@ class Trainer(Runner):
 
             # Early stopping
             if self.early_stopper.step(valid_loss, self.model, epoch):
-                logging.info(f"EarlyStopper {self.early_stopper.stopper_type} fired in epoch {epoch}!")
+                logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
                 break
 
         logging.info("Finished training.")
@@ -85,7 +102,7 @@ class Trainer(Runner):
             else:
                 logging.warning(
                     f"Did not find a best model."
-                    f" Something might be wrong in your EarlyStopper {self.early_stopper.stopper_type}."
+                    f" Something might be wrong in your EarlyStopper {self.early_stopper.early_stopper_type}."
                 )
         else:
             score = valid_loss
@@ -137,27 +154,27 @@ class Trainer(Runner):
         return epoch_loss, epoch_regularization, epoch_total
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
-        optimizer_cls = OptimizerRegistry.get(self.params["optimizer"])
-        optimizer = optimizer_cls(self.model.parameters(), self.params["learning_rate"])
+        optimizer_cls = OptimizerRegistry.get(self.optimizer_type)
+        optimizer = optimizer_cls(self.model.parameters(), lr=self.learning_rate)  # type: ignore
 
         return optimizer
 
     def _setup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
-        lr_scheduler_config = self.params["lr_scheduler"]
-        lr_scheduler_type = lr_scheduler_config["lr_scheduler_type"]
-        lr_scheduler_params = lr_scheduler_config["params"]
+        lr_scheduler_type = self.lr_scheduler_config["lr_scheduler_type"]
+
+        # We have to remove 'lr_scheduler_type'!
+        key_to_remove = "lr_scheduler_type"
+        config_wo_type = {k: v for k, v in self.lr_scheduler_config.items() if k != key_to_remove}
 
         lr_scheduler_cls = LRSchedulerRegistry.get(lr_scheduler_type)
-        lr_scheduler = lr_scheduler_cls(self.optimizer, **lr_scheduler_params)
+        lr_scheduler = lr_scheduler_cls(self.optimizer, **config_wo_type)
 
         return lr_scheduler
 
     def _setup_early_stopper(self) -> EarlyStopper:
-        early_stopper_config = self.params["early_stopper"]
-        early_stopper_type = early_stopper_config["early_stopper_type"]
-        early_stopper_params = early_stopper_config["params"]
+        early_stopper_type = self.early_stopper_config["early_stopper_type"]
 
         early_stopper_cls = EarlyStopperRegistry.get(early_stopper_type)
-        early_stopper = early_stopper_cls(early_stopper_type, **early_stopper_params)
+        early_stopper = early_stopper_cls(**self.early_stopper_config)
 
         return early_stopper

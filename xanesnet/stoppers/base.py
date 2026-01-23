@@ -22,10 +22,10 @@ from xanesnet.models import Model
 class EarlyStopper(ABC):
     def __init__(
         self,
-        stopper_type: str,
+        early_stopper_type: str,
         restore_best: bool,
     ) -> None:
-        self.stopper_type = stopper_type
+        self.early_stopper_type = early_stopper_type
         self.restore_best = restore_best
 
         self.best_state: dict | None = None

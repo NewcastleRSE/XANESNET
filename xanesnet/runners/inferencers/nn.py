@@ -29,10 +29,28 @@ from .registry import InferencerRegistry
 class NNInferencer(Inferencer):
     def __init__(
         self,
-        inferencer_type: str,
-        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
+        # runner params:
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool,
+        num_workers: int,
+        loss: dict[str, Any],
+        regularizer: dict[str, Any],
+        # inferencer params:
+        inferencer_type: str,
     ) -> None:
-        super().__init__(inferencer_type, params, dataset, model, device)
+        super().__init__(
+            dataset,
+            model,
+            device,
+            batch_size,
+            shuffle,
+            drop_last,
+            num_workers,
+            loss,
+            regularizer,
+            inferencer_type,
+        )

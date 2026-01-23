@@ -29,10 +29,38 @@ from .registry import TrainerRegistry
 class NNTrainer(Trainer):
     def __init__(
         self,
-        trainer_type: str,
-        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
-    ):
-        super().__init__(trainer_type, params, dataset, model, device)
+        # runner params:
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool,
+        num_workers: int,
+        loss: dict[str, Any],
+        regularizer: dict[str, Any],
+        # trainer params:
+        trainer_type: str,
+        epochs: int,
+        learning_rate: float,
+        optimizer: str,
+        lr_scheduler: dict[str, Any],
+        early_stopper: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            dataset,
+            model,
+            device,
+            batch_size,
+            shuffle,
+            drop_last,
+            num_workers,
+            loss,
+            regularizer,
+            trainer_type,
+            epochs,
+            learning_rate,
+            optimizer,
+            lr_scheduler,
+            early_stopper,
+        )

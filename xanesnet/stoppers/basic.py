@@ -24,12 +24,12 @@ from .registry import EarlyStopperRegistry
 class BasicStopper(EarlyStopper):
     def __init__(
         self,
-        stopper_type: str,
+        early_stopper_type: str,
         restore_best: bool,
         patience: int,
         min_delta: float = 0.0,
     ) -> None:
-        super().__init__(stopper_type, restore_best)
+        super().__init__(early_stopper_type, restore_best)
 
         self.patience = patience
         self.min_delta = min_delta

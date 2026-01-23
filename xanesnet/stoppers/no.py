@@ -25,10 +25,10 @@ from .registry import EarlyStopperRegistry
 class NoStopper(EarlyStopper):
     def __init__(
         self,
-        stopper_type: str,
+        early_stopper_type: str,
         restore_best: bool,
     ) -> None:
-        super().__init__(stopper_type, restore_best)
+        super().__init__(early_stopper_type, restore_best)
 
     def step(self, value: float | None, model: Model, epoch: int) -> bool:
         if value is not None and value < self.best_value:

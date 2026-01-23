@@ -40,34 +40,34 @@ model:
   activation: prelu
 
 trainer:
+  # general:
   trainer_type: nntrainer
-  params:
-    epochs: 50
-    batch_size: 3
-    learning_rate: 0.001
-    optimizer: Adam
-    loss:
-      loss_type: mse
-    regularizer:
-      regularizer_type: l1
-      params: 
-        weight: 0.001
-    lr_scheduler:
-      lr_scheduler_type: linear
-      params:
-        start_factor: 1.0 
-        end_factor: 0.1
-        total_iters: 40
-    early_stopper:
-      early_stopper_type: basic
-      params: 
-        patience: 10
-        min_delta: 0.0
+  batch_size: 3
+  # params:
+  epochs: 50
+  learning_rate: 0.001
+  optimizer: Adam
+  loss:
+    loss_type: mse
+  regularizer:
+    regularizer_type: l1
+    weight: 0.001
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0 
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic 
+    patience: 10
+    min_delta: 0.0
   
 strategy:
+  # general:
   strategy_type: single
   weight_init: xavier_uniform
   bias_init: zeros
+  # params:
 
 
 

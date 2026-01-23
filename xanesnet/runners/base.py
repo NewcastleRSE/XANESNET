@@ -30,15 +30,27 @@ from xanesnet.regularizers import Regularizer, RegularizerRegistry
 class Runner(ABC):
     def __init__(
         self,
-        params: dict[str, Any],
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
+        # runner params:
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool,
+        num_workers: int,
+        loss: dict[str, Any],
+        regularizer: dict[str, Any],
     ) -> None:
-        self.params = params
         self.dataset = dataset
         self.model = model
         self.device = device
+
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.drop_last = drop_last
+        self.num_workers = num_workers
+        self.loss_config = loss
+        self.regularizer_config = regularizer
 
     def _setup_batchprocessor(self) -> BatchProcessor:
         batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)()
@@ -49,29 +61,28 @@ class Runner(ABC):
 
         dataloader = dataloader_cls(
             self.dataset,
-            batch_size=self.params["batch_size"],
-            shuffle=self.params["shuffle"],
+            batch_size=self.batch_size,
+            shuffle=self.shuffle,
             collate_fn=self.dataset.collate_fn,
-            drop_last=self.params["drop_last"],
-            num_workers=self.params["num_workers"],
+            drop_last=self.drop_last,
+            num_workers=self.num_workers,
         )
 
         return dataloader
 
     def _setup_loss(self) -> Loss:
-        loss_config = self.params["loss"]
+        loss_config = self.loss_config
         loss_type = loss_config["loss_type"]
-        loss_params = loss_config["params"]
 
-        loss = LossRegistry.get(loss_type)(loss_type, **loss_params)
+        loss = LossRegistry.get(loss_type)(**loss_config)
 
         return loss
 
     def _setup_regularizer(self) -> Regularizer:
-        regularizer_config = self.params["regularizer"]
+        regularizer_config = self.regularizer_config
         regularizer_type = regularizer_config["regularizer_type"]
-        regularizer_params = regularizer_config["params"]
-        regularizer = RegularizerRegistry.get(regularizer_type)(regularizer_type, **regularizer_params)
+
+        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
 
         return regularizer
 

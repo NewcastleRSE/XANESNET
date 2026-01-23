@@ -50,32 +50,31 @@ MODEL_DEFAULTS = {
 
 TRAINER_DEFAULTS = {
     "nntrainer": {
-        "params.epochs": 10,
-        "params.batch_size": 3,
-        "params.learning_rate": 0.001,
-        "params.optimizer": "Adam",
-        "params.loss.loss_type": "mse",
-        "params.loss.params": {},
-        "params.regularizer.regularizer_type": "none",
-        "params.regularizer.params.weight": 1.0,
-        "params.shuffle": True,
-        "params.drop_last": False,
-        "params.num_workers": 0,
-        "params.lr_scheduler.lr_scheduler_type": "none",
-        "params.lr_scheduler.params": {},
-        "params.early_stopper.early_stopper_type": "none",
-        "params.early_stopper.params.restore_best": True,
+        "batch_size": 3,
+        "shuffle": True,
+        "drop_last": False,
+        "num_workers": 0,
+        "loss.loss_type": "mse",
+        "regularizer.regularizer_type": "none",
+        "regularizer.weight": 1.0,
+        "epochs": 10,
+        "learning_rate": 0.001,
+        "optimizer": "Adam",
+        "lr_scheduler.lr_scheduler_type": "none",
+        "early_stopper.early_stopper_type": "none",
+        "early_stopper.restore_best": True,
     },
 }
 
 INFERENCER_DEFAULTS = {
     "nninferencer": {
-        "params.batch_size": 1,
-        "params.loss.loss_type": "mse",
-        "params.regularizer.regularizer_type": "none",
-        "params.shuffle": False,
-        "params.drop_last": False,
-        "params.num_workers": 0,
+        "batch_size": 1,
+        "shuffle": False,
+        "drop_last": False,
+        "num_workers": 0,
+        "loss.loss_type": "mse",
+        "regularizer.regularizer_type": "none",
+        "regularizer.weight": 1.0,
     }
 }
 
