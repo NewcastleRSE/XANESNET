@@ -14,6 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -22,7 +23,7 @@ from pathlib import Path
 ###############################################################################
 
 
-def _list_files(path: Path, with_ext: bool = True) -> list[Path]:
+def list_files(path: Path, with_ext: bool = True) -> list[Path]:
     # returns a list of files (as POSIX paths) found in a directory (`d`);
     # 'hidden' files are always omitted and, if with_ext == False, file
     # extensions are also omitted
@@ -35,7 +36,7 @@ def _list_files(path: Path, with_ext: bool = True) -> list[Path]:
 def list_filestems(d: Path) -> list[str]:
     # returns a list of file stems (as strings) found in a directory (`d`);
     # 'hidden' files are always omitted
-    return [f.stem for f in _list_files(d)]
+    return [f.stem for f in list_files(d)]
 
 
 ###############################################################################
@@ -86,3 +87,34 @@ def create_subfolders(parent_dir: str | Path, subfolder_names: list[str]) -> dic
         paths[name] = subfolder
 
     return paths
+
+
+###############################################################################
+#################################### OTHER ####################################
+###############################################################################
+
+
+def copy_file(
+    src: str | Path,
+    dst_dir: str | Path,
+    new_name: str | None = None,
+    allowed_suffixes: set[str] | None = None,
+) -> Path:
+    """
+    Copies a file from `src` `dst_dir`.
+    """
+    src = Path(src)
+    dst_dir = Path(dst_dir)
+
+    if not src.exists() or not src.is_file():
+        raise FileNotFoundError(f"Source file does not exist: {src}")
+    if allowed_suffixes and src.suffix not in allowed_suffixes:
+        raise ValueError(f"File suffix not allowed: {src.suffix}")
+    if not dst_dir.exists() or not dst_dir.is_dir():
+        raise FileNotFoundError(f"Destination directory does not exist: {dst_dir}")
+
+    filename = new_name if new_name else src.name
+    dst_file = dst_dir / filename
+
+    shutil.copy(src, dst_file)
+    return dst_file

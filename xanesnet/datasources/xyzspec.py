@@ -21,7 +21,7 @@ from typing import Iterator
 import numpy as np
 from pymatgen.core import Molecule
 
-from xanesnet.utils.io import list_filestems
+from xanesnet.utils import list_filestems
 
 from .base import DataSource
 from .registry import DataSourceRegistry

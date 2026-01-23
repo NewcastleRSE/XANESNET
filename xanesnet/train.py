@@ -26,13 +26,14 @@ from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization import save_dict_as_yaml, validate_config
 from xanesnet.strategies import StrategyRegistry
-from xanesnet.utils import set_global_seed, setup_file_logging, setup_logging
-from xanesnet.utils.io import (
+from xanesnet.utils import (
     create_run_dir,
     create_subfolders,
-    save_dict_as_yaml,
-    validate_config,
+    set_global_seed,
+    setup_file_logging,
+    setup_logging,
 )
 
 ###############################################################################

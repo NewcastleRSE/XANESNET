@@ -23,9 +23,9 @@ from typing import Any
 
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
+from xanesnet.serialization import Checkpoint
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils import Mode, get_mode
-from xanesnet.utils.io import Checkpoint, copy_yaml
+from xanesnet.utils import Mode, copy_file, get_mode
 
 ###############################################################################
 #################################### INFER ####################################
@@ -49,7 +49,7 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
 
     # Save inference config
     if args_namespace.save:
-        config_save_path = copy_yaml(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
+        config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Main inference

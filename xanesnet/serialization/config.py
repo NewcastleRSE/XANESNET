@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -35,30 +34,6 @@ from .defaults import (
     TRAINER_DEFAULTS,
     TRAINER_REQUIRED,
 )
-
-
-def copy_yaml(yaml_path: str | Path, dst_dir: str | Path, new_name: str | None = None) -> Path:
-    """
-    Copy a .yaml file from `yaml_path` to `dst_dir`.
-    """
-    if not isinstance(yaml_path, Path):
-        yaml_path = Path(yaml_path)
-    if not isinstance(dst_dir, Path):
-        dst_dir = Path(dst_dir)
-
-    if not yaml_path.exists():
-        raise FileNotFoundError(f"Source file does not exist: {yaml_path}")
-    if yaml_path.suffix not in {".yaml", ".yml"}:
-        raise ValueError(f"Source file must be a YAML file: {yaml_path}")
-    if not dst_dir.exists() or not dst_dir.is_dir():
-        raise FileNotFoundError(f"Destination directory does not exist: {dst_dir}")
-
-    # Use new_name if provided, else keep original name
-    filename = new_name if new_name else yaml_path.name
-    dst_file = dst_dir / filename
-
-    shutil.copy(yaml_path, dst_file)
-    return dst_file
 
 
 def save_dict_as_yaml(config: dict[str, Any], dst_dir: str | Path, name: str) -> Path:
