@@ -28,6 +28,10 @@ from xanesnet.datasources import DataSource
 #################################### CLASS ####################################
 ###############################################################################
 
+# TODO I should add train indices and validation indices.
+# TODO I can then create Subsets of the Dataset that
+# TODO are used during training for training set and validation set.
+
 
 class Dataset(ABC):
     """

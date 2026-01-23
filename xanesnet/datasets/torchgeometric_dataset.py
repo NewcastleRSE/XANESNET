@@ -14,8 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
-
+import torch_geometric.data as tgdata
 from torch_geometric.data import Batch
 from torch_geometric.data.data import BaseData
 from torch_geometric.loader import DataLoader
@@ -29,9 +28,8 @@ from .base import Dataset
 ###############################################################################
 
 
-class TorchGeometricDataset(
-    Dataset,
-):
+# TODO double inheritance might be an issue! Maybe rename my function process()
+class TorchGeometricDataset(Dataset, tgdata.Dataset):  # type: ignore
     """
     A dataset class that combines BaseDataset and PyTorch Geometric's Dataset.
     This class can be used to create datasets compatible with PyTorch Geometric's data handling.
