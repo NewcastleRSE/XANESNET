@@ -30,7 +30,7 @@ from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
 from xanesnet.serialization import save_checkpoints, save_dict_as_yaml, save_models
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils import Mode, copy_file, get_mode
+from xanesnet.utils import copy_file
 
 ###############################################################################
 #################################### TRAIN ####################################
@@ -41,13 +41,10 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     """
     Main training entry
     """
-    mode = get_mode(config["mode"])
-    if mode is None:
-        raise ValueError("No mode specified in configuration file. Choose between: 'forward', 'inverse'.")
-    logging.info(f"Training mode: {mode}")
+    logging.info(f"Training.")
 
     datasource = _setup_datasource(config)
-    dataset = _setup_dataset(config, mode, datasource)
+    dataset = _setup_dataset(config, datasource)
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
     strategy.init_model_weights()
@@ -59,7 +56,6 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
         config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
         signature = {
-            "mode": str(mode),
             "dataset": dataset.signature,
             "model": strategy.model_signature,
             "strategy": strategy.signature,
@@ -99,13 +95,15 @@ def _setup_datasource(config: dict[str, Any]) -> DataSource:
     return datasource
 
 
-def _setup_dataset(config: dict[str, Any], mode: Mode, datasource: DataSource) -> Dataset:
+def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
-    dataset_type = config["dataset"]["dataset_type"]
+    dataset_config = config["dataset"]
+    dataset_type = dataset_config["dataset_type"]
+
     logging.info(f"Initialising training dataset: {dataset_type}")
-    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], datasource=datasource)
     dataset.process()
     dataset.check_preload()  # may preload the dataset into memory
 

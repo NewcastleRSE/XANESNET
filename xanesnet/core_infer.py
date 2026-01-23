@@ -25,7 +25,7 @@ from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.serialization import Checkpoint
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils import Mode, copy_file, get_mode
+from xanesnet.utils import copy_file
 
 ###############################################################################
 #################################### INFER ####################################
@@ -36,12 +36,10 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
     """
     Main inference entry
     """
-    mode = get_mode(config["mode"])
-    assert mode is not None
-    logging.info(f"Inference mode from checkpoint: {mode}")
+    logging.info(f"Inference from checkpoint.")
 
     datasource = _setup_datasource(config)
-    dataset = _setup_dataset(config, mode, datasource)
+    dataset = _setup_dataset(config, datasource)
     strategy = _setup_strategy(config, dataset)
     strategy.setup_models()
     strategy.set_state_dicts(checkpoint.model_states)
@@ -81,13 +79,16 @@ def _setup_datasource(config: dict[str, Any]) -> DataSource:
     return datasource
 
 
-def _setup_dataset(config: dict[str, Any], mode: Mode, datasource: DataSource) -> Dataset:
+def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
     dataset_type = config["dataset"]["dataset_type"]
+
+    # TODO
+
     logging.info(f"Initialising inference dataset: {dataset_type}")
-    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], mode=mode, datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**config["dataset"], datasource=datasource)
     dataset.process()
     dataset.check_preload()  # may preload the dataset into memory
 

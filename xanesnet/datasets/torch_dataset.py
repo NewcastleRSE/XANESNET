@@ -20,7 +20,6 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils import Mode
 
 from .base import Dataset
 
@@ -40,11 +39,9 @@ class TorchDataset(Dataset, torch.utils.data.Dataset):
         dataset_type: str,
         datasource: DataSource,
         root: str,
-        mode: Mode,
         preload: bool,
-        params: dict[str, Any],
     ) -> None:
-        super().__init__(dataset_type, datasource, root, mode, preload, params)
+        super().__init__(dataset_type, datasource, root, preload)
 
     def get_dataloader(self) -> type[torch.utils.data.DataLoader]:
         """

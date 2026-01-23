@@ -81,7 +81,6 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
     # Global settings
     _validate_global(config, "seed", None)
     _validate_global(config, "device", "cpu")
-    _validate_global(config, "mode", required=True)
 
     # Sections
     _validate_section(config, "datasource", "datasource_type", DATASOURCE_REQUIRED)

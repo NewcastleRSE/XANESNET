@@ -23,7 +23,6 @@ import torch
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils import Mode
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -40,16 +39,12 @@ class Dataset(ABC):
         dataset_type: str,
         datasource: DataSource,
         root: str,
-        mode: Mode,
         preload: bool,
-        params: dict[str, Any],
     ) -> None:
         self.dataset_type = dataset_type
         self.datasource = datasource
         self.root = root
-        self.mode = mode
         self.preload = preload
-        self.params = params
 
         # preloaded dataset
         self.inmemory_dataset: list[Any] = []
@@ -87,38 +82,12 @@ class Dataset(ABC):
         """
         ...
 
-    @property
-    def signature(self) -> dict[str, Any]:
+    @abstractmethod
+    def collate_fn(self, batch: list[Any]) -> Any:
         """
-        Return dataset signature as a dictionary.
+        Collate function for the dataloader.
         """
-        signature = {
-            "dataset_type": self.dataset_type,
-            "params": self.params,
-        }
-        return signature
-
-    @property
-    def metadata(self) -> dict[str, Any]:
-        """
-        Return dataset metadata as a dictionary.
-        """
-        metadata = {}
-        return metadata
-
-    @property
-    def processed_dir(self) -> str:
-        """
-        Path to the processed data directory.
-        """
-        return os.path.join(self.root, "processed")
-
-    @property
-    def processed_files(self) -> list[str]:
-        """
-        List of processed data files according to datasource length.
-        """
-        return [os.path.join(self.processed_dir, f"{i}.pt") for i in range(len(self.datasource))]
+        ...
 
     def __len__(self) -> int:
         """
@@ -135,9 +104,27 @@ class Dataset(ABC):
         else:
             return torch.load(self.processed_files[idx])
 
+    @property
     @abstractmethod
-    def collate_fn(self, batch: list[Any]) -> Any:
+    def signature(self) -> dict[str, Any]:
         """
-        Collate function for the dataloader.
+        Return dataset signature as a dictionary.
         """
-        ...
+        signature = {
+            "dataset_type": self.dataset_type,
+        }
+        return signature
+
+    @property
+    def processed_dir(self) -> str:
+        """
+        Path to the processed data directory.
+        """
+        return os.path.join(self.root, "processed")
+
+    @property
+    def processed_files(self) -> list[str]:
+        """
+        List of processed data files according to datasource length.
+        """
+        return [os.path.join(self.processed_dir, f"{i}.pt") for i in range(len(self.datasource))]

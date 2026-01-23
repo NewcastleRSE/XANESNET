@@ -27,12 +27,13 @@ DATASOURCE_DEFAULT = {
 DATASET_DEFAULT = {
     "xanesx": {
         "preload": True,
-        "params.fourier": False,
-        "params.fourier_concat": False,
-        "params.gaussian": False,
-        "params.widths_eV": [0.5, 1.0, 2.0, 4.0],
-        "params.basis_stride": 4,
-        "params.basis_path": None,
+        "mode": "forward",
+        "fourier": False,
+        "fourier_concat": False,
+        "gaussian": False,
+        "widths_eV": [0.5, 1.0, 2.0, 4.0],
+        "basis_stride": 4,
+        "basis_path": None,
         "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
     }
 }
@@ -82,10 +83,10 @@ INFERENCER_DEFAULTS = {
 }
 
 STRATEGY_DEFAULTS = {
-    "single": {"checkpointer": None, "params": {}},
-    "bootstrap": {"checkpointer": None, "params": {}},
-    "ensemble": {"checkpointer": None, "params": {}},
-    "kfold": {"checkpointer": None, "params": {}},
+    "single": {"params": {}},
+    "bootstrap": {"params": {}},
+    "ensemble": {"params": {}},
+    "kfold": {"params": {}},
 }
 
 ###############################################################################

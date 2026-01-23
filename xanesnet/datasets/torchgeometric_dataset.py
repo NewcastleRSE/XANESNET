@@ -21,7 +21,6 @@ from torch_geometric.data.data import BaseData
 from torch_geometric.loader import DataLoader
 
 from xanesnet.datasources import DataSource
-from xanesnet.utils import Mode
 
 from .base import Dataset
 
@@ -43,11 +42,9 @@ class TorchGeometricDataset(
         dataset_type: str,
         datasource: DataSource,
         root: str,
-        mode: Mode,
         preload: bool,
-        params: dict[str, Any],
     ) -> None:
-        super().__init__(dataset_type, datasource, root, mode, preload, params)
+        super().__init__(dataset_type, datasource, root, preload)
 
     def get_dataloader(self) -> type[DataLoader]:
         """
