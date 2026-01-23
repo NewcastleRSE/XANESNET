@@ -17,7 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 from torch import nn
 
-from xanesnet.registry import ActivationRegistry, BiasInitRegistry, WeightInitRegistry
+from xanesnet.components import ActivationRegistry, BiasInitRegistry, WeightInitRegistry
 
 from ..base import Model
 from ..registry import ModelRegistry

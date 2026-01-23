@@ -19,9 +19,9 @@ from typing import Any
 
 import torch
 
+from xanesnet.components import LRSchedulerRegistry, OptimizerRegistry
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
-from xanesnet.registry import LRSchedulerRegistry, OptimizerRegistry
 from xanesnet.stoppers import EarlyStopper, EarlyStopperRegistry
 
 from ..base import Runner
