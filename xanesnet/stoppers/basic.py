@@ -46,8 +46,10 @@ class BasicStopper(EarlyStopper):
                     self.best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             else:
                 self.bad_epochs += 1
+
+            return self.bad_epochs > self.patience
         else:
             # No stopping check
             self.bad_epochs += 1
 
-        return self.bad_epochs > self.patience
+            return False
