@@ -30,10 +30,12 @@ class Regularizer(nn.Module):
     def __init__(
         self,
         regularizer_type: str,
+        weight: float,
     ) -> None:
         super().__init__()
 
         self.regularizer_type = regularizer_type
+        self.weight = weight
 
     @abstractmethod
     def forward(self, model: Model) -> torch.Tensor: ...

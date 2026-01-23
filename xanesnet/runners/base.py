@@ -69,7 +69,8 @@ class Runner(ABC):
     def _setup_regularizer(self) -> Regularizer:
         regularizer_config = self.params["regularizer"]
         regularizer_type = regularizer_config["regularizer_type"]
-        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
+        regularizer_params = regularizer_config["params"]
+        regularizer = RegularizerRegistry.get(regularizer_type)(regularizer_type, **regularizer_params)
 
         return regularizer
 

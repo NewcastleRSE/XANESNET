@@ -31,9 +31,10 @@ class L1Reg(Regularizer):
     def __init__(
         self,
         regularizer_type: str,
+        weight: float,
     ) -> None:
-        super().__init__(regularizer_type)
+        super().__init__(regularizer_type, weight)
 
     def forward(self, model: Model) -> torch.Tensor:
         params = torch.cat([p.view(-1) for p in model.parameters()])
-        return torch.norm(params, p=1)
+        return torch.norm(params, p=1) * self.weight

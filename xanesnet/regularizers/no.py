@@ -33,7 +33,7 @@ class NoReg(Regularizer):
         self,
         regularizer_type: str,
     ) -> None:
-        super().__init__(regularizer_type)
+        super().__init__(regularizer_type, weight=1.0)
 
     def forward(self, model: Model) -> torch.Tensor:
         return torch.tensor(0.0, device=next(model.parameters()).device)
