@@ -57,7 +57,9 @@ TRAINER_DEFAULTS = {
         "params.learning_rate": 0.001,
         "params.optimizer": "Adam",
         "params.loss.loss_type": "mse",
+        "params.loss.params": {},
         "params.regularizer.regularizer_type": "none",
+        "params.regularizer.params.weight": 1.0,
         "params.shuffle": True,
         "params.drop_last": False,
         "params.num_workers": 0,
@@ -80,10 +82,10 @@ INFERENCER_DEFAULTS = {
 }
 
 STRATEGY_DEFAULTS = {
-    "single": {},
-    "bootstrap": {},
-    "ensemble": {},
-    "kfold": {},
+    "single": {"checkpointer": None, "params": {}},
+    "bootstrap": {"checkpointer": None, "params": {}},
+    "ensemble": {"checkpointer": None, "params": {}},
+    "kfold": {"checkpointer": None, "params": {}},
 }
 
 ###############################################################################

@@ -61,8 +61,9 @@ class Runner(ABC):
     def _setup_loss(self) -> Loss:
         loss_config = self.params["loss"]
         loss_type = loss_config["loss_type"]
+        loss_params = loss_config["params"]
 
-        loss = LossRegistry.get(loss_type)(**loss_config)
+        loss = LossRegistry.get(loss_type)(loss_type, **loss_params)
 
         return loss
 
