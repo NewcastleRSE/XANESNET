@@ -19,6 +19,7 @@ from typing import Any
 
 import torch
 
+from xanesnet.checkpointing import Checkpointer
 from xanesnet.components import LRSchedulerRegistry, OptimizerRegistry
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
@@ -33,6 +34,7 @@ class Trainer(Runner):
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
+        checkpointer: Checkpointer,
         # runner params:
         batch_size: int,
         shuffle: bool,
@@ -49,6 +51,8 @@ class Trainer(Runner):
         early_stopper: dict[str, Any],
     ) -> None:
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers, loss, regularizer)
+
+        self.checkpointer = checkpointer
 
         self.trainer_type = trainer_type
         self.epochs = epochs
@@ -74,6 +78,7 @@ class Trainer(Runner):
 
         logging.info(f"Start training: {self.epochs} epochs.")
         valid_loss = None
+        epoch = -1
         for epoch in range(self.epochs):
             # Run training
             train_loss, train_regularization, train_total = self._train_one_epoch()
@@ -93,8 +98,19 @@ class Trainer(Runner):
                 logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
                 break
 
+            # Checkpointing
+            saved_checkpoint, checkpoint_name = self.checkpointer.step(epoch, self.model, self.optimizer)
+            if saved_checkpoint:
+                logging.info(f"Saved new checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
+
         logging.info("Finished training.")
 
+        # Last Checkpoint
+        saved_checkpoint, checkpoint_name = self.checkpointer.save_checkpoint(epoch, self.model, self.optimizer)
+        if saved_checkpoint:
+            logging.info(f"Saved last checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
+
+        # Restore best model / Taking last model
         if self.early_stopper.restore_best:
             score, best_epoch = self.early_stopper.restore(self.model)
             if score is not None and best_epoch is not None:

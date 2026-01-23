@@ -18,6 +18,7 @@ from typing import Any
 
 import torch
 
+from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
 
@@ -32,6 +33,7 @@ class NNTrainer(Trainer):
         dataset: Dataset,
         model: Model,
         device: str | torch.device,
+        checkpointer: Checkpointer,
         # runner params:
         batch_size: int,
         shuffle: bool,
@@ -51,6 +53,7 @@ class NNTrainer(Trainer):
             dataset,
             model,
             device,
+            checkpointer,
             batch_size,
             shuffle,
             drop_last,

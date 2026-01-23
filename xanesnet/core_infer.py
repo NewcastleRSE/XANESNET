@@ -107,6 +107,7 @@ def _setup_strategy(config: dict[str, Any], dataset: Dataset) -> Strategy:
     logging.info(f"Initialising strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config,
+        checkpoint_dir=None,
         dataset=dataset,
         model_config=model_config,
         inferencer_config=inferencer_config,

@@ -16,10 +16,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 import torch
 
+from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
 
@@ -37,6 +39,8 @@ class Strategy(ABC):
         weight_init: str,
         weight_init_params: dict[str, Any],
         bias_init: str,
+        checkpoint_dir: str | Path | None,
+        checkpoint_interval: int | None,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
     ) -> None:
@@ -47,12 +51,16 @@ class Strategy(ABC):
         self.weight_init = weight_init
         self.weight_init_params = weight_init_params
         self.bias_init = bias_init
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_interval = checkpoint_interval
 
         self.trainer_config = trainer_config
         self.inferencer_config = inferencer_config
 
         if self.trainer_config is None and self.inferencer_config is None:
             raise ValueError("Either trainer_config or inferencer_config must be provided.")
+
+        self.checkpointer: Checkpointer | None = None
 
     @abstractmethod
     def setup_models(self) -> None:
@@ -105,6 +113,12 @@ class Strategy(ABC):
         """
         logging.info("Start inference...")
 
+    def setup_checkpointer(self) -> None:
+        """
+        Instantiates the Checkpointer.
+        """
+        self.checkpointer = Checkpointer(self.checkpoint_dir, self.checkpoint_interval, self.model_signature)
+
     @property
     @abstractmethod
     def model_signature(self) -> dict[str, Any]:
@@ -119,9 +133,12 @@ class Strategy(ABC):
         """
         Returns strategy signature as a dictionary.
         """
+        # TODO not sure if weight_init, bias_init, and checkpoint_interval
+        # TODO are actually part of the signature.
         signature = {
             "strategy_type": self.strategy_type,
             "weight_init": self.weight_init,
             "bias_init": self.bias_init,
+            "checkpoint_interval": self.checkpoint_interval,
         }
         return signature

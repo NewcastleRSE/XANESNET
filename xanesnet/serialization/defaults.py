@@ -83,21 +83,25 @@ STRATEGY_DEFAULTS = {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
+        "checkpoint_interval": None,
     },
     "bootstrap": {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
+        "checkpoint_interval": None,
     },
     "ensemble": {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
+        "checkpoint_interval": None,
     },
     "kfold": {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
+        "checkpoint_interval": None,
     },
 }
 

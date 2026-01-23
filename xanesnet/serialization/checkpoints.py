@@ -25,6 +25,9 @@ from xanesnet.models import Model
 
 @dataclass
 class Checkpoint:
+    # Has to be Sequence such that it is immutable.
+    # Immutability is important such that model_states list
+    # can contain 'None'.
     model_states: list[dict]
     signature: dict[str, Any]
     optimizer_states: list[dict] | None = None
@@ -36,6 +39,9 @@ class Checkpoint:
         """
         torch.save(asdict(self), path)
 
+    def __len__(self) -> int:
+        return len(self.model_states)
+
     @classmethod
     def load(cls, path: str | Path, map_location: str = "cpu") -> "Checkpoint":
         """
@@ -45,34 +51,14 @@ class Checkpoint:
         return cls(**data)
 
 
-def save_checkpoint(
-    dst_dir: str | Path,
-    model: Model,
-    signature: dict[str, Any],
-    optimizer_state: dict | None = None,
-    epoch: int | None = None,
-    name: str | None = None,
-) -> None:
-    save_checkpoints(
-        dst_dir=dst_dir,
-        model_list=[model],
-        signature=signature,
-        optimizer_states=[optimizer_state] if optimizer_state is not None else None,
-        epochs=[epoch] if epoch is not None else None,
-        name=name,
-    )
-
-
-def save_checkpoints(
-    dst_dir: str | Path,
+def build_checkpoint(
     model_list: list[Model],
     signature: dict[str, Any],
     optimizer_states: list[dict] | None = None,
     epochs: list[int] | None = None,
-    name: str | None = None,
-) -> None:
+) -> Checkpoint:
     if len(model_list) == 0:
-        raise ValueError("No models to save.")
+        raise ValueError("No models. Can not build checkpoint. ")
     else:
         checkpoint = Checkpoint(
             model_states=[model.state_dict() for model in model_list],
@@ -80,6 +66,15 @@ def save_checkpoints(
             optimizer_states=optimizer_states,
             epochs=epochs,
         )
-        if not isinstance(dst_dir, Path):
-            dst_dir = Path(dst_dir)
-        checkpoint.save(dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth")
+        return checkpoint
+
+
+def save_checkpoint(
+    dst_dir: str | Path,
+    checkpoint: Checkpoint,
+    name: str | None = None,
+) -> Path:
+    if not isinstance(dst_dir, Path):
+        dst_dir = Path(dst_dir)
+    checkpoint.save(dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth")
+    return dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth"

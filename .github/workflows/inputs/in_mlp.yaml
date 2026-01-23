@@ -67,6 +67,7 @@ strategy:
   strategy_type: single
   weight_init: xavier_uniform
   bias_init: zeros
+  checkpoint_interval: 10
   # params:
 
 

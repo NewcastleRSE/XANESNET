@@ -14,6 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -36,6 +37,8 @@ class KFold(Strategy):
         weight_init: str,
         weight_init_params: dict[str, Any],
         bias_init: str,
+        checkpoint_dir: str | Path | None,
+        checkpoint_interval: int | None,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
     ) -> None:
@@ -46,6 +49,8 @@ class KFold(Strategy):
             weight_init,
             weight_init_params,
             bias_init,
+            checkpoint_dir,
+            checkpoint_interval,
             trainer_config,
             inferencer_config,
         )

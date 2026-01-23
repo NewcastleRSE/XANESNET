@@ -28,7 +28,12 @@ from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
-from xanesnet.serialization import save_checkpoints, save_dict_as_yaml, save_models
+from xanesnet.serialization import (
+    build_checkpoint,
+    save_checkpoint,
+    save_dict_as_yaml,
+    save_models,
+)
 from xanesnet.strategies import Strategy, StrategyRegistry
 from xanesnet.utils import copy_file
 
@@ -45,8 +50,9 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
-    strategy = _setup_strategy(config, dataset)
+    strategy = _setup_strategy(config, dataset, save_dir / "checkpoints")
     strategy.setup_models()
+    strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config["device"])
 
@@ -74,9 +80,11 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     # Save model(s)
     if args_namespace.save:
         save_models(save_dir / "models", model_list)
-        assert signature is not None
-        save_checkpoints(save_dir / "models", model_list, signature=signature, name="final")
         logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
+        assert signature is not None
+        final_checkpoint = build_checkpoint(model_list, signature=signature)
+        final_save_path = save_checkpoint(save_dir / "models", final_checkpoint, name="final")
+        logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
 
 
 ###############################################################################
@@ -113,7 +121,7 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_strategy(config: dict[str, Any], dataset: Dataset) -> Strategy:
+def _setup_strategy(config: dict[str, Any], dataset: Dataset, checkpoint_dir: str | Path) -> Strategy:
     """
     Initialises the training strategy.
     """
@@ -126,6 +134,7 @@ def _setup_strategy(config: dict[str, Any], dataset: Dataset) -> Strategy:
     logging.info(f"Initialising strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config,
+        checkpoint_dir=checkpoint_dir,
         dataset=dataset,
         model_config=model_config,
         trainer_config=trainer_config,

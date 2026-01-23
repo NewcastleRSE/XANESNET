@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -39,6 +40,8 @@ class Single(Strategy):
         weight_init: str,
         weight_init_params: dict[str, Any],
         bias_init: str,
+        checkpoint_dir: str | Path | None,
+        checkpoint_interval: int | None,
         trainer_config: dict[str, Any] | None = None,
         inferencer_config: dict[str, Any] | None = None,
     ) -> None:
@@ -49,6 +52,8 @@ class Single(Strategy):
             weight_init,
             weight_init_params,
             bias_init,
+            checkpoint_dir,
+            checkpoint_interval,
             trainer_config,
             inferencer_config,
         )
@@ -71,6 +76,8 @@ class Single(Strategy):
     def setup_trainers(self, device: str | torch.device) -> None:
         if self.trainer_config is None:
             raise ValueError("Can not setup trainers because there is no trainer config.")
+        if self.checkpointer is None:
+            raise ValueError("Can not setup trainers because checkpointer is not instantiated.")
 
         trainer_type = self.trainer_config["trainer_type"]
 
@@ -81,6 +88,7 @@ class Single(Strategy):
             dataset=self.dataset,
             model=self.model,
             device=device,
+            checkpointer=self.checkpointer,
         )
 
         self.trainer = trainer
@@ -90,6 +98,9 @@ class Single(Strategy):
             raise ValueError("Cannot run training because the trainer is not initialised.")
 
         super().run_training()
+
+        assert self.checkpointer is not None
+        self.checkpointer.new_model()
 
         _ = self.trainer.train()  # TODO should we do something with the returned score?
 
