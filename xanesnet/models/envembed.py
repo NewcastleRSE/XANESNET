@@ -23,11 +23,11 @@ from xanesnet.registry import register_model, register_scheme
 from xanesnet.models.base_model import Model
 
 
-@register_model("softshell")
-@register_scheme("softshell", scheme_name="ss")
-class SoftShellSpectraNet(Model):
+@register_model("envembed")
+@register_scheme("envembed", scheme_name="ee")
+class EnvEmbedNet(Model):
     """
-    Wrapper class for SoftShell Model
+    Wrapper class for EnvEmbedNet Model
     Structure Encoder + Coefficient Head
     """
 
@@ -49,7 +49,7 @@ class SoftShellSpectraNet(Model):
         self.batch_flag = 1
 
         # Save model configuration
-        self.register_config(locals(), type="softshell")
+        self.register_config(locals(), type="envembed")
 
         d_input = in_features[0]
         latent_dim = d_input * 2

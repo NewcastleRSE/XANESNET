@@ -30,13 +30,13 @@ from xanesnet.utils.gaussian import gaussian_inverse
 from xanesnet.utils.switch import LossSwitch
 
 
-class SSLearn(Learn):
+class EELearn(Learn):
     """
-    SSLearn: SoftShell training class.
+    EELearn: EnvEmbed training class.
 
-    This class implements training loop for SoftShell Spectra Network.
+    This class implements training loop for EnvEmbed Net.
 
-    Model compatible with this training process includes: SoftShell.
+    Model compatible with this training process includes: EnvEmbed.
     """
 
     def __init__(self, model, dataset, **kwargs):

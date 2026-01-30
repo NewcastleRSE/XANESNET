@@ -36,7 +36,7 @@ class Prediction:
     targets: Optional[np.ndarray] = None
 
 
-class SSPredict(Predict):
+class EEPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 

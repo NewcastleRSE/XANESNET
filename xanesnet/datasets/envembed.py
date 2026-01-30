@@ -51,8 +51,8 @@ class Data:
         return self
 
 
-@register_dataset("softshell")
-class SoftShellDataset(BaseDataset):
+@register_dataset("envembed")
+class EnvEmbedDataset(BaseDataset):
     def __init__(
         self,
         root: str,
@@ -71,13 +71,13 @@ class SoftShellDataset(BaseDataset):
         )
 
         if self.mode is not Mode.XYZ_TO_XANES:
-            raise ValueError(f"Unsupported mode for SoftShellDataset: {self.mode}")
+            raise ValueError(f"Unsupported mode for EnvEmbedDataset: {self.mode}")
 
         if not self.xyz_path:
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        self._register_config(dataset_type="softshell")
+        self._register_config(dataset_type="envembed")
 
     def set_file_names(self):
         """
