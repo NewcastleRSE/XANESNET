@@ -33,6 +33,7 @@ class Prediction:
 
     xyz_pred: Optional[Tuple[np.ndarray, np.ndarray]] = None
     xanes_pred: Optional[Tuple[np.ndarray, np.ndarray]] = None
+    targets: Optional[np.ndarray] = None
 
 
 class SSPredict(Predict):
@@ -44,6 +45,7 @@ class SSPredict(Predict):
         Performs a single prediction with a given model.
         """
         data_loader = self._create_loader(model, self.dataset)
+        gauss_basis = self.dataset.gauss_basis
 
         model.eval()
         predictions, targets = [], []
@@ -52,13 +54,13 @@ class SSPredict(Predict):
         with torch.no_grad():
             for data in data_loader:
                 c_pred = model(data)
-                output = gaussian_inverse(self.dataset.gauss_basis, c_pred)  # (B,N)
-                output = self.to_numpy(output.squeeze(0))
+                output = gaussian_inverse(gauss_basis, c_pred)  # (B,N)
+                output = self._to_numpy(output.squeeze(0))
 
                 predictions.append(output)
 
                 if self.pred_eval:
-                    target = self.to_numpy(data.y)
+                    target = self._to_numpy(data.y)
                     targets.append(target)
 
         predictions = np.array(predictions)
@@ -82,7 +84,7 @@ class SSPredict(Predict):
         predictions, targets = self.predict(model)
         std_pred = np.zeros_like(predictions)
 
-        return Prediction(xanes_pred=(predictions, std_pred))
+        return Prediction(xanes_pred=(predictions, std_pred), targets=targets)
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
         """Aggregate predictions from multiple bootstrap-trained models."""
@@ -96,7 +98,7 @@ class SSPredict(Predict):
             logging.info("-" * 55)
             Predict.print_mse("target", "mean prediction", targets, mean_pred)
 
-        return Prediction(xanes_pred=(mean_pred, std_pred))
+        return Prediction(xanes_pred=(mean_pred, std_pred), targets=targets)
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
         """Aggregate predictions from an ensemble of models."""

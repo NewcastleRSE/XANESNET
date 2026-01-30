@@ -63,7 +63,7 @@ class XanesXDataset(BaseDataset):
         )
 
         # Save configuration
-        self._register_config(locals(), type="xanesx")
+        self._register_config(dataset_type="xanesx")
 
     def set_file_names(self):
         """
@@ -95,7 +95,6 @@ class XanesXDataset(BaseDataset):
         """Processes raw XYZ and XANES file to convert them into data objects."""
 
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-
             # XYZ
             xyz = None
             if self.xyz_path:
@@ -133,11 +132,12 @@ class XanesXDataset(BaseDataset):
         return Data(**batched)
 
     @property
-    def x_shape(self) -> List[int]:
+    def in_features(self) -> List[int] | int:
         """Shape of the feature array."""
-        return self._shape(self[0].x)
+        return len(self[0].x)
 
     @property
-    def y_shape(self) -> List[int]:
+    def out_features(self) -> List[int] | int:
         """Shape of the label array."""
-        return self._shape(self[0].y)
+        y = self[0].y
+        return 0 if y is None else len(y)

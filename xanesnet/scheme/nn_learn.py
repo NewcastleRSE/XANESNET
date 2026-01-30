@@ -171,8 +171,11 @@ class NNLearn(Learn):
 
                 # Pass X or batch object to model
                 input_data = batch if model.batch_flag else batch.x
+                predict = model(input_data)
 
-                predict = predict.view(-1) if model.gnn_flag else model(input_data)
+                if model.gnn_flag:
+                    predict = predict.view(-1)
+
                 loss = criterion(predict, batch.y)
 
                 if is_train:

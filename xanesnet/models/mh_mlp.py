@@ -40,8 +40,8 @@ class MultiHead_MLP(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: List[int],
+        in_features: int,
+        out_features: List[int],
         hidden_size: int = 512,
         dropout: float = 0.2,
         num_hidden_layers: int = 3,
@@ -62,7 +62,7 @@ class MultiHead_MLP(Model):
         layers = []
 
         # --- Input and hidden Layers ---
-        current_size = in_size
+        current_size = in_features
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
@@ -91,7 +91,7 @@ class MultiHead_MLP(Model):
                     dropout=dropout,
                     activation=activation,
                 )
-                for out in out_size
+                for out in out_features
             ]
         )
 

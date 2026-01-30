@@ -89,13 +89,12 @@ class BaseDataset(Dataset):
         self.set_file_names()
         self._process()
 
-        params = {
+        self.params = {
             "gaussian": self.gaussian,
             "widths_eV": self.widths_eV,
             "basis_stride": self.basis_stride,
             "fourier": self.fft,
         }
-        self._register_config(locals())
 
     def set_file_names(self):
         """Set a list of file names (stems) in the dataset."""
@@ -110,13 +109,13 @@ class BaseDataset(Dataset):
         raise NotImplementedError
 
     @property
-    def x_shape(self) -> List[int]:
-        """Shape of the input feature tensor."""
+    def in_features(self) -> List[int] | int:
+        """Shape or number of input features."""
         raise NotImplementedError
 
     @property
-    def y_shape(self) -> List[int]:
-        """Shape of the target label tensor."""
+    def out_features(self) -> List[int] | int:
+        """Shape or number of output features."""
         raise NotImplementedError
 
     @property
@@ -243,18 +242,13 @@ class BaseDataset(Dataset):
         dataset.file_names = index
         return dataset
 
-    def _register_config(self, args, **kwargs):
+    def _register_config(self, dataset_type: str, **kwargs):
         """
-        Assign arguments from the child class's constructor to self.config.
-
-        Args:
-            args: The dictionary of arguments from the child class's constructor
-            **kwargs: additional arguments to store
+        Assign arguments from the child class constructors
         """
-        selected = {k: args[k] for k in ("type", "params") if k in args}
-
-        self.config.update(kwargs)
-        self.config.update(selected)
+        self.config["type"] = dataset_type
+        self.config["params"] = self.params
+        self.config["params"].update(kwargs)
 
     def _setup_gaussian_basis(self):
         if self.basis_path is not None:
@@ -389,12 +383,3 @@ class BaseDataset(Dataset):
 
         padded = nn.utils.rnn.pad_sequence(lst, batch_first=batch_first).to(dtype)
         return padded
-
-    @staticmethod
-    def _shape(arr: Any) -> List[int]:
-        """Return array shape"""
-        if arr is None:
-            return []
-        if hasattr(arr, "shape"):
-            return list(arr.shape)
-        return [len(arr),]

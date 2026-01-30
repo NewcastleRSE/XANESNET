@@ -44,22 +44,15 @@ class MHPredict(NNPredict):
                 input_data = data if model.batch_flag else data.x
                 output = model(input_data).squeeze(1)
 
-                # Inverse FFT transform
-                if self.fft:
-                    output = fft_inverse(output)
-                # Gaussian synthesis
-                if self.gaussian:
-                    output = gaussian_inverse(self.dataset.gauss_basis, output)
-
                 if self.pred_eval:
-                    # Select the prediction corresponding to head index (xanes)
+                    # Select the prediction corresponding to head index
                     head_idx = data.head_idx
                     output = output[head_idx].squeeze(0)
 
-                    target = self.to_numpy(data.y)
+                    target = self._postprocess(data.y)
                     targets.append(target)
 
-                output = self.to_numpy(output)
+                output = self._postprocess(output)
                 predictions.append(output)
 
         predictions = np.array(predictions)

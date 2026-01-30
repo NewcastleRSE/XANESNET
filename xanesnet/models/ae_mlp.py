@@ -36,8 +36,8 @@ class AE_MLP(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
+        in_features: int,
+        out_features: int,
         hidden_size: int = 256,
         dropout: float = 0.2,
         num_hidden_layers: int = 3,
@@ -46,8 +46,8 @@ class AE_MLP(Model):
     ):
         """
         Args:
-            in_size (integer): Size of input data
-            out_size (integer): Size of output data
+            in_features (integer): Size of input data
+            out_features (integer): Size of output data
             hidden_size (integer): Size of the initial hidden layer.
             dropout (float): Dropout probability for hidden layers.
             num_hidden_layers (int): Number of hidden layers in the encoder.
@@ -64,7 +64,7 @@ class AE_MLP(Model):
 
         # --- Encoder Construction ---
         enc_layers = []
-        current_size = in_size
+        current_size = in_features
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
@@ -86,7 +86,7 @@ class AE_MLP(Model):
         dec_layers = []
         current_size = latent_size
         # Create a list of the encoder layer dimensions in reverse
-        layer_sizes = [in_size] + [
+        layer_sizes = [in_features] + [
             int(hidden_size * (shrink_rate**i)) for i in range(num_hidden_layers)
         ]
         for size in reversed(layer_sizes):
@@ -104,7 +104,7 @@ class AE_MLP(Model):
         fc_layers.append(nn.Linear(latent_size, hidden_size))
         fc_layers.append(act_fn)
         fc_layers.append(nn.Dropout(dropout))
-        fc_layers.append(nn.Linear(hidden_size, out_size))
+        fc_layers.append(nn.Linear(hidden_size, out_features))
 
         self.dense_layers = nn.Sequential(*fc_layers)
 

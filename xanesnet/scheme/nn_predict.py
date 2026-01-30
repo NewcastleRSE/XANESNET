@@ -25,8 +25,6 @@ from typing import List, Optional, Tuple
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
 from xanesnet.utils.mode import Mode
-from xanesnet.utils.fourier import fft_inverse
-from xanesnet.utils.gaussian import gaussian_inverse
 
 
 @dataclass
@@ -54,15 +52,13 @@ class NNPredict(Predict):
             for data in data_loader:
                 # Pass X or batch object to model
                 input_data = data if model.batch_flag else data.x
-                output = model(input_data)
 
-                output = self.inverse_transform(output)
-                output = self.to_numpy(output)
+                output = model(input_data)
+                output = self._postprocess(output)
                 predictions.append(output)
 
                 if self.pred_eval:
-                    target = self.inverse_transform(data.y)
-                    target = self.to_numpy(target)
+                    target = self._postprocess(data.y)
                     targets.append(target)
 
         predictions = np.array(predictions)

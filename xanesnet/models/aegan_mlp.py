@@ -27,8 +27,8 @@ from xanesnet.utils.switch import ActivationSwitch
 class AEGAN_MLP(Model):
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
+        in_features: int,
+        out_features: int,
         hidden_size: int = 256,
         num_hidden_layers_gen: int = 2,
         num_hidden_layers_shared: int = 2,
@@ -45,13 +45,13 @@ class AEGAN_MLP(Model):
 
         # Initialise the generative autoencoder networks
         self.gen_a = Generator(
-            input_size=in_size,
+            input_size=in_features,
             num_hidden_layer=num_hidden_layers_gen,
             hidden_size=hidden_size,
             activation=activation,
         )  # generator for domain a
         self.gen_b = Generator(
-            input_size=out_size,
+            input_size=out_features,
             num_hidden_layer=num_hidden_layers_gen,
             hidden_size=hidden_size,
             activation=activation,
@@ -71,13 +71,13 @@ class AEGAN_MLP(Model):
 
         # Initialise the discriminator networks
         self.dis_a = Discriminator(
-            input_size=in_size,
+            input_size=in_features,
             num_hidden_layer=num_hidden_layers_dis,
             hidden_size=hidden_size,
             activation=activation,
         )  # discriminator for domain a
         self.dis_b = Discriminator(
-            input_size=out_size,
+            input_size=out_features,
             num_hidden_layer=num_hidden_layers_dis,
             hidden_size=hidden_size,
             activation=activation,

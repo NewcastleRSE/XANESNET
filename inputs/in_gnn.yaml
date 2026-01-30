@@ -5,11 +5,11 @@ dataset:
   xanes_path: data/graph-set/xanes_train
   params:
     preload: True
-    n: 16
-    r_min: 0.0
-    r_max: 4.0
-    fourier: False
-    fourier_concat: False
+#    n: 16
+#    r_min: 0.0
+#    r_max: 4.0
+#    fourier: True                    # Fourier transformation (default: False)
+#    gaussian: True                   # Gaussian transformation (default: False)
 
 descriptors:
   - type: pdos

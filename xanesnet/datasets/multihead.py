@@ -20,14 +20,12 @@ from dataclasses import dataclass
 import torch
 
 from pathlib import Path
-from typing import List, Union
+from typing import List
 from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft_forward
-from xanesnet.utils.gaussian import gaussian_forward
-from xanesnet.utils.io import list_filestems, load_xanes
+from xanesnet.utils.io import list_filestems
 from xanesnet.utils.mode import Mode
 
 
@@ -37,13 +35,11 @@ class Data:
     y: torch.Tensor = None
     e: torch.Tensor = None
     head_idx: torch.Tensor = None  # multihead index
-    fourier: torch.Tensor = None
-    c_star: torch.Tensor = None
     head_name: str = ""
 
     def to(self, device):
         # send batch do device
-        for attr in ["x", "y", "head_idx", "fourier", "c_star"]:
+        for attr in ["x", "y", "head_idx"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -71,7 +67,7 @@ class MultiheadDataset(BaseDataset):
         )
 
         # Save configuration
-        self._register_config(locals(), type="multihead", head_names=head_names)
+        self._register_config(dataset_type="multihead", head_names=head_names)
 
     def set_file_names(self):
         """
@@ -103,7 +99,7 @@ class MultiheadDataset(BaseDataset):
     def process(self):
         """Processes raw XYZ and XANES file to convert them into data objects."""
         for idx, stem in tqdm(enumerate(self.file_names), total=len(self.file_names)):
-            xyz = xanes = e = fourier = c_star = None
+            xyz = xanes = e = None
             head_idx_xyz = head_idx_xanes = None
             head_name_xyz = head_name_xanes = None
 
@@ -119,7 +115,6 @@ class MultiheadDataset(BaseDataset):
                 xanes_file, head_idx_xanes, head_name_xanes = self.find_file(
                     stem, self.xanes_path, ".txt"
                 )
-                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
                 e, xanes = self.transform_xanes(xanes_file)
 
             if self.mode == Mode.XANES_TO_XYZ:
@@ -136,15 +131,7 @@ class MultiheadDataset(BaseDataset):
             if head_idx is not None:
                 head_idx = torch.tensor(head_idx, dtype=torch.long)
 
-            data = Data(
-                x=x,
-                y=y,
-                e=e,
-                head_idx=head_idx,
-                head_name=head_name,
-                fourier=fourier,
-                c_star=c_star,
-            )
+            data = Data(x=x, y=y, e=e, head_idx=head_idx, head_name=head_name)
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
@@ -167,45 +154,29 @@ class MultiheadDataset(BaseDataset):
         x_list = [sample.x for sample in batch]
         y_list = [sample.y for sample in batch]
         idx_list = [sample.head_idx for sample in batch]
-        fft_list = [sample.fourier for sample in batch]
-        cstar_list = [sample.c_star for sample in batch]
 
         batched_x = self._safe_stack(x_list)
         batched_y = self._safe_stack(y_list)
         batched_i = self._safe_stack(idx_list, dtype=torch.long)
-        batched_fft = self._safe_stack(fft_list)
-        batched_cstar = self._safe_stack(cstar_list)
 
         return Data(
             x=batched_x,
             y=batched_y,
             head_idx=batched_i,
-            fourier=batched_fft,
-            c_star=batched_cstar,
         )
 
     @property
-    def x_shape(self) -> Union[int, List[int]]:
+    def in_features(self) -> List[int] | int:
         """Size of the feature array."""
         return len(self[0].x)
 
     @property
-    def y_shape(self) -> Union[int, List[int]]:
+    def out_features(self) -> List[int] | int:
         """Size of the label array."""
         # mapping each head index to the length of its label array.
-
-        if self.fft:
-            if self[0].fourier is None:
-                return 0
-            out_sizes = {int(data.head_idx): len(data.fourier) for data in self}
-        elif self.gaussian:
-            if self[0].c_star is None:
-                return 0
-            out_sizes = {int(data.head_idx): len(data.c_star) for data in self}
-        else:
-            if self[0].y is None:
-                return 0
-            out_sizes = {int(data.head_idx): len(data.y) for data in self}
+        if self[0].y is None:
+            return 0
+        out_sizes = {int(data.head_idx): len(data.y) for data in self}
 
         # return the dict values as a list
         return [int(v) for _, v in sorted(out_sizes.items())]

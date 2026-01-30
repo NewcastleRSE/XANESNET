@@ -41,8 +41,6 @@ class AEPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
-        self.fft = kwargs.get("fourier")
-
         self.recon_flag = 1
 
     def predict(self, model):
@@ -56,27 +54,24 @@ class AEPredict(Predict):
 
         with torch.no_grad():
             for data in data_loader:
+                # Pass X or batch object to model
                 input_data = data if model.batch_flag else data.x
-                # Prediction and reconstruction
+
                 pred = model.predict(input_data)
-                pred = self.to_numpy(pred)
+                pred = self._postprocess(pred)
 
                 recon = model.reconstruct(input_data)
-                recon = self.to_numpy(recon)
-
-                if self.fft:
-                    if self.mode is Mode.XYZ_TO_XANES:
-                        pred = fft_inverse(pred)
-                    else:
-                        recon = fft_inverse(recon)
+                recon = self._postprocess(recon)
 
                 predictions.append(pred)
                 reconstructions.append(recon)
 
-                targets_x.append(self.to_numpy(data.x))
+                x = self._postprocess(data.x)
+                targets_x.append(x)
 
                 if self.pred_eval:
-                    targets_y.append(self.to_numpy(data.y))
+                    y = self._postprocess(data.y)
+                    targets_y.append(y)
 
         predictions = np.array(predictions)
         reconstructions = np.array(reconstructions)

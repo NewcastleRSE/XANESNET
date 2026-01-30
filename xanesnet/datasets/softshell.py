@@ -77,7 +77,7 @@ class SoftShellDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        self._register_config(locals(), type="softshell")
+        self._register_config(dataset_type="softshell")
 
     def set_file_names(self):
         """
@@ -151,7 +151,7 @@ class SoftShellDataset(BaseDataset):
         )
 
     @property
-    def x_shape(self) -> Union[int, List[int]]:
+    def in_features(self) -> List[int] | int:
         """Size of the feature array."""
         x_size = []
         e = self.gauss_basis.E
@@ -176,7 +176,7 @@ class SoftShellDataset(BaseDataset):
         return x_size
 
     @property
-    def y_shape(self) -> int:
+    def out_features(self) -> List[int] | int:
         """Size of the label array."""
         y = self[0].y
         return 0 if y is None else y.shape[0]

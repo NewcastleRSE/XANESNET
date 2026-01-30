@@ -95,8 +95,8 @@ def setup_datasets(root_path, xyz_path, xanes_path, metadata, mode, descriptors)
     logging.info(
         ">> Dataset summary: samples=%d | X=%s | y=%s",
         len(dataset),
-        dataset.x_shape,
-        dataset.y_shape,
+        dataset.in_features,
+        dataset.out_features,
     )
 
     return dataset

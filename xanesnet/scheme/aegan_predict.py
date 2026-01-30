@@ -41,8 +41,6 @@ class AEGANPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
-        self.fft = kwargs.get("fourier")
-
         self.recon_flag = 1
 
     def predict(self, model):
@@ -61,30 +59,30 @@ class AEGANPredict(Predict):
                 # Prediction and reconstruction
                 pred_xanes = recon_xanes = None
 
-                targets_x.append(self.to_numpy(data.x))
+                targets_x.append(self._to_numpy(data.x))
                 if self.pred_eval:
-                    targets_y.append(self.to_numpy(data.y))
+                    targets_y.append(self._to_numpy(data.y))
 
                 if self.mode in [Mode.XYZ_TO_XANES, Mode.BIDIRECTIONAL]:
                     pred_xanes = model.predict_spectrum(
                         data if model.batch_flag else data.x
                     )
-                    pred_xanes = self.to_numpy(pred_xanes)
+                    pred_xanes = self._to_numpy(pred_xanes)
 
                     recon_xyz = model.reconstruct_structure(
                         data if model.batch_flag else data.x
                     )
-                    recon_xyz = self.to_numpy(recon_xyz)
+                    recon_xyz = self._to_numpy(recon_xyz)
                     # Append pred_xanes after fft check
                     reconstruct_xyz.append(recon_xyz)
 
                 if self.mode in [Mode.XANES_TO_XYZ, Mode.BIDIRECTIONAL]:
                     input_data = data if model.batch_flag else data.y
                     pred_xyz = model.predict_structure(input_data)
-                    pred_xyz = self.to_numpy(pred_xyz)
+                    pred_xyz = self._to_numpy(pred_xyz)
 
                     recon_xanes = model.reconstruct_spectrum(input_data)
-                    recon_xanes = self.to_numpy(recon_xanes)
+                    recon_xanes = self._to_numpy(recon_xanes)
                     # Append recon_xanes after fft check
                     predict_xyz.append(pred_xyz)
 

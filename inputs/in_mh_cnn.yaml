@@ -11,12 +11,8 @@ dataset:
     - data/multihead/train/xanes3
 #  params:
 #    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-#    fourier: False
-#    fourier_concat: False
-#    gaussian: False                   # Gaussian transformation (default: False)
-#    widths_eV: [0.5, 1.0, 2.0, 4.0]
-#    basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
-
+#    fourier: True                    # Fourier transformation (default: False)
+#    gaussian: True                   # Gaussian transformation (default: False)
 
 descriptors:
   - type: wacsf

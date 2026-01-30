@@ -41,8 +41,8 @@ class MLP(Model):
 
     def __init__(
         self,
-        in_shape: List[int],
-        out_shape: List[int],
+        in_features: int,
+        out_features: int,
         hidden_size: int = 256,
         dropout: float = 0.1,
         num_hidden_layers: int = 3,
@@ -51,9 +51,9 @@ class MLP(Model):
     ) -> None:
         """
         Args:
-            in_shape (List): Shape of input data
-            out_shape (List): Shape of output data
-            hidden_size (integer): Size of the initial hidden layer.
+            in_features (int): Size of input data
+            out_features (int): Size of output data
+            hidden_size (int): Size of the initial hidden layer.
             dropout (float): Dropout probability for hidden layers.
             num_hidden_layers (int): Number of hidden layers, excluding input and output layers
             shrink_rate (float): Rate to reduce the hidden layer size multiplicatively.
@@ -67,14 +67,11 @@ class MLP(Model):
         # Save model configuration
         self.register_config(locals(), type="mlp")
 
-        in_dim: int = in_shape[0]  # in_shape = (N,)
-        out_dim: int = out_shape[0]  # out_shape = (M,)
-
         act_fn = ActivationSwitch().get(activation)
         layers = []
 
         # --- Input and hidden Layers ---
-        current_size = in_dim
+        current_size = in_features
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
@@ -88,7 +85,7 @@ class MLP(Model):
             current_size = next_size
 
         # --- Output Layer ---
-        layers.append(nn.Linear(current_size, out_dim))
+        layers.append(nn.Linear(current_size, out_features))
 
         self.dense_layers = nn.Sequential(*layers)
 

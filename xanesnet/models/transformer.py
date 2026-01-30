@@ -29,8 +29,8 @@ from xanesnet.models.base_model import Model
 class Transformer(Model):
     def __init__(
         self,
-        in_size: List[int],
-        out_size: int,
+        in_features: List[int],
+        out_features: int,
         hidden_size: int = 128,
         dropout=0.1,
         n_heads: int = 8,
@@ -46,8 +46,8 @@ class Transformer(Model):
         # Save model configuration
         self.register_config(locals(), type="transformer")
 
-        mace_size = in_size[0]
-        feat_size = in_size[1]
+        mace_size = in_features[0]
+        feat_size = in_features[1]
 
         # Atom encoding
         self.ln_input = nn.LayerNorm(mace_size)
@@ -55,7 +55,7 @@ class Transformer(Model):
         self.context_proj = nn.Linear(hidden_size, hidden_size)
 
         # Learnable energy embedding (L, D)
-        self.energy_embedding = nn.Parameter(torch.randn(out_size, hidden_size))
+        self.energy_embedding = nn.Parameter(torch.randn(out_features, hidden_size))
 
         # PDOS → energy embedding modulator
         self.feat_to_energy = nn.Linear(feat_size, hidden_size)

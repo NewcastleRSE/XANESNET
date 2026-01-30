@@ -9,10 +9,10 @@ dataset:
     - .github/workflows/data/multihead/train/xanes1     # Path to the directory containing XANES files
     - .github/workflows/data/multihead/train/xanes2
     - .github/workflows/data/multihead/train/xanes3
-#  params:
-#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-#    fourier: False
-#    fourier_concat: False
+  params:
+    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+#    fourier: True                    # Fourier transformation (default: False)
+#    gaussian: True                   # Gaussian transformation (default: False)
 
 descriptors:
   - type: wacsf

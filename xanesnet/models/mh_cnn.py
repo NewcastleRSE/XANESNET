@@ -38,8 +38,8 @@ class MultiHead_CNN(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: List[int],
+        in_features: int,
+        out_features: List[int],
         hidden_size: int = 256,
         dropout: float = 0.2,
         num_conv_layers: int = 3,
@@ -54,8 +54,8 @@ class MultiHead_CNN(Model):
     ):
         """
         Args:
-            in_size (int): Size of input data.
-            out_size (int): Size of output data.
+            in_features (int): Size of input data.
+            out_features (int): Size of output data.
             hidden_size (int): Size of the hidden layer in the dense predictor.
             dropout (float): Dropout rate for regularization.
             num_conv_layers (int): Number of convolutional layers in the encoder.
@@ -91,7 +91,7 @@ class MultiHead_CNN(Model):
 
         self.conv_layers = nn.Sequential(*conv_layers)
 
-        conv_out_size = self._get_conv_output_size(in_size)
+        conv_out_size = self._get_conv_output_size(in_features)
 
         # --- Multi-Headed Predictor ---
         self.heads = nn.ModuleList(
@@ -105,7 +105,7 @@ class MultiHead_CNN(Model):
                     dropout=dropout,
                     activation=activation,
                 )
-                for out in out_size
+                for out in out_features
             ]
         )
 

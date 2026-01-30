@@ -39,8 +39,8 @@ class LSTM(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
+        in_features: int,
+        out_features: int,
         hidden_size: int = 256,
         hidden_out_size: int = 128,
         num_layers: int = 5,
@@ -49,8 +49,8 @@ class LSTM(Model):
     ):
         """
         Args:
-            in_size (integer): Input size
-            out_size (integer): Output size
+            in_features (integer): Input size
+            out_features (integer): Output size
             hidden_size (integer): Number of features in the hidden state of
                 the LSTM layer.
             hidden_out_size (integer): Intermediate size of the two dense layers
@@ -73,7 +73,7 @@ class LSTM(Model):
 
         # LSTM layer
         self.lstm = nn.LSTM(
-            input_size=in_size,
+            input_size=in_features,
             hidden_size=hidden_size,
             num_layers=num_layers,
             bidirectional=True,
@@ -85,7 +85,7 @@ class LSTM(Model):
             nn.Linear(2 * hidden_size, hidden_out_size),
             act_fn,
             nn.Dropout(p=dropout),
-            nn.Linear(hidden_out_size, out_size),
+            nn.Linear(hidden_out_size, out_features),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

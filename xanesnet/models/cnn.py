@@ -37,8 +37,8 @@ class CNN(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
+        in_features: int,
+        out_features: int,
         hidden_size: int = 256,
         dropout: float = 0.2,
         num_conv_layers: int = 3,
@@ -50,8 +50,8 @@ class CNN(Model):
     ):
         """
         Args:
-            in_size (int): Size of input data.
-            out_size (int): Size of output data.
+            in_features (int): Size of input data.
+            out_features (int): Size of output data.
             hidden_size (int): Size of the hidden layer in the dense predictor.
             dropout (float): Dropout rate for regularization.
             num_conv_layers (int): Number of convolutional layers in the encoder.
@@ -88,13 +88,13 @@ class CNN(Model):
         self.conv_layers = nn.Sequential(*conv_layers)
 
         # --- Dense Layers ---
-        conv_out_size = self._get_conv_output_size(in_size)
+        conv_out_size = self._get_conv_output_size(in_features)
 
         self.dense_layers = nn.Sequential(
             nn.Flatten(),
             nn.Linear(conv_out_size, hidden_size),
             act_fn,
-            nn.Linear(hidden_size, out_size),
+            nn.Linear(hidden_size, out_features),
         )
 
     def _get_conv_output_size(self, in_size: int) -> int:

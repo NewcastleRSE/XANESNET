@@ -185,7 +185,7 @@ class SSLearn(Learn):
             optimizer.zero_grad(set_to_none=True)
 
             c_pred = model(batch)
-            y_pred = self.synthesis.forward_from_coeffs(c_pred)
+            y_pred = gaussian_inverse(self.dataset.gauss_basis, c_pred)
 
             neg_part = F.relu(-y_pred)
             loss_neg = (neg_part**2).mean()
@@ -224,7 +224,7 @@ class SSLearn(Learn):
                 batch.to(device)
 
                 c_pred = model(batch)
-                y_pred = self.synthesis.forward_from_coeffs(c_pred)  # (B,N)
+                y_pred = gaussian_inverse(self.dataset.gauss_basis, c_pred)
 
                 running_loss += F.mse_loss(y_pred, batch.y, reduction="sum").item()
                 n_elem += batch.y.numel()

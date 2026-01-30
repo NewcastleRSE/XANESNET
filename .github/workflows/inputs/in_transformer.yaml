@@ -5,8 +5,8 @@ dataset:
   xanes_path: .github/workflows/data/graph-set/xanes_train
 #  params:
 #    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-#    fourier: True
-#    fourier_concat: False
+#    fourier: True                    # Fourier transformation (default: False)
+#    gaussian: True                   # Gaussian transformation (default: False)
 
 
 descriptors:

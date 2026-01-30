@@ -25,8 +25,7 @@ from tqdm import tqdm
 
 from xanesnet.datasets.base_dataset import BaseDataset
 from xanesnet.registry import register_dataset
-from xanesnet.utils.fourier import fft_forward
-from xanesnet.utils.io import list_filestems, load_xanes, load_xyz
+from xanesnet.utils.io import list_filestems, load_xyz
 from xanesnet.utils.mode import Mode
 
 
@@ -37,14 +36,12 @@ class Data:
     pos: torch.Tensor = None
     weight: torch.Tensor = None
     mask: torch.Tensor = None
-    c_star: torch.Tensor = None
     y: torch.Tensor = None
     e: torch.Tensor = None
-    fourier: torch.Tensor = None
 
     def to(self, device):
         # send batch do device
-        for attr in ["mace", "desc", "pos", "weight", "mask", "y", "e", "fourier"]:
+        for attr in ["mace", "desc", "pos", "weight", "mask", "y", "e"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -77,7 +74,7 @@ class TransformerDataset(BaseDataset):
             raise ValueError(f"Undefined xyz_path")
 
         # Save configuration
-        self._register_config(locals(), type="transformer")
+        self._register_config(dataset_type="transformer")
 
     def set_file_names(self):
         """
@@ -109,7 +106,7 @@ class TransformerDataset(BaseDataset):
         feat_desc = [d for d in self.descriptors if d.get_type() != "mace"]
 
         mace_list, desc_list = [], []
-        spec_list, e_list, fft_list = [], [], []
+        spec_list, e_list = [], []
         pos_list, weight_list, mask_list = [], [], []
 
         for stem in tqdm(self.file_names, total=len(self.file_names)):
@@ -165,7 +162,6 @@ class TransformerDataset(BaseDataset):
                 mask=mask_list[idx],
                 y=spec_list[idx] if spec_list else None,
                 e=e_list[idx] if e_list else None,
-                fourier=fft_list[idx] if fft_list else None,
             )
 
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
@@ -175,7 +171,7 @@ class TransformerDataset(BaseDataset):
         """
         Collates a list of Data objects into a single Data object with batched tensors.
         """
-        to_stack = ["desc", "y", "fourier"]
+        to_stack = ["desc", "y"]
         to_pad = ["mace", "weight", "pos", "mask"]
 
         batched = {}
@@ -194,16 +190,12 @@ class TransformerDataset(BaseDataset):
         return Data(**batched)
 
     @property
-    def x_shape(self) -> Union[int, List[int]]:
+    def in_features(self) -> List[int] | int:
         """Size of the feature array."""
         return [self[0].mace.shape[1], self[0].desc.shape[0]]
 
     @property
-    def y_shape(self) -> int:
+    def out_features(self) -> List[int] | int:
         """Size of the label array."""
-        if self.fft:
-            fourier = self[0].fourier
-            return 0 if fourier is None else len(fourier)
-        else:
-            y = self[0].y
-            return 0 if y is None else len(y)
+        y = self[0].y
+        return 0 if y is None else len(y)

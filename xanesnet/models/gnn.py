@@ -42,8 +42,8 @@ class GNN(Model):
 
     def __init__(
         self,
-        in_size: List[int],
-        out_size: int,
+        in_features: List[int],
+        out_features: int,
         layer_name: str = "GATv2",
         layer_params: Optional[dict] = None,
         hidden_size: int = 512,
@@ -54,8 +54,8 @@ class GNN(Model):
     ):
         """
         Args:
-            in_size (List[int]): List of input size integers
-            out_size (integer): Output size
+            in_features (List[int]): List of input size integers
+            out_features (integer): Output size
             layer_name (string): Name of GNN layer (GAT, GATv2, GCN, GraphConv)
             layer_params (dict): parameters pass to GNN layers
             hidden_size (integer): Size of the hidden layer.
@@ -75,8 +75,8 @@ class GNN(Model):
         self.register_config(locals(), type="gnn")
 
         # Two input sizes: one for the GNN part, one for the MLP part
-        gnn_feat_size = in_size[0]
-        mlp_feat_size = in_size[1]
+        gnn_feat_size = in_features[0]
+        mlp_feat_size = in_features[1]
 
         if layer_params is None:
             layer_params = {
@@ -126,7 +126,7 @@ class GNN(Model):
             current_size = next_size
 
         # --- MLP output Layer ---
-        layers.append(nn.Linear(current_size, out_size))
+        layers.append(nn.Linear(current_size, out_features))
 
         self.mlp_layers = nn.Sequential(*layers)
 

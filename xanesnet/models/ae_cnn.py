@@ -35,8 +35,8 @@ class AE_CNN(Model):
 
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
+        in_features: int,
+        out_features: int,
         out_channel: int = 32,
         channel_mul: int = 2,
         hidden_size: int = 64,
@@ -48,8 +48,8 @@ class AE_CNN(Model):
     ):
         """
         Args:
-            in_size (int): Size of input data (length of the 1D signal).
-            out_size (int): Size of output data.
+            in_features (int): Size of input data (length of the 1D signal).
+            out_features (int): Size of output data.
             hidden_size (int): Size of the hidden layer in the dense predictor.
             dropout (float): Dropout rate for regularization.
             num_conv_layers (int): Number of convolutional layers in the encoder.
@@ -68,10 +68,10 @@ class AE_CNN(Model):
         act_fn = ActivationSwitch().get(activation)
 
         # Start collecting shape of convolutional layers for calculating padding
-        all_conv_shapes = [in_size]
+        all_conv_shapes = [in_features]
 
         # Starting shape
-        conv_shape = in_size
+        conv_shape = in_features
 
         # Construct encoder convolutional layers
         enc_layers = []
@@ -115,7 +115,7 @@ class AE_CNN(Model):
         )
 
         dense_layer2 = nn.Sequential(
-            nn.Linear(hidden_size, out_size),
+            nn.Linear(hidden_size, out_features),
         )
 
         dense_layers.append(dense_layer1)

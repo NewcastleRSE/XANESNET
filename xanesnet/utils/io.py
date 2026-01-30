@@ -156,7 +156,7 @@ def save_predict_result(path, mode, result, dataset, pred_eval, scheme, metadata
         if scheme.mh_flag and not pred_eval:
             # Multi-head scheme: result shapes = (N, H, M)
             nhead = result.xanes_pred[0].shape[1]
-            head_names = metadata["dataset"]["head_names"]
+            head_names = metadata["dataset"]["params"]["head_names"]
 
             for h in range(nhead):
                 # Create a directory for each head
@@ -170,7 +170,6 @@ def save_predict_result(path, mode, result, dataset, pred_eval, scheme, metadata
                     # Save each head separately in its directory
                     file_head = save_path / head_names[h] / f"{id_}.txt"
                     with open(file_head, "w") as f:
-                        print(predict_.shape, std_.shape, energy.shape)
                         save_xanes_mean(f, XANES(energy, predict_[h]), std_[h])
 
         elif scheme.recon_flag:

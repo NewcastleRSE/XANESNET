@@ -114,7 +114,7 @@ def plot_predict_mh(path, mode, result, dataset, metadata):
     file_names = dataset.file_names
 
     nhead = predict.shape[1]
-    head_names = metadata["dataset"]["head_names"]
+    head_names = metadata["dataset"]["params"]["head_names"]
 
     for h in range(nhead):
         # ---- per-head directory ----

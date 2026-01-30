@@ -60,12 +60,13 @@ class GraphDataset(BaseDataset):
             raise ValueError(f"Unsupported mode for GraphDataset: {self.mode}")
 
         # Save configuration
-        params = {
+        local_params = {
             "n": self.n,
             "r_min": self.r_min,
             "r_max": self.r_max,
         }
-        self._register_config(locals(), type="graph")
+
+        self._register_config(dataset_type="graph", **local_params)
 
     def set_file_names(self):
         """
@@ -96,12 +97,12 @@ class GraphDataset(BaseDataset):
         pass
 
     @property
-    def x_shape(self) -> Union[int, List[int]]:
+    def in_features(self) -> List[int] | int:
         # node feature size and graph attribute size
         return [self[0].x.shape[1], self[0].graph_attr.shape[0]]
 
     @property
-    def y_shape(self) -> Union[int, List[int]]:
+    def out_features(self) -> List[int] | int:
         # xanes (label) size
         y = self[0].y
         return 0 if y is None else len(y)
@@ -114,10 +115,8 @@ class GraphDataset(BaseDataset):
             # Get energy and intensities
             xanes = e = None
             if self.xanes_path:
-                raw_path = os.path.join(self.xanes_path, f"{stem}.txt")
-                e, xanes = load_xanes(raw_path)
-                if self.fft:
-                    xanes = fft_forward(xanes)
+                xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
+                e, xanes = self.transform_xanes(xanes_file)
 
             mg = MolGraph()
             raw_path = os.path.join(self.xyz_path, f"{stem}.xyz")

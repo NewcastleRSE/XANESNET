@@ -114,16 +114,17 @@ class Predict(ABC):
         """
         pass
 
-    def inverse_transform(self, y: torch.Tensor):
-        if self.mode == Mode.XYZ_TO_XANES:
+    def _postprocess(self, tensor: torch.Tensor) -> np.ndarray:
+        if self.mode == Mode.XYZ_TO_XANES or self.recon_flag:
             if self.fft:
-                y = fft_inverse(y)
+                tensor = fft_inverse(tensor)
             if self.gaussian:
-                y = gaussian_inverse(self.dataset.gauss_basis, y)
-        return y
+                tensor = gaussian_inverse(self.dataset.gauss_basis, tensor)
+
+        return self._to_numpy(tensor)
 
     @staticmethod
-    def to_numpy(tensor):
+    def _to_numpy(tensor):
         return tensor.squeeze().detach().cpu().numpy()
 
     @staticmethod

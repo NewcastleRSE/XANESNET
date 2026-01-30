@@ -11,9 +11,8 @@ dataset:
     - .github/workflows/data/multihead/train/xanes3
   params:
     preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-#    fourier: False
-#    fourier_concat: False
-    gaussian: False
+#    fourier: True                    # Fourier transformation (default: False)
+#    gaussian: True                   # Gaussian transformation (default: False)
 
 
 descriptors:

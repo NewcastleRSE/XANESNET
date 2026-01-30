@@ -33,8 +33,8 @@ class SoftShellSpectraNet(Model):
 
     def __init__(
         self,
-        in_size: List,
-        out_size: int,
+        in_features: List,
+        out_features: int,
         n_shells: int = 4,
         max_radius_angs: float = 7.0,
         init_width: float = 0.8,
@@ -51,9 +51,9 @@ class SoftShellSpectraNet(Model):
         # Save model configuration
         self.register_config(locals(), type="softshell")
 
-        d_input = in_size[0]
+        d_input = in_features[0]
         latent_dim = d_input * 2
-        kgroups = in_size[1]
+        kgroups = in_features[1]
 
         self.encoder = SoftRadialShellsEncoder(
             d_input=d_input,
