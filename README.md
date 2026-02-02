@@ -43,6 +43,22 @@ The original version of XANESNET, which was implemented using Keras, can be obta
 * Web interface
 
 
+---------------------------------------------------------------------------
+
+The XANESNET distribution includes the following files and directories:
+<pre>
+README                  this file 
+LICENSE                 the GNU General Public License (GPL-3.0)
+setup.py                Python setup script
+run_test.sh             script to run workflow tests
+clean.sh                script to clean generated data
+data                    example stucture (.XYZ) and xanes data
+doc                     user manual and other documentation 
+inputs                  test problems and cases
+tests                   unit tests
+xanesnet                XANESNET source code
+</pre>
+
 ## Setup
 
 The quickest way to get started with XANESNET is to clone this repository:
