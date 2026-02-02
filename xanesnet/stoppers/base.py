@@ -33,7 +33,13 @@ class EarlyStopper(ABC):
         self.best_epoch: int = -1
 
     @abstractmethod
-    def step(self, value: float | None, model: Model, epoch: int) -> bool: ...
+    def step(self, value: float, model: Model, epoch: int) -> bool:
+        if value < self.best_value:
+            self.best_value = value
+            self.best_epoch = epoch
+            if self.restore_best:
+                self.best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        return False
 
     def restore(self, model: Model) -> tuple[float | None, int | None]:
         if self.restore_best and self.best_state is not None:

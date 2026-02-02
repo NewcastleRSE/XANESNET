@@ -44,9 +44,10 @@ trainer:
   trainer_type: nntrainer
   batch_size: 3
   # params:
-  epochs: 50
+  epochs: 100
   learning_rate: 0.001
   optimizer: Adam
+  validation_interval: 3
   loss:
     loss_type: mse
   regularizer:
@@ -60,7 +61,8 @@ trainer:
   early_stopper:
     early_stopper_type: basic 
     patience: 10
-    min_delta: 0.0
+    min_delta: 0.01
+    restore_best: True
   
 strategy:
   # general:

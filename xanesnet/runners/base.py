@@ -99,7 +99,7 @@ class Runner(ABC):
         """
         Log training/validation/inference metrics for an epoch.
         """
-        epoch_str = f"Epoch {epoch + 1:03d} | " if epoch is not None else ""
+        epoch_str = f"Epoch {epoch:03d} | " if epoch is not None else ""
         train_str = f"Loss: {loss:.6f} | Reg: {regularization:.6f} | Total: {total:.6f}"
 
         if valid_total is not None:

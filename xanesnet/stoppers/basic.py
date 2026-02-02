@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import logging
+
 from xanesnet.models import Model
 
 from .base import EarlyStopper
@@ -22,6 +24,10 @@ from .registry import EarlyStopperRegistry
 
 @EarlyStopperRegistry.register("basic")
 class BasicStopper(EarlyStopper):
+    """
+    Early stopper that stops when no improvement is seen for a number of epochs.
+    """
+
     def __init__(
         self,
         early_stopper_type: str,
@@ -33,23 +39,28 @@ class BasicStopper(EarlyStopper):
 
         self.patience = patience
         self.min_delta = min_delta
+        self.last_improvement_epoch = None
 
-        self.bad_epochs = 0
+    def step(self, value: float, model: Model, epoch: int) -> bool:
+        prev_best_value = self.best_value
+        prev_best_epoch = self.best_epoch
 
-    def step(self, value: float | None, model: Model, epoch: int) -> bool:
-        if value is not None:
-            if value < self.best_value - self.min_delta:
-                self.best_value = value
-                self.best_epoch = epoch
-                self.bad_epochs = 0
-                if self.restore_best:
-                    self.best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
-            else:
-                self.bad_epochs += 1
+        _ = super().step(value, model, epoch)
 
-            return self.bad_epochs > self.patience
-        else:
-            # No stopping check
-            self.bad_epochs += 1
-
+        if prev_best_epoch < 0:  # first call
+            self.last_improvement_epoch = epoch
             return False
+
+        if self.last_improvement_epoch is None:  # if not set yet but not first call
+            self.last_improvement_epoch = prev_best_epoch
+
+        epochs_since_prev_best = max(1, epoch - prev_best_epoch)
+        required_total_delta = self.min_delta * epochs_since_prev_best
+        meaningful_improvement = value < prev_best_value - required_total_delta
+
+        if meaningful_improvement:
+            self.last_improvement_epoch = epoch
+
+        epochs_without_improvement = epoch - self.last_improvement_epoch
+
+        return epochs_without_improvement >= self.patience

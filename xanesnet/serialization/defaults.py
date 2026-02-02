@@ -60,6 +60,7 @@ TRAINER_DEFAULTS = {
         "epochs": 10,
         "learning_rate": 0.001,
         "optimizer": "Adam",
+        "validation_interval": 1,
         "lr_scheduler.lr_scheduler_type": "none",
         "early_stopper.early_stopper_type": "none",
         "early_stopper.restore_best": True,

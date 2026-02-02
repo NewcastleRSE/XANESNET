@@ -48,6 +48,7 @@ class NNTrainer(Trainer):
         optimizer: str,
         lr_scheduler: dict[str, Any],
         early_stopper: dict[str, Any],
+        validation_interval: int,
     ) -> None:
         super().__init__(
             dataset,
@@ -66,4 +67,5 @@ class NNTrainer(Trainer):
             optimizer,
             lr_scheduler,
             early_stopper,
+            validation_interval,
         )

@@ -49,6 +49,7 @@ class Trainer(Runner):
         optimizer: str,
         lr_scheduler: dict[str, Any],
         early_stopper: dict[str, Any],
+        validation_interval: int,
     ) -> None:
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers, loss, regularizer)
 
@@ -60,6 +61,7 @@ class Trainer(Runner):
         self.optimizer_type = optimizer
         self.lr_scheduler_config = lr_scheduler
         self.early_stopper_config = early_stopper
+        self.validation_interval = validation_interval
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()
@@ -78,20 +80,22 @@ class Trainer(Runner):
         self.model.to(self.device)
 
         logging.info(f"Start training: {self.epochs} epochs.")
-        valid_loss = None
-        valid_regularization = None
+
+        train_total = None
         valid_total = None
+
         epoch = -1
         for epoch in range(self.epochs):
             # Run training
             train_loss, train_regularization, train_total = self._train_one_epoch()
 
-            # Run validation
-            if self.valid_dataloader is not None:
+            # Run validation on interval or last epoch
+            if self.valid_dataloader is not None and (
+                epoch % self.validation_interval == 0 or epoch == self.epochs - 1
+            ):
                 valid_loss, valid_regularization, valid_total = self._validate_one_epoch()
-
-            # Learning rate scheduler
-            self.lr_scheduler.step()
+            else:
+                valid_loss, valid_regularization, valid_total = None, None, None
 
             # Logging
             self._log_epoch_loss(
@@ -104,22 +108,30 @@ class Trainer(Runner):
                 epoch,
             )
 
-            # Early stopping
-            if self.early_stopper.step(valid_total, self.model, epoch):
-                logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
-                break
+            # Learning rate scheduler
+            self.lr_scheduler.step()
+
+            # Early stopping check
+            stopped = False
+            if self.valid_dataloader is None:
+                stopped = self.early_stopper.step(train_total, self.model, epoch)
+            elif valid_total is not None:
+                stopped = self.early_stopper.step(valid_total, self.model, epoch)
 
             # Checkpointing
-            saved_checkpoint, checkpoint_name = self.checkpointer.step(epoch, self.model, self.optimizer)
+            if epoch == self.epochs - 1 or stopped:
+                saved_checkpoint, checkpoint_name = self.checkpointer.save_checkpoint(epoch, self.model, self.optimizer)
+            else:
+                saved_checkpoint, checkpoint_name = self.checkpointer.step(epoch, self.model, self.optimizer)
             if saved_checkpoint:
                 logging.info(f"Saved new checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
 
-        logging.info("Finished training.")
+            # Early stopping trigger
+            if stopped:
+                logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
+                break
 
-        # Last Checkpoint
-        saved_checkpoint, checkpoint_name = self.checkpointer.save_checkpoint(epoch, self.model, self.optimizer)
-        if saved_checkpoint:
-            logging.info(f"Saved last checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
+        logging.info("Finished training.")
 
         # Restore best model / Taking last model
         if self.early_stopper.restore_best:
@@ -132,8 +144,12 @@ class Trainer(Runner):
                     f" Something might be wrong in your EarlyStopper {self.early_stopper.early_stopper_type}."
                 )
         else:
-            score = valid_total
-            logging.info(f"Using last model as final model.")
+            if valid_total is not None:
+                score = valid_total
+                logging.info(f"Using last model from epoch {epoch} as final model with validation score {score}.")
+            else:
+                score = train_total
+                logging.info(f"Using last model from epoch {epoch} as final model with training score {score}.")
 
         return score
 

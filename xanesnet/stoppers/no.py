@@ -23,6 +23,10 @@ from .registry import EarlyStopperRegistry
 @EarlyStopperRegistry.register("none")
 @EarlyStopperRegistry.register("no")
 class NoStopper(EarlyStopper):
+    """
+    No-op early stopper that never stops training.
+    """
+
     def __init__(
         self,
         early_stopper_type: str,
@@ -30,10 +34,6 @@ class NoStopper(EarlyStopper):
     ) -> None:
         super().__init__(early_stopper_type, restore_best)
 
-    def step(self, value: float | None, model: Model, epoch: int) -> bool:
-        if value is not None and value < self.best_value:
-            self.best_value = value
-            self.best_epoch = epoch
-            if self.restore_best:
-                self.best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+    def step(self, value: float, model: Model, epoch: int) -> bool:
+        _ = super().step(value, model, epoch)
         return False
