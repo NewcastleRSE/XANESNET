@@ -28,11 +28,11 @@ from .base import Dataset
 ###############################################################################
 
 
-# TODO double inheritance might be an issue! Maybe rename my function process()
-class TorchGeometricDataset(Dataset, tgdata.Dataset):  # type: ignore
+class TorchGeometricDataset(Dataset, tgdata.Dataset):
     """
-    A dataset class that combines BaseDataset and PyTorch Geometric's Dataset.
+    A dataset class for PyTorch Geometric's Dataset.
     This class can be used to create datasets compatible with PyTorch Geometric's data handling.
+    Note: torch_geometric.data.Dataset also inherits from torch.utils.data.Dataset.
     """
 
     def __init__(

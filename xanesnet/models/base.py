@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any
 
 from torch import nn
@@ -24,7 +24,7 @@ from torch import nn
 ###############################################################################
 
 
-class Model(nn.Module):
+class Model(nn.Module, ABC):
     """
     Abstract base class for models.
     """

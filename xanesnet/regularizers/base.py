@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 from torch import nn
@@ -22,7 +22,7 @@ from torch import nn
 from xanesnet.models import Model
 
 
-class Regularizer(nn.Module):
+class Regularizer(nn.Module, ABC):
     """
     Abstract base class for regularizers.
     """

@@ -92,15 +92,20 @@ class Runner(ABC):
         regularization: float,
         total: float,
         valid_loss: float | None = None,
+        valid_regularization: float | None = None,
+        valid_total: float | None = None,
         epoch: int | None = None,
     ) -> None:
-        epoch_part = f"Epoch {epoch + 1:03d} | " if epoch is not None else ""
-        validation_part = f"Validation: {valid_loss:.6f}" if valid_loss is not None else ""
+        """
+        Log training/validation/inference metrics for an epoch.
+        """
+        epoch_str = f"Epoch {epoch + 1:03d} | " if epoch is not None else ""
+        train_str = f"Loss: {loss:.6f} | Reg: {regularization:.6f} | Total: {total:.6f}"
 
-        logging.info(
-            f"{epoch_part}"
-            f"Loss: {loss:.6f} | "
-            f"Regularization: {regularization:.6f} | "
-            f"Total: {total:.6f} | "
-            f"{validation_part}"
-        )
+        if valid_total is not None:
+            valid_str = (
+                f"Valid Loss: {valid_loss:.6f} | Valid Reg: {valid_regularization:.6f} | Valid Total: {valid_total:.6f}"
+            )
+            logging.info(f"{epoch_str}{train_str} | {valid_str}")
+        else:
+            logging.info(f"{epoch_str}{train_str}")

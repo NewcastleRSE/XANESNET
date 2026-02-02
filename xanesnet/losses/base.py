@@ -14,13 +14,13 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 from torch import nn
 
 
-class Loss(nn.Module):
+class Loss(nn.Module, ABC):
     """
     Abstract base class for loss functions.
     """

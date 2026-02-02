@@ -63,7 +63,8 @@ class Trainer(Runner):
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()
-        self.dataloader = self._setup_dataloader()
+        self.dataloader = self._setup_train_dataloader()
+        self.valid_dataloader = self._setup_valid_dataloader()
         self.optimizer = self._setup_optimizer()
         self.lr_scheduler = self._setup_lr_scheduler()
         self.early_stopper = self._setup_early_stopper()
@@ -78,23 +79,33 @@ class Trainer(Runner):
 
         logging.info(f"Start training: {self.epochs} epochs.")
         valid_loss = None
+        valid_regularization = None
+        valid_total = None
         epoch = -1
         for epoch in range(self.epochs):
             # Run training
             train_loss, train_regularization, train_total = self._train_one_epoch()
 
             # Run validation
-            valid_loss = None
-            # TODO validation!
+            if self.valid_dataloader is not None:
+                valid_loss, valid_regularization, valid_total = self._validate_one_epoch()
 
             # Learning rate scheduler
             self.lr_scheduler.step()
 
             # Logging
-            self._log_epoch_loss(train_loss, train_regularization, train_total, valid_loss, epoch)
+            self._log_epoch_loss(
+                train_loss,
+                train_regularization,
+                train_total,
+                valid_loss,
+                valid_regularization,
+                valid_total,
+                epoch,
+            )
 
             # Early stopping
-            if self.early_stopper.step(valid_loss, self.model, epoch):
+            if self.early_stopper.step(valid_total, self.model, epoch):
                 logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
                 break
 
@@ -121,7 +132,7 @@ class Trainer(Runner):
                     f" Something might be wrong in your EarlyStopper {self.early_stopper.early_stopper_type}."
                 )
         else:
-            score = valid_loss
+            score = valid_total
             logging.info(f"Using last model as final model.")
 
         return score
@@ -168,6 +179,79 @@ class Trainer(Runner):
         epoch_total = epoch_total / len(self.dataloader)
 
         return epoch_loss, epoch_regularization, epoch_total
+
+    def _validate_one_epoch(self) -> tuple[float, float, float]:
+        """
+        Runs a single validation epoch.
+        """
+        assert self.valid_dataloader is not None
+
+        self.model.eval()
+
+        valid_loss = 0.0
+        valid_regularization = 0.0
+        valid_total = 0.0
+
+        with torch.no_grad():
+            for batch in self.valid_dataloader:
+                batch.to(self.device)
+
+                # Forward pass
+                inputs = self.batchprocessor.input_preparation(batch)
+                predictions = self.model(inputs)
+
+                # Target
+                targets = self.batchprocessor.target_preparation(batch)
+
+                # Criterion
+                loss = self.loss(predictions, targets)
+
+                # Regularization
+                regularization = self.regularizer(self.model)
+
+                # Total
+                total = loss + regularization
+
+                valid_loss += loss.item()
+                valid_regularization += regularization.item()
+                valid_total += total.item()
+
+        valid_loss = valid_loss / len(self.valid_dataloader)
+        valid_regularization = valid_regularization / len(self.valid_dataloader)
+        valid_total = valid_total / len(self.valid_dataloader)
+
+        return valid_loss, valid_regularization, valid_total
+
+    def _setup_train_dataloader(self) -> Any:
+        dataloader_cls = self.dataset.get_dataloader()
+
+        dataloader = dataloader_cls(
+            self.dataset.train_subset,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle,
+            collate_fn=self.dataset.collate_fn,
+            drop_last=self.drop_last,
+            num_workers=self.num_workers,
+        )
+
+        return dataloader
+
+    def _setup_valid_dataloader(self) -> Any | None:
+        if self.dataset.valid_subset is None:
+            return None
+
+        dataloader_cls = self.dataset.get_dataloader()
+
+        dataloader = dataloader_cls(
+            self.dataset.valid_subset,
+            batch_size=self.batch_size,
+            shuffle=False,  # No need to shuffle validation data
+            collate_fn=self.dataset.collate_fn,
+            drop_last=False,  # Keep all validation samples
+            num_workers=self.num_workers,
+        )
+
+        return dataloader
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         optimizer_cls = OptimizerRegistry.get(self.optimizer_type)

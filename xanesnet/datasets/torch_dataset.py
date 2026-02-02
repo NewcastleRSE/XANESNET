@@ -28,9 +28,9 @@ from .base import Dataset
 ###############################################################################
 
 
-class TorchDataset(Dataset, torch.utils.data.Dataset):
+class TorchDataset(Dataset):
     """
-    A dataset class that combines BaseDataset and PyTorch's Dataset.
+    A dataset class for PyTorch's standard Dataset.
     This class can be used to create datasets compatible with PyTorch's DataLoader.
     """
 

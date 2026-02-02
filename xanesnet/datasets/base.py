@@ -19,7 +19,10 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any
 
+import numpy as np
 import torch
+from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data import Subset
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
@@ -28,12 +31,8 @@ from xanesnet.datasources import DataSource
 #################################### CLASS ####################################
 ###############################################################################
 
-# TODO I should add train indices and validation indices.
-# TODO I can then create Subsets of the Dataset that
-# TODO are used during training for training set and validation set.
 
-
-class Dataset(ABC):
+class Dataset(TorchDataset, ABC):
     """
     Abstract base class for datasets.
     """
@@ -52,6 +51,10 @@ class Dataset(ABC):
 
         # preloaded dataset
         self.inmemory_dataset: list[Any] = []
+
+        # train/valid split
+        self._train_subset: Subset | None = None
+        self._valid_subset: Subset | None = None
 
     @abstractmethod
     def prepare(self) -> bool:
@@ -78,6 +81,48 @@ class Dataset(ABC):
                 preload_data.append(torch.load(file))
             self.inmemory_dataset = preload_data
         return self.preload
+
+    def setup_train_val_split(self, train_ratio: float) -> None:
+        """
+        Create train and validation subsets based on the specified ratio.
+        """
+        if not 0.0 <= train_ratio <= 1.0:
+            raise ValueError(f"train_ratio must be between 0.0 and 1.0, got {train_ratio}")
+
+        dataset_size = len(self)
+        train_size = int(dataset_size * train_ratio)
+        valid_size = dataset_size - train_size
+
+        assert train_size + valid_size == dataset_size
+
+        # Generate random indices
+        indices = np.random.permutation(dataset_size)
+        train_indices = indices[:train_size].tolist()
+        valid_indices = indices[train_size:].tolist() if valid_size > 0 else []
+
+        # Create Subset objects
+        self._train_subset = Subset(self, train_indices)
+        self._valid_subset = Subset(self, valid_indices) if valid_size > 0 else None
+
+        logging.info(
+            f"Train/Valid split created: "
+            f"train_size={len(self._train_subset)}, "
+            f"valid_size={len(self._valid_subset) if self._valid_subset else 0}"
+        )
+
+    @property
+    def train_subset(self) -> Subset | None:
+        """
+        Return the training subset. Returns None if setup_train_val_split() hasn't been called.
+        """
+        return self._train_subset
+
+    @property
+    def valid_subset(self) -> Subset | None:
+        """
+        Return the validation subset. Returns None if no validation split or setup_train_val_split() hasn't been called.
+        """
+        return self._valid_subset
 
     @abstractmethod
     def get_dataloader(self) -> Any:

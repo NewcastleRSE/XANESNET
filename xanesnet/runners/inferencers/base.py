@@ -66,7 +66,15 @@ class Inferencer(Runner):
         logging.info("Finished inference.")
 
         # Logging
-        self._log_epoch_loss(test_loss, test_regularization, test_total)
+        self._log_epoch_loss(
+            test_loss,
+            test_regularization,
+            test_total,
+            None,
+            None,
+            None,
+            None,
+        )
 
         score = test_total
 

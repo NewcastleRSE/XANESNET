@@ -114,6 +114,7 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
     dataset.prepare()
     dataset.check_preload()  # may preload the dataset into memory
+    dataset.setup_train_val_split(train_ratio=0.95)  # TODO: make configurable
 
     # Log dataset summary
     logging.info(f"Dataset Summary: # of samples = {len(dataset)}")
