@@ -23,7 +23,7 @@ The popularity of XS is on a steep upward trajectory globally, driven by advance
 
 This is a tall order - but we're using deep neural networks to make this a reality. 
 
-Our XANESNET code address two fundamental challenges: the so-called forward (property/structure-to-spectrum) and reverse (spectrum-to-property/structure) mapping problems. The forward mapping appraoch is similar to the appraoch used by computational researchers in the sense that an input structure is used to generate a spectral observable. In this area the objective of XANESNET is to supplement and support analysis provided by first principles quantum mechnanical simulations. The reverse mapping problem is perhaps the more natural of the two, as it has a clear connection to the problem that X-ray spectroscopists face day-to-day in their work: how can a measurement/observable be interpreted? Here we are seeking to provide methodologies in allow the direct extraction of properties from a recorded spectrum. 
+Our XANESNET software address two fundamental challenges: the so-called forward (property/structure-to-spectrum) and reverse (spectrum-to-property/structure) mapping problems. The forward mapping appraoch is similar to the appraoch used by computational researchers in the sense that an input structure is used to generate a spectral observable. In this area the objective of XANESNET is to supplement and support analysis provided by first principles quantum mechnanical simulations. The reverse mapping problem is perhaps the more natural of the two, as it has a clear connection to the problem that X-ray spectroscopists face day-to-day in their work: how can a measurement/observable be interpreted? Here we are seeking to provide methodologies in allow the direct extraction of properties from a recorded spectrum. 
 
 XANESNET is under continuous development, so feel free to flag up any issues/make pull requests - we appreciate your input!
 
@@ -32,16 +32,14 @@ The original version of XANESNET, which was implemented using Keras, can be obta
 ## Features
 
 * GPLv3 licensed open-source distribution
-* Automated data processing: data augmentation, Fourier transform
-* Feature extraction: wACSF, SOAP, MBTR, LMBTR, RDC, LMBTR, pDOS, MSR, XTB
-* Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, Autoencoder-GAN
-* Learning scheme: K-fold, ensemble, bootstrapping
+* Automated data processing: Fourier transform, Gaussian transform
+* Feature extraction: wACSF, RDC, pDOS, MACE
+* Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, Autoencoder-GAN, Multihead, Transformer, EnvEmbed
+* Learning scheme: standard, K-fold, ensemble learning, bootstrapping
 * Experiment tracking and visualisation: MLFlow, TensorBoard
-* Hyperparameter optimisation
 * Learning rate scheduler
-* Layer freezing
-* Run from an input file
-* Easy to extend with new model and descriptor
+* Custom workflow components (datasets, models, descriptors, etc.) defined via input file
+* Easy to extend with new components 
 * Web interface
 
 
@@ -60,9 +58,9 @@ git clone https://gitlab.com/team-xnet/xanesnet.git
 git clone https://gitlab.com/team-xnet/xanesnet.git
 ```
 
-This contains all the source files as well as example input files.
+The repository contains all source files, along with example input files and datasets.
 
-Training sets for X-ray absorption and emission of molecules constaining first row transition metals can be obtained using:
+Complete training sets for X-ray absorption and emission of molecules containing first row transition metals can be obtained using:
 
 ```
 git clone https://gitlab.com/team-xnet/training-sets.git
@@ -72,7 +70,8 @@ Now you're good to go!
 
 ## Getting Started
 
-The code has been designed to support python 3. The dependencies and version requirements are installed using:
+The code has been designed to support python 3.10 and above. 
+Dependencies and version requirements can be installed using:
 
 ```
 python -m pip install .
@@ -80,20 +79,26 @@ python -m pip install .
 
 ### Training 
 
-To train a model, the following command is used:  
+To train a model, use the following command:  
 
 ```python3 -m xanesnet.cli --mode MODE --in_file <path/to/file.yaml> --save```
 
-The implemented training MODE include:  
-- `train_xanes`: The xanes spectra are used the input data and the featurised structures are the target of the model   
-- `train_xyz`: The featurised structures are used the input data and the xanes spectra are the target of the model   
-- `train_aegan`: This mode trains featurised structures and xanes spectra simultaneously   
+where
+- `--mode` specifies the training mode.
+- `--in_file` specifies the path to the input file for training.
+- `--save` specifies whether to save the trained model to disk.
 
-Replace <path/to/file.yaml> by the actual path to a YAML input file.
+
+The implemented training modes include:  
+- `train_xyz`: uses featurised structures as input data and XANES spectra as the target.
+- `train_xanes`: uses XANES spectra as input data and the featurised structures as the target.
+- `train_all`: trains both featurised structures and XANES spectra simultaneously (Only available for the AEGAN model type).
+
+Replace <path/to/file.yaml> with the path to your YAML input file.
 Examples of commented input files for training and hyperparameter 
-options can be found in the 'inputs/' folder
+configuration can be found in the 'inputs/' directory.
 
-Below is an example command for training a model using MLP architecture, and featurised structures as input data:  
+Below is an example command for training a model using the MLP architecture, with featurised structures as input data:  
 
 ```python3 -m xanesnet.cli --mode train_xyz --in_file inputs/in_mlp.yaml --save```
 
@@ -101,19 +106,24 @@ The resulting trained model and its metadata will be saved in the 'models/' dire
 
 ### Prediction
 
-To use a previously developed model for predictions, the following command is used:  
+To use a previously trained model for predictions, use the following command:
 
 ```python3 -m xanesnet.cli --mode MODE --in_model <path/to/model> --in_file <path/to/file.yaml>```
 
+where
+- `--mode` specifies the prediction mode.
+- `--in_model` specifies a directory containing a pre-trained model and its metadata.
+- `--in_file` specifies the path to the input file for prediction.
+
 The implemented prediction modes include:  
-- `predict_xyz`: The featurised structure is predicted from an input xanes spectrum   
-- `predict_xanes`: The xanes spectrum is predicted from a featurised structural input  
-- `predict_all`: Simultaneous prediction of a featurised structure and xanes spectrum from corresponding input as well as reconstruction of inputs. Only for AEGAN model type. 
+- `predict_xanes`: predicts a XANES spectrum from a featurised structural input.
+- `predict_xyz`: predicts featurised structures from an input XANES spectrum.
+- `predict_all`: simultaneous prediction of both featurised structures and XANES spectra from corresponding inputs with reconstruction of inputs. 
 
-The [-\-in_model] option specifies a directory containing pre-trained model and its metadata.
-The [-\-in_file] specifies a path to input file for prediction. As an example, execute the following command to make spectrum predictions using the previously trained MLP model:   
 
-```python3 -m xanesnet.cli --mode predict_xanes --in_model models/model_mlp_001 --in_file inputs/in_predict.yaml```
+As an example, the following command predicts XANES spectra using the MLP model trained previously:
+
+```python3 -m xanesnet.cli --mode predict_xanes --in_model models/mlp_std_xyz_001 --in_file inputs/in_predict.yaml```
 
 
 ## Contact
@@ -121,36 +131,12 @@ The [-\-in_file] specifies a path to input file for prediction. As an example, e
 ### Project Team
 
 <a href="https://ncl.ac.uk/nes/people/profile/tompenfold.html">Prof. Thomas Penfold </a>, Newcastle University, (tom.penfold@newcastle.ac.uk)\
+<a href="https://www.ncl.ac.uk/nes/people/profile/thomaspope2.html">Dr. Thomas Pope </a>, Newcastle University (thomas.pope2@newcastle.ac.uk)\
 <a href="https://pure.york.ac.uk/portal/en/persons/conor-rankine">Dr. Conor Rankine </a>, York University (conor.rankine@york.ac.uk)
 
+
 ### RSE Contact
-<a href="https://rse.ncldata.dev/team/bowen-li">Dr. Bowen Li </a>, Newcastle University (bowen.li2@newcastle.ac.uk)\
-<a href="https://rse.ncldata.dev/team/alex-surtees">Dr. Lorenzo Rossi </a>,  Newcastle University (lorenzo.rossi@newcastle.ac.uk)
-
-<!--
-### EVALUATION
-
-A trained model can be evaluated by performing some simple invariance tests. To allow model evaluation during training a user can set `model_eval: True` in the input yaml file. Input data is split into three; training (75%), validation (15%) and testing (10%). 
-
-For a model to be useful its predictions should be closer to ground truth than to some artifically constructed target. During model evaluation four methods are implemented to create artificial target data and the distribution of losses is compared to the true test data losses. The artificial and true losses are compared using a one-sided T-Test at the 5% level. A `True` or `False` value is returned if the model performs better than a model which does not learn from the data and returns artifical output. Results should be treat as informative but not binding. 
-
-The four methods of creating artificial data currently include:  
-- Shuffling labels on the test data  
-- Using the mean of training data  
-- Shuffling the labels of the training data  
-- Simulating as the mean of training data plus some Normally distributed noise with standard deviation matching the training data   
-
-Results are logged in MLflow. 
-
-
-### TUNING HYPERPARAMETERS
-
-Model hyperparameters can be automatically tuned by setting `tune: True` within the `optuna_params` in the user input yaml file. 
-
-Tuning uses [Optuna](https://optuna.org), an open source hyperparameter optimization framework to automate hyperparameter search. The user can also specify which hyperameters they would like to tune in `optuna_params`, for example exploring the effect of different activation functions whilst holding all other hyperparameters static. Default options for each hyperparameter are specified with the `optuna_defaults()` function within `optuna_learn.py` and can easily be extended or modified to restrict or include other options. 
-
-The user should specify the number of trials they wish to run during tuning. After tuning the optimal values found will be used to train the model.
--->
+<a href="https://rse.ncldata.dev/team/bowen-li">Dr. Bowen Li </a>, Newcastle University (bowen.li2@newcastle.ac.uk)
 
 ## License
 
