@@ -54,7 +54,7 @@ class Dataset(ABC):
         self.inmemory_dataset: list[Any] = []
 
     @abstractmethod
-    def process(self) -> bool:
+    def prepare(self) -> bool:
         """
         Process the raw data and prepare it for use in the model.
         """

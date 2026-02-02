@@ -88,7 +88,7 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
 
     logging.info(f"Initialising inference dataset: {dataset_type}")
     dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
-    dataset.process()
+    dataset.prepare()
     dataset.check_preload()  # may preload the dataset into memory
 
     # Log dataset summary

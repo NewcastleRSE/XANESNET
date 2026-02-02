@@ -105,8 +105,8 @@ class XanesXDataset(TorchDataset):
         if self.gaussian:
             self._setup_spectral_basis()
 
-    def process(self) -> bool:
-        already_processed = super().process()
+    def prepare(self) -> bool:
+        already_processed = super().prepare()
         if already_processed:
             return True
 

@@ -133,12 +133,7 @@ class Strategy(ABC):
         """
         Returns strategy signature as a dictionary.
         """
-        # TODO not sure if weight_init, bias_init, and checkpoint_interval
-        # TODO are actually part of the signature.
         signature = {
             "strategy_type": self.strategy_type,
-            "weight_init": self.weight_init,
-            "bias_init": self.bias_init,
-            "checkpoint_interval": self.checkpoint_interval,
         }
         return signature
