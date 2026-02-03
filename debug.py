@@ -1,11 +1,13 @@
 from xanesnet.cli import main
 
+# DEBUG ENTRY POINTS FOR DEVELOPMENT PURPOSES ONLY
+
 
 def run_debug_train() -> None:
     debug_args = [
         "train",
         "-i",
-        "./.github/workflows/inputs/in_mlp.yaml",
+        "./configs/in_mlp.yaml",
         "--save",
         # "--tensorboard",
     ]
@@ -20,9 +22,9 @@ def run_debug_infer() -> None:
     debug_args = [
         "infer",
         "-i",
-        "./.github/workflows/inputs/in_mlp_infer.yaml",
+        "./configs/in_mlp_infer.yaml",
         "-m",
-        "./runs/2026-01-22_07-46-16_train_mlp_single/models/final.pth",
+        "<insert trained model here>",  # Insert path to trained model (final.pth)
         # "--tensorboard",
     ]
 

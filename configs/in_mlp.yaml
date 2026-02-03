@@ -9,7 +9,7 @@ datasource:
 dataset:
   # general:
   dataset_type: xanesx
-  root: ./data/fe/processed_train
+  root: ./data/fe/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   split_ratios: [0.8, 0.2]
   # params:
@@ -43,12 +43,12 @@ model:
 trainer:
   # general:
   trainer_type: nntrainer
-  batch_size: 3
+  batch_size: 10
   # params:
-  epochs: 100
+  epochs: 250
   learning_rate: 0.001
   optimizer: Adam
-  validation_interval: 3
+  validation_interval: 10
   loss:
     loss_type: mse
   regularizer:
@@ -61,8 +61,8 @@ trainer:
     total_iters: 40
   early_stopper:
     early_stopper_type: basic 
-    patience: 10
-    min_delta: 0.01
+    patience: 25
+    min_delta: 0.001
     restore_best: True
   
 strategy:
@@ -70,7 +70,7 @@ strategy:
   strategy_type: single
   weight_init: xavier_uniform
   bias_init: zeros
-  checkpoint_interval: 10
+  checkpoint_interval: 25
   # params:
 
 
