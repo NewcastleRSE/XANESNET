@@ -3,13 +3,13 @@ device: cuda
 
 datasource:
   datasource_type: xyzspec
-  xyz_path: .github/workflows/data/fe/xyz_train
-  xanes_path: .github/workflows/data/fe/xanes_train
+  xyz_path: ./data/fe/xyz_train
+  xanes_path: ./data/fe/xanes_train
 
 dataset:
   # general:
   dataset_type: xanesx
-  root: .github/workflows/data/fe/processed_train
+  root: ./data/fe/processed_train
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   split_ratios: [0.8, 0.2]
   # params:
