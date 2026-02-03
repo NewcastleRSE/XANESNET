@@ -1,0 +1,77 @@
+seed: 2025
+device: cuda
+
+datasource:
+  datasource_type: xyzspec
+  xyz_path: .github/workflows/data/fe/xyz_train
+  xanes_path: .github/workflows/data/fe/xanes_train
+
+dataset:
+  # general:
+  dataset_type: xanesx
+  root: .github/workflows/data/fe/processed_train
+  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  split_ratios: [0.8, 0.2]
+  # params:
+  mode: forward
+  fourier: False
+  fourier_concat: False
+  gaussian: False                   # Gaussian transformation (default: False)
+  widths_eV: [0.5, 1.0, 2.0, 4.0]
+  basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
+  # descriptors:
+  descriptors:
+    - descriptor_type: wacsf
+      params:
+        r_min: 1.0
+        r_max: 6.0
+        n_g2: 16
+        n_g4: 32
+
+model:
+  # general:
+  model_type: mlp
+  # params:
+  in_size: 49
+  out_size: 226
+  hidden_size: 256
+  dropout: 0.1
+  num_hidden_layers: 3
+  shrink_rate: 0.5
+  activation: prelu
+
+trainer:
+  # general:
+  trainer_type: nntrainer
+  batch_size: 3
+  # params:
+  epochs: 100
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 3
+  loss:
+    loss_type: mse
+  regularizer:
+    regularizer_type: l1
+    weight: 0.001
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0 
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic 
+    patience: 10
+    min_delta: 0.01
+    restore_best: True
+  
+strategy:
+  # general:
+  strategy_type: single
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 10
+  # params:
+
+
+
