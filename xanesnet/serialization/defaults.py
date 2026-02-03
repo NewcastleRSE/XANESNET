@@ -28,6 +28,8 @@ DATASET_DEFAULT = {
     "xanesx": {
         "preload": True,
         "mode": "forward",
+        "split_ratios": [1.0],
+        "split_indexfile": None,
         "fourier": False,
         "fourier_concat": False,
         "gaussian": False,

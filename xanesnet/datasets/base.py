@@ -26,6 +26,7 @@ from torch.utils.data import Subset
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
+from xanesnet.serialization import load_split_indices
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -43,6 +44,8 @@ class Dataset(TorchDataset, ABC):
         datasource: DataSource,
         root: str,
         preload: bool,
+        split_ratios: list[float] | None,
+        split_indexfile: str | None,
     ) -> None:
         self.dataset_type = dataset_type
         self.datasource = datasource
@@ -52,9 +55,8 @@ class Dataset(TorchDataset, ABC):
         # preloaded dataset
         self.inmemory_dataset: list[Any] = []
 
-        # train/valid split
-        self._train_subset: Subset | None = None
-        self._valid_subset: Subset | None = None
+        # subsets for splits
+        self._subsets: list[Subset] = self._setup_splits(split_ratios, split_indexfile)
 
     @abstractmethod
     def prepare(self) -> bool:
@@ -82,47 +84,84 @@ class Dataset(TorchDataset, ABC):
             self.inmemory_dataset = preload_data
         return self.preload
 
-    def setup_train_val_split(self, train_ratio: float) -> None:
+    def _setup_splits(self, split_ratios: list[float] | None, split_indexfile: str | None) -> list[Subset]:
         """
-        Create train and validation subsets based on the specified ratio.
+        Create multiple subsets based on the split_indexfile or by generating them from split_ratios.
         """
-        if not 0.0 <= train_ratio <= 1.0:
-            raise ValueError(f"train_ratio must be between 0.0 and 1.0, got {train_ratio}")
+        subsets: list[Subset] = []
 
-        dataset_size = len(self)
-        train_size = int(dataset_size * train_ratio)
-        valid_size = dataset_size - train_size
+        if split_indexfile is not None:
+            logging.info(f"Setting up dataset splits from index file: {split_indexfile}")
+            indices_list: list[list[int]] = load_split_indices(split_indexfile)
 
-        assert train_size + valid_size == dataset_size
+            for indices in indices_list:
+                subsets.append(Subset(self, indices))
+        elif split_ratios is not None:
+            ratio_sum = sum(split_ratios)
+            if not np.isclose(ratio_sum, 1.0):
+                logging.critical(f"split_ratios must sum to 1.0, but got {ratio_sum}")
+            logging.info(f"Setting up dataset splits with ratios: {split_ratios}")
 
-        # Generate random indices
-        indices = np.random.permutation(dataset_size)
-        train_indices = indices[:train_size].tolist()
-        valid_indices = indices[train_size:].tolist() if valid_size > 0 else []
+            dataset_size = len(self)
+            indices = np.random.permutation(dataset_size).tolist()
 
-        # Create Subset objects
-        self._train_subset = Subset(self, train_indices)
-        self._valid_subset = Subset(self, valid_indices) if valid_size > 0 else None
+            for i, ratio in enumerate(split_ratios):
+                if i == len(split_ratios) - 1:
+                    end_idx = dataset_size
+                else:
+                    end_idx = int(dataset_size * ratio)
+                split_indices = indices[:end_idx]
+                indices = indices[end_idx:]
+                subsets.append(Subset(self, split_indices))
+        else:
+            logging.warning("No split_ratios or split_indexfile provided. Dataset will be created without splits.")
+            return []
 
-        logging.info(
-            f"Train/Valid split created: "
-            f"train_size={len(self._train_subset)}, "
-            f"valid_size={len(self._valid_subset) if self._valid_subset else 0}"
-        )
+        return subsets
+
+    def get_subset_indices(self, index: int) -> list[int] | None:
+        """
+        Return the indices for a specific subset.
+        """
+        subset = self.get_subset(index)
+        if subset is not None:
+            return list(subset.indices)
+        return None
+
+    def get_all_subset_indices(self) -> list[list[int]]:
+        """
+        Return the indices for all subsets.
+        """
+        return [self.get_subset_indices(i) or [] for i in range(len(self._subsets))]
+
+    def get_subset(self, index: int) -> Subset | None:
+        """
+        Return the subset at the given index.
+        """
+        if 0 <= index < len(self._subsets):
+            return self._subsets[index]
+        return None
+
+    @property
+    def subsets(self) -> list[Subset]:
+        """
+        Return all subsets.
+        """
+        return self._subsets
 
     @property
     def train_subset(self) -> Subset | None:
         """
-        Return the training subset. Returns None if setup_train_val_split() hasn't been called.
+        Return the training subset.
         """
-        return self._train_subset
+        return self.get_subset(0)
 
     @property
     def valid_subset(self) -> Subset | None:
         """
-        Return the validation subset. Returns None if no validation split or setup_train_val_split() hasn't been called.
+        Return the validation subset.
         """
-        return self._valid_subset
+        return self.get_subset(1)
 
     @abstractmethod
     def get_dataloader(self) -> Any:

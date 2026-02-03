@@ -41,8 +41,10 @@ class TorchGeometricDataset(Dataset, tgdata.Dataset):
         datasource: DataSource,
         root: str,
         preload: bool,
+        split_ratios: list[float] | None,
+        split_indexfile: str | None,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload)
+        super().__init__(dataset_type, datasource, root, preload, split_ratios, split_indexfile)
 
     def get_dataloader(self) -> type[DataLoader]:
         """

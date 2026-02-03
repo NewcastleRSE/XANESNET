@@ -33,6 +33,7 @@ from xanesnet.serialization import (
     save_checkpoint,
     save_dict_as_yaml,
     save_models,
+    save_split_indices,
 )
 from xanesnet.strategies import Strategy, StrategyRegistry
 from xanesnet.utils import copy_file
@@ -68,6 +69,11 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
         }
         signature_save_path = save_dict_as_yaml(signature, save_dir / "models", "signature")
         logging.info(f"Signature saved to: {signature_save_path}")
+
+        # Save split indices if they were generated
+        split_indices_save_path = save_dir / "split_indices.json"
+        save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
+        logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
     model_list, train_time = _run_training(strategy)
@@ -114,7 +120,6 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
     dataset.prepare()
     dataset.check_preload()  # may preload the dataset into memory
-    dataset.setup_train_val_split(train_ratio=0.95)  # TODO: make configurable
 
     # Log dataset summary
     logging.info(f"Dataset Summary: # of samples = {len(dataset)}")

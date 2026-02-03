@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .checkpoints import Checkpoint, build_checkpoint, save_checkpoint
 from .config import merge_configs, save_dict_as_yaml, validate_config
 from .models import load_pretrained_model, save_model, save_models
+from .splits import load_split_indices, save_split_indices
 
 __all__ = [
     "load_pretrained_model",
@@ -28,4 +29,6 @@ __all__ = [
     "build_checkpoint",
     "merge_configs",
     "validate_config",
+    "load_split_indices",
+    "save_split_indices",
 ]
