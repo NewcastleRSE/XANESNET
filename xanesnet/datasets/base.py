@@ -67,6 +67,10 @@ class Dataset(TorchDataset, ABC):
         if all(os.path.exists(f) for f in self.processed_files):
             logging.info("Processed data files already exist. Skipping processing.")
             return True
+        if not os.path.exists(self.root):
+            os.makedirs(self.root)
+            logging.info(f"Created root data directory at: {self.root}")
+            return False
         if os.listdir(self.processed_dir):
             logging.warning("Processed data directory is not empty! Make sure this is intended.")
 
@@ -208,7 +212,7 @@ class Dataset(TorchDataset, ABC):
         """
         Path to the processed data directory.
         """
-        return os.path.join(self.root, "processed")
+        return self.root
 
     @property
     def processed_files(self) -> list[str]:
