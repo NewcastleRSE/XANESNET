@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Running XANESNET &mdash; xanesnet 1.0 documentation</title>
+  <title>Running XANESNET &mdash; xanesnet 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=359c27e9"></script>
+      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=e031e9a9"></script>
       <script src="_static/doctools.js?v=888ff710"></script>
       <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/js/theme.js"></script>
@@ -48,7 +48,6 @@
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installing XANESNET</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Running XANESNET</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#training-a-model">Training a model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#experiment-tracking-logging-results">Experiment Tracking &amp; Logging Results</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#prediction">Prediction</a></li>
 </ul>
 </li>
@@ -95,88 +94,43 @@
 <section id="training-a-model">
 <h2>Training a model<a class="headerlink" href="#training-a-model" title="Permalink to this heading"></a></h2>
 <p>To train a model, use the following command:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">MODE</span> <span class="o">--</span><span class="n">in_file</span> <span class="o">&lt;</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">file</span><span class="o">.</span><span class="n">yaml</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">save</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">MODE</span> <span class="o">--</span><span class="n">in_file</span> <span class="o">&lt;</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">file</span><span class="o">.</span><span class="n">yaml</span><span class="o">&gt;</span>
 </pre></div>
 </div>
-<p>where</p>
+<p>[--mode] is the additional settings to specify the training mode,
+with three available options:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--mode</span></code> specifies the training mode.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--in_file</span></code> specifies the path to the input file for training.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--save</span></code> specifies whether to save the result to disk.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train_xanes</span></code> Xanes spectra are used as input data, with the featurised structures are the target of the model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> Featurised structures are used as input data, with the xanes spectra are the target of the model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train_aegan</span></code> Trains featurised structures and xanes spectra simultaneously.</p></li>
 </ul>
-<p>The implemented training modes include:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">train_xyz</span></code>: uses featurised structures as input data and XANES spectra as the target.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">train_xanes</span></code>: uses XANES spectra as input data and the featurised structures as the target.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">train_all</span></code>: trains both featurised structures and XANES spectra simultaneously (only available for the AEGAN model type).</p></li>
-</ul>
-<p>The [--in_file] option specifies a file path containing training and hyperparameter settings.
+<p>The [--in_file] option specifies a file containing training and hyperparameter settings.
 This file must be provided in YAML format.
 More details can be found in <a class="reference internal" href="input.html"><span class="doc">Input File</span></a>.</p>
-<p>Below is an example command for training a model using the MLP architecture,
+<p>Below is an example command for training a model using MLP architecture
 with featurised structures as input data:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">train_xyz</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_mlp</span><span class="o">.</span><span class="n">yaml</span> <span class="o">--</span><span class="n">save</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">train_xyz</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_mlp</span><span class="o">.</span><span class="n">yaml</span>
 </pre></div>
 </div>
-<p>The resulting trained model(s) and metadata will be saved in the ‘models/’ directory.</p>
-</section>
-<section id="experiment-tracking-logging-results">
-<h2>Experiment Tracking &amp; Logging Results<a class="headerlink" href="#experiment-tracking-logging-results" title="Permalink to this heading"></a></h2>
-<p><a class="reference external" href="https://mlflow.org">MLFlow</a> is used to track hyperparameters as well as
-training and validation losses for each training run.
-Results are automatically logged, allowing users to compare model runs
-and track experiments over time.</p>
-<p>XANESNET provides native MLflow integration for experiment tracking,
-which can be enabled using the <code class="docutils literal notranslate"><span class="pre">--mlflow</span></code> option. For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">train_xyz</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_mlp</span><span class="o">.</span><span class="n">yaml</span> <span class="o">--</span><span class="n">save</span> <span class="o">--</span><span class="n">mlflow</span>
-</pre></div>
-</div>
-<p>To open the MLflow user interface, run the following command and click on the generated hyperlink:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mlflow</span> <span class="n">ui</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Make sure this command is executed from the parent directory of the project.</p>
-</div>
-<p><a class="reference external" href="https://www.tensorflow.org/tensorboard">TensorBoard</a>  is a tool for
-visualisation and measurement tracking through the machine learning workflow.
-XANESNET provides built-in support for TensorBoard logging,
-which can be enabled using the <code class="docutils literal notranslate"><span class="pre">--tensorboard</span></code> command-line option. For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">train_xyz</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_mlp</span><span class="o">.</span><span class="n">yaml</span> <span class="o">--</span><span class="n">save</span> <span class="o">--</span><span class="n">tensorboard</span>
-</pre></div>
-</div>
-<p>During model training, the <code class="docutils literal notranslate"><span class="pre">Training</span> <span class="pre">loss</span></code> and <code class="docutils literal notranslate"><span class="pre">Validation</span> <span class="pre">loss</span></code> are
-currently logged and accessible via TensorBoard:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>tensorboard --logdir=$tensorboard/ --host 0.0.0.0
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Make sure this command is executed from the parent directory of the project.</p>
-</div>
-<p>Then click on the generated hyperlink and select <strong>Custom Scalars</strong> to visualize the logged metrics.</p>
+<p>By default, the resulting trained model and its metadata are automatically saved in the ‘models/’ directory.
+If you prefer not to save, use optional [--save] setting and toggling it to “no”.</p>
 </section>
 <section id="prediction">
 <h2>Prediction<a class="headerlink" href="#prediction" title="Permalink to this heading"></a></h2>
-<p>To use a previously trained model for predictions, use the following command:</p>
+<p>To use a previously developed model for predictions, the following command is used:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">MODE</span> <span class="o">--</span><span class="n">in_model</span> <span class="o">&lt;</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">model</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">in_file</span> <span class="o">&lt;</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">file</span><span class="o">.</span><span class="n">yaml</span><span class="o">&gt;</span>
 </pre></div>
 </div>
-<p>where</p>
+<p>The prediction mode can be specified with the [--mode] option:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--mode</span></code> specifies the prediction mode.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--in_model</span></code> specifies a directory containing a pre-trained model and its metadata.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--in_file</span></code> specifies the path to the input file for prediction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predict_xyz</span></code> Predicts the featurised structure from an input XANES spectrum.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predict_xanes</span></code> Predicts the XANES spectrum from a featurised structural input.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predict_all</span></code> Simultaneously predicts a featurised structure and XANES spectrum from the corresponding input as well as reconstructs inputs. This mode is for AEGAN model type only.</p></li>
 </ul>
-<p>The implemented prediction modes include:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">predict_xyz</span></code> predicts a XANES spectrum from a featurised structural input.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">predict_xanes</span></code> predicts featurised structures from an input XANES spectrum.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">predict_all</span></code> simultaneous prediction of both featurised structures and XANES spectra from corresponding inputs with reconstruction of inputs (only available for the AEGAN model type).</p></li>
-</ul>
-<p>As an example, the following command predicts XANES spectra using the MLP model trained previously:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">predict_xanes</span> <span class="o">--</span><span class="n">in_model</span> <span class="n">models</span><span class="o">/</span><span class="n">mlp_std_xyz_001</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_predict</span><span class="o">.</span><span class="n">yaml</span>
+<p>The [--in_model] option specifies a directory containing pre-trained model and its metadata.
+The [--in_file] specifies a path to input file for prediction, see <a class="reference internal" href="input.html"><span class="doc">Input File</span></a> for more details.</p>
+<p>As an example, the following command makes spectrum predictions using the previously trained MLP model:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">xanesnet</span><span class="o">.</span><span class="n">cli</span> <span class="o">--</span><span class="n">mode</span> <span class="n">predict_xanes</span> <span class="o">--</span><span class="n">in_model</span> <span class="n">models</span><span class="o">/</span><span class="n">model_mlp_001</span> <span class="o">--</span><span class="n">in_file</span> <span class="n">inputs</span><span class="o">/</span><span class="n">in_predict</span><span class="o">.</span><span class="n">yaml</span>
 </pre></div>
 </div>
 <p>The prediction results, including raw and plot data, are automatically saved in the ‘outputs/’ directory.</p>
