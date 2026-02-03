@@ -34,12 +34,12 @@ The original version of XANESNET, which was implemented using Keras, can be obta
 * GPLv3 licensed open-source distribution
 * Automated data processing: Fourier transform, Gaussian transform
 * Feature extraction: wACSF, RDC, pDOS, MACE
-* Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, Autoencoder-GAN, Multihead, Transformer, EnvEmbed
+* Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, AE-GAN, Multihead, Transformer, EnvEmbed
 * Learning scheme: standard, K-fold, ensemble learning, bootstrapping
 * Experiment tracking and visualisation: MLFlow, TensorBoard
 * Learning rate scheduler
-* Custom workflow components (datasets, models, descriptors, etc.) defined via input file
-* Easy to extend with new components 
+* Custom ML workflow components and run via input file
+* Easy to extend with new components
 * Web interface
 
 
@@ -53,7 +53,7 @@ setup.py                Python setup script
 run_test.sh             script to run workflow tests
 clean.sh                script to clean generated data
 data                    example stucture (.XYZ) and xanes data
-doc                     user manual and other documentation 
+docs                    user manual and other documentation 
 inputs                  test problems and cases
 tests                   unit tests
 xanesnet                XANESNET source code
@@ -71,7 +71,7 @@ git clone https://gitlab.com/team-xnet/xanesnet.git
 --->
 
 ```
-git clone https://gitlab.com/team-xnet/xanesnet.git
+git clone https://github.com/NewcastleRSE/xray-spectroscopy-ml.git
 ```
 
 The repository contains all source files, along with example input files and datasets.
@@ -99,16 +99,10 @@ To train a model, use the following command:
 
 ```python3 -m xanesnet.cli --mode MODE --in_file <path/to/file.yaml> --save```
 
-where
-- `--mode` specifies the training mode.
-- `--in_file` specifies the path to the input file for training.
-- `--save` specifies whether to save the trained model to disk.
-
-
-The implemented training modes include:  
+The implemented training modes MODE include:  
 - `train_xyz`: uses featurised structures as input data and XANES spectra as the target.
 - `train_xanes`: uses XANES spectra as input data and the featurised structures as the target.
-- `train_all`: trains both featurised structures and XANES spectra simultaneously (Only available for the AEGAN model type).
+- `train_all`: trains both featurised structures and XANES spectra simultaneously (only available for the AEGAN model type).
 
 Replace <path/to/file.yaml> with the path to your YAML input file.
 Examples of commented input files for training and hyperparameter 
@@ -160,7 +154,7 @@ This project is licensed under the GPL-3.0 License - see the LICENSE.md file for
 
 ## Publications
 
-### The Program:
+#### XANESNET:
 *[A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra](https://doi.org/10.1021/acs.jpca.0c03723)* - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, *J. Phys. Chem. A*, 2020, **124**, 4263-4270.
 
 *[Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network](https://doi.org/10.1063/5.0087255)* - C. D. Rankine, and T. J. Penfold, *J. Chem. Phys.*, 2022, **156**, 164102.
