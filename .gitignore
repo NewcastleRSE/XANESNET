@@ -1,27 +1,42 @@
+############################################
+# Python
+############################################
 __pycache__/
-.DS_Store
-.vscode/
-predictions*/
-plots_predictions*/
-analysis*/
-*.pdf
-mlruns/
-tensorboard/
-ensemble/
-bootstrap/
-xanesnet/model/__pycache__/
-*.egg-info
-build/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.pytype/
+.pyre/
+
+############################################
+# ML artifacts (models, runs, etc.)
+############################################
 models/
-!xanesnet/models/
-!tests/models/
-outputs/
-data/datasets/graph-set/xyz_train/graph/
-data/datasets/graph-set/xyz_test/graph/
-.github/workflows/data/graph-set/xyz_test/graph/
-.github/workflows/data/graph-set/xyz_train/graph/
-data/graph-set/xyz_train/graph
-tests/data/xyz/graph
-tests/data/xyz_predict/graph
-.idea/
 runs/
+
+############################################
+# Data (usually not committed)
+############################################
+data/
+data_more/
+
+############################################
+# IDEs / Editors
+############################################
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+############################################
+# OS
+############################################
+.DS_Store
+Thumbs.db
