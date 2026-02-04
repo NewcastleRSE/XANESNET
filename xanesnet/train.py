@@ -101,7 +101,7 @@ def main(args: list[str]) -> None:
         name=f"train_{config["model"]["model_type"]}_{config["strategy"]["strategy_type"]}",
     )
     logging.info(f"Run directory: {save_dir}")
-    create_subfolders(save_dir, subfolder_names=["models", "plots", "checkpoints"])
+    create_subfolders(save_dir, subfolder_names=["models", "checkpoints"])
 
     # Setup file logging
     setup_file_logging(save_dir)

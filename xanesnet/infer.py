@@ -109,7 +109,6 @@ def main(args: list[str]) -> None:
         name=f"infer_{checkpoint.signature['model']['model_type']}_{checkpoint.signature['strategy']['strategy_type']}",
     )
     logging.info(f"Run directory: {save_dir}")
-    create_subfolders(save_dir, subfolder_names=["plots"])
 
     # Setup file logging
     setup_file_logging(save_dir)
