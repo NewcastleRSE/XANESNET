@@ -117,7 +117,6 @@ def main(args: list[str]) -> None:
     # Merge inference config and checkpoint config
     config = merge_configs(config, checkpoint.signature)
     merged_config_save_path = save_dict_as_yaml(config, save_dir, "merged_infer_config")
-    config["dataset"].pop("mode", None)  # Remove redundant mode from dataset config
     logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
 
     # Config validation
