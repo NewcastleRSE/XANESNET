@@ -27,26 +27,6 @@ from xanesnet.serialization import Checkpoint
 from xanesnet.strategies import Strategy, StrategyRegistry
 from xanesnet.utils import copy_file
 
-# TODO better inference:
-# TODO logging metrics, saving plots, saving results, etc.
-# TODO What do i need to save from inference to be useful?
-# TODO What to report:
-# TODO - predictions vs ground truth
-# TODO - metrics (per sample, overall, energy resolved, different loss functions, etc.)
-# TODO - -> mean, median, std, min, max, percentiles
-# TODO - inference time (total, per sample, per batch, etc.)
-# TODO - Model parameters count
-# TODO - performance stratified by different parameters
-# TODO - PLOTS:
-# TODO - * error distribution plots/histograms
-# TODO - * averaged error vs energy plots
-# TODO - * predicted vs ground truth vs error metrics plots
-# TODO
-# TODO SPLIT THIS INTO INFERENCE AND RESULTS ANALYSIS -> Keep inference light,
-# TODO and have a separate analysis script that loads results and does all
-# TODO the analysis and plotting.
-
-
 ###############################################################################
 #################################### INFER ####################################
 ###############################################################################
