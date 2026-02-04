@@ -27,6 +27,7 @@ from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization import load_split_indices
+from xanesnet.utils import ConfigError
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -103,7 +104,8 @@ class Dataset(TorchDataset, ABC):
         elif split_ratios is not None:
             ratio_sum = sum(split_ratios)
             if not np.isclose(ratio_sum, 1.0):
-                logging.critical(f"split_ratios must sum to 1.0, but got {ratio_sum}")
+                raise ConfigError(f"split_ratios must sum to 1.0, but got {ratio_sum}")
+
             logging.info(f"Setting up dataset splits with ratios: {split_ratios}")
 
             dataset_size = len(self)

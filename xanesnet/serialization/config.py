@@ -20,6 +20,8 @@ from typing import Any
 
 import yaml
 
+from xanesnet.utils import ConfigError
+
 from .defaults import (
     DATASET_DEFAULT,
     DATASET_REQUIRED,
@@ -68,7 +70,7 @@ def merge_configs(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
             if isinstance(merged[k], dict) and isinstance(v, dict):
                 merged[k] = merge_configs(merged[k], v)
             elif merged[k] != v:
-                raise ValueError(f"Conflict for key '{k}': {merged[k]} != {v}")
+                raise ConfigError(f"Conflict for key '{k}': {merged[k]} != {v}")
         else:
             merged[k] = v
 
@@ -117,7 +119,8 @@ def _validate_global(
     value = config.get(key, None)
     if value is None:
         if required:
-            logging.critical(f"Missing required key '{key}' in config.")
+            raise ConfigError(f"Missing required key '{key}' in config.")
+
         else:
             logging.warning(f"Missing optional key '{key}' in config. Using default: '{default}'.")
             config[key] = default
@@ -133,7 +136,7 @@ def _validate_section(
     section_config = config.get(section, None)
     if section_config is None:
         if required:
-            logging.critical(f"Missing required section '{section}' in config.")
+            raise ConfigError(f"Missing required section '{section}' in config.")
         else:
             logging.info(f"Optional section '{section}' not present, skipping.")
             return
@@ -141,10 +144,10 @@ def _validate_section(
     assert section_config is not None
     section_type = section_config.get(type_key)
     if not section_type:
-        logging.critical(f"'{section}.{type_key}' must be specified.")
+        raise ConfigError(f"'{section}.{type_key}' must be specified.")
 
     if section_type not in required_by_type:
-        logging.critical(f"Unknown {section} type: {section_type!r}")
+        raise ConfigError(f"Unknown {section} type: {section_type!r}")
 
     for key_path in required_by_type[section_type]:
         current = section_config
@@ -152,7 +155,7 @@ def _validate_section(
             if isinstance(current, dict) and part in current:
                 current = current[part]
             else:
-                logging.critical(f"Missing required key '{key_path}' in section '{section_type}'.")
+                raise ConfigError(f"Missing required key '{key_path}' in section '{section_type}'.")
 
 
 def _validate_mutually_exclusive(config: dict[str, Any], section_a: str, section_b: str) -> None:
@@ -160,9 +163,10 @@ def _validate_mutually_exclusive(config: dict[str, Any], section_a: str, section
     section_b_config = config.get(section_b, None)
 
     if not section_a_config and not section_b_config:
-        logging.critical(f"Missing either section '{section_a}' or section '{section_b}'.")
+        raise ConfigError(f"Missing either section '{section_a}' or section '{section_b}'.")
+
     if section_a_config and section_b_config:
-        logging.critical(f"Sectopm '{section_a}' and section '{section_b}' are mutually exclusive.")
+        raise ConfigError(f"Section '{section_a}' and section '{section_b}' are mutually exclusive.")
 
 
 def _assign_defaults(

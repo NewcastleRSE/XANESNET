@@ -23,7 +23,7 @@ from typing import Any
 
 def setup_logging(log_level: int = logging.INFO) -> None:
     """
-    Set up logging with different formats for various levels and a critical exit handler.
+    Set up logging with different formats for various levels.
     """
     # Remove all existing handlers from the root logger.
     root_logger = logging.getLogger()
@@ -34,7 +34,7 @@ def setup_logging(log_level: int = logging.INFO) -> None:
     root_logger.setLevel(log_level)
 
     # Define formatters for different levels.
-    formatter_debug = logging.Formatter("%(levelname)s \t\t- %(message)s")
+    formatter_debug = logging.Formatter("%(levelname)s \t\t- %(message)s (%(filename)s:%(lineno)d)")
     formatter_info = logging.Formatter("%(levelname)s \t\t- %(message)s")
     formatter_warning = logging.Formatter("%(levelname)s \t- %(message)s (%(filename)s:%(lineno)d)")
     formatter_error = logging.Formatter("%(levelname)s \t\t- %(message)s (%(filename)s:%(lineno)d)")
@@ -61,7 +61,7 @@ def setup_logging(log_level: int = logging.INFO) -> None:
     error_handler.addFilter(LevelFilter(logging.ERROR))
     error_handler.setFormatter(formatter_error)
 
-    critical_handler = CriticalExitHandler(sys.stderr)
+    critical_handler = logging.StreamHandler(sys.stderr)
     critical_handler.setLevel(logging.CRITICAL)
     critical_handler.addFilter(LevelFilter(logging.CRITICAL))
     critical_handler.setFormatter(formatter_critical)
@@ -78,11 +78,6 @@ def setup_file_logging(out_dir: str | Path) -> None:
     log_file = join(out_dir, "out.txt")
 
     root_logger = logging.getLogger()
-
-    # Remove critical handler
-    for handler in root_logger.handlers[:]:
-        if isinstance(handler, CriticalExitHandler):
-            root_logger.removeHandler(handler)
 
     # Define formatters for different levels.
     formatter_debug = logging.Formatter("%(levelname)s \t\t- %(message)s")
@@ -117,42 +112,17 @@ def setup_file_logging(out_dir: str | Path) -> None:
     critical_handler.addFilter(LevelFilter(logging.CRITICAL))
     critical_handler.setFormatter(formatter_critical)
 
-    critical_exit_handler = CriticalExitHandler(sys.stderr)
-    critical_exit_handler.setLevel(logging.CRITICAL)
-    critical_exit_handler.addFilter(LevelFilter(logging.CRITICAL))
-    critical_exit_handler.setFormatter(formatter_critical)
-
     # Add console handlers to the root logger.
     root_logger.addHandler(debug_handler)
     root_logger.addHandler(info_handler)
     root_logger.addHandler(warning_handler)
     root_logger.addHandler(error_handler)
     root_logger.addHandler(critical_handler)
-    root_logger.addHandler(critical_exit_handler)
-
-    # Set up exception hook to log uncaught exceptions.
-    def handle_exception(exc_type, exc_value, exc_traceback) -> None:
-        logging.critical("Uncaught Exception:", exc_info=(exc_type, exc_value, exc_traceback))
-
-    sys.excepthook = handle_exception
 
     # Redirect stdout and stderr to write to both console and file.
     tee = TeeLogger(log_file, sys.stdout)
     sys.stdout = tee
     sys.stderr = tee
-
-
-class CriticalExitHandler(logging.StreamHandler):
-    """
-    Custom handler that terminates the program on CRITICAL logs.
-    """
-
-    def emit(self, record: logging.LogRecord) -> None:
-        super().emit(record)
-        if record.levelno >= logging.CRITICAL:
-            self.flush()
-            print("TERMINATE EXECUTION!")
-            sys.exit(1)
 
 
 class LevelFilter(logging.Filter):

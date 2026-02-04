@@ -147,7 +147,7 @@ class XanesXDataset(TorchDataset):
                 x = intensities
                 y = descriptor_features
             else:
-                raise ValueError(f"Invalid mode: {self.mode}")
+                raise ConfigError(f"Invalid mode: {self.mode}")
 
             # Create Data object
             data = Data(x=x, y=y, e=energies, fourier=fourier, c_star=c_star, file_name=data.properties["file_name"])

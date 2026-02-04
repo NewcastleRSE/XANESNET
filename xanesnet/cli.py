@@ -17,6 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import argparse
 import sys
 
+from xanesnet.utils import ConfigError
+
 ################################################################################
 ############################## PROGRAM STARTS HERE #############################
 ################################################################################
@@ -45,7 +47,7 @@ def main(args: list[str]) -> None:
 
         main(remaining)
     else:
-        raise ValueError(f"Incorrect mode: {args_namespace.command}.")
+        raise ConfigError(f"Incorrect mode: {args_namespace.command}.")
 
 
 if __name__ == "__main__":

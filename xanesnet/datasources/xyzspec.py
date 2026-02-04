@@ -21,7 +21,7 @@ from typing import Iterator
 import numpy as np
 from pymatgen.core import Molecule
 
-from xanesnet.utils import list_filestems
+from xanesnet.utils import ResourceError, list_filestems
 
 from .base import DataSource
 from .registry import DataSourceRegistry
@@ -81,7 +81,7 @@ class XYZSpecSource(DataSource):
         file_names = sorted(list(xyz_stems & xanes_stems))
 
         if not file_names:
-            raise ValueError("No matching files found in the provided paths.")
+            raise ResourceError("No matching files found in the provided paths.")
 
         return file_names
 

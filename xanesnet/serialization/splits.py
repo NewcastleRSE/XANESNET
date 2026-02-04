@@ -18,6 +18,8 @@ import json
 import logging
 from pathlib import Path
 
+from xanesnet.utils import ResourceError
+
 
 def load_split_indices(filepath: str | Path) -> list[list[int]]:
     filepath = Path(filepath)
@@ -26,7 +28,7 @@ def load_split_indices(filepath: str | Path) -> list[list[int]]:
         data = json.load(f)
 
     if "indices" not in data or not isinstance(data["indices"], dict):
-        logging.critical("Invalid split indices file format.")
+        raise ResourceError("Invalid split indices file format.")
 
     raw_indices = data["indices"]
 
@@ -35,12 +37,12 @@ def load_split_indices(filepath: str | Path) -> list[list[int]]:
     # Semantic aliases
     if "train" in raw_indices:
         if "0" in raw_indices:
-            logging.critical("Both 'train' and '0' keys present (conflict)")
+            raise ResourceError("Both 'train' and '0' keys present (conflict)")
         index_map[0] = raw_indices["train"]
 
     if "valid" in raw_indices:
         if "1" in raw_indices:
-            logging.critical("Both 'valid' and '1' keys present (conflict)")
+            raise ResourceError("Both 'valid' and '1' keys present (conflict)")
         index_map[1] = raw_indices["valid"]
 
     # Numeric keys
@@ -51,18 +53,17 @@ def load_split_indices(filepath: str | Path) -> list[list[int]]:
         try:
             idx = int(key)
         except ValueError:
-            logging.critical(f"Invalid split key '{key}': must be int, 'train', or 'valid'")
-            return []  # for type checker
+            raise ResourceError(f"Invalid split key '{key}': must be int, 'train', or 'valid'")
 
         if idx in index_map:
-            logging.critical(f"Duplicate definition for split index {idx}")
+            raise ResourceError(f"Duplicate definition for split index {idx}")
 
         index_map[idx] = indices
 
     # Validate indices
     for idx, indices in index_map.items():
         if not isinstance(indices, list) or not all(isinstance(i, int) for i in indices):
-            logging.critical(f"Invalid indices for split {idx}: must be a list of integers")
+            raise ResourceError(f"Invalid indices for split {idx}: must be a list of integers")
 
     # Build ordered list
     max_index = max(index_map)
@@ -70,7 +71,8 @@ def load_split_indices(filepath: str | Path) -> list[list[int]]:
 
     for i in range(max_index + 1):
         if i not in index_map:
-            logging.critical(f"Missing split indices for index {i}")
+            raise ResourceError(f"Missing split indices for index {i}")
+
         split_indices_list.append(index_map[i])
 
     return split_indices_list
