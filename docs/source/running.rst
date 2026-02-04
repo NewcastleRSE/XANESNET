@@ -43,7 +43,7 @@ with featurised structures as input data:
 The resulting trained model(s) and metadata will be saved in the 'models/' directory.
 
 -------------------------------------
-Experiment Tracking & Logging Results
+Experiment Tracking & Logging
 -------------------------------------
 
 `MLFlow <https://mlflow.org>`_ is used to track hyperparameters as well as
