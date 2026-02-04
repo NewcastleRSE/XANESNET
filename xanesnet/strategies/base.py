@@ -107,7 +107,7 @@ class Strategy(ABC):
         ...
 
     @abstractmethod
-    def run_inference(self) -> None:
+    def run_inference(self, predictions_save_path: str | Path | None) -> None:
         """
         Starts inference with strategy.
         """

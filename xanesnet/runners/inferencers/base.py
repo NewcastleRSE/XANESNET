@@ -15,12 +15,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import Any
+import time
+from pathlib import Path
 
 import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
+from xanesnet.serialization import HDF5Writer, PredictionWriter
 
 from ..base import Runner
 
@@ -36,84 +38,83 @@ class Inferencer(Runner):
         shuffle: bool,
         drop_last: bool,
         num_workers: int,
-        loss: dict[str, Any],
-        regularizer: dict[str, Any],
         # inferencer params:
         inferencer_type: str,
     ) -> None:
-        super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers, loss, regularizer)
+        super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
 
         self.inferencer_type = inferencer_type
 
         # Setup
         self.batch_processor = self._setup_batchprocessor()
         self.dataloader = self._setup_dataloader()
-        self.loss = self._setup_loss()
-        self.regularizer = self._setup_regularizer()
 
-    def infer(self) -> float:
+    def infer(self, predictions_save_path: str | Path | None = None) -> None:
         """
         Core inference (1 epoch).
         """
         self.model.to(self.device)
 
+        # You can change the writer to another implementation if needed (e.g., NumpyWriter)
+        writer = HDF5Writer(predictions_save_path, buffer_size=3) if predictions_save_path is not None else None
+
         logging.info("Start inference.")
-        test_loss = None
 
         # Run inference
-        test_loss, test_regularization, test_total = self._infer_one_epoch()
+        self._infer_one_epoch(writer)
 
         logging.info("Finished inference.")
 
-        # Logging
-        self._log_epoch_loss(
-            test_loss,
-            test_regularization,
-            test_total,
-            None,
-            None,
-            None,
-            None,
-        )
+        writer.close() if writer is not None else None
 
-        score = test_total
-
-        return score
-
-    def _infer_one_epoch(self) -> tuple[float, float, float]:
+    def _infer_one_epoch(self, writer: PredictionWriter | None) -> None:
         """
         Runs a single inference epoch.
         """
         self.model.eval()
 
-        epoch_loss = 0.0
-        epoch_regularization = 0.0
-        epoch_total = 0.0
-
         for batch in self.dataloader:
             batch.to(self.device)
 
-            # Forward pass
+            # Prepare inputs
             inputs = self.batch_processor.input_preparation(batch)
+
+            # Time the forward pass start
+            if torch.device(self.device).type == "cuda":
+                torch.cuda.synchronize()  # Needed to block CPU until all GPU ops are done
+            start_time = time.perf_counter()
+
+            # Forward pass
             predictions = self.model(inputs)
+
+            # Time the forward pass end
+            if torch.device(self.device).type == "cuda":
+                torch.cuda.synchronize()  # Needed to block CPU until all GPU ops are done
+            end_time = time.perf_counter()
+
+            # Create per-sample time tensor
+            # averaged if batch size > 1
+            per_sample_time = (end_time - start_time) / predictions.shape[0]
+            forward_time = torch.full(
+                (predictions.shape[0],),
+                per_sample_time,
+                dtype=torch.float32,
+                device=self.device,
+            )
 
             # Target
             targets = self.batch_processor.target_preparation(batch)
 
-            # Criterion
-            loss = self.loss(predictions, targets)
-
-            # Regularization (Should be 'none' most of the time.)
-            regularization = self.regularizer(self.model)
-
-            total = loss + regularization
-
-            epoch_loss += loss.item()
-            epoch_regularization += regularization.item()
-            epoch_total += total.item()
-
-        epoch_loss = epoch_loss / len(self.dataloader)
-        epoch_regularization = epoch_regularization / len(self.dataloader)
-        epoch_total = epoch_total / len(self.dataloader)
-
-        return epoch_loss, epoch_regularization, epoch_total
+            # Writer add
+            if writer is not None:
+                writer.add(
+                    {
+                        # Required:
+                        "prediction": predictions,
+                        "target": targets,
+                        # Optional:
+                        "input": inputs,
+                        "sample_id": self.batch_processor.sample_id_extraction(batch),
+                        "forward_time": forward_time,
+                    }
+                )

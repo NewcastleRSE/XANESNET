@@ -14,8 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
-
 import torch
 
 from xanesnet.datasets import Dataset
@@ -37,8 +35,6 @@ class NNInferencer(Inferencer):
         shuffle: bool,
         drop_last: bool,
         num_workers: int,
-        loss: dict[str, Any],
-        regularizer: dict[str, Any],
         # inferencer params:
         inferencer_type: str,
     ) -> None:
@@ -50,7 +46,5 @@ class NNInferencer(Inferencer):
             shuffle,
             drop_last,
             num_workers,
-            loss,
-            regularizer,
             inferencer_type,
         )

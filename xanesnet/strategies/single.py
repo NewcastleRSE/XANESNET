@@ -102,7 +102,7 @@ class Single(Strategy):
         assert self.checkpointer is not None
         self.checkpointer.new_model()
 
-        _ = self.trainer.train()  # TODO should we do something with the returned score?
+        self.trainer.train()
 
         return [self.model]
 
@@ -123,15 +123,13 @@ class Single(Strategy):
 
         self.inferencer = inferencer
 
-    def run_inference(self) -> None:
+    def run_inference(self, predictions_save_path: str | Path | None) -> None:
         if self.inferencer is None:
             raise ValueError("Cannot run inference because the Inferencer is not initialised.")
 
-        super().run_inference()
+        super().run_inference(predictions_save_path)
 
-        _ = self.inferencer.infer()  # TODO should we do something with the returned score?
-
-        return None
+        self.inferencer.infer(predictions_save_path)
 
     @property
     def model_signature(self) -> dict[str, Any]:

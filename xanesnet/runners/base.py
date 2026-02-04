@@ -22,9 +22,7 @@ import torch
 
 from xanesnet.batchprocessors import BatchProcessor, BatchProcessorRegistry
 from xanesnet.datasets import Dataset
-from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
-from xanesnet.regularizers import Regularizer, RegularizerRegistry
 
 
 class Runner(ABC):
@@ -38,8 +36,6 @@ class Runner(ABC):
         shuffle: bool,
         drop_last: bool,
         num_workers: int,
-        loss: dict[str, Any],
-        regularizer: dict[str, Any],
     ) -> None:
         self.dataset = dataset
         self.model = model
@@ -49,8 +45,6 @@ class Runner(ABC):
         self.shuffle = shuffle
         self.drop_last = drop_last
         self.num_workers = num_workers
-        self.loss_config = loss
-        self.regularizer_config = regularizer
 
     def _setup_batchprocessor(self) -> BatchProcessor:
         batchprocessor = BatchProcessorRegistry.get(self.dataset.dataset_type, self.model.model_type)()
@@ -69,22 +63,6 @@ class Runner(ABC):
         )
 
         return dataloader
-
-    def _setup_loss(self) -> Loss:
-        loss_config = self.loss_config
-        loss_type = loss_config["loss_type"]
-
-        loss = LossRegistry.get(loss_type)(**loss_config)
-
-        return loss
-
-    def _setup_regularizer(self) -> Regularizer:
-        regularizer_config = self.regularizer_config
-        regularizer_type = regularizer_config["regularizer_type"]
-
-        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
-
-        return regularizer
 
     @staticmethod
     def _log_epoch_loss(

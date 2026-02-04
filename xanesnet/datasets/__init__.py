@@ -16,10 +16,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import Dataset
 from .registry import DatasetRegistry
-from .xanesx import XanesXDataset
+from .xanesx import XanesXData, XanesXDataset
 
 __all__ = [
     "Dataset",
     "XanesXDataset",
     "DatasetRegistry",
+    "XanesXData",
 ]

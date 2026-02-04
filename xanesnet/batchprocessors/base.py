@@ -51,3 +51,10 @@ class BatchProcessor(ABC):
         Prepares the model targets from a single sample.
         """
         ...
+
+    @abstractmethod
+    def sample_id_extraction(self, batch: Any) -> Any:
+        """
+        Extracts sample IDs from a batch.
+        """
+        ...

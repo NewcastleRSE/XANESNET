@@ -75,8 +75,8 @@ class KFold(Strategy):
     def setup_inferencers(self, device: str | torch.device) -> None:
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def run_inference(self) -> None:
-        super().run_inference()
+    def run_inference(self, predictions_save_path: str | Path | None) -> None:
+        super().run_inference(predictions_save_path)
 
         raise NotImplementedError("Not implemented!")  # TODO Implement
 

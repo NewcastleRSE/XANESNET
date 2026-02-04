@@ -25,6 +25,7 @@ from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import DescriptorRegistry
+from xanesnet.utils import ConfigError
 from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 
 from .registry import DatasetRegistry
@@ -32,7 +33,7 @@ from .torch_dataset import TorchDataset
 
 
 @dataclass
-class Data:
+class XanesXData:
     x: torch.Tensor | None = None
     y: torch.Tensor | None = None
     e: torch.Tensor | None = None
@@ -40,7 +41,7 @@ class Data:
     c_star: torch.Tensor | None = None
     file_name: str | list[Any] | None = None
 
-    def to(self, device: str | torch.device) -> "Data":
+    def to(self, device: str | torch.device) -> "XanesXData":
         # send batch do device
         for attr in ["x", "y", "fourier", "c_star"]:
             val = getattr(self, attr)
@@ -150,7 +151,9 @@ class XanesXDataset(TorchDataset):
                 raise ConfigError(f"Invalid mode: {self.mode}")
 
             # Create Data object
-            data = Data(x=x, y=y, e=energies, fourier=fourier, c_star=c_star, file_name=data.properties["file_name"])
+            data = XanesXData(
+                x=x, y=y, e=energies, fourier=fourier, c_star=c_star, file_name=data.properties["file_name"]
+            )
 
             # Save processed data
             save_path = os.path.join(self.processed_dir, f"{idx}.pt")
@@ -176,7 +179,7 @@ class XanesXDataset(TorchDataset):
                 stride=self.basis_stride,
             )
 
-    def collate_fn(self, batch: list[Data]) -> Data:
+    def collate_fn(self, batch: list[XanesXData]) -> XanesXData:
         """
         Collates a list of Data objects into a single Data object with batched tensors.
         """
@@ -186,7 +189,7 @@ class XanesXDataset(TorchDataset):
                 return None
             return torch.stack(tensors)
 
-        return Data(
+        return XanesXData(
             x=_stack([b.x for b in batch]),
             y=_stack([b.y for b in batch]),
             e=_stack([b.e for b in batch]),

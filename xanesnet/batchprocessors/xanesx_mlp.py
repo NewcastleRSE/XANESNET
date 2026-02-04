@@ -14,7 +14,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
+import numpy as np
+import torch
+
+from xanesnet.datasets import XanesXData
 
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
@@ -23,14 +26,27 @@ from .registry import BatchProcessorRegistry
 @BatchProcessorRegistry.register("xanesx", "mlp")
 class XanesXMLP(BatchProcessor):
 
-    def input_preparation(self, batch: Any) -> Any:
+    def input_preparation(self, batch: XanesXData) -> torch.Tensor:
+        if batch.x is None:
+            raise ValueError("Input data 'x' is None!")
         return batch.x
 
-    def input_preparation_single(self, sample: Any) -> Any:
+    def input_preparation_single(self, sample: XanesXData) -> torch.Tensor:
+        if sample.x is None:
+            raise ValueError("Input data 'x' is None!")
         return sample.x.unsqueeze(0)
 
-    def target_preparation(self, batch: Any) -> Any:
+    def target_preparation(self, batch: XanesXData) -> torch.Tensor:
+        if batch.y is None:
+            raise ValueError("Target data 'y' is None!")
         return batch.y
 
-    def target_preparation_single(self, sample: Any) -> Any:
+    def target_preparation_single(self, sample: XanesXData) -> torch.Tensor:
+        if sample.y is None:
+            raise ValueError("Target data 'y' is None!")
         return sample.y.unsqueeze(0)
+
+    def sample_id_extraction(self, batch: XanesXData) -> np.ndarray:
+        if batch.file_name is None:
+            raise ValueError("Sample ID 'file_name' is None!")
+        return np.array(batch.file_name, dtype=str)

@@ -75,9 +75,6 @@ INFERENCER_DEFAULTS = {
         "shuffle": False,
         "drop_last": False,
         "num_workers": 0,
-        "loss.loss_type": "mse",
-        "regularizer.regularizer_type": "none",
-        "regularizer.weight": 1.0,
     }
 }
 

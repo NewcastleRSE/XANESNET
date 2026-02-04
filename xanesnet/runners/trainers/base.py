@@ -22,7 +22,9 @@ import torch
 from xanesnet.checkpointing import Checkpointer
 from xanesnet.components import LRSchedulerRegistry, OptimizerRegistry
 from xanesnet.datasets import Dataset
+from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
+from xanesnet.regularizers import Regularizer, RegularizerRegistry
 from xanesnet.stoppers import EarlyStopper, EarlyStopperRegistry
 
 from ..base import Runner
@@ -51,7 +53,7 @@ class Trainer(Runner):
         early_stopper: dict[str, Any],
         validation_interval: int,
     ) -> None:
-        super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers, loss, regularizer)
+        super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
 
         self.checkpointer = checkpointer
 
@@ -62,6 +64,8 @@ class Trainer(Runner):
         self.lr_scheduler_config = lr_scheduler
         self.early_stopper_config = early_stopper
         self.validation_interval = validation_interval
+        self.loss_config = loss
+        self.regularizer_config = regularizer
 
         # Setup
         self.batchprocessor = self._setup_batchprocessor()
@@ -72,6 +76,26 @@ class Trainer(Runner):
         self.early_stopper = self._setup_early_stopper()
         self.loss = self._setup_loss()
         self.regularizer = self._setup_regularizer()
+
+    def _setup_loss(self) -> Loss:
+        loss_config = self.loss_config
+        if loss_config is None:
+            raise ValueError("Loss config is required but was not provided.")
+        loss_type = loss_config["loss_type"]
+
+        loss = LossRegistry.get(loss_type)(**loss_config)
+
+        return loss
+
+    def _setup_regularizer(self) -> Regularizer:
+        regularizer_config = self.regularizer_config
+        if regularizer_config is None:
+            raise ValueError("Regularizer config is required but was not provided.")
+        regularizer_type = regularizer_config["regularizer_type"]
+
+        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
+
+        return regularizer
 
     def train(self) -> float | None:
         """
