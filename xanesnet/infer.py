@@ -35,7 +35,6 @@ from xanesnet.serialization import (
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils import (
     create_run_dir,
-    create_subfolders,
     set_global_seed,
     setup_file_logging,
     setup_logging,
@@ -65,12 +64,8 @@ def parse_args(args: list[str]) -> Namespace:
         "-m",
         "--in_model",
         type=str,
+        required=True,
         help="Path to a trained model .pth file.",
-    )
-    parser.add_argument(
-        "--save",
-        action="store_true",
-        help="Save the results to disk.",
     )
 
     args_namespace = parser.parse_args(args)

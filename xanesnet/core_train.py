@@ -58,22 +58,20 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     strategy.setup_trainers(config["device"])
 
     # Save training config and signature
-    signature = None
-    if args_namespace.save:
-        config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="train_config.yaml")
-        logging.info(f"Configuration file saved to: {config_save_path}")
-        signature = {
-            "dataset": dataset.signature,
-            "model": strategy.model_signature,
-            "strategy": strategy.signature,
-        }
-        signature_save_path = save_dict_as_yaml(signature, save_dir / "models", "signature")
-        logging.info(f"Signature saved to: {signature_save_path}")
+    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="train_config.yaml")
+    logging.info(f"Configuration file saved to: {config_save_path}")
+    signature = {
+        "dataset": dataset.signature,
+        "model": strategy.model_signature,
+        "strategy": strategy.signature,
+    }
+    signature_save_path = save_dict_as_yaml(signature, save_dir / "models", "signature")
+    logging.info(f"Signature saved to: {signature_save_path}")
 
-        # Save split indices if they were generated
-        split_indices_save_path = save_dir / "split_indices.json"
-        save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
-        logging.info(f"Split indices saved to: {split_indices_save_path}")
+    # Save split indices if they were generated
+    split_indices_save_path = save_dir / "split_indices.json"
+    save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
+    logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
     model_list, train_time = _run_training(strategy)
@@ -84,13 +82,11 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     _summary_models(model_list, dataset)
 
     # Save model(s)
-    if args_namespace.save:
-        save_models(save_dir / "models", model_list)
-        logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
-        assert signature is not None
-        final_checkpoint = build_checkpoint(model_list, signature=signature)
-        final_save_path = save_checkpoint(save_dir / "models", final_checkpoint, name="final")
-        logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
+    save_models(save_dir / "models", model_list)
+    logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
+    final_checkpoint = build_checkpoint(model_list, signature=signature)
+    final_save_path = save_checkpoint(save_dir / "models", final_checkpoint, name="final")
+    logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
 
 
 ###############################################################################

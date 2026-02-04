@@ -61,11 +61,6 @@ def parse_args(args: list[str]) -> Namespace:
         type=str,
         help="Path to a pre-trained model directory (optional).",
     )
-    parser.add_argument(
-        "--save",
-        action="store_true",
-        help="Save the results to disk.",
-    )
 
     args_namespace = parser.parse_args(args)
     return args_namespace

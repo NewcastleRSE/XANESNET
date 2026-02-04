@@ -46,24 +46,16 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
     strategy.setup_inferencers(config["device"])
 
     # Save inference config
-    predictions_save_path: Path | None = None
-    if args_namespace.save:
-        config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
-        logging.info(f"Configuration file saved to: {config_save_path}")
+    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
+    logging.info(f"Configuration file saved to: {config_save_path}")
 
-        predictions_save_path = save_dir / "predictions"
+    predictions_save_path: Path | None = save_dir / "predictions"
 
     # Main inference
     inference_time = _run_inference(strategy, predictions_save_path)
 
     # Summary
     logging.info(f"Inference completed in {str(timedelta(seconds=int(inference_time)))}")
-    # TODO add inference summary
-
-    # Saving
-    if args_namespace.save:
-        pass
-        # TODO save inference results
 
 
 ###############################################################################

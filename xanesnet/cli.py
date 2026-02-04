@@ -19,31 +19,72 @@ import sys
 
 from xanesnet.utils import ConfigError
 
+LOGO = r"""
+////////////////////////////////////////////////////////////////////////////////////
+//                                                                                //
+//     ██╗  ██╗ █████╗ ███╗   ██╗███████╗███████╗███╗   ██╗███████╗████████╗      //
+//     ╚██╗██╔╝██╔══██╗████╗  ██║██╔════╝██╔════╝████╗  ██║██╔════╝╚══██╔══╝      //
+//      ╚███╔╝ ███████║██╔██╗ ██║█████╗  ███████╗██╔██╗ ██║█████╗     ██║         //
+//      ██╔██╗ ██╔══██║██║╚██╗██║██╔══╝  ╚════██║██║╚██╗██║██╔══╝     ██║         //
+//     ██╔╝ ██╗██║  ██║██║ ╚████║███████╗███████║██║ ╚████║███████╗   ██║         //
+//     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝   ╚═╝         //
+//                                                                                //
+////////////////////////////////////////////////////////////////////////////////////
+//                                                                                //
+//                         Deep Learning for Spectroscopy                         //
+//                                                                                //
+////////////////////////////////////////////////////////////////////////////////////
+    """
+
+HELP = """Usage: python xanesnet/cli.py <command> [options]
+
+Commands (mutually exclusive):
+  train    Train a model using a configuration file.
+    Arguments:
+      -i, --in_file    Path to input YAML configuration file. (Required)
+      --in_model       Path to a pre-trained model directory (optional). ! Not implemented yet. !
+
+  infer    Run inference on data using a trained model.
+    Arguments:
+      -i, --in_file    Path to input YAML configuration file. (Required)
+      -m, --in_model   Path to a trained model .pth file. (Required)
+"""
+
 ################################################################################
 ############################## PROGRAM STARTS HERE #############################
 ################################################################################
 
 
 def main(args: list[str]) -> None:
-    parser = argparse.ArgumentParser()
+    print(LOGO)
+
+    if len(args) == 0 or any(arg in ["-h", "--help"] for arg in args):
+        print(HELP)
+        sys.exit(0)
+
+    parser = argparse.ArgumentParser(add_help=False)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("train")
-    sub.add_parser("infer")
+    sub.add_parser("train", add_help=False)
+    sub.add_parser("infer", add_help=False)
 
-    args_namespace, remaining = parser.parse_known_args(args)
+    try:
+        args_namespace, remaining = parser.parse_known_args(args)
+    except argparse.ArgumentError:
+        print("Invalid command. Use -h for help.")
+        sys.exit(1)
 
     if args_namespace.command == "train":
         # Dispatching to training mode
 
-        from .train import main
+        from xanesnet.train import main
 
         main(remaining)
 
     elif args_namespace.command == "infer":
         # Dispatching to inference mode
 
-        from .infer import main
+        from xanesnet.infer import main
 
         main(remaining)
     else:
