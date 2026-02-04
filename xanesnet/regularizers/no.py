@@ -32,8 +32,9 @@ class NoReg(Regularizer):
     def __init__(
         self,
         regularizer_type: str,
+        weight: float = 1.0,  # weight parameter for interface consistency
     ) -> None:
-        super().__init__(regularizer_type, weight=1.0)
+        super().__init__(regularizer_type, weight=weight)
 
     def forward(self, model: Model) -> torch.Tensor:
         return torch.tensor(0.0, device=next(model.parameters()).device)

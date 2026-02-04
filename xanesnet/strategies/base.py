@@ -111,7 +111,7 @@ class Strategy(ABC):
         """
         Starts inference with strategy.
         """
-        logging.info("Start inference...")
+        logging.info("Start strategy...")
 
     def setup_checkpointer(self) -> None:
         """
