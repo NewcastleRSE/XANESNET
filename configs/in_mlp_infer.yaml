@@ -15,3 +15,6 @@ dataset:
 inferencer:
   inferencer_type: nninferencer
   batch_size: 3
+  shuffle: False
+  drop_last: False
+  num_workers: 0
