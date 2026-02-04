@@ -27,7 +27,6 @@ This documentation provides a guide to interacting with and contributing to XANE
     input
     descriptor
     model
-    evaluation
 
 .. toctree::
     :maxdepth: 5

@@ -19,9 +19,9 @@ or
 
 	git clone https://github.com/NewcastleRSE/xray-spectroscopy-ml.git
 
-This contains all the source files as well as example input files.
-Training sets for X-ray absorption and emission of molecules constaining
-first row transition metals can be obtained using:
+The repository contains all source files, along with example input files and datasets.
+
+Complete training sets for X-ray absorption and emission of molecules containing first row transition metals can be obtained using:
 
 .. code-block::
 
@@ -31,7 +31,8 @@ first row transition metals can be obtained using:
 Installation
 ------------
 
-The code has been designed to support python 3. The dependencies and version requirements are installed using:
+The code has been designed to support python 3.10 and above.
+Dependencies and version requirements can be installed using:
 
 .. code-block::
 

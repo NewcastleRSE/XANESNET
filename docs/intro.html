@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Introduction &mdash; xanesnet 0.1 documentation</title>
+  <title>Introduction &mdash; xanesnet 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=e031e9a9"></script>
+      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=359c27e9"></script>
       <script src="_static/doctools.js?v=888ff710"></script>
       <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/js/theme.js"></script>
@@ -57,7 +57,6 @@
 <li class="toctree-l1"><a class="reference internal" href="input.html">Input File</a></li>
 <li class="toctree-l1"><a class="reference internal" href="descriptor.html">Library of Descriptors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Library of Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Model Evaluation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul>
@@ -96,9 +95,9 @@
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this heading"></a></h1>
 <section id="xanesnet-overview">
 <h2>XANESNET Overview<a class="headerlink" href="#xanesnet-overview" title="Permalink to this heading"></a></h2>
-<p>XANESNET is an open-source toolbox for the rapid and
+<p>XANESNET is an open-source platform for the rapid and
 automated analysis and prediction of X-ray spectroscopy data.
-The toolbox provides solution for both forward and reverse mapping problems,
+The platform provides machine learning solution for both forward and reverse mapping problems,
 linking material properties or structures with their corresponding
 X-ray Absorption Near Edge Structure (XANES) spectra.</p>
 <p>The forward mapping approach is similar to the approach used by
@@ -111,24 +110,23 @@ as it has a clear connection to the problem that X-ray spectroscopists face day-
 how can a measurement/observable be interpreted?</p>
 <p>XANESNET approaches this problem by employing machine learning models,
 including a variety of deep neural network architectures to perform inverse analysis.
-By training these models on large datasets,
-XANESNET can accurately predict the characteristics of unknown samples.
-The choice of neural network architectures enables users to select the most
-appropriate model based on their specific requirements.</p>
+By training these models on large datasets, XANESNET can accurately predict the characteristics of unknown samples.
+The software is designed in a modular, plugin-based framework,
+enabling users to customise their workflows by selecting appropriate models, structural descriptors, and other components
+based on their specific requirements.</p>
 </section>
 <section id="xanesnet-features">
 <h2>XANESNET features<a class="headerlink" href="#xanesnet-features" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p>GPLv3 licensed open-source distribution</p></li>
-<li><p>Automated data processing: data augmentation, Fourier transform</p></li>
-<li><p>Feature extraction: wACSF, SOAP, MBTR, LMBTR, RDC, LMBTR, pDOS, MSR</p></li>
-<li><p>Neural network architecture: MLP, CNN, LSTM, Autoencoder, Autoencoder-GAN</p></li>
-<li><p>Learning scheme: K-fold, ensemble, bootstrap</p></li>
-<li><p>Hyperparameter optimisation</p></li>
+<li><p>Automated data processing: Fourier transform, Gaussian transform</p></li>
+<li><p>Feature extraction: wACSF, RDC, pDOS, MACE</p></li>
+<li><p>Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, AE-GAN, Multihead, Transformer, EnvEmbed</p></li>
+<li><p>Learning scheme: standard, K-fold, ensemble learning, bootstrapping</p></li>
+<li><p>Experiment tracking and visualisation: MLFlow, TensorBoard</p></li>
 <li><p>Learning rate scheduler</p></li>
-<li><p>Layer freezing</p></li>
-<li><p>Run from an input file</p></li>
-<li><p>Easy to extend with new model and descriptor</p></li>
+<li><p>Custom ML workflow components and run via input file</p></li>
+<li><p>Easy to extend with new components</p></li>
 <li><p>Web interface</p></li>
 </ul>
 </section>
@@ -141,22 +139,24 @@ at <a class="reference external" href="https://ncl.ac.uk">Newcastle University</
 <div class="line-block">
 <div class="line">Project team:</div>
 <div class="line"><a class="reference external" href="https://www.ncl.ac.uk/nes/people/profile/tompenfold.html">Prof. Thomas Penfold</a> (<a class="reference external" href="mailto:tom&#46;penfold&#37;&#52;&#48;newcastle&#46;ac&#46;uk">tom<span>&#46;</span>penfold<span>&#64;</span>newcastle<span>&#46;</span>ac<span>&#46;</span>uk</a>)</div>
+<div class="line"><a class="reference external" href="https://www.ncl.ac.uk/nes/people/profile/thomaspope2.html">Dr. Thomas Pope</a> (<a class="reference external" href="mailto:thomas&#46;pope2&#37;&#52;&#48;newcastle&#46;ac&#46;uk">thomas<span>&#46;</span>pope2<span>&#64;</span>newcastle<span>&#46;</span>ac<span>&#46;</span>uk</a>)</div>
 <div class="line"><a class="reference external" href="https://www.york.ac.uk/chemistry/people/conor-rankine/">Dr. Conor Rankine</a> (<a class="reference external" href="mailto:conor&#46;rankine&#37;&#52;&#48;york&#46;ac&#46;uk">conor<span>&#46;</span>rankine<span>&#64;</span>york<span>&#46;</span>ac<span>&#46;</span>uk</a>)</div>
 </div>
 <div class="line-block">
 <div class="line">RSE team:</div>
 <div class="line"><a class="reference external" href="https://rse.ncldata.dev/team/bowen-li">Dr. Bowen Li</a> (<a class="reference external" href="mailto:bowen&#46;li2&#37;&#52;&#48;newcastle&#46;ac&#46;uk">bowen<span>&#46;</span>li2<span>&#64;</span>newcastle<span>&#46;</span>ac<span>&#46;</span>uk</a>)</div>
-<div class="line"><a class="reference external" href="https://rse.ncldata.dev/team/alex-surtees">Alex Surtee</a> (<a class="reference external" href="mailto:alex&#46;surtees&#37;&#52;&#48;newcastle&#46;ac&#46;uk">alex<span>&#46;</span>surtees<span>&#64;</span>newcastle<span>&#46;</span>ac<span>&#46;</span>uk</a>)</div>
 </div>
 <div class="line-block">
 <div class="line">Former RSEs:</div>
 <div class="line">Dr. Nik Khadijah Nik Aznan</div>
 <div class="line">Dr. Kathryn Garside</div>
+<div class="line">Alex Surtee</div>
+<div class="line">Dr. Lorenzo Rossi</div>
 </div>
 </section>
 <section id="publications">
 <h2>Publications<a class="headerlink" href="#publications" title="Permalink to this heading"></a></h2>
-<p><strong>XANESNET Code</strong>:</p>
+<p><strong>XANESNET</strong>:</p>
 <p><a class="reference external" href="https://doi.org/10.1021/acs.jpca.0c03723">A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra</a> - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, <em>J. Phys. Chem. A</em>, 2020, <strong>124</strong>, 4263-4270.</p>
 <p><a class="reference external" href="https://doi.org/10.1063/5.0087255">Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network</a> - C. D. Rankine, and T. J. Penfold, <em>J. Chem. Phys.</em>, 2022, <strong>156</strong>, 164102.</p>
 <p><strong>Extension to X-ray Emission</strong>:</p>

@@ -5,9 +5,9 @@ Introduction
 XANESNET Overview
 ---------------------
 
-XANESNET is an open-source toolbox for the rapid and
+XANESNET is an open-source platform for the rapid and
 automated analysis and prediction of X-ray spectroscopy data.
-The toolbox provides solution for both forward and reverse mapping problems,
+The platform provides machine learning solution for both forward and reverse mapping problems,
 linking material properties or structures with their corresponding
 X-ray Absorption Near Edge Structure (XANES) spectra.
 
@@ -22,26 +22,24 @@ how can a measurement/observable be interpreted?
 
 XANESNET approaches this problem by employing machine learning models,
 including a variety of deep neural network architectures to perform inverse analysis.
-By training these models on large datasets,
-XANESNET can accurately predict the characteristics of unknown samples.
-The choice of neural network architectures enables users to select the most
-appropriate model based on their specific requirements.
-
+By training these models on large datasets, XANESNET can accurately predict the characteristics of unknown samples.
+The software is designed in a modular, plugin-based framework,
+enabling users to customise their workflows by selecting appropriate models, structural descriptors, and other components
+based on their specific requirements.
 
 ---------------------
 XANESNET features
 ---------------------
 
 * GPLv3 licensed open-source distribution
-* Automated data processing: data augmentation, Fourier transform
-* Feature extraction: wACSF, SOAP, MBTR, LMBTR, RDC, LMBTR, pDOS, MSR
-* Neural network architecture: MLP, CNN, LSTM, Autoencoder, Autoencoder-GAN
-* Learning scheme: K-fold, ensemble, bootstrap
-* Hyperparameter optimisation
+* Automated data processing: Fourier transform, Gaussian transform
+* Feature extraction: wACSF, RDC, pDOS, MACE
+* Neural network architecture: MLP, CNN, GNN, LSTM, Autoencoder, AE-GAN, Multihead, Transformer, EnvEmbed
+* Learning scheme: standard, K-fold, ensemble learning, bootstrapping
+* Experiment tracking and visualisation: MLFlow, TensorBoard
 * Learning rate scheduler
-* Layer freezing
-* Run from an input file
-* Easy to extend with new model and descriptor
+* Custom ML workflow components and run via input file
+* Easy to extend with new components
 * Web interface
 
 --------------------------
@@ -55,21 +53,23 @@ at `Newcastle University <https://ncl.ac.uk>`_.
 
 | Project team:
 | `Prof. Thomas Penfold <https://www.ncl.ac.uk/nes/people/profile/tompenfold.html>`_ (tom.penfold@newcastle.ac.uk)
+| `Dr. Thomas Pope <https://www.ncl.ac.uk/nes/people/profile/thomaspope2.html>`_ (thomas.pope2@newcastle.ac.uk)
 | `Dr. Conor Rankine <https://www.york.ac.uk/chemistry/people/conor-rankine/>`_ (conor.rankine@york.ac.uk)
 
 | RSE team:
 | `Dr. Bowen Li <https://rse.ncldata.dev/team/bowen-li>`_ (bowen.li2@newcastle.ac.uk)
-| `Alex Surtee <https://rse.ncldata.dev/team/alex-surtees>`_ (alex.surtees@newcastle.ac.uk)
 
 | Former RSEs:
 | Dr. Nik Khadijah Nik Aznan
 | Dr. Kathryn Garside
+| Alex Surtee
+| Dr. Lorenzo Rossi
 
 ------------
 Publications
 ------------
 
-**XANESNET Code**:
+**XANESNET**:
 
 `A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra <https://doi.org/10.1021/acs.jpca.0c03723>`_ - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, *J. Phys. Chem. A*, 2020, **124**, 4263-4270.
 

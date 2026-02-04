@@ -22,10 +22,10 @@
 # The authors are (temporarily) in alphabetical order.
 project = "xanesnet"
 copyright = "2022, Newcastle University"
-author = "Thomas Penfold, Conor Rankine, Nik Khadijah Nik Aznan, Kathryn Garside, Bowen Li, Alex Surtees"
+author = "Thomas Penfold, Conor Rankine, Bowen Li, Nik Khadijah Nik Aznan, Kathryn Garside, Alex Surtees"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1"
+release = "1.0"
 
 # -- General configuration ---------------------------------------------------
 

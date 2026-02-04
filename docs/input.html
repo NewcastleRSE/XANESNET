@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Input File &mdash; xanesnet 0.1 documentation</title>
+  <title>Input File &mdash; xanesnet 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=e031e9a9"></script>
+      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=359c27e9"></script>
       <script src="_static/doctools.js?v=888ff710"></script>
       <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/js/theme.js"></script>
@@ -48,25 +48,18 @@
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installing XANESNET</a></li>
 <li class="toctree-l1"><a class="reference internal" href="running.html">Running XANESNET</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Input File</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#path">path</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#descriptor">descriptor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dataset">dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#descriptors">descriptors</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#model">model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#hyperparameters">hyperparameters</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#fourier-transform">fourier_transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#standardscaler">standardscaler</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#lr-scheduler">lr_scheduler</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#data-augment">data_augment</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kfold">kfold</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#bootstrap">bootstrap</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ensemble">ensemble</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#optuna">optuna</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#freeze">freeze</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#shap">shap</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="descriptor.html">Library of Descriptors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Library of Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Model Evaluation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul>
@@ -103,36 +96,34 @@
              
   <section id="input-file">
 <h1>Input File<a class="headerlink" href="#input-file" title="Permalink to this heading"></a></h1>
-<p>The XANESNET input file is a YAML configuration file that specifies all the necessary parameters for the training, evaluation, and prediction.
+<p>The XANESNET input file is a YAML configuration file that specifies all the necessary
+parameters for the training and prediction.
 The input file is divided into several sections, each corresponding to a different aspect of the configuration.
-This page details the syntax of each section,
-providing guidance on how to customise your model.</p>
-<section id="path">
-<h2>path<a class="headerlink" href="#path" title="Permalink to this heading"></a></h2>
-<p>The path section specifies the file directories containing the input data required for the model training.</p>
+This page details the syntax of each section, and provides guidance on how to customise your model.</p>
+<section id="dataset">
+<h2>dataset<a class="headerlink" href="#dataset" title="Permalink to this heading"></a></h2>
+<p>The dataset section defines the dataset type, file locations,
+and preprocessing options used during model training.
+It specifies where the raw XYZ structures and XANES spectra are stored,
+where processed data should be saved, and how the data should be loaded and transformed.
+See <span class="xref std std-doc">dataset</span> for a detailed explanation.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">xyz_path</span></code> (str): Directory for the XYZ files.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">xanes_path</span></code> (str): Directory for the XANES spectra files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Dataset type (see <span class="xref std std-doc">dataset</span>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">root_path</span></code> (str): Directory where the processed dataset will be stored or loaded from.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">xyz_path</span></code> (str): Directory containing structure files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">xanes_path</span></code> (str): Directory containing XANES spectra files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional): Parameters for the chosen dataset type.</p></li>
 </ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">x_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">datasets</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">preconv</span><span class="o">/</span><span class="n">xyz_train</span>
-<span class="n">y_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">datasets</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">preconv</span><span class="o">/</span><span class="n">xanes_train</span>
-</pre></div>
-</div>
-</dd>
-</dl>
 </section>
-<section id="descriptor">
-<h2>descriptor<a class="headerlink" href="#descriptor" title="Permalink to this heading"></a></h2>
+<section id="descriptors">
+<h2>descriptors<a class="headerlink" href="#descriptors" title="Permalink to this heading"></a></h2>
 <p>The descriptor section defines the type of descriptor to be used for feature extraction.
-A descriptor aims to transform atomic structures into fixed-size numeric vectors.
-These vectors are built in a way that they efficiently summarise the contents of the input structure,
-and thus are crucial for machine learning models.</p>
+A descriptor aims to transform atomic structures into fixed-size numeric vectors.</p>
 <p>XANESNET provides a range of descriptor functions. Each of which requires different parameters to be specified.
-Please see <a class="reference internal" href="descriptor.html"><span class="doc">Library of Descriptors</span></a> for a detailed explanation.</p>
+See <a class="reference internal" href="descriptor.html"><span class="doc">Library of Descriptors</span></a> for a detailed explanation.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of descriptor (see <a class="reference internal" href="descriptor.html"><span class="doc">Library of Descriptors</span></a>).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>: Parameters for the chosen descriptor type.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional): Parameters for the chosen descriptor type.</p></li>
 </ul>
 </section>
 <section id="model">
@@ -140,95 +131,92 @@ Please see <a class="reference internal" href="descriptor.html"><span class="doc
 <p>The model section defines the architecture and specific parameters of the neural network model.
 This section determines how the model is structured, including the type of neural network and the hyperparameters
 that control its training and operation.</p>
-<p>XANESNET supports a variety of widely-used deep neural network architecture, including
-Multilayer Perceptron (MLP), Convolutional Neural Networks (CNNs), Long Short-Term Memory networks (LSTMs),
-Autoencoders (AE), and Generative Adversarial Autoencoder Networks (AE-GAN).
+<p>XANESNET supports a variety of widely-used deep neural network architecture.
 Their architectures and parameters are further explained in the <a class="reference internal" href="model.html"><span class="doc">Library of Models</span></a>.</p>
-<ul class="simple">
+<ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of model (see <a class="reference internal" href="model.html"><span class="doc">Library of Models</span></a>).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>: Model-specific parameters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional): Model-specific parameters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">kernel</span></code> (str, <code class="docutils literal notranslate"><span class="pre">default</span></code>):
+Weight initialization method for kernel parameters. Supported options:
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.uniform_">uniform</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.normal_">normal</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.xavier_uniform_">xavier_uniform</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.xavier_normal_">xavier_normal</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.kaiming_uniform_">kaiming_uniform</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.kaiming_normal_">kaiming_normal</a>,
+<em>default</em>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bias</span></code> (str, <code class="docutils literal notranslate"><span class="pre">zero</span></code>): Initialisation method for bias parameters. Supported options:
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.zeros_">zeros</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/nn.init.html#torch.nn.init.ones_">ones</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> (int): Random seed.</p></li>
 </ul>
+</div></blockquote>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights_params</span></code> (dict, optional): Additional weight parameters.</p></li>
+</ul>
+<dl>
+<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">mlp</span>
+  <span class="n">weights</span><span class="p">:</span>
+      <span class="n">kernel</span><span class="p">:</span> <span class="n">kaiming_uniform</span>
+      <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+      <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+  <span class="n">weights_params</span><span class="p">:</span>
+      <span class="n">mode</span><span class="p">:</span> <span class="n">fan_in</span>
+      <span class="n">nonlinearity</span><span class="p">:</span> <span class="n">relu</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </section>
 <section id="hyperparameters">
 <h2>hyperparameters<a class="headerlink" href="#hyperparameters" title="Permalink to this heading"></a></h2>
 <p>The hyperparameter section defines the settings that
-govern the training process of the neural network model.
-Hyperparameters are the configuration variables that are
-external to the model and whose values are set before the training process begins.</p>
+govern the training process of the neural network model.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code> (int): Size of training batches.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">lr</span></code> (float): Learning rate for the optimiser.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">epochs</span></code> (int): Maximum number of epochs.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">optim_fn</span></code> (str): Type of optimisation function. Options: <em>Adam</em> or <em>SGD</em> or <em>RMSprop</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">kernel_init</span></code> (str): Function for initialising the model weights. Options: <em>xavier_uniform</em> or <em>xavier_normal</em> or <em>kaiming_uniform</em> or <em>normal</em> or <em>uniform</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">bias_init</span></code> (str): Function for initialising the model bias. Options: <em>zeros</em> or <em>ones</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">model_eval</span></code> (bool):  Flag for model evaluation during training, see <a class="reference internal" href="evaluation.html"><span class="doc">Model Evaluation</span></a>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> (int): Random seed for data preprocessing</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">weight_seed</span></code> (int): Random seed for weight initialisation.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">loss</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> (str): Type of loss function. Options: <em>mse</em> or <em>bce</em> or <em>emd</em> or <em>cosine</em> or <em>l1</em> or <em>wcc</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">loss_args</span></code> (float or ‘null’): Additional arguments for the loss function if needed.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">loss_reg_type</span></code> (str): regularisation type. Options: <em>null</em> or <em>L1</em> or <em>L2</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">loss_reg_param</span></code> (float): strength of regularisation.</p></li>
-</ul>
-</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code> (int, default: <code class="docutils literal notranslate"><span class="pre">32</span></code>): Number of samples per training batch.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lr</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.001</span></code>): Learning rate.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">epochs</span></code> (int, <code class="docutils literal notranslate"><span class="pre">100</span></code>): Maximum number of training epochs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_earlystop</span></code> (int, <code class="docutils literal notranslate"><span class="pre">100</span></code>):  Number of consecutive epochs without improvement in validation loss before training is stopped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">optimizer</span></code> (str, <code class="docutils literal notranslate"><span class="pre">adam</span></code>):
+Optimization algorithm used for training. Supported options:
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html">adam</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.SGD.html">sgd</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.RMSprop.html">rmsprop</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.AdamW.html">adamw</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.Adagrad.html">adagrad</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">loss</span></code> (str, default: <code class="docutils literal notranslate"><span class="pre">mse</span></code>):
+Loss function. Supported options:
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">mse</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html">bce</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.L1Loss.html">l1</a>,
+emd,
+cosine,
+wcc,
+hybrid,
+specplus,
+mw_ssim1d.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">loss_reg</span></code> (str, <code class="docutils literal notranslate"><span class="pre">none</span></code>):
+Type of regularization loss. Supported options:
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.L1Loss.html">l1</a>,
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">l2</a>,
+none.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">loss_lambda</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.0001</span></code>): Weighting factor applied to the regularization loss.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">loss_params</span></code> (dict, optional): Additional parameters specific to the selected loss function.</p></li>
 </ul>
 <dl>
 <dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hyperparams</span><span class="p">:</span>
   <span class="n">batch_size</span><span class="p">:</span> <span class="mi">64</span>
-  <span class="n">lr</span><span class="p">:</span> <span class="mf">0.00001</span>
-  <span class="n">epochs</span><span class="p">:</span> <span class="mi">100</span>
-  <span class="n">optim_fn</span><span class="p">:</span> <span class="n">Adam</span>
-  <span class="n">kernel_init</span><span class="p">:</span> <span class="n">xavier_uniform</span>
-  <span class="n">bias_init</span><span class="p">:</span> <span class="n">zeros</span>
-  <span class="n">model_eval</span> <span class="p">:</span> <span class="kc">False</span>
+  <span class="n">lr</span><span class="p">:</span> <span class="mf">0.0001</span>
+  <span class="n">epochs</span><span class="p">:</span> <span class="mi">500</span>
+  <span class="n">optimizer</span><span class="p">:</span> <span class="n">Adam</span>
   <span class="n">seed</span><span class="p">:</span> <span class="mi">2021</span>
-  <span class="n">weight_seed</span><span class="p">:</span> <span class="mi">2023</span>
-  <span class="n">loss</span><span class="p">:</span>
-    <span class="n">loss_fn</span><span class="p">:</span> <span class="n">mse</span>
-    <span class="n">loss_args</span><span class="p">:</span> <span class="n">null</span>
-    <span class="n">loss_reg_type</span><span class="p">:</span> <span class="n">L2</span>
-    <span class="n">loss_reg_param</span><span class="p">:</span> <span class="mf">0.001</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="fourier-transform">
-<h2>fourier_transform<a class="headerlink" href="#fourier-transform" title="Permalink to this heading"></a></h2>
-<p>The fourier_transform section enables XANESNET to train or predict using
-Fourier transformed spectra.
-The transformation converts the XANES spectra data into the frequency domain
-that emphasise its frequency components.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">fourier_transform</span></code> (bool): Flag for toggling Fourier transformation on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">fourier_params</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">concat</span></code> (bool): Flag for concatenating the transformation result with the original spectra data</p></li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fourier_transform</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">fourier_params</span><span class="p">:</span>
-    <span class="n">concat</span><span class="p">:</span> <span class="kc">True</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="standardscaler">
-<h2>standardscaler<a class="headerlink" href="#standardscaler" title="Permalink to this heading"></a></h2>
-<p>The standardscaler section specifies whether standard scaling will be applied to the
-XANES spectra data. The function rescales the data the have a mean of 0 and a
-standard deviation of 1. Note that in XANESNET, the standardscaler applies to both
-training and testing spectra data to give the network a tighter focus.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">standardscaler</span></code> (bool): Flag for toggling StandardScaler on or off</p></li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">standardscaler</span><span class="p">:</span> <span class="kc">True</span>
+  <span class="n">loss</span><span class="p">:</span> <span class="n">mse</span>
+  <span class="n">loss_reg</span><span class="p">:</span> <span class="n">L1</span>
+  <span class="n">loss_lambda</span><span class="p">:</span> <span class="mf">0.0001</span>
 </pre></div>
 </div>
 </dd>
@@ -236,18 +224,18 @@ training and testing spectra data to give the network a tighter focus.</p>
 </section>
 <section id="lr-scheduler">
 <h2>lr_scheduler<a class="headerlink" href="#lr-scheduler" title="Permalink to this heading"></a></h2>
-<p>The lr_scheduler (Learning Rate Scheduler) section specifies
-whether to employ a scheduler to dynamically adjusting the learning rate during the training.
-A learning rate scheduler modifies the learning rate over time,
-typically reducing it according to a predefined schedule
-or based on the model’s performance.</p>
+<p>The lr_scheduler section controls whether a learning rate scheduler
+is used to dynamically adjust the learning rate during training.</p>
+<p>A learning rate scheduler modifies the learning rate over time,
+either according to a predefined schedule or in response to training progress.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">lr_scheduler</span></code> (bool): Flag for toggling learning rate scheduler on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_params</span></code>:</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">lr_scheduler</span></code> (bool): Enables or disables the learning rate scheduler.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_params</span></code> (dict, optional):</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of scheduler. Options: <em>step</em> or <em>multistep</em> or <em>exponential</em> or <em>linear</em> or <em>constant</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">step_size</span></code> (int):  Number of epochs between each learning rate adjustment.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">gamma</span></code> (float):  Multiplicative factor of learning rate decay.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str, <code class="docutils literal notranslate"><span class="pre">step</span></code>): Type of learning rate scheduler to use.
+Supported options: <em>step</em> or <em>multistep</em> or <em>exponential</em> or <em>linear</em> or <em>constant</em></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">step_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">10</span></code>):  Number of epochs between successive learning rate updates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gamma</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.5</span></code>):  Multiplicative factor applied to the learning rate at each decay step.</p></li>
 </ul>
 </li>
 </ul>
@@ -262,51 +250,19 @@ or based on the model’s performance.</p>
 </dd>
 </dl>
 </section>
-<section id="data-augment">
-<h2>data_augment<a class="headerlink" href="#data-augment" title="Permalink to this heading"></a></h2>
-<p>The data_augment section defines if data augmentation is applied to the training dataset.
-The method is used to prevent overfitting by increasing the diversity of the dataset.
-XANESNET implements two augmentation methods: the <em>random_noise</em> option
-augments the data by adding noise from a normal distribution to the dataset, and the
-<em>random_combination</em> option expands the existing dataset by generating new data points
-that represent the pointwise average of two randomly chosen samples from the training dataset.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">data_augment</span></code> (bool): Flag for toggling data augmentation on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">augment_params</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of augmentation. Options: <em>random_noise</em> or <em>random_combination</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">augment_mult</span></code> (int): Multiplier for how much augmented data is generated.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">normal_mean</span></code> (float): mean of the normal distribution (applicable only for the <em>random_noise</em> option).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">normal_sd</span></code> (float): standard deviation of the normal distribution (applicable only for the <em>random_noise</em> option).</p></li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_augment</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">augment_params</span><span class="p">:</span>
-  <span class="nb">type</span><span class="p">:</span> <span class="n">random_noise</span>
-  <span class="n">augment_mult</span><span class="p">:</span> <span class="mi">5</span>
-  <span class="n">normal_mean</span><span class="p">:</span> <span class="mi">0</span>
-  <span class="n">normal_sd</span><span class="p">:</span> <span class="mf">0.1</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
 <section id="kfold">
 <h2>kfold<a class="headerlink" href="#kfold" title="Permalink to this heading"></a></h2>
-<p>The kfold (K-Fold Cross-Validation) section specifies
-whether to use K-Fold Cross-Validation during the model training process.
-If specified, the entire dataset is divided into ‘k’ into k subsets or folds.
-The model is then trained ‘k’ times, each time using a different fold as the validation set (for testing the model)
-and the remaining ‘k-1’ folds as the training set.</p>
+<p>The kfold section controls whether K-Fold cross-validation is used during model training.
+When enabled, the dataset is partitioned into k subsets (folds).
+The model is trained k times, each time using a different fold
+as the validation set and the remaining k-1 folds as the training set.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">kfold</span></code> (bool): Flag for toggling kfold on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">kfold_params</span></code>:</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">kfold</span></code> (bool): Enables or disables K-Fold cross-validation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">kfold_params</span></code> (dict, optional):</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_splits</span></code> (int): Number of folds or splits.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_repeats</span></code> (int):  Number of times the k-fold cross-validation is repeated.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> (str): Random seed for splitting the dataset.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_splits</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of folds (k).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_repeats</span></code> (int, <code class="docutils literal notranslate"><span class="pre">1</span></code>): Number of times the K-Fold cross-validation is repeated.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> (int): Random seed used for reproducible dataset splitting.</p></li>
 </ul>
 </li>
 </ul>
@@ -323,27 +279,26 @@ and the remaining ‘k-1’ folds as the training set.</p>
 </section>
 <section id="bootstrap">
 <h2>bootstrap<a class="headerlink" href="#bootstrap" title="Permalink to this heading"></a></h2>
-<p>The bootstrap section enables XANESNET to train the model using bootstrapping method.
-If specified, initial training dataset is randomly resampled to
-create a new dataset.
-The size of this new dataset is determined by multiplying the
-original dataset size by a user-defined factor.
-The model is then trained using this bootstrapped data for multiple times,
-each time with a new random seed.</p>
+<p>The bootstrap section controls whether bootstrap resampling is used during model training.
+When enabled, the original training dataset is randomly resampled with replacement
+to create new training datasets. The size of each resampled dataset is determined
+by multiplying the original dataset size by a user-defined factor.
+The model is trained multiple times using independently resampled datasets,
+each with a different random seed.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">bootstrap</span></code> (bool): Flag for toggling bootstrap on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">bootstrap_params</span></code>:</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">bootstrap</span></code> (bool): Enables or disables bootstrap resampling.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bootstrap_params</span></code> (dict, optional): Parameters controlling the bootstrap procedure.</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_boot</span></code> (int): Number of repeats.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_size</span></code> (float): Multiplication factor of the dataset size.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">weight_seed</span></code> (list): List of random seeds for each sample.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_boot</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of bootstrap training runs</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_size</span></code> (float, <code class="docutils literal notranslate"><span class="pre">1.0</span></code>): Scaling factor applied to the original dataset size when generating each bootstrap sample.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight_seed</span></code> (list): List of random seeds used to generate independent bootstrap samples.</p></li>
 </ul>
 </li>
 </ul>
 <dl>
 <dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bootstrap</span><span class="p">:</span> <span class="kc">True</span>
 <span class="n">bootstrap_params</span><span class="p">:</span>
-  <span class="n">n_boot</span><span class="p">:</span> <span class="mi">3</span>
+  <span class="n">n_boot</span><span class="p">:</span> <span class="mi">4</span>
   <span class="n">n_size</span><span class="p">:</span> <span class="mf">1.0</span>
   <span class="n">weight_seed</span><span class="p">:</span> <span class="p">[</span><span class="mi">97</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">22</span><span class="p">]</span>
 </pre></div>
@@ -353,15 +308,16 @@ each time with a new random seed.</p>
 </section>
 <section id="ensemble">
 <h2>ensemble<a class="headerlink" href="#ensemble" title="Permalink to this heading"></a></h2>
-<p>The ensemble section enables XANESNET to employ ensemble method for model training.
-The approach uses different seeds to initialise the weights and biases of the model.
-The model is then trained for multiple times, each time with a distinct set of initialisation parameters.</p>
+<p>The ensemble section controls whether ensemble training is performed.
+When enabled, multiple models are trained independently
+using different random initializations of model parameters.
+Each ensemble member is initialized with a distinct random seed.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">ensemble</span></code> (bool): Flag for toggling bootstrap on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ensemble_params</span></code>:</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">ensemble</span></code> (bool): Enables or disables ensemble training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ensemble_params</span></code> (dict, optional):</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_ens</span></code> (int): Number of repeats.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">weight_seed</span></code> (list): List of random seeds for model initialisation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_ens</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of ensemble members to train.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight_seed</span></code> (list): List of random seeds used to initialise model weights and biases for each ensemble member.</p></li>
 </ul>
 </li>
 </ul>
@@ -370,133 +326,6 @@ The model is then trained for multiple times, each time with a distinct set of i
 <span class="n">ensemble_params</span><span class="p">:</span>
   <span class="n">n_ens</span><span class="p">:</span> <span class="mi">3</span>
   <span class="n">weight_seed</span><span class="p">:</span> <span class="p">[</span><span class="mi">97</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">22</span><span class="p">]</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="optuna">
-<h2>optuna<a class="headerlink" href="#optuna" title="Permalink to this heading"></a></h2>
-<p>The optuna section allows XANESNET to integrate Optuna, a hyperparameter
-optimisation framework, into the model training process.
-Optuna automatically searches for the best hyperparameter values by exploring
-various combinations and evaluating their performance.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">optuna_params</span></code> contains a list of flags (i.e, tune_xxx)
-that determine which hyperparameters will be optimised.
-The predefined optimisation options for each parameter are detailed in the description.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">optuna</span></code> (bool): Flag for toggling optuna on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">optuna_params</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_trials</span></code> (int): Number of trials.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_optim_fn</span></code> (bool):  <em>Adam</em>, <em>SGD</em>, <em>RMSprop</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_batch_size</span></code> (bool): 8, 16, 32, 64</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_activation</span></code> (bool):  <em>relu</em>, <em>prelu</em>, <em>tanh</em>, <em>sigmoid</em>, <em>elu</em>, <em>leakyrelu</em>, <em>selu</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_loss_fn</span></code> (bool):  <em>mse</em>, <em>emd</em>, <em>cosine</em>, <em>l1</em>, <em>wcc (min 5, max 15)</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_lr</span></code> (bool): min 1e-7, max 1e-3</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_dropout</span></code> (bool):  min 0.2, max 0.5</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_mlp</span></code> (bool): <strong>Model MLP and AE-MLP specific</strong></p>
-<ul>
-<li><p>number of hidden layers: min 2, max 5</p></li>
-<li><p>hidden size: 64, 128, 256, 512</p></li>
-<li><p>shrink rate: min 0.2, max 0.5</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_cnn</span></code> (bool): <strong>Model CNN and AE-CNN specific</strong></p>
-<ul>
-<li><p>number of convolutional layers: min 1, max 5</p></li>
-<li><p>hidden size: 64, 128, 256, 512</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_lstm</span></code> (bool): <strong>Model LSTM specific</strong></p>
-<ul>
-<li><p>number of hidden layers: min 2, max 5</p></li>
-<li><p>hidden size: 64, 128, 256, 512</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tune_aegan_mlp</span></code> (bool): <strong>Model AE-GAN specific</strong></p>
-<ul>
-<li><p>learning rate: min 1e-7, max 1e-3</p></li>
-<li><p>number of hidden layers: min 2, max 5</p></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">optuna</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">optuna_params</span><span class="p">:</span>
-  <span class="n">n_trials</span><span class="p">:</span> <span class="mi">3</span>
-  <span class="n">tune_optim_fn</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_batch_size</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_activation</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_loss_fn</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_lr</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_dropout</span><span class="p">:</span> <span class="kc">True</span>
-  <span class="n">tune_mlp</span><span class="p">:</span> <span class="kc">True</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="freeze">
-<h2>freeze<a class="headerlink" href="#freeze" title="Permalink to this heading"></a></h2>
-<p>The freeze section specifies whether to use transfer learning strategies
-by freezing certain layers of a pre-trained model during the training process.
-The approach is useful when the model trained on a large dataset needs to
-be fine-tuned on a smaller dataset.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">freeze</span></code> (bool): Flag for toggling freeze on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">freeze_params</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">model_path</span></code> (str): Path to the pre-trained model.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_dense</span></code> (int): Number of dense layers to be frozen.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_conv</span></code> (int): Number of convolutional layers to be frozen. <strong>Model CNN and AE-CNN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_lstm</span></code> (int): Number of LSTM layers to be frozen. <strong>Model LSTM specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_encoder</span></code> (int): Number of encoder layers to be frozen. <strong>Model AE-MLP and AE-CNN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_decoder</span></code> (int): Number of decoder layers to be frozen. <strong>Model AE-MLP and AE-CNN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_encoder1</span></code> (int): Number of encoder layers in domain A to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_encoder2</span></code> (int): Number of encoder layers in domain B to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_decoder1</span></code> (int): Number of decode layers in domain A to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_decoder2</span></code> (int): Number of decode layers in domain B to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_shared_encoder</span></code> (int): Number of shared encoder layers to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_shared_decoder</span></code> (int): Number of shared decoder layers to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_discrim1</span></code> (int): Number of discriminative layers in domain A to be frozen. <strong>AE-GAN specific</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">n_discrim2</span></code> (int): Number of discriminative layers in domain B to be frozen. <strong>AE-GAN specific</strong></p></li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">freeze</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">freeze_params</span><span class="p">:</span>
-  <span class="n">model_path</span><span class="p">:</span> <span class="o">./</span><span class="n">models</span><span class="o">/</span><span class="n">model_cnn_001</span>
-  <span class="n">n_conv</span><span class="p">:</span> <span class="mi">4</span>
-  <span class="n">n_dense</span><span class="p">:</span> <span class="mi">1</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="shap">
-<h2>shap<a class="headerlink" href="#shap" title="Permalink to this heading"></a></h2>
-<p>The shap section enables XANESNET to use SHAP (SHapley Additive exPlanations)
-for interpreting the model prediction result. The analysis can quantify the
-contribution of each feature to the prediction,
-and contrasting the prediction with the average prediction across the dataset.
-The model output will be sampled for different subsets of
-the input features to estimate the impact of each feature on the prediction.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">shap</span></code> (bool): Flag for toggling SHAP analysis on or off</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">shap_params</span></code>:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">nsamples</span></code> (int):  Number of samples for calculating SHAP values.</p></li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shap</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">shap_params</span><span class="p">:</span>
-  <span class="n">nsamples</span><span class="p">:</span> <span class="mi">5</span>
 </pre></div>
 </div>
 </dd>
