@@ -17,6 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .checkpoints import Checkpoint, build_checkpoint, save_checkpoint
 from .config import merge_configs, save_dict_as_yaml, validate_config
 from .models import load_pretrained_model, save_model, save_models
+from .prediction_readers import HDF5Reader, JSONReader, NumpyReader, PredictionReader
+from .prediction_writers import HDF5Writer, JSONWriter, NumpyWriter, PredictionWriter
 from .splits import load_split_indices, save_split_indices
 
 __all__ = [
@@ -31,4 +33,12 @@ __all__ = [
     "validate_config",
     "load_split_indices",
     "save_split_indices",
+    "HDF5Reader",
+    "HDF5Writer",
+    "JSONReader",
+    "JSONWriter",
+    "NumpyReader",
+    "NumpyWriter",
+    "PredictionReader",
+    "PredictionWriter",
 ]
