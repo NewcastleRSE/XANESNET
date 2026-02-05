@@ -308,3 +308,31 @@ class JSONReader(PredictionReader):
         sample: dict[str, np.ndarray] = {key: np.array(value) for key, value in data.items()}
 
         return sample
+
+
+###############################################################################
+############################ FORMAT DETECTION #################################
+###############################################################################
+
+
+def detect_prediction_format(path: str | Path) -> type[PredictionReader]:
+    """
+    Detect prediction format from directory structure and return appropriate reader class.
+    """
+    predictions_path = Path(path)
+
+    if not predictions_path.exists():
+        raise FileNotFoundError(f"Predictions path not found: {predictions_path}")
+
+    # Try to detect format
+    if (predictions_path / "predictions.h5").exists():
+        return HDF5Reader
+    elif list(predictions_path.glob("sample_*.npz")):
+        return NumpyReader
+    elif list(predictions_path.glob("sample_*.json")):
+        return JSONReader
+    else:
+        raise ValueError(
+            f"Could not detect prediction format in {predictions_path}. "
+            f"Expected HDF5 (predictions.h5), Numpy (sample_*.npz), or JSON (sample_*.json) files."
+        )
