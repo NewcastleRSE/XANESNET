@@ -24,8 +24,6 @@ def run_debug_train() -> None:
         "train",
         "-i",
         "./configs/in_mlp.yaml",
-        "--save",
-        # "--tensorboard",
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -40,8 +38,22 @@ def run_debug_infer() -> None:
         "-i",
         "./configs/in_mlp_infer.yaml",
         "-m",
-        "<insert trained model here>",  # Insert path to trained model (final.pth)
-        # "--tensorboard",
+        "./runs/2026-02-04_07-30-59_train_mlp_single/models/final.pth",  # Insert path to trained model (final.pth)
+    ]
+
+    print("Running in debug mode with the following arguments:")
+    print(debug_args)
+
+    main(debug_args)
+
+
+def run_debug_analyze() -> None:
+    debug_args = [
+        "analyze",
+        "-i",
+        "./configs/analyze_example.yaml",
+        "-p",
+        "./runs/2026-02-04_11-44-39_infer_mlp_single/predictions/",
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -51,4 +63,6 @@ def run_debug_infer() -> None:
 
 
 if __name__ == "__main__":
-    run_debug_train()
+    # run_debug_train()
+    # run_debug_infer()
+    run_debug_analyze()

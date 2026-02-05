@@ -1,0 +1,47 @@
+"""
+XANESNET
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+from collections.abc import Callable
+
+from .base import Selector
+
+
+class SelectorRegistry:
+    _registry: dict[str, type[Selector]] = {}
+
+    @classmethod
+    def register(cls, name: str) -> Callable[[type[Selector]], type[Selector]]:
+        name = name.lower()
+
+        def decorator(selector_cls: type[Selector]) -> type[Selector]:
+            if name in cls._registry:
+                raise KeyError(f"Selector '{name}' already registered")
+            cls._registry[name] = selector_cls
+            return selector_cls
+
+        return decorator
+
+    @classmethod
+    def get(cls, name: str) -> type[Selector]:
+        name = name.lower()
+
+        if name not in cls._registry:
+            raise KeyError(f"Selector '{name}' not found in registry")
+        return cls._registry[name]
+
+    @classmethod
+    def list(cls) -> list[str]:
+        return list(cls._registry.keys())

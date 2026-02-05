@@ -48,11 +48,39 @@ Commands (mutually exclusive):
     Arguments:
       -i, --in_file    Path to input YAML configuration file. (Required)
       -m, --in_model   Path to a trained model .pth file. (Required)
+
+  analyze  Analyze predictions from inference runs.
+    Arguments:
+      -i, --in_file         Path to input YAML configuration file. (Required)
+      -p, --predictions     Path to directory containing predictions. (Required)
+"""
+
+TRAIN = r"""
+ ____ ____ ____ ____ ____ 
+||T |||R |||A |||I |||N ||
+||__|||__|||__|||__|||__||
+|/__\|/__\|/__\|/__\|/__\|
+"""
+
+INFER = r"""
+ ____ ____ ____ ____ ____ 
+||I |||N |||F |||E |||R ||
+||__|||__|||__|||__|||__||
+|/__\|/__\|/__\|/__\|/__\|
+"""
+
+ANALYZE = r"""
+ ____ ____ ____ ____ ____ ____ ____ 
+||A |||N |||A |||L |||Y |||Z |||E ||
+||__|||__|||__|||__|||__|||__|||__||
+|/__\|/__\|/__\|/__\|/__\|/__\|/__\|
 """
 
 ################################################################################
 ############################## PROGRAM STARTS HERE #############################
 ################################################################################
+
+# TODO add analyze command the same way we added train and infer
 
 
 def main(args: list[str]) -> None:
@@ -67,6 +95,7 @@ def main(args: list[str]) -> None:
 
     sub.add_parser("train", add_help=False)
     sub.add_parser("infer", add_help=False)
+    sub.add_parser("analyze", add_help=False)
 
     try:
         args_namespace, remaining = parser.parse_known_args(args)
@@ -79,12 +108,25 @@ def main(args: list[str]) -> None:
 
         from xanesnet.train import main
 
+        print(TRAIN)
+
         main(remaining)
 
     elif args_namespace.command == "infer":
         # Dispatching to inference mode
 
         from xanesnet.infer import main
+
+        print(INFER)
+
+        main(remaining)
+
+    elif args_namespace.command == "analyze":
+        # Dispatching to analyze mode
+
+        from xanesnet.analyze import main
+
+        print(ANALYZE)
 
         main(remaining)
     else:

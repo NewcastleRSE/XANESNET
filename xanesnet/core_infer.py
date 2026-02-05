@@ -46,6 +46,7 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
     strategy.setup_inferencers(config["device"])
 
     # Save inference config
+    # TODO: This can maybe go into train.py
     config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
     logging.info(f"Configuration file saved to: {config_save_path}")
 
