@@ -27,6 +27,7 @@ from xanesnet.analysis.selectors import SelectorRegistry
 from xanesnet.core_analyze import analyze
 from xanesnet.serialization import save_dict_as_yaml, validate_config
 from xanesnet.utils import (
+    copy_file,
     create_run_dir,
     create_subfolders,
     set_global_seed,
@@ -98,6 +99,10 @@ def main(args: list[str]) -> None:
 
     # Setup file logging
     setup_file_logging(save_dir)
+
+    # Save config
+    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="analyze_config.yaml")
+    logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Config validation
     # TODO: Issue here! We should use a different validate config

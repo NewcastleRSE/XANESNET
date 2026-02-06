@@ -25,7 +25,6 @@ from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.serialization import Checkpoint
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils import copy_file
 
 ###############################################################################
 #################################### INFER ####################################
@@ -44,11 +43,6 @@ def infer(config: dict[str, Any], args_namespace: Namespace, save_dir: Path, che
     strategy.setup_models()
     strategy.set_state_dicts(checkpoint.model_states)
     strategy.setup_inferencers(config["device"])
-
-    # Save inference config
-    # TODO: This can maybe go into train.py
-    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
-    logging.info(f"Configuration file saved to: {config_save_path}")
 
     predictions_save_path: Path | None = save_dir / "predictions"
 

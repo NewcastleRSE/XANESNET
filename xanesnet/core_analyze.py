@@ -19,7 +19,7 @@ import time
 from argparse import Namespace
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from xanesnet.analysis.aggregators import Aggregator, AggregatorRegistry
 from xanesnet.analysis.per_sample import PerSampleModule, PerSampleRegistry
@@ -27,7 +27,6 @@ from xanesnet.analysis.plotters import PlotterRegistry
 from xanesnet.analysis.reporters import ReporterRegistry
 from xanesnet.analysis.selectors import Selector, SelectorRegistry
 from xanesnet.serialization import PredictionReader, detect_prediction_format
-from xanesnet.utils import copy_file
 
 ###############################################################################
 ################################### ANALYZE ###################################
@@ -39,11 +38,6 @@ def analyze(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -
     Main analysis entry point.
     """
     logging.info("Starting analysis pipeline.")
-
-    # Save analysis config
-    # TODO: This can maybe go into train.py
-    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="analyze_config.yaml")
-    logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Load predictions
     predictions_reader = _setup_predictions_reader(args_namespace.predictions)

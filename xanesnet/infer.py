@@ -34,6 +34,7 @@ from xanesnet.serialization import (
 )
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils import (
+    copy_file,
     create_run_dir,
     set_global_seed,
     setup_file_logging,
@@ -107,6 +108,10 @@ def main(args: list[str]) -> None:
 
     # Setup file logging
     setup_file_logging(save_dir)
+
+    # Save config
+    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
+    logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Merge inference config and checkpoint config
     config = merge_configs(config, checkpoint.signature)

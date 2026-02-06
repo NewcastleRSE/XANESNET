@@ -36,7 +36,6 @@ from xanesnet.serialization import (
     save_split_indices,
 )
 from xanesnet.strategies import Strategy, StrategyRegistry
-from xanesnet.utils import copy_file
 
 ###############################################################################
 #################################### TRAIN ####################################
@@ -57,10 +56,7 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     strategy.init_model_weights()
     strategy.setup_trainers(config["device"])
 
-    # Save training config and signature
-    # TODO: This can maybe go into train.py
-    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="train_config.yaml")
-    logging.info(f"Configuration file saved to: {config_save_path}")
+    # Save signature
     signature = {
         "dataset": dataset.signature,
         "model": strategy.model_signature,
