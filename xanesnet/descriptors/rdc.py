@@ -38,6 +38,7 @@ class RDC(VectorDescriptor):
 
     def __init__(
         self,
+        descriptor_type: str,
         r_min: float = 0.0,
         r_max: float = 8.0,
         dr: float = 0.01,
@@ -67,7 +68,7 @@ class RDC(VectorDescriptor):
                 Defaults to False.
         """
 
-        super().__init__(r_min, r_max, use_charge, use_spin)
+        super().__init__(descriptor_type, r_min, r_max, use_charge, use_spin)
 
         self.register_config(locals(), type="rdc")
 

@@ -25,6 +25,7 @@ from xanesnet.datasets import Dataset
 from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
 from xanesnet.regularizers import Regularizer, RegularizerRegistry
+from xanesnet.serialization.config import Config
 from xanesnet.stoppers import EarlyStopper, EarlyStopperRegistry
 
 from ..base import Runner
@@ -42,15 +43,15 @@ class Trainer(Runner):
         shuffle: bool,
         drop_last: bool,
         num_workers: int,
-        loss: dict[str, Any],
-        regularizer: dict[str, Any],
+        loss: Config,
+        regularizer: Config,
         # trainer params:
         trainer_type: str,
         epochs: int,
         learning_rate: float,
         optimizer: str,
-        lr_scheduler: dict[str, Any],
-        early_stopper: dict[str, Any],
+        lr_scheduler: Config,
+        early_stopper: Config,
         validation_interval: int,
     ) -> None:
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
@@ -81,9 +82,9 @@ class Trainer(Runner):
         loss_config = self.loss_config
         if loss_config is None:
             raise ValueError("Loss config is required but was not provided.")
-        loss_type = loss_config["loss_type"]
+        loss_type = loss_config.get_str("loss_type")
 
-        loss = LossRegistry.get(loss_type)(**loss_config)
+        loss = LossRegistry.get(loss_type)(**loss_config.as_kwargs())
 
         return loss
 
@@ -91,9 +92,9 @@ class Trainer(Runner):
         regularizer_config = self.regularizer_config
         if regularizer_config is None:
             raise ValueError("Regularizer config is required but was not provided.")
-        regularizer_type = regularizer_config["regularizer_type"]
+        regularizer_type = regularizer_config.get_str("regularizer_type")
 
-        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config)
+        regularizer = RegularizerRegistry.get(regularizer_type)(**regularizer_config.as_kwargs())
 
         return regularizer
 
@@ -300,11 +301,12 @@ class Trainer(Runner):
         return optimizer
 
     def _setup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
-        lr_scheduler_type = self.lr_scheduler_config["lr_scheduler_type"]
+        lr_scheduler_type = self.lr_scheduler_config.get_str("lr_scheduler_type")
 
         # We have to remove 'lr_scheduler_type'!
+        lr_scheduler_kwargs = self.lr_scheduler_config.as_kwargs()
         key_to_remove = "lr_scheduler_type"
-        config_wo_type = {k: v for k, v in self.lr_scheduler_config.items() if k != key_to_remove}
+        config_wo_type = {k: v for k, v in lr_scheduler_kwargs.items() if k != key_to_remove}
 
         lr_scheduler_cls = LRSchedulerRegistry.get(lr_scheduler_type)
         lr_scheduler = lr_scheduler_cls(self.optimizer, **config_wo_type)
@@ -312,9 +314,9 @@ class Trainer(Runner):
         return lr_scheduler
 
     def _setup_early_stopper(self) -> EarlyStopper:
-        early_stopper_type = self.early_stopper_config["early_stopper_type"]
+        early_stopper_type = self.early_stopper_config.get_str("early_stopper_type")
 
         early_stopper_cls = EarlyStopperRegistry.get(early_stopper_type)
-        early_stopper = early_stopper_cls(**self.early_stopper_config)
+        early_stopper = early_stopper_cls(**self.early_stopper_config.as_kwargs())
 
         return early_stopper

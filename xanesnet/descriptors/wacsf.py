@@ -45,6 +45,7 @@ class WACSF(VectorDescriptor):
 
     def __init__(
         self,
+        descriptor_type: str,
         r_min: float = 1.0,
         r_max: float = 6.0,
         n_g2: int = 16,
@@ -97,7 +98,7 @@ class WACSF(VectorDescriptor):
                 Defaults to False.
         """
 
-        super().__init__(r_min, r_max, use_charge, use_spin)
+        super().__init__(descriptor_type, r_min, r_max, use_charge, use_spin)
 
         self.register_config(locals(), type="wacsf")
 

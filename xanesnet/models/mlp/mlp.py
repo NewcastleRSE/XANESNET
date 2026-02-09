@@ -14,12 +14,11 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
-
 import torch
 from torch import nn
 
 from xanesnet.components import ActivationRegistry, BiasInitRegistry, WeightInitRegistry
+from xanesnet.serialization.config import Config
 
 from ..base import Model
 from ..registry import ModelRegistry
@@ -109,12 +108,12 @@ class MLP(Model):
         self.apply(_init_layer)
 
     @property
-    def signature(self) -> dict[str, Any]:
+    def signature(self) -> Config:
         """
         Return model signature as a dictionary.
         """
         signature = super().signature
-        signature.update(
+        signature.update_with_dict(
             {
                 "in_size": self.in_size,
                 "out_size": self.out_size,

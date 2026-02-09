@@ -30,10 +30,13 @@ from .registry import DescriptorRegistry
 class MACE(Descriptor):
     def __init__(
         self,
+        descriptor_type: str,
         invariants_only: bool = False,
         num_layers: int = -1,
         absorber_atom_only: bool = False,
     ):
+        super().__init__(descriptor_type)
+
         self.register_config(locals(), type="mace")
         self.invariants_only = invariants_only
         self.num_layers = num_layers

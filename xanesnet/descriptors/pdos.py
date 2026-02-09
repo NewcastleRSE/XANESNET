@@ -36,6 +36,7 @@ class PDOS(VectorDescriptor):
 
     def __init__(
         self,
+        descriptor_type: str,
         code: str = "xtb",
         method: str = "GFN2-xTB",
         e_min: float = 20.0,
@@ -105,7 +106,7 @@ class PDOS(VectorDescriptor):
                 Defaults to 0
         """
 
-        super().__init__(0.0, 6.0, use_charge, use_spin)
+        super().__init__(descriptor_type, 0.0, 6.0, use_charge, use_spin)
 
         self.register_config(locals(), type="pdos")
 

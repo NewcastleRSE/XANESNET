@@ -22,11 +22,10 @@ dataset:
   # descriptors:
   descriptors:
     - descriptor_type: wacsf
-      params:
-        r_min: 1.0
-        r_max: 6.0
-        n_g2: 16
-        n_g4: 32
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
 
 model:
   # general:

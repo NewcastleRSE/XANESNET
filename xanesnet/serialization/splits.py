@@ -15,10 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import logging
 from pathlib import Path
 
-from xanesnet.utils import ResourceError
+from xanesnet.utils.exceptions import ResourceError
 
 
 def load_split_indices(filepath: str | Path) -> list[list[int]]:

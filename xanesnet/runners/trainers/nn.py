@@ -14,13 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
-
 import torch
 
 from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
+from xanesnet.serialization.config import Config
 
 from .base import Trainer
 from .registry import TrainerRegistry
@@ -39,15 +38,15 @@ class NNTrainer(Trainer):
         shuffle: bool,
         drop_last: bool,
         num_workers: int,
-        loss: dict[str, Any],
-        regularizer: dict[str, Any],
+        loss: Config,
+        regularizer: Config,
         # trainer params:
         trainer_type: str,
         epochs: int,
         learning_rate: float,
         optimizer: str,
-        lr_scheduler: dict[str, Any],
-        early_stopper: dict[str, Any],
+        lr_scheduler: Config,
+        early_stopper: Config,
         validation_interval: int,
     ) -> None:
         super().__init__(

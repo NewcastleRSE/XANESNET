@@ -15,12 +15,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from pathlib import Path
-from typing import Any
 
 import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
+from xanesnet.serialization.config import Config
 
 from .base import Strategy
 from .registry import StrategyRegistry
@@ -33,14 +33,14 @@ class Bootstrap(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: dict[str, Any],
+        model_config: Config,
         weight_init: str,
-        weight_init_params: dict[str, Any],
+        weight_init_params: Config,
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
-        trainer_config: dict[str, Any] | None = None,
-        inferencer_config: dict[str, Any] | None = None,
+        trainer_config: Config | None = None,
+        inferencer_config: Config | None = None,
     ) -> None:
         super().__init__(
             strategy_type,
@@ -81,14 +81,11 @@ class Bootstrap(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     @property
-    def model_signature(self) -> dict[str, Any]:
+    def model_signature(self) -> Config:
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     @property
-    def signature(self) -> dict[str, Any]:
-        """
-        Returns strategy signature as a dictionary.
-        """
+    def signature(self) -> Config:
         signature = super().signature
-        signature.update({})
+        signature.update_with_dict({})
         return signature

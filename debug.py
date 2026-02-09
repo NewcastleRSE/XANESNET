@@ -24,6 +24,8 @@ def run_debug_train() -> None:
         "train",
         "-i",
         "./configs/in_mlp.yaml",
+        "-n",
+        "debug",
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -38,7 +40,9 @@ def run_debug_infer() -> None:
         "-i",
         "./configs/in_mlp_infer.yaml",
         "-m",
-        "./runs/2026-02-04_07-30-59_train_mlp_single/models/final.pth",  # Insert path to trained model (final.pth)
+        "./runs/2026-02-09_16-22-51_train_debug/models/final.pth",  # Insert path to trained model (final.pth)
+        "-n",
+        "debug",
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -66,5 +70,5 @@ def run_debug_analyze() -> None:
 
 if __name__ == "__main__":
     # run_debug_train()
-    # run_debug_infer()
-    run_debug_analyze()
+    run_debug_infer()
+    # run_debug_analyze()

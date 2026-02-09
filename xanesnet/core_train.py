@@ -19,7 +19,6 @@ import time
 from argparse import Namespace
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
 
 import torch
 from torchinfo import summary
@@ -28,13 +27,10 @@ from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
-from xanesnet.serialization import (
-    build_checkpoint,
-    save_checkpoint,
-    save_dict_as_yaml,
-    save_models,
-    save_split_indices,
-)
+from xanesnet.serialization.checkpoints import Checkpoint
+from xanesnet.serialization.config import Config
+from xanesnet.serialization.models import save_models
+from xanesnet.serialization.splits import save_split_indices
 from xanesnet.strategies import Strategy, StrategyRegistry
 
 ###############################################################################
@@ -42,7 +38,7 @@ from xanesnet.strategies import Strategy, StrategyRegistry
 ###############################################################################
 
 
-def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> None:
+def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     """
     Main training entry
     """
@@ -54,15 +50,17 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     strategy.setup_models()
     strategy.setup_checkpointer()
     strategy.init_model_weights()
-    strategy.setup_trainers(config["device"])
+    strategy.setup_trainers(config.get_str("device"))
 
     # Save signature
-    signature = {
-        "dataset": dataset.signature,
-        "model": strategy.model_signature,
-        "strategy": strategy.signature,
-    }
-    signature_save_path = save_dict_as_yaml(signature, save_dir / "models", "signature")
+    signature = Config(
+        {
+            "dataset": dataset.signature,
+            "model": strategy.model_signature,
+            "strategy": strategy.signature,
+        }
+    )
+    signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
     logging.info(f"Signature saved to: {signature_save_path}")
 
     # Save split indices if they were generated
@@ -81,8 +79,8 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
     # Save model(s)
     save_models(save_dir / "models", model_list)
     logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
-    final_checkpoint = build_checkpoint(model_list, signature=signature)
-    final_save_path = save_checkpoint(save_dir / "models", final_checkpoint, name="final")
+    final_checkpoint = Checkpoint.build(model_list, signature=signature)
+    final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
     logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
 
 
@@ -91,26 +89,27 @@ def train(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -> 
 ###############################################################################
 
 
-def _setup_datasource(config: dict[str, Any]) -> DataSource:
+def _setup_datasource(config: Config) -> DataSource:
     """
     Setup the data source from config
     """
-    datasource_type = config[f"datasource"]["datasource_type"]
+    datasource_config = config.section("datasource")
+    datasource_type = datasource_config.get_str("datasource_type")
     logging.info(f"Initialising data source: {datasource_type}")
-    datasource = DataSourceRegistry.get(datasource_type)(**config["datasource"])
+    datasource = DataSourceRegistry.get(datasource_type)(**datasource_config.as_kwargs())
 
     return datasource
 
 
-def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
+def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     """
     Process the dataset using input configuration or load an existing one from disk
     """
-    dataset_config = config["dataset"]
-    dataset_type = dataset_config["dataset_type"]
+    dataset_config = config.section("dataset")
+    dataset_type = dataset_config.get_str("dataset_type")
 
     logging.info(f"Initialising training dataset: {dataset_type}")
-    dataset = DatasetRegistry.get(dataset_type)(**dataset_config, datasource=datasource)
+    dataset = DatasetRegistry.get(dataset_type)(**dataset_config.as_kwargs(), datasource=datasource)
     dataset.prepare()
     dataset.check_preload()  # may preload the dataset into memory
 
@@ -120,19 +119,19 @@ def _setup_dataset(config: dict[str, Any], datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_strategy(config: dict[str, Any], dataset: Dataset, checkpoint_dir: str | Path) -> Strategy:
+def _setup_strategy(config: Config, dataset: Dataset, checkpoint_dir: str | Path) -> Strategy:
     """
     Initialises the training strategy.
     """
-    strategy_config = config["strategy"]
-    strategy_type = strategy_config["strategy_type"]
+    strategy_config = config.section("strategy")
+    strategy_type = strategy_config.get_str("strategy_type")
 
-    model_config = config["model"]
-    trainer_config = config["trainer"]
+    model_config = config.section("model")
+    trainer_config = config.section("trainer")
 
     logging.info(f"Initialising strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
-        **strategy_config,
+        **strategy_config.as_kwargs(),
         checkpoint_dir=checkpoint_dir,
         dataset=dataset,
         model_config=model_config,

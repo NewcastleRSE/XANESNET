@@ -32,7 +32,13 @@ class DIRECT(Descriptor):
     doing any of the fancy stuff the other descriptors do. Only reads the file
     """
 
-    def __init__(self, nfeatures):
+    def __init__(
+        self,
+        descriptor_type: str,
+        nfeatures: int,
+    ) -> None:
+        super().__init__(descriptor_type)
+
         self.register_config(locals(), type="direct")
         self.nfeatures = nfeatures
 

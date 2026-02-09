@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# TODO Desciptors are not yet cleaned!
+
 # from .pdos import PDOS
 from .base import Descriptor
 from .direct import DIRECT

@@ -22,7 +22,7 @@ import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
-from xanesnet.serialization import HDF5Writer, PredictionWriter
+from xanesnet.serialization.prediction_writers import HDF5Writer, PredictionWriter
 
 from ..base import Runner
 

@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,22 +22,31 @@ import torch
 
 from xanesnet.models import Model
 
+from .config import Config
+
 
 @dataclass
 class Checkpoint:
-    # Has to be Sequence such that it is immutable.
-    # Immutability is important such that model_states list
-    # can contain 'None'.
     model_states: list[dict]
-    signature: dict[str, Any]
+    signature: Config
     optimizer_states: list[dict] | None = None
     epochs: list[int] | None = None
 
-    def save(self, path: str | Path) -> None:
+    def save(self, path: str | Path) -> Path:
         """
         Save checkpoint as a .pth file
         """
-        torch.save(asdict(self), path)
+        path = Path(path)
+
+        if path.suffix != ".pth":
+            raise ValueError(f"Checkpoint path must end with .pth. Got: {path}")
+
+        if not path.parent.exists():
+            raise FileNotFoundError(f"Checkpoint directory does not exist: {path.parent}")
+
+        torch.save(self.to_state_dict(), path)
+
+        return path
 
     def __len__(self) -> int:
         return len(self.model_states)
@@ -47,34 +56,46 @@ class Checkpoint:
         """
         Load checkpoint from a file
         """
-        data = torch.load(path, map_location=map_location)
-        return cls(**data)
-
-
-def build_checkpoint(
-    model_list: list[Model],
-    signature: dict[str, Any],
-    optimizer_states: list[dict] | None = None,
-    epochs: list[int] | None = None,
-) -> Checkpoint:
-    if len(model_list) == 0:
-        raise ValueError("No models. Can not build checkpoint. ")
-    else:
-        checkpoint = Checkpoint(
-            model_states=[model.state_dict() for model in model_list],
-            signature=signature,
-            optimizer_states=optimizer_states,
-            epochs=epochs,
+        state = torch.load(
+            path,
+            map_location=map_location,
+            weights_only=True,
         )
-        return checkpoint
 
+        return cls.from_state_dict(state)
 
-def save_checkpoint(
-    dst_dir: str | Path,
-    checkpoint: Checkpoint,
-    name: str | None = None,
-) -> Path:
-    if not isinstance(dst_dir, Path):
-        dst_dir = Path(dst_dir)
-    checkpoint.save(dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth")
-    return dst_dir / f"{name}.pth" if name else dst_dir / "checkpoint.pth"
+    @classmethod
+    def build(
+        cls,
+        model_list: list[Model],
+        signature: Config,
+        optimizer_states: list[dict] | None = None,
+        epochs: list[int] | None = None,
+    ) -> "Checkpoint":
+        if len(model_list) == 0:
+            raise ValueError("No models. Can not build checkpoint. ")
+        else:
+            checkpoint = cls(
+                model_states=[model.state_dict() for model in model_list],
+                signature=signature,
+                optimizer_states=optimizer_states,
+                epochs=epochs,
+            )
+            return checkpoint
+
+    def to_state_dict(self) -> dict[str, Any]:
+        return {
+            "model_states": self.model_states,
+            "optimizer_states": self.optimizer_states,
+            "epochs": self.epochs,
+            "signature": self.signature.as_dict(),
+        }
+
+    @classmethod
+    def from_state_dict(cls, state: dict[str, Any]) -> "Checkpoint":
+        return cls(
+            model_states=state["model_states"],
+            optimizer_states=state.get("optimizer_states"),
+            epochs=state.get("epochs"),
+            signature=Config(state["signature"]),
+        )

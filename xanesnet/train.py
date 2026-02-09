@@ -17,8 +17,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 from argparse import ArgumentParser, Namespace
 
-import yaml
-
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.core_train import train
 from xanesnet.datasets import DatasetRegistry
@@ -26,16 +24,17 @@ from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.runners.trainers import TrainerRegistry
-from xanesnet.serialization import save_dict_as_yaml, validate_config
-from xanesnet.strategies import StrategyRegistry
-from xanesnet.utils import (
-    copy_file,
-    create_run_dir,
-    create_subfolders,
-    set_global_seed,
-    setup_file_logging,
-    setup_logging,
+from xanesnet.serialization.config import (
+    Config,
+    ConfigRaw,
+    copy_raw_config,
+    load_raw_config,
+    validate_config,
 )
+from xanesnet.strategies import StrategyRegistry
+from xanesnet.utils.filesystem import create_run_dir, create_subfolders
+from xanesnet.utils.logger import setup_file_logging, setup_logging
+from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
 ################################### LOGGING ###################################
@@ -61,6 +60,12 @@ def parse_args(args: list[str]) -> Namespace:
         "--in_model",  # TODO pretrained model loading
         type=str,
         help="Path to a pre-trained model directory (optional).",
+    )
+    parser.add_argument(
+        "-n",
+        "--name",
+        type=str,
+        help="Optional name for the training run.",
     )
 
     args_namespace = parser.parse_args(args)
@@ -88,31 +93,27 @@ def main(args: list[str]) -> None:
 
     # Loading configuration file
     logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
-    with open(args_namespace.in_file, "r") as f:
-        config = yaml.safe_load(f)
+    config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
     # Get saving directory
-    save_dir = create_run_dir(
-        "./runs",
-        name=f"train_{config["model"]["model_type"]}_{config["strategy"]["strategy_type"]}",
-    )
+    save_dir = create_run_dir("./runs", name=f"train_{args_namespace.name}" if args_namespace.name else "train")
     logging.info(f"Run directory: {save_dir}")
     create_subfolders(save_dir, subfolder_names=["models", "checkpoints"])
 
     # Setup file logging
     setup_file_logging(save_dir)
 
-    # Save config
-    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="train_config.yaml")
+    # Copy raw config file
+    config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
     logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Config validation
-    config = validate_config(config)
-    validate_config_save_path = save_dict_as_yaml(config, save_dir, "validated_config")
+    config: Config = validate_config(config_raw)
+    validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
     logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
     # Setting global seed for reproducibility
-    seed = config["seed"]
+    seed = config.get_optional_int("seed")
     if seed is None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)

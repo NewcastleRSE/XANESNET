@@ -35,7 +35,14 @@ class VectorDescriptor(Descriptor, ABC):
     environment around an absorption site as a vector.
     """
 
-    def __init__(self, r_min: float, r_max: float, use_charge: bool, use_spin: bool):
+    def __init__(
+        self,
+        descriptor_type: str,
+        r_min: float,
+        r_max: float,
+        use_charge: bool,
+        use_spin: bool,
+    ) -> None:
         """
         Args:
             r_min (float): The minimum radial cutoff distance (in A) around
@@ -49,6 +56,7 @@ class VectorDescriptor(Descriptor, ABC):
                 vector descriptor for the spin state of the complex.
                 Defaults to False.
         """
+        super().__init__(descriptor_type)
 
         if isinstance(r_min, (int, float)) and r_min >= 0.0:
             self.r_min = float(r_min)

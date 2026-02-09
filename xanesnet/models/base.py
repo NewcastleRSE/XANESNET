@@ -15,9 +15,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 from torch import nn
+
+from xanesnet.serialization.config import Config
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -46,11 +47,13 @@ class Model(nn.Module, ABC):
 
     @property
     @abstractmethod
-    def signature(self) -> dict[str, Any]:
+    def signature(self) -> Config:
         """
         Return model signature as a dictionary.
         """
-        signature = {
-            "model_type": self.model_type,
-        }
+        signature = Config(
+            {
+                "model_type": self.model_type,
+            }
+        )
         return signature

@@ -15,12 +15,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from pathlib import Path
-from typing import Any
 
 import torch.optim as optim
 
 from xanesnet.models import Model
-from xanesnet.serialization import Checkpoint, save_checkpoint
+from xanesnet.serialization.checkpoints import Checkpoint
+from xanesnet.serialization.config import Config
 
 
 class Checkpointer:
@@ -28,7 +28,7 @@ class Checkpointer:
         self,
         save_dir: str | Path | None,
         save_interval: int | None,
-        model_signature: dict[str, Any] | None,
+        model_signature: Config | None,
     ) -> None:
         self.active = save_dir is not None and save_interval is not None
 
@@ -67,8 +67,8 @@ class Checkpointer:
         self._checkpoint.optimizer_states[-1] = optimizer.state_dict()
         self._checkpoint.epochs[-1] = epoch
 
-        checkpoint_name = f"checkpoint_{self.model_counter}_{epoch}"
-        save_checkpoint(self.save_dir, self._checkpoint, checkpoint_name)
+        checkpoint_name = f"checkpoint_{self.model_counter}_{epoch}.pth"
+        self._checkpoint.save(self.save_dir / checkpoint_name)
 
         return True, checkpoint_name
 

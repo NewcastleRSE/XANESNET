@@ -17,13 +17,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 import torch
 
 from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model
+from xanesnet.serialization.config import Config
 
 
 class Strategy(ABC):
@@ -35,14 +35,14 @@ class Strategy(ABC):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: dict[str, Any],
+        model_config: Config,
         weight_init: str,
-        weight_init_params: dict[str, Any],
+        weight_init_params: Config,
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
-        trainer_config: dict[str, Any] | None = None,
-        inferencer_config: dict[str, Any] | None = None,
+        trainer_config: Config | None = None,
+        inferencer_config: Config | None = None,
     ) -> None:
         self.strategy_type = strategy_type
         self.dataset = dataset
@@ -121,19 +121,21 @@ class Strategy(ABC):
 
     @property
     @abstractmethod
-    def model_signature(self) -> dict[str, Any]:
+    def model_signature(self) -> Config:
         """
-        Return model signature as a dictionary.
+        Returns model signature as a dictionary.
         """
         ...
 
     @property
     @abstractmethod
-    def signature(self) -> dict[str, Any]:
+    def signature(self) -> Config:
         """
         Returns strategy signature as a dictionary.
         """
-        signature = {
-            "strategy_type": self.strategy_type,
-        }
+        signature = Config(
+            {
+                "strategy_type": self.strategy_type,
+            }
+        )
         return signature

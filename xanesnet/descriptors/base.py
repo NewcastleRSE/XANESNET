@@ -31,7 +31,11 @@ from pymatgen.io.ase import AseAtomsAdaptor
 class Descriptor(ABC):
     """Abstract base class for XANESNET descriptors."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        descriptor_type: str,
+    ) -> None:
+        self.descriptor_type = descriptor_type
         self.config = {}
 
     @abstractmethod

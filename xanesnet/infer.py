@@ -17,8 +17,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 from argparse import ArgumentParser, Namespace
 
-import yaml
-
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.core_infer import infer
 from xanesnet.datasets import DatasetRegistry
@@ -26,20 +24,20 @@ from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.runners.trainers import TrainerRegistry
-from xanesnet.serialization import (
-    Checkpoint,
-    merge_configs,
-    save_dict_as_yaml,
+from xanesnet.serialization.checkpoints import Checkpoint
+from xanesnet.serialization.config import (
+    Config,
+    ConfigRaw,
+    copy_raw_config,
+    load_raw_config,
+    merge_raw_configs,
+    save_raw_config,
     validate_config,
 )
 from xanesnet.strategies import StrategyRegistry
-from xanesnet.utils import (
-    copy_file,
-    create_run_dir,
-    set_global_seed,
-    setup_file_logging,
-    setup_logging,
-)
+from xanesnet.utils.filesystem import create_run_dir
+from xanesnet.utils.logger import setup_file_logging, setup_logging
+from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
 ################################### LOGGING ###################################
@@ -68,6 +66,12 @@ def parse_args(args: list[str]) -> Namespace:
         required=True,
         help="Path to a trained model .pth file.",
     )
+    parser.add_argument(
+        "-n",
+        "--name",
+        type=str,
+        help="Optional name for the inference run.",
+    )
 
     args_namespace = parser.parse_args(args)
     return args_namespace
@@ -93,38 +97,36 @@ def main(args: list[str]) -> None:
 
     # Loading configuration file
     logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
-    with open(args_namespace.in_file, "r") as f:
-        config = yaml.safe_load(f)
+    config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
     # Loading model/signature for inference
+    logging.info(f"Loading trained model checkpoint @ {args_namespace.in_model}")
     checkpoint = Checkpoint.load(args_namespace.in_model)
 
     # Get saving directory
-    save_dir = create_run_dir(
-        "./runs",
-        name=f"infer_{checkpoint.signature['model']['model_type']}_{checkpoint.signature['strategy']['strategy_type']}",
-    )
+    save_dir = create_run_dir("./runs", name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
     logging.info(f"Run directory: {save_dir}")
+    # TODO maybe create_subfolders?
 
     # Setup file logging
     setup_file_logging(save_dir)
 
-    # Save config
-    config_save_path = copy_file(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
+    # Copy raw config file
+    config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
     logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Merge inference config and checkpoint config
-    config = merge_configs(config, checkpoint.signature)
-    merged_config_save_path = save_dict_as_yaml(config, save_dir, "merged_infer_config")
+    config_raw = merge_raw_configs(config_raw, checkpoint.signature.as_dict())
+    merged_config_save_path = save_raw_config(config_raw, save_dir / "merged_infer_config.yaml")
     logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
 
     # Config validation
-    config = validate_config(config)
-    validate_config_save_path = save_dict_as_yaml(config, save_dir, "validated_config")
+    config: Config = validate_config(config_raw)
+    validate_config_save_path = config.save(save_dir / "validated_infer_config.yaml")
     logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
     # Setting global seed for reproducibility
-    seed = config["seed"]
+    seed = config.get_optional_int("seed")
     if seed is None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)

@@ -16,7 +16,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import torch
 
@@ -24,6 +23,7 @@ from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization.config import Config
 
 from .base import Strategy
 from .registry import StrategyRegistry
@@ -36,14 +36,14 @@ class Single(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: dict[str, Any],
+        model_config: Config,
         weight_init: str,
-        weight_init_params: dict[str, Any],
+        weight_init_params: Config,
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
-        trainer_config: dict[str, Any] | None = None,
-        inferencer_config: dict[str, Any] | None = None,
+        trainer_config: Config | None = None,
+        inferencer_config: Config | None = None,
     ) -> None:
         super().__init__(
             strategy_type,
@@ -59,16 +59,16 @@ class Single(Strategy):
         )
 
     def setup_models(self) -> None:
-        model_type = self.model_config["model_type"]
+        model_type = self.model_config.get_str("model_type")
         logging.info(f"Initialising model: {model_type}")
-        model = ModelRegistry.get(model_type)(**self.model_config)
+        model = ModelRegistry.get(model_type)(**self.model_config.as_kwargs())
 
         self.model = model
 
     def init_model_weights(self) -> None:
         # Intialise model weights
         logging.info(f"Initialising weights with '{self.weight_init}' and bias with '{self.bias_init}'")
-        self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params)
+        self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
 
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
         self.model.load_state_dict(state_dicts[0])
@@ -79,12 +79,12 @@ class Single(Strategy):
         if self.checkpointer is None:
             raise ValueError("Can not setup trainers because checkpointer is not instantiated.")
 
-        trainer_type = self.trainer_config["trainer_type"]
+        trainer_type = self.trainer_config.get_str("trainer_type")
 
         logging.info(f"Initialising trainer: {trainer_type}")
 
         trainer = TrainerRegistry.get(trainer_type)(
-            **self.trainer_config,
+            **self.trainer_config.as_kwargs(),
             dataset=self.dataset,
             model=self.model,
             device=device,
@@ -110,12 +110,12 @@ class Single(Strategy):
         if self.inferencer_config is None:
             raise ValueError("Can not setup inferencers because there is no inferencer config.")
 
-        inferencer_type = self.inferencer_config["inferencer_type"]
+        inferencer_type = self.inferencer_config.get_str("inferencer_type")
 
         logging.info(f"Initialising inferencer: {inferencer_type}")
 
         inferencer = InferencerRegistry.get(inferencer_type)(
-            **self.inferencer_config,
+            **self.inferencer_config.as_kwargs(),
             dataset=self.dataset,
             model=self.model,
             device=device,
@@ -132,17 +132,14 @@ class Single(Strategy):
         self.inferencer.infer(predictions_save_path)
 
     @property
-    def model_signature(self) -> dict[str, Any]:
+    def model_signature(self) -> Config:
         if self.model is None:
             raise ValueError("Model is not initialized. Cannot retrieve signature.")
 
         return self.model.signature
 
     @property
-    def signature(self) -> dict[str, Any]:
-        """
-        Returns strategy signature as a dictionary.
-        """
+    def signature(self) -> Config:
         signature = super().signature
-        signature.update({})
+        signature.update_with_dict({})
         return signature

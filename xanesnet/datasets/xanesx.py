@@ -25,7 +25,8 @@ from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import DescriptorRegistry
-from xanesnet.utils import ConfigError
+from xanesnet.serialization.config import Config
+from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 
 from .registry import DatasetRegistry
@@ -39,7 +40,7 @@ class XanesXData:
     e: torch.Tensor | None = None
     fourier: torch.Tensor | None = None
     c_star: torch.Tensor | None = None
-    file_name: str | list[Any] | None = None
+    file_name: str | list[Any] | None = None  # TODO can we make this more type safe?
 
     def to(self, device: str | torch.device) -> "XanesXData":
         # send batch do device
@@ -48,6 +49,36 @@ class XanesXData:
             if val is not None:
                 setattr(self, attr, val.to(device))
         return self
+
+    def to_state_dict(self) -> dict[str, Any]:
+        return {
+            "x": self.x,
+            "y": self.y,
+            "e": self.e,
+            "fourier": self.fourier,
+            "c_star": self.c_star,
+            "file_name": self.file_name,
+        }
+
+    @classmethod
+    def from_state_dict(cls, state: dict[str, Any]) -> "XanesXData":
+        return cls(
+            x=state.get("x"),
+            y=state.get("y"),
+            e=state.get("e"),
+            fourier=state.get("fourier"),
+            c_star=state.get("c_star"),
+            file_name=state.get("file_name"),
+        )
+
+    def save(self, path: str) -> str:
+        torch.save(self.to_state_dict(), path)
+        return path
+
+    @classmethod
+    def load(cls, path: str) -> "XanesXData":
+        state = torch.load(path, weights_only=True)
+        return cls.from_state_dict(state)
 
 
 ###############################################################################
@@ -74,7 +105,7 @@ class XanesXDataset(TorchDataset):
         basis_stride: int,
         basis_path: str | None,
         # descriptors
-        descriptors: list[dict[str, Any]],
+        descriptors: list[Config],
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, split_ratios, split_indexfile)
 
@@ -96,12 +127,11 @@ class XanesXDataset(TorchDataset):
         # Create descriptors
         self.descriptor_configs = descriptors
         self.descriptor_list = []
-        descriptor_types = ", ".join(d["descriptor_type"] for d in descriptors)
+        descriptor_types = ", ".join(d.get_str("descriptor_type") for d in descriptors)
         logging.info(f"Initialising descriptors: {descriptor_types}")
         for descriptor_config in descriptors:
-            descriptor = DescriptorRegistry.get(descriptor_config["descriptor_type"])(
-                **descriptor_config.get("params", {})
-            )
+            descriptor_type = descriptor_config.get_str("descriptor_type")
+            descriptor = DescriptorRegistry.get(descriptor_type)(**descriptor_config.as_kwargs())
             self.descriptor_list.append(descriptor)
 
         # Setup spectral basis only if needed
@@ -156,15 +186,16 @@ class XanesXDataset(TorchDataset):
             )
 
             # Save processed data
-            save_path = os.path.join(self.processed_dir, f"{idx}.pt")
-            torch.save(data, save_path)
+            save_path = os.path.join(self.processed_dir, f"{idx}.pth")
+            data.save(save_path)
 
         return True
 
     def _setup_spectral_basis(self) -> None:
         # Load directly from file
         if self.basis_path is not None:
-            self.basis = torch.load(self.basis_path)
+            # TODO never tested this.
+            self.basis = torch.load(self.basis_path)  # TODO: till uses torch.load without weights_only=True
             logging.info(f"Loaded spectral basis from file @ {self.basis_path}")
         # Create from datasource
         else:
@@ -198,13 +229,16 @@ class XanesXDataset(TorchDataset):
             file_name=[b.file_name for b in batch],  # keep as list
         )
 
+    def _load_item(self, path: str) -> XanesXData:
+        return XanesXData.load(path)
+
     @property
-    def signature(self) -> dict[str, Any]:
+    def signature(self) -> Config:
         """
         Return dataset signature as a dictionary.
         """
         signature = super().signature
-        signature.update(
+        signature.update_with_dict(
             {
                 "descriptors": self.descriptor_configs,
                 "mode": self.mode,

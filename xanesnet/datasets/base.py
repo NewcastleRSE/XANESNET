@@ -20,14 +20,14 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
-import torch
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
-from xanesnet.serialization import load_split_indices
-from xanesnet.utils import ConfigError
+from xanesnet.serialization.config import Config
+from xanesnet.serialization.splits import load_split_indices
+from xanesnet.utils.exceptions import ConfigError
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -85,7 +85,7 @@ class Dataset(TorchDataset, ABC):
             logging.info(f"Preloading entire dataset into memory. (# Samples: {len(self)})")
             preload_data = []
             for file in tqdm(self.processed_files, desc="Preloading dataset", total=len(self)):
-                preload_data.append(torch.load(file))
+                preload_data.append(self._load_item(file))
             self.inmemory_dataset = preload_data
         return self.preload
 
@@ -183,6 +183,13 @@ class Dataset(TorchDataset, ABC):
         """
         ...
 
+    @abstractmethod
+    def _load_item(self, path: str) -> Any:
+        """
+        Load a single item from the given path.
+        """
+        ...
+
     def __len__(self) -> int:
         """
         Return the number of samples in the dataset.
@@ -196,17 +203,19 @@ class Dataset(TorchDataset, ABC):
         if self.preload:
             return self.inmemory_dataset[idx]
         else:
-            return torch.load(self.processed_files[idx])
+            return self._load_item(self.processed_files[idx])
 
     @property
     @abstractmethod
-    def signature(self) -> dict[str, Any]:
+    def signature(self) -> Config:
         """
         Return dataset signature as a dictionary.
         """
-        signature = {
-            "dataset_type": self.dataset_type,
-        }
+        signature = Config(
+            {
+                "dataset_type": self.dataset_type,
+            }
+        )
         return signature
 
     @property
@@ -221,4 +230,4 @@ class Dataset(TorchDataset, ABC):
         """
         List of processed data files according to datasource length.
         """
-        return [os.path.join(self.processed_dir, f"{i}.pt") for i in range(len(self.datasource))]
+        return [os.path.join(self.processed_dir, f"{i}.pth") for i in range(len(self.datasource))]
