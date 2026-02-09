@@ -14,19 +14,24 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import logging
-import time
 from argparse import Namespace
-from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 from xanesnet.analysis.aggregators import Aggregator, AggregatorRegistry
-from xanesnet.analysis.per_sample import PerSampleModule, PerSampleRegistry
+from xanesnet.analysis.collectors import Collector, CollectorRegistry
 from xanesnet.analysis.plotters import PlotterRegistry
 from xanesnet.analysis.reporters import ReporterRegistry
 from xanesnet.analysis.selectors import Selector, SelectorRegistry
-from xanesnet.serialization import PredictionReader, detect_prediction_format
+from xanesnet.serialization import (
+    JSONLStream,
+    PredictionReader,
+    detect_prediction_format,
+    json_friendly,
+    save_dict_as_yaml,
+)
 
 ###############################################################################
 ################################### ANALYZE ###################################
@@ -39,17 +44,43 @@ def analyze(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -
     """
     logging.info("Starting analysis pipeline.")
 
-    # Load predictions
-    predictions_reader = _setup_predictions_reader(args_namespace.predictions)
+    predictions_dirs = args_namespace.predictions
+    logging.info(f"You provided {len(predictions_dirs)} predictions directories:")
 
-    # Run analysis
-    analysis_time = _run_analysis_pipeline(config, predictions_reader, save_dir)
+    predictions_readers = _setup_predictions_readers(predictions_dirs)
+    selectors, selectors_config = _setup_selectors(config, predictions_readers)
+    collectors, collectors_config = _setup_collectors(config)
+    aggregators, aggregators_config = _setup_aggregators(config)
 
-    # Close reader
-    predictions_reader.close()
+    save_dict_as_yaml({"selectors": selectors_config}, save_dir, "selectors")
+    save_dict_as_yaml({"collectors": collectors_config}, save_dir, "collectors")
+    save_dict_as_yaml({"aggregators": aggregators_config}, save_dir, "aggregators")
+
+    # Run collectors
+    collector_results = _run_collectors(collectors, selectors, save_dir)
+
+    # Run aggregators
+    aggregator_results = _run_aggregators(aggregators, selectors, collector_results)
+
+    # TODO now we should have finished the main analysis pipeline and have selectors, per-sample values and aggregated results.
+    # TODO time for reporting and plotting!
+
+    # TODO Then I want to run 1. reporters, 2. plotters
+    # TODO important for reporters and plotters is that they always include necessary config information in their output
+    # TODO (e.g. in the filename or in the report text) to ensure traceability of what was done and how to reproduce it.
+    # TODO reporters should save results to disk
+    # TODO there should exist reporters that report usable files (.json, .csv, .yaml) and also human readable reports (.pdf, .txt, .md)
+    # TODO plotters should then plot to disk
+
+    _run_reporters()
+    _run_plotters()
+
+    # Close readers
+    for predictions_reader in predictions_readers:
+        predictions_reader.close()
 
     # Summary
-    logging.info(f"Analysis completed in {str(timedelta(seconds=int(analysis_time)))}")
+    logging.info(f"Analysis completed!")
 
 
 ###############################################################################
@@ -57,174 +88,89 @@ def analyze(config: dict[str, Any], args_namespace: Namespace, save_dir: Path) -
 ###############################################################################
 
 
-def _setup_predictions_reader(predictions_path: str | Path) -> PredictionReader:
+def _setup_predictions_readers(
+    predictions_dirs: list[str] | list[Path],
+) -> list[PredictionReader]:
     """
-    Setup the predictions reader from path.
+    Setup the predictions readers from a list of directories.
     """
-    logging.info(f"Loading predictions from: {predictions_path}")
+    readers: list[PredictionReader] = []
+    for predictions_dir in predictions_dirs:
+        reader_class = detect_prediction_format(predictions_dir)
+        logging.info(f"Detected format for {predictions_dir}: {reader_class.__name__}")
+        reader = reader_class(predictions_dir)
+        readers.append(reader)
 
-    reader_class = detect_prediction_format(predictions_path)
-    logging.info(f"Detected format: {reader_class.__name__}")
-
-    return reader_class(predictions_path)
-
-
-###############################################################################
-############################ ANALYSIS PIPELINE ################################
-###############################################################################
+    return readers
 
 
-def _run_analysis_pipeline(config: dict[str, Any], predictions_reader: PredictionReader, save_dir: Path) -> float:
-    """
-    Run the complete analysis pipeline:
-    """
-    start_time = time.time()
-
-    # Stage 1: Selection
-    logging.info("Stage 1: Applying selectors")
-    selectors, selector_configs = _apply_selectors(config, predictions_reader)
-
-    # Stage 2: Per-sample processing
-    logging.info("Stage 2: Collecting per-sample values")
-    per_sample_results, per_sample_configs = _collect_per_sample(config, selectors)
-
-    # Stage 3: Aggregation
-    logging.info("Stage 3: Aggregating results")
-    aggregated_results, aggregator_configs = _aggregate_results(config, selectors, per_sample_results)
-
-    # Stage 4: Plotting
-    logging.info("Stage 4: Generating plots")
-    _generate_plots(
-        config,
-        selectors,
-        selector_configs,
-        per_sample_results,
-        per_sample_configs,
-        aggregated_results,
-        aggregator_configs,
-        save_dir / "plots",
-    )
-
-    # Stage 5: Reporting
-    logging.info("Stage 5: Generating reports")
-    _generate_reports(
-        config,
-        selectors,
-        selector_configs,
-        per_sample_results,
-        per_sample_configs,
-        aggregated_results,
-        aggregator_configs,
-        save_dir / "reports",
-    )
-
-    analysis_time = time.time() - start_time
-
-    return analysis_time
-
-
-def _apply_selectors(
+def _setup_selectors(
     config: dict[str, Any],
-    predictions_reader: PredictionReader,
-) -> tuple[list[Selector], list[dict[str, Any]]]:
+    predictions_readers: list[PredictionReader],
+) -> tuple[list[list[Selector]], list[dict[str, Any]]]:
     """
-    Apply selectors and return a list of Selector objects
-    (Iterables that can be iterated multiple times).
+    Setup selectors for each predictions reader based on the configuration.
+    If no selectors are configured, use a default 'all' selector for each reader.
+    Return a list of lists of selectors (one list per predictions reader) and their corresponding configs.
     """
     selectors_config = config.get("selectors", [])
+    assert isinstance(selectors_config, list)
 
     if len(selectors_config) == 0:
-        logging.info("No selectors configured, using 'all' selector")
-        selector_cfg = {"selector_type": "all"}
-        selector = SelectorRegistry.get("all")(**selector_cfg, data_source=predictions_reader)
+        logging.info("No selectors configured, using 'all' selector for each predictions reader")
+        selector_config = {"selector_type": "all"}
+        selectors = [
+            [SelectorRegistry.get("all")(**selector_config, data_source=reader)] for reader in predictions_readers
+        ]
+        return selectors, [selector_config]
 
-        return [selector], [selector_cfg]
-
-    selections: list[Selector] = []
-    configs: list[dict[str, Any]] = []
+    selectors: list[list[Selector]] = []
     for selector_config in selectors_config:
         selector_type = selector_config["selector_type"]
 
-        logging.info(f"Applying selector: {selector_type}")
-        selector = SelectorRegistry.get(selector_type)(**selector_config, data_source=predictions_reader)
-        selections.append(selector)
-        configs.append(selector_config)
+        logging.info(f"Initializing selector: {selector_type}")
+        selector_list: list[Selector] = []
+        for reader in predictions_readers:
+            selector = SelectorRegistry.get(selector_type)(**selector_config, data_source=reader)
+            selector_list.append(selector)
+        selectors.append(selector_list)
 
-    return selections, configs
+    return selectors, selectors_config
 
 
-def _collect_per_sample(
-    config: dict[str, Any],
-    selectors: list[Selector],
-) -> tuple[list[list[dict[str, Any]]], list[dict[str, Any]]]:
+def _setup_collectors(config: dict[str, Any]) -> tuple[list[Collector], list[dict[str, Any]]]:
     """
-    Collect per-sample values from each selection using per-sample modules.
+    Setup collectors based on the configuration.
     """
-    per_sample_config = config.get("per_sample", [])
+    collectors_config = config.get("collectors", [])
+    assert isinstance(collectors_config, list)
 
-    if len(per_sample_config) == 0:
-        logging.warning("No per-sample modules configured, skipping per-sample collection")
+    if len(collectors_config) == 0:
+        logging.warning("No collectors configured.")
         return [], []
 
-    # Initialize per-sample modules
-    modules: list[PerSampleModule] = []
-    for module_config in per_sample_config:
-        per_sample_type = module_config["per_sample_type"]
+    collectors: list[Collector] = []
+    for collector_config in collectors_config:
+        collector_type = collector_config["collector_type"]
 
-        logging.info(f"Initializing per-sample module: {per_sample_type}")
-        module = PerSampleRegistry.get(per_sample_type)(**module_config)
-        modules.append(module)
+        logging.info(f"Initializing collector: {collector_type}")
+        collector = CollectorRegistry.get(collector_type)(**collector_config)
+        collectors.append(collector)
 
-    # Process each selection
-    all_results: list[list[dict[str, Any]]] = []
-    for selection_idx, selector in enumerate(selectors):
-        logging.info(f"Processing selection {selection_idx + 1}/{len(selectors)}")
-
-        selection_results: list[dict[str, Any]] = []
-        for sample in selector:
-            value_dict: dict[str, Any] = {}
-
-            # Adding sample_id to value_dict if available, for safe traceability
-            sample_id = sample.get("sample_id", None)
-            if sample_id is None:
-                logging.warning("Sample without 'sample_id' encountered. This is not good!")
-            else:
-                value_dict["sample_id"] = sample_id
-
-            for module in modules:
-                result_dict = module.process(sample)
-
-                for result_name, result_value in result_dict.items():
-                    if result_name in value_dict:
-                        logging.warning(
-                            f"Result name '{result_name}' from module '{module.per_sample_type}' "
-                            "conflicts with existing key in value_dict. "
-                            "Overwriting existing value."
-                        )
-                    value_dict[result_name] = result_value
-
-            selection_results.append(value_dict)
-
-        all_results.append(selection_results)
-
-    return all_results, per_sample_config
+    return collectors, collectors_config
 
 
-def _aggregate_results(
-    config: dict[str, Any],
-    selectors: list[Selector],
-    per_sample_results: list[list[dict[str, Any]]],
-) -> tuple[list[list[dict[str, Any]]], list[dict[str, Any]]]:
+def _setup_aggregators(config: dict[str, Any]) -> tuple[list[Aggregator], list[dict[str, Any]]]:
     """
-    Aggregate per-sample results for each selection.
+    Setup aggregators based on the configuration.
     """
     aggregators_config = config.get("aggregators", [])
+    assert isinstance(aggregators_config, list)
 
     if len(aggregators_config) == 0:
-        logging.warning("No per-sample results to aggregate")
+        logging.warning("No aggregators configured.")
         return [], []
 
-    # Initialize aggregators
     aggregators: list[Aggregator] = []
     for aggregator_config in aggregators_config:
         aggregator_type = aggregator_config["aggregator_type"]
@@ -232,107 +178,110 @@ def _aggregate_results(
         logging.info(f"Initializing aggregator: {aggregator_type}")
         aggregator = AggregatorRegistry.get(aggregator_type)(**aggregator_config)
         aggregators.append(aggregator)
-
-    # Process each selection
-    all_aggregated: list[list[dict[str, Any]]] = []
-    for selection_idx, (selector, selection_results) in enumerate(zip(selectors, per_sample_results)):
-        logging.info(f"Aggregating selection {selection_idx + 1}/{len(per_sample_results)}")
-
-        aggregated_results: list[dict[str, Any]] = []
-        for aggregator in aggregators:
-            logging.debug(f"Selection {selection_idx + 1}: Running aggregator: {aggregator.aggregator_type}")
-            result = aggregator.aggregate(selector, selection_results)
-            aggregated_results.append(result)
-
-        all_aggregated.append(aggregated_results)
-
-    return all_aggregated, aggregators_config
+    return aggregators, aggregators_config
 
 
-def _generate_plots(
-    config: dict[str, Any],
-    selectors: list[Selector],
-    selector_configs: list[dict[str, Any]],
-    per_sample_results: list[list[dict[str, Any]]],
-    per_sample_configs: list[dict[str, Any]],
-    aggregated_results: list[list[dict[str, Any]]],
-    aggregator_configs: list[dict[str, Any]],
-    plots_dir: Path,
-) -> None:
-    """
-    Generate plots from results for each selection.
-    """
-    plotters_config = config.get("plotters", [])
-
-    if len(plotters_config) == 0:
-        logging.warning("No plotters configured, skipping plotting")
-        return
-
-    if not plots_dir.is_dir():
-        raise FileNotFoundError(f"Plots directory does not exist: {plots_dir}")
-
-    # Generate plots for each selection
-    for selection_idx, (selector, selector_config, per_sample_result, aggregated_result) in enumerate(
-        zip(selectors, selector_configs, per_sample_results, aggregated_results)
-    ):
-        selection_dir = plots_dir / f"selection_{selection_idx}"
-        selection_dir.mkdir(parents=True, exist_ok=True)
-
-        logging.info(f"Generating plots for selection {selection_idx + 1}/{len(per_sample_results)}")
-
-        for plotter_config in plotters_config:
-            plotter_type = plotter_config["plotter_type"]
-
-            logging.debug(f"Selection {selection_idx + 1}: Generating plot: {plotter_type}")
-            plotter = PlotterRegistry.get(plotter_type)(**plotter_config)
-
-            plotter.plot(
-                selector,
-                selector_config,
-                per_sample_result,
-                per_sample_configs,
-                aggregated_result,
-                aggregator_configs,
-                selection_dir,
-            )
+###############################################################################
+############################ ANALYSIS PIPELINE ################################
+###############################################################################
 
 
-def _generate_reports(
-    config: dict[str, Any],
-    selectors: list[Selector],
-    selector_configs: list[dict[str, Any]],
-    per_sample_results: list[list[dict[str, Any]]],
-    per_sample_configs: list[dict[str, Any]],
-    aggregated_results: list[list[dict[str, Any]]],
-    aggregator_configs: list[dict[str, Any]],
-    reports_dir: Path,
-) -> None:
-    """
-    Generate reports from results for each selection.
-    """
-    reporters_config = config.get("reporters", [])
+def _run_collectors(
+    collectors: list[Collector],
+    selectors: list[list[Selector]],
+    save_dir: Path,
+) -> list[list[JSONLStream]]:
+    if not collectors:
+        return []
 
-    if not reporters_config:
-        logging.warning("No reporters configured")
-        return
+    # Create auxiliary output directories
+    aux_root = save_dir / "aux"
+    aux_root.mkdir(parents=True, exist_ok=True)
 
-    reports_dir.mkdir(parents=True, exist_ok=True)
+    all_results: list[list[JSONLStream]] = []
+    for predictions_idx, predictions_selectors in enumerate(selectors):
+        # Create auxiliary sub directory for this predictions reader
+        aux_subdir = aux_root / f"predictions_{predictions_idx:03d}"
+        aux_subdir.mkdir(parents=True, exist_ok=True)
 
-    # Generate reports for each selection
-    for selection_idx, (selector, per_sample_res, aggregated_res) in enumerate(
-        zip(selectors, per_sample_results, aggregated_results)
-    ):
-        selection_dir = reports_dir / f"selection_{selection_idx}"
-        selection_dir.mkdir(parents=True, exist_ok=True)
+        # Running all collectors for this predictions
+        logging.info(f"Running collectors for predictions {predictions_idx + 1}/{len(selectors)}")
+        predictions_results: list[JSONLStream] = []
+        for selector_idx, selector in enumerate(predictions_selectors):
+            logging.info(f"Selector {selector_idx + 1}/{len(predictions_selectors)}.")
 
-        logging.info(f"Generating reports for selection {selection_idx + 1}/{len(per_sample_results)}")
+            aux_path = aux_subdir / f"{selector_idx:03d}.jsonl"
+            count = 0
+            with open(aux_path, "w") as f:
+                # Iterating over all samples in selector
+                for sample_idx, sample in enumerate(selector):
+                    sample_id = sample.get("sample_id", None)
+                    if sample_id is None:
+                        logging.error(f"Sample {sample_idx} has no 'sample_id'. This is not good!")
+                    sample_id = json_friendly(sample_id)
 
-        for reporter_cfg in reporters_config:
-            reporter_type = reporter_cfg["type"]
-            reporter_params = {k: v for k, v in reporter_cfg.items() if k != "type"}
+                    # Iterating over all collectors
+                    sample_result: dict[str, Any] = {"sample_id": sample_id}
+                    for collector in collectors:
+                        collector_result = collector.process(sample)
+                        for key, value in collector_result.items():
+                            if key in sample_result:
+                                logging.warning(f"Duplicate key '{key}' for sample {sample_id}. Overwriting!")
+                            sample_result[key] = json_friendly(value)
+                    f.write(json.dumps(sample_result) + "\n")
+                    count += 1
 
-            logging.debug(f"Selection {selection_idx + 1}: Generating report: {reporter_type}")
-            reporter_class = ReporterRegistry.get(reporter_type)
-            reporter = reporter_class(**reporter_params)
+            meta_path = aux_subdir / f"{selector_idx:03d}.meta.json"
+            with open(meta_path, "w") as meta_file:
+                json.dump({"count": count}, meta_file)
 
-            reporter.report(selector, per_sample_res, aggregated_res, selection_dir)
+            predictions_results.append(JSONLStream(aux_path, count=count))
+
+        all_results.append(predictions_results)
+
+    return all_results
+
+
+def _run_aggregators(
+    aggregators: list[Aggregator],
+    selectors: list[list[Selector]],
+    collector_results: list[list[JSONLStream]],
+) -> list[list[list[dict[str, Any]]]]:
+    if not aggregators:
+        return []
+
+    all_results: list[list[list[dict[str, Any]]]] = []
+
+    for predictions_idx, predictions_selectors in enumerate(selectors):
+        logging.info(f"Running aggregators for predictions {predictions_idx + 1}/{len(selectors)}")
+
+        predictions_results: list[list[dict[str, Any]]] = []
+        for selector_idx, selector in enumerate(predictions_selectors):
+            logging.info(f"Selector {selector_idx + 1}/{len(predictions_selectors)}.")
+
+            per_sample_values = collector_results[predictions_idx][selector_idx]
+
+            selector_results: list[dict[str, Any]] = []
+            for aggregator in aggregators:
+                try:
+                    aggregated = aggregator.aggregate(selector, per_sample_values)
+                except Exception as e:
+                    logging.warning(f"Aggregator '{aggregator.aggregator_type}' failed on selector {selector_idx}: {e}")
+                    aggregated = {}
+                selector_results.append(aggregated)
+
+            predictions_results.append(selector_results)
+
+        all_results.append(predictions_results)
+
+    return all_results
+
+
+def _run_reporters() -> None:
+    # TODO Implement
+    pass
+
+
+def _run_plotters() -> None:
+    # TODO Implement
+    pass

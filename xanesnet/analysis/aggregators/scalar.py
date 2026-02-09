@@ -38,30 +38,29 @@ class ScalarAggregator(Aggregator):
 
         self.percentiles = percentiles if percentiles is not None else [25, 50, 75]
 
-    def aggregate(self, selector: Iterable[dict[str, Any]], per_sample_results: list[dict[str, Any]]) -> dict[str, Any]:
-        if not per_sample_results:
+    def aggregate(
+        self,
+        selector: Iterable[dict[str, Any]],
+        per_sample_values: Iterable[dict[str, Any]],
+    ) -> dict[str, Any]:
+        values_by_key: dict[str, list[Any]] = {}
+        seen_any = False
+
+        for sample_dict in per_sample_values:
+            seen_any = True
+            for key, value in sample_dict.items():
+                if key == "sample_id":
+                    continue
+                values_by_key.setdefault(key, []).append(value)
+
+        if not seen_any:
             logging.warning("No per-sample results to aggregate")
             return {}
 
-        # Collect all value names from first sample
-        if len(per_sample_results) == 0:
-            return {}
-
-        # Get all unique keys across all samples (excluding sample_id)
-        all_keys = set()
-        for sample_dict in per_sample_results:
-            all_keys.update(k for k in sample_dict.keys() if k != "sample_id")
-
-        aggregated = {}
+        aggregated: dict[str, Any] = {}
 
         # Aggregate each value
-        for value_name in all_keys:
-            # Collect all values for this key
-            values = []
-            for sample_dict in per_sample_results:
-                if value_name in sample_dict:
-                    values.append(sample_dict[value_name])
-
+        for value_name, values in values_by_key.items():
             if not values:
                 continue
 

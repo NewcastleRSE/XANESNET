@@ -27,7 +27,11 @@ class IdentitySelector(Selector):
     Return all samples unchanged (identity selector).
     """
 
-    def __init__(self, selector_type: str, data_source: Iterable[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        selector_type: str,
+        data_source: Iterable[dict[str, Any]],
+    ) -> None:
         super().__init__(selector_type, data_source)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:

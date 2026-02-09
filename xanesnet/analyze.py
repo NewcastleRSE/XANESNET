@@ -20,7 +20,7 @@ from argparse import ArgumentParser, Namespace
 import yaml
 
 from xanesnet.analysis.aggregators import AggregatorRegistry
-from xanesnet.analysis.per_sample import PerSampleRegistry
+from xanesnet.analysis.collectors import CollectorRegistry
 from xanesnet.analysis.plotters import PlotterRegistry
 from xanesnet.analysis.reporters import ReporterRegistry
 from xanesnet.analysis.selectors import SelectorRegistry
@@ -60,7 +60,8 @@ def parse_args(args: list[str]) -> Namespace:
         "--predictions",
         type=str,
         required=True,
-        help="Path to directory containing predictions.",
+        help="Path to directory containing predictions.Can be specified multiple times.",
+        action="append",
     )
 
     args_namespace = parser.parse_args(args)
@@ -76,7 +77,7 @@ def main(args: list[str]) -> None:
     # Registry printing
     logging.debug("REGISTRY:")
     logging.debug(f"\tSelectors: {SelectorRegistry.list()}")
-    logging.debug(f"\tPer-Sample Modules: {PerSampleRegistry.list()}")
+    logging.debug(f"\tCollectors: {CollectorRegistry.list()}")
     logging.debug(f"\tAggregators: {AggregatorRegistry.list()}")
     logging.debug(f"\tPlotters: {PlotterRegistry.list()}")
     logging.debug(f"\tReporters: {ReporterRegistry.list()}")

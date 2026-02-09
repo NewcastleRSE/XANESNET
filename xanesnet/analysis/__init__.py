@@ -16,14 +16,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Import all registries to ensure modules are registered
 from xanesnet.analysis.aggregators import AggregatorRegistry
-from xanesnet.analysis.per_sample import PerSampleRegistry
+from xanesnet.analysis.collectors import CollectorRegistry
 from xanesnet.analysis.plotters import PlotterRegistry
 from xanesnet.analysis.reporters import ReporterRegistry
 from xanesnet.analysis.selectors import SelectorRegistry
 
 __all__ = [
     "SelectorRegistry",
-    "PerSampleRegistry",
+    "CollectorRegistry",
     "AggregatorRegistry",
     "PlotterRegistry",
     "ReporterRegistry",

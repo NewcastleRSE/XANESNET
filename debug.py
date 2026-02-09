@@ -54,6 +54,8 @@ def run_debug_analyze() -> None:
         "./configs/analyze_example.yaml",
         "-p",
         "./runs/2026-02-04_11-44-39_infer_mlp_single/predictions/",
+        "-p",
+        "./runs/2026-02-06_08-11-45_infer_mlp_single/predictions",
     ]
 
     print("Running in debug mode with the following arguments:")

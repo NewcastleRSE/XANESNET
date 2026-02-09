@@ -30,8 +30,8 @@ class IndexRangeSelector(Selector):
         self,
         selector_type: str,
         data_source: Iterable[dict[str, Any]],
-        start: int = 0,
-        end: int | None = None,
+        start: int,
+        end: int | None,
     ) -> None:
         super().__init__(selector_type, data_source)
 

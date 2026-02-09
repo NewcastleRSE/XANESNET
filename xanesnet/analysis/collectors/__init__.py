@@ -14,12 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import PerSampleModule
+from .base import Collector
 from .errors import ErrorMetrics
-from .registry import PerSampleRegistry
+from .registry import CollectorRegistry
 
 __all__ = [
-    "PerSampleModule",
-    "PerSampleRegistry",
+    "Collector",
+    "CollectorRegistry",
     "ErrorMetrics",
 ]

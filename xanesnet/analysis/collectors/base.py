@@ -18,16 +18,16 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class PerSampleModule(ABC):
+class Collector(ABC):
     """
-    Base class for per-sample modules.
+    Base class for collectors.
     """
 
     def __init__(
         self,
-        per_sample_type: str,
+        collector_type: str,
     ) -> None:
-        self.per_sample_type = per_sample_type
+        self.collector_type = collector_type
 
     @abstractmethod
     def process(self, sample: dict[str, Any]) -> dict[str, Any]:

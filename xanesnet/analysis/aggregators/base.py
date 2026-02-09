@@ -20,10 +20,9 @@ from typing import Any, Iterable
 
 class Aggregator(ABC):
     """
-    Base class for result aggregation modules.
+    Base class for aggregators.
 
-    Aggregators compute statistics or summaries from per-sample results.
-    They also have access to the selector (data source) for re-iteration if needed.
+    Aggregators compute statistics or summaries from collected per-sample values.
     """
 
     def __init__(
@@ -33,15 +32,12 @@ class Aggregator(ABC):
         self.aggregator_type = aggregator_type
 
     @abstractmethod
-    def aggregate(self, selector: Iterable[dict[str, Any]], per_sample_results: list[dict[str, Any]]) -> dict[str, Any]:
+    def aggregate(
+        self,
+        selector: Iterable[dict[str, Any]],
+        per_sample_values: Iterable[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
-        Aggregate per-sample results into summary statistics.
-
-        Args:
-            selector: The selector (data source) for this selection, can be iterated if needed
-            per_sample_results: List of per-sample value dicts, one per sample
-
-        Returns:
-            Dictionary of aggregated results
+        Aggregate per-sample values into summary statistics.
         """
         ...

@@ -21,37 +21,33 @@ import torch
 
 from xanesnet.losses import LossRegistry
 
-from .base import PerSampleModule
-from .registry import PerSampleRegistry
+from .base import Collector
+from .registry import CollectorRegistry
 
 
-@PerSampleRegistry.register("error_metric")
-class ErrorMetrics(PerSampleModule):
+@CollectorRegistry.register("error_metric")
+class ErrorMetrics(Collector):
     """
     Compute loss values between predictions and targets using xanesnet.losses.
     """
 
     def __init__(
         self,
-        per_sample_type: str,
+        collector_type: str,
         loss_type: str,
-        pred_key: str = "prediction",
-        target_key: str = "target",
         **loss_kwargs: Any,
     ) -> None:
-        super().__init__(per_sample_type)
+        super().__init__(collector_type)
 
         self.loss_type = loss_type
-        self.pred_key = pred_key
-        self.target_key = target_key
 
         # Initialize loss function
         loss_class = LossRegistry.get(loss_type)
         self.loss_fn = loss_class(loss_type=loss_type, **loss_kwargs)
 
     def process(self, sample: dict[str, Any]) -> dict[str, float]:
-        pred = sample[self.pred_key]
-        target = sample[self.target_key]
+        pred = sample["prediction"]
+        target = sample["target"]
 
         # Convert to torch tensors
         if isinstance(pred, np.ndarray):

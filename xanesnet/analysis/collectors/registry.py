@@ -16,30 +16,30 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections.abc import Callable
 
-from .base import PerSampleModule
+from .base import Collector
 
 
-class PerSampleRegistry:
-    _registry: dict[str, type[PerSampleModule]] = {}
+class CollectorRegistry:
+    _registry: dict[str, type[Collector]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[type[PerSampleModule]], type[PerSampleModule]]:
+    def register(cls, name: str) -> Callable[[type[Collector]], type[Collector]]:
         name = name.lower()
 
-        def decorator(module_cls: type[PerSampleModule]) -> type[PerSampleModule]:
+        def decorator(module_cls: type[Collector]) -> type[Collector]:
             if name in cls._registry:
-                raise KeyError(f"PerSampleModule '{name}' already registered")
+                raise KeyError(f"Collector '{name}' already registered")
             cls._registry[name] = module_cls
             return module_cls
 
         return decorator
 
     @classmethod
-    def get(cls, name: str) -> type[PerSampleModule]:
+    def get(cls, name: str) -> type[Collector]:
         name = name.lower()
 
         if name not in cls._registry:
-            raise KeyError(f"PerSampleModule '{name}' not found in registry")
+            raise KeyError(f"Collector '{name}' not found in registry")
         return cls._registry[name]
 
     @classmethod
