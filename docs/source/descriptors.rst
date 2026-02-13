@@ -45,6 +45,37 @@ performance in the machine learning potential than the large set of conventional
             n_g2: 16
             n_g4: 32
 
+
+====
+MACE
+====
+
+The Many-body Atomic Cluster Expansion (MACE) [1]
+descriptor represents the local atomic environment using many-body correlation functions.
+
+[1] Ilyes. B, et al., “MACE: Higher Order Equivariant Message Passing
+Neural Networks for Fast and Accurate Force Fields”
+
+**Input file:**
+
+* ``type: mace``
+* ``params``:
+
+  * ``invariants_only`` (bool, default = False): If True, only returns invariant features (rotation and permutation invariant).
+  * ``num_layers`` (int, default = -1):  Number of interaction layers for the underlying MACE model.
+  * ``absorber_atom_only`` (bool, default = False): If True, returns descriptors only for the absorber atom.
+
+**Example:**
+    .. code-block::
+
+        descriptor:
+          type: mace
+          params:
+            invariants_only: True
+            num_layers: 3
+            absorber_atom_only: True
+
+
 ..
     .. code-block:: python
 
