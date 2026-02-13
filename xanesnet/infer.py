@@ -35,7 +35,7 @@ from xanesnet.serialization.config import (
     validate_config_infer,
 )
 from xanesnet.strategies import StrategyRegistry
-from xanesnet.utils.filesystem import create_run_dir
+from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.random import set_global_seed
 
@@ -106,7 +106,7 @@ def main(args: list[str]) -> None:
     # Get saving directory
     save_dir = create_run_dir("./runs", name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
     logging.info(f"Run directory: {save_dir}")
-    # TODO maybe create_subfolders?
+    create_subfolders(save_dir, subfolder_names=["predictions"])
 
     # Setup file logging
     setup_file_logging(save_dir)

@@ -80,8 +80,6 @@ ANALYZE = r"""
 ############################## PROGRAM STARTS HERE #############################
 ################################################################################
 
-# TODO add analyze command the same way we added train and infer
-
 
 def main(args: list[str]) -> None:
     print(LOGO)
