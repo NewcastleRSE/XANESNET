@@ -16,7 +16,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any
 
-import torch
 from torch.utils.data._utils.collate import default_collate
 
 from xanesnet.datasources import DataSource
@@ -40,16 +39,11 @@ class TorchDataset(Dataset):
         datasource: DataSource,
         root: str,
         preload: bool,
+        force_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, split_ratios, split_indexfile)
-
-    def get_dataloader(self) -> type[torch.utils.data.DataLoader]:
-        """
-        Returns the dataloader class that should be used.
-        """
-        return torch.utils.data.DataLoader
+        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
 
     def collate_fn(self, batch: list[Any]) -> Any:
         """

@@ -94,6 +94,7 @@ class XanesXDataset(TorchDataset):
         datasource: DataSource,
         root: str,
         preload: bool,
+        force_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
         # params:
@@ -107,7 +108,7 @@ class XanesXDataset(TorchDataset):
         # descriptors
         descriptors: list[Config],
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, split_ratios, split_indexfile)
+        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
 
         self.mode = mode
         self.fourier = fourier

@@ -27,6 +27,7 @@ DATASOURCE_DEFAULT = {
 DATASET_DEFAULT = {
     "xanesx": {
         "preload": True,
+        "force_prepare": False,
         "mode": "forward",
         "split_ratios": [1.0],
         "split_indexfile": None,
@@ -37,7 +38,13 @@ DATASET_DEFAULT = {
         "basis_stride": 4,
         "basis_path": None,
         "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
-    }
+    },
+    "geometric": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -47,6 +54,20 @@ MODEL_DEFAULTS = {
         "num_hidden_layers": 3,
         "shrink_rate": 0.5,
         "activation": "prelu",
+    },
+    "schnet": {
+        "hidden_channels": 128,
+        "reduce_channels_1": 64,
+        "num_filters": 128,
+        "num_interactions": 6,
+        "num_gaussians": 50,
+        "cutoff": 10.0,
+        "max_num_neighbors": 32,
+        "readout": "add",
+        "dipole": False,
+        "mean": None,
+        "std": None,
+        "atomref": None,
     },
 }
 
@@ -117,10 +138,12 @@ DATASOURCE_REQUIRED = {
 
 DATASET_REQUIRED = {
     "xanesx": ["root"],
+    "geometric": ["root"],
 }
 
 MODEL_REQUIRED = {
     "mlp": ["out_size", "in_size"],
+    "schnet": ["reduce_channels_2"],
 }
 
 TRAINER_REQUIRED = {

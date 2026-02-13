@@ -18,6 +18,7 @@ from .base import Model
 from .mlp import MLP
 from .pre_trained import ModelInfo, PretrainedModels
 from .registry import ModelRegistry
+from .schnet import SchNet
 from .softshell import SoftShellSpectraNet
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "ModelInfo",
     "PretrainedModels",
     "ModelRegistry",
+    "SchNet",
 ]

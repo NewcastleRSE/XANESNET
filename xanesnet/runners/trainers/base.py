@@ -195,7 +195,7 @@ class Trainer(Runner):
 
             # Forward pass
             inputs = self.batchprocessor.input_preparation(batch)
-            predictions = self.model(inputs)
+            predictions = self.model(**inputs)
 
             # Target
             targets = self.batchprocessor.target_preparation(batch)
@@ -239,7 +239,7 @@ class Trainer(Runner):
 
                 # Forward pass
                 inputs = self.batchprocessor.input_preparation(batch)
-                predictions = self.model(inputs)
+                predictions = self.model(**inputs)
 
                 # Target
                 targets = self.batchprocessor.target_preparation(batch)

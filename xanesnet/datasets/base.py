@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
+import torch
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
 from tqdm import tqdm
@@ -45,6 +46,7 @@ class Dataset(TorchDataset, ABC):
         datasource: DataSource,
         root: str,
         preload: bool,
+        force_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
@@ -52,6 +54,7 @@ class Dataset(TorchDataset, ABC):
         self.datasource = datasource
         self.root = root
         self.preload = preload
+        self.force_prepare = force_prepare
 
         # preloaded dataset
         self.inmemory_dataset: list[Any] = []
@@ -64,6 +67,10 @@ class Dataset(TorchDataset, ABC):
         """
         Process the raw data and prepare it for use in the model.
         """
+        if self.force_prepare:
+            logging.info("force_prepare is True. Re-processing data even if processed files already exist.")
+            return False
+
         # Check if processing already done
         if all(os.path.exists(f) for f in self.processed_files):
             logging.info("Processed data files already exist. Skipping processing.")
@@ -169,12 +176,11 @@ class Dataset(TorchDataset, ABC):
         """
         return self.get_subset(1)
 
-    @abstractmethod
-    def get_dataloader(self) -> Any:
+    def get_dataloader(self) -> type[torch.utils.data.DataLoader]:
         """
         Returns the dataloader class that should be used.
         """
-        ...
+        return torch.utils.data.DataLoader
 
     @abstractmethod
     def collate_fn(self, batch: list[Any]) -> Any:

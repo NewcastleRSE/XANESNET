@@ -17,7 +17,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch_geometric.data as tgdata
 from torch_geometric.data import Batch
 from torch_geometric.data.data import BaseData
-from torch_geometric.loader import DataLoader
 
 from xanesnet.datasources import DataSource
 
@@ -41,16 +40,11 @@ class TorchGeometricDataset(Dataset, tgdata.Dataset):
         datasource: DataSource,
         root: str,
         preload: bool,
+        force_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, split_ratios, split_indexfile)
-
-    def get_dataloader(self) -> type[DataLoader]:
-        """
-        Returns the dataloader class that should be used.
-        """
-        return DataLoader
+        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         """

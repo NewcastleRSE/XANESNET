@@ -6,39 +6,32 @@ datasource:
   xyz_path: ./data/fe/xyz_train
   xanes_path: ./data/fe/xanes_train
 
-dataset:
+
+dataset: 
   # general:
-  dataset_type: xanesx
+  dataset_type: geometric
   root: ./data/fe/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   force_prepare: True
   split_ratios: [0.8, 0.2]
-  # params:
-  mode: forward
-  fourier: False
-  fourier_concat: False
-  gaussian: False                   # Gaussian transformation (default: False)
-  widths_eV: [0.5, 1.0, 2.0, 4.0]
-  basis_stride: 4                  # Value must be consistent with hyperparams/basis_stride
-  # descriptors:
-  descriptors:
-    - descriptor_type: wacsf
-      r_min: 1.0
-      r_max: 6.0
-      n_g2: 16
-      n_g4: 32
 
 model:
   # general:
-  model_type: mlp
+  model_type: schnet
   # params:
-  in_size: 49
-  out_size: 226
-  hidden_size: 256
-  dropout: 0.1
-  num_hidden_layers: 3
-  shrink_rate: 0.5
-  activation: prelu
+  hidden_channels: 128
+  reduce_channels_1: 64
+  reduce_channels_2: 226
+  num_filters: 128
+  num_interactions: 6
+  num_gaussians: 50
+  cutoff: 10.0
+  max_num_neighbors: 32
+  readout: add
+  dipole: False
+  mean: null
+  std: null 
+  atomref: null
 
 trainer:
   # general:
@@ -56,7 +49,7 @@ trainer:
     loss_type: mse
   regularizer:
     regularizer_type: l1
-    weight: 0.001
+    weight: 0.00001
   lr_scheduler:
     lr_scheduler_type: linear
     start_factor: 1.0 
@@ -75,6 +68,3 @@ strategy:
   bias_init: zeros
   checkpoint_interval: 25
   # params:
-
-
-

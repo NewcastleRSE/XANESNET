@@ -26,15 +26,15 @@ from .registry import BatchProcessorRegistry
 @BatchProcessorRegistry.register("xanesx", "mlp")
 class XanesXMLP(BatchProcessor):
 
-    def input_preparation(self, batch: XanesXData) -> torch.Tensor:
+    def input_preparation(self, batch: XanesXData) -> dict[str, torch.Tensor]:
         if batch.x is None:
             raise ValueError("Input data 'x' is None!")
-        return batch.x
+        return {"x": batch.x}
 
-    def input_preparation_single(self, sample: XanesXData) -> torch.Tensor:
+    def input_preparation_single(self, sample: XanesXData) -> dict[str, torch.Tensor]:
         if sample.x is None:
             raise ValueError("Input data 'x' is None!")
-        return sample.x.unsqueeze(0)
+        return {"x": sample.x.unsqueeze(0)}
 
     def target_preparation(self, batch: XanesXData) -> torch.Tensor:
         if batch.y is None:

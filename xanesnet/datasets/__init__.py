@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Dataset
+from .geometric import GeometricDataset
 from .registry import DatasetRegistry
 from .xanesx import XanesXData, XanesXDataset
 
@@ -23,4 +24,5 @@ __all__ = [
     "XanesXDataset",
     "DatasetRegistry",
     "XanesXData",
+    "GeometricDataset",
 ]

@@ -42,7 +42,7 @@ class PredictionBatch(TypedDict):
     target: np.ndarray | torch.Tensor
 
     # Optional:
-    input: NotRequired[np.ndarray | torch.Tensor]
+    input: NotRequired[dict[str, np.ndarray | torch.Tensor]]
     sample_id: NotRequired[np.ndarray | torch.Tensor]
     forward_time: NotRequired[np.ndarray | torch.Tensor]
 
@@ -133,7 +133,7 @@ class PredictionWriter(ABC):
         raise ValueError(f"Unsupported type: {type(x)}")
 
     def _init_storage(self) -> None:
-        self.path.mkdir(parents=True, exist_ok=True)
+        self.path.mkdir(parents=True, exist_ok=True)  # TODO not sure if needed
 
         info_file = self.path / "WRITER_INFO.txt"
         if not info_file.exists():

@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import BatchProcessor
+from .geometric_schnet import GeometricSchNet
 from .registry import BatchProcessorRegistry
 from .xanesx_mlp import XanesXMLP
 
@@ -22,4 +23,5 @@ __all__ = [
     "BatchProcessor",
     "BatchProcessorRegistry",
     "XanesXMLP",
+    "GeometricSchNet",
 ]

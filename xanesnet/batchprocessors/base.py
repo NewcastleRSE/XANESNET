@@ -25,14 +25,14 @@ class BatchProcessor(ABC):
     """
 
     @abstractmethod
-    def input_preparation(self, batch: Any) -> Any:
+    def input_preparation(self, batch: Any) -> dict[str, Any]:
         """
         Prepares the model inputs from a batch.
         """
         ...
 
     @abstractmethod
-    def input_preparation_single(self, sample: Any) -> Any:
+    def input_preparation_single(self, sample: Any) -> dict[str, Any]:
         """
         Prepares the model inputs from a single sample.
         """

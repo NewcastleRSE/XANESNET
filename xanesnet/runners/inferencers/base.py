@@ -86,7 +86,7 @@ class Inferencer(Runner):
             start_time = time.perf_counter()
 
             # Forward pass
-            predictions = self.model(inputs)
+            predictions = self.model(**inputs)
 
             # Time the forward pass end
             if torch.device(self.device).type == "cuda":
