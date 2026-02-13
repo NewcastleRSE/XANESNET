@@ -14,27 +14,24 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any
 
-from xanesnet.serialization.prediction_readers import PredictionSample
+from xanesnet.serialization.jsonl_stream import JSONLStream
+
+from .aggregators import AggregatorResult
+from .selectors import Selector
 
 
-class Collector(ABC):
+@dataclass
+class AnalysisResults:
     """
-    Base class for collectors.
+    Bundle of all analysis pipeline outputs, passed to reporters.
     """
 
-    def __init__(
-        self,
-        collector_type: str,
-    ) -> None:
-        self.collector_type = collector_type
-
-    @abstractmethod
-    def process(self, sample: PredictionSample) -> dict[str, Any]:
-        """
-        Process a single sample and return values.
-        Return dict with string keys and any JSON-serializable values.
-        """
-        ...
+    selectors: list[list[Selector]]
+    collector_results: list[list[JSONLStream]]
+    aggregator_results: list[list[list[AggregatorResult]]]
+    selectors_config: list[dict[str, Any]] = field(default_factory=list)
+    collectors_config: list[dict[str, Any]] = field(default_factory=list)
+    aggregators_config: list[dict[str, Any]] = field(default_factory=list)

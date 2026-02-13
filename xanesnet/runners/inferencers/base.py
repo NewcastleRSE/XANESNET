@@ -56,6 +56,7 @@ class Inferencer(Runner):
         self.model.to(self.device)
 
         # You can change the writer to another implementation if needed (e.g., NumpyWriter)
+        # TODO adjust buffer size
         writer = HDF5Writer(predictions_save_path, buffer_size=3) if predictions_save_path is not None else None
 
         logging.info("Start inference.")

@@ -15,7 +15,28 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Iterable
+from dataclasses import dataclass
+from typing import Any
+
+from xanesnet.serialization.jsonl_stream import JSONLStream
+
+from ..selectors import Selector
+
+
+@dataclass(frozen=True)
+class AggregatorResult:
+    """
+    Result from a single aggregator.
+
+    Attributes:
+        aggregator_type: The registered name of the aggregator (e.g. "scalar").
+        aggregator_index: Position in the configured aggregators list.
+        data: The actual aggregation output dict.
+    """
+
+    aggregator_type: str
+    aggregator_index: int
+    data: dict[str, Any]
 
 
 class Aggregator(ABC):
@@ -32,12 +53,8 @@ class Aggregator(ABC):
         self.aggregator_type = aggregator_type
 
     @abstractmethod
-    def aggregate(
-        self,
-        selector: Iterable[dict[str, Any]],
-        per_sample_values: Iterable[dict[str, Any]],
-    ) -> dict[str, Any]:
+    def aggregate(self, selector: Selector, per_sample_values: JSONLStream, index: int) -> AggregatorResult:
         """
-        Aggregate per-sample values into summary statistics.
+        Aggregate per-sample values into combined values.
         """
         ...

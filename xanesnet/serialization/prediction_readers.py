@@ -17,11 +17,38 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, NotRequired, TypedDict, cast
 
 import h5py
 import numpy as np
+import torch
+
+from .prediction_writers import PredictionBatch
+
+###############################################################################
+############################### DATA STRUCTURE ################################
+###############################################################################
+
+
+class PredictionSample(TypedDict):
+    """
+    PredictionSample to be returned by PredictionReader.
+
+    All values are numpy arrays or torch tensors.
+    No batch dimension, i.e. shape is the same as what was passed to PredictionWriter for a single sample.
+    """
+
+    # Required:
+    prediction: np.ndarray | torch.Tensor
+    target: np.ndarray | torch.Tensor
+
+    # Optional:
+    input: NotRequired[np.ndarray | torch.Tensor]
+    sample_id: NotRequired[str]
+    forward_time: NotRequired[float]
+
 
 ###############################################################################
 ################################# BASE CLASS ##################################
@@ -57,20 +84,20 @@ class PredictionReader(ABC):
         ...
 
     @abstractmethod
-    def __getitem__(self, index: int) -> dict[str, np.ndarray]:
+    def __getitem__(self, index: int) -> PredictionSample:
         """
         Get a single sample by index.
         """
         ...
 
-    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
+    def __iter__(self) -> Iterator[PredictionSample]:
         """
         Return iterator over all samples.
         """
         self._current_index = 0
         return self
 
-    def __next__(self) -> dict[str, np.ndarray]:
+    def __next__(self) -> PredictionSample:
         """
         Get the next sample.
         """
@@ -81,12 +108,15 @@ class PredictionReader(ABC):
         self._current_index += 1
         return sample
 
-    def get_all(self) -> dict[str, np.ndarray]:
+    def get_all(self) -> PredictionBatch:
         """
         Load all predictions at once.
 
-        Returns a dictionary with all samples stacked along the batch dimension.
+        Returns a PredictionBatch with all samples stacked along the batch dimension.
         """
+
+        # TODO not tested !
+
         all_data: dict[str, list[Any]] = {}
 
         for sample in self:
@@ -96,7 +126,50 @@ class PredictionReader(ABC):
         # Reset iterator
         self._current_index = 0
 
-        return {key: np.stack(arrays, axis=0) for key, arrays in all_data.items()}
+        batch = {key: self._stack_values(values) for key, values in all_data.items()}
+        return cast(PredictionBatch, batch)
+
+    @staticmethod
+    def _stack_values(values: list[Any]) -> np.ndarray:
+        if not values:
+            return np.array([])
+
+        if all(isinstance(value, np.ndarray) for value in values):
+            arrays = [value for value in values if isinstance(value, np.ndarray)]
+            return np.stack(arrays, axis=0)
+
+        return np.array(values)
+
+    @staticmethod
+    def _normalize_sample_value(value: Any) -> Any:
+        """Normalize a single per-sample value to a Python primitive or ndarray.
+
+        - bytes → str
+        - np.generic (e.g. np.float64, np.bool_) → Python primitive via .item()
+        - 0-d ndarray (scalar stored as array) → Python primitive via .item()
+        - 1-d+ string/bytes ndarray → error (not supported)
+        - 1-d+ numeric ndarray → returned as-is
+        """
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+
+        if isinstance(value, np.generic):
+            return value.item()
+
+        if isinstance(value, np.ndarray):
+            # 0-d arrays represent per-sample scalars → unwrap to Python primitive
+            if value.ndim == 0:
+                if value.dtype.kind in {"S", "U"}:
+                    return value.astype("U").item()
+                return value.item()
+
+            # Multi-dimensional string/bytes arrays are not supported
+            if value.dtype.kind in {"S", "U"}:
+                raise ValueError("PredictionSample cannot contain string arrays")
+
+            return value
+
+        return value
 
     def close(self) -> None:
         """
@@ -166,47 +239,42 @@ class HDF5Reader(PredictionReader):
 
         return self._length
 
-    def __getitem__(self, index: int) -> dict[str, np.ndarray]:
+    def __getitem__(self, index: int) -> PredictionSample:
         if self._group is None:
             raise RuntimeError("Reader not properly initialized")
 
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range [0, {len(self)})")
 
-        sample: dict[str, np.ndarray] = {}
+        sample: dict[str, Any] = {}
 
         for key in self._group.keys():
             dset = self._group[key]
             if isinstance(dset, h5py.Dataset):
                 data = dset[index]
-                # Convert bytes to string if needed
-                if isinstance(data, bytes):
-                    data = np.array(data.decode("utf-8"))
-                elif isinstance(data, np.ndarray) and data.dtype.kind == "S":
-                    data = data.astype("U")
-                elif not isinstance(data, np.ndarray):
-                    data = np.array(data)
+                data = self._normalize_sample_value(data)
 
                 sample[key] = data
 
-        return sample
+        return cast(PredictionSample, sample)
 
-    def get_all(self) -> dict[str, np.ndarray]:
+    def get_all(self) -> PredictionBatch:
         if self._group is None:
             raise RuntimeError("Reader not properly initialized")
 
-        sample: dict[str, np.ndarray] = {}
+        batch: dict[str, np.ndarray] = {}
 
         for key in self._group.keys():
             dset = self._group[key]
             if isinstance(dset, h5py.Dataset):
                 data = dset[:]
-                # Convert bytes to string if needed
-                if data.dtype.kind == "S":
+                # Variable-length string datasets return object arrays in h5py 3.x;
+                # convert to proper Unicode dtype for consistency
+                if h5py.check_string_dtype(dset.dtype) is not None:
                     data = data.astype("U")
-                sample[key] = data
+                batch[key] = data
 
-        return sample
+        return cast(PredictionBatch, batch)
 
     def close(self) -> None:
         if self._h5 is not None:
@@ -249,16 +317,16 @@ class NumpyReader(PredictionReader):
     def __len__(self) -> int:
         return len(self._sample_files)
 
-    def __getitem__(self, index: int) -> dict[str, np.ndarray]:
+    def __getitem__(self, index: int) -> PredictionSample:
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range [0, {len(self)})")
 
         sample_file = self._sample_files[index]
 
         with np.load(sample_file) as data:
-            sample: dict[str, np.ndarray] = {key: data[key] for key in data.files}
+            sample = {key: self._normalize_sample_value(data[key]) for key in data.files}
 
-        return sample
+        return cast(PredictionSample, sample)
 
 
 ###############################################################################
@@ -295,7 +363,7 @@ class JSONReader(PredictionReader):
     def __len__(self) -> int:
         return len(self._sample_files)
 
-    def __getitem__(self, index: int) -> dict[str, np.ndarray]:
+    def __getitem__(self, index: int) -> PredictionSample:
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range [0, {len(self)})")
 
@@ -304,10 +372,14 @@ class JSONReader(PredictionReader):
         with open(sample_file, "r") as f:
             data = json.load(f)
 
-        # Convert lists back to numpy arrays
-        sample: dict[str, np.ndarray] = {key: np.array(value) for key, value in data.items()}
+        sample: dict[str, Any] = {}
+        for key, value in data.items():
+            if isinstance(value, (bool, str, int, float)):
+                sample[key] = value
+            else:
+                sample[key] = self._normalize_sample_value(np.array(value))
 
-        return sample
+        return cast(PredictionSample, sample)
 
 
 ###############################################################################

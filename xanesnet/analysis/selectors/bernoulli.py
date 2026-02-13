@@ -15,7 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
-from typing import Any, Iterable, Iterator
+from collections.abc import Iterator
+
+from xanesnet.serialization.prediction_readers import PredictionReader, PredictionSample
 
 from .base import Selector
 from .registry import SelectorRegistry
@@ -25,14 +27,12 @@ from .registry import SelectorRegistry
 class BernoulliSelector(Selector):
     """
     Randomly select a subset of samples using Bernoulli sampling.
-
-    Note: Each iteration produces a different random sample.
     """
 
     def __init__(
         self,
         selector_type: str,
-        data_source: Iterable[dict[str, Any]],
+        data_source: PredictionReader,
         p: float,
     ) -> None:
         super().__init__(selector_type, data_source)
@@ -41,8 +41,8 @@ class BernoulliSelector(Selector):
             raise ValueError("p must be in [0, 1]")
 
         self.p = p
+        self._selected_indices: list[int] = [i for i in range(len(data_source)) if random.random() < p]
 
-    def __iter__(self) -> Iterator[dict[str, Any]]:
-        for sample in self.data_source:
-            if random.random() < self.p:
-                yield sample
+    def __iter__(self) -> Iterator[PredictionSample]:
+        for i in self._selected_indices:
+            yield self.data_source[i]

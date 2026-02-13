@@ -18,10 +18,12 @@ from .base import Plotter
 from .registry import PlotterRegistry
 from .scalar import ScalarPlotter
 from .spectra import SpectraPlotter
+from .stat_table import StatTablePlotter
 
 __all__ = [
     "Plotter",
     "PlotterRegistry",
     "ScalarPlotter",
     "SpectraPlotter",
+    "StatTablePlotter",
 ]

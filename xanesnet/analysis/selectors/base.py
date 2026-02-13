@@ -15,10 +15,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Iterable, Iterator
+from collections.abc import Iterable, Iterator
+
+from xanesnet.serialization.prediction_readers import PredictionReader, PredictionSample
 
 
-class Selector(ABC, Iterable[dict[str, Any]]):
+class Selector(ABC, Iterable[PredictionSample]):
     """
     Base class for selectors.
     """
@@ -26,13 +28,13 @@ class Selector(ABC, Iterable[dict[str, Any]]):
     def __init__(
         self,
         selector_type: str,
-        data_source: Iterable[dict[str, Any]],
+        data_source: PredictionReader,
     ) -> None:
         self.selector_type = selector_type
         self.data_source = data_source
 
     @abstractmethod
-    def __iter__(self) -> Iterator[dict[str, Any]]:
+    def __iter__(self) -> Iterator[PredictionSample]:
         """
         Return a fresh iterator that applies the selection logic.
         """

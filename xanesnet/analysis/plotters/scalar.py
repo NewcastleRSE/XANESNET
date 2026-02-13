@@ -15,145 +15,138 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
+from xanesnet.serialization.jsonl_stream import JSONLStream
+
+from ..reporters.base import selector_label
+from ..result import AnalysisResults
 from .base import Plotter
 from .registry import PlotterRegistry
-
-# Use non-interactive backend
-matplotlib.use("Agg")
+from .utils import collect_scalar_values
 
 
 @PlotterRegistry.register("scalar")
 class ScalarPlotter(Plotter):
     """
-    Plot scalar values from per-sample results.
+    Distribution plots for every scalar value key.
 
-    Supports different plot types: histogram, boxplot, violin
+    For each (predictions_reader, selector) combination a per-key directory is
+    created containing a histogram, box plot, and violin plot.
     """
 
-    def __init__(
-        self,
-        plotter_type: str,
-        value_key: str,
-        plot_type: Literal["histogram", "boxplot", "violin"] = "histogram",
-        bins: int = 50,
-        figsize: tuple[int, int] = (10, 6),
-    ) -> None:
+    DEFAULT_BINS = 50
+
+    def __init__(self, plotter_type: str, bins: int | None = None) -> None:
         super().__init__(plotter_type)
-        self.value_key = value_key
-        self.plot_type = plot_type
-        self.bins = bins
-        self.figsize = figsize
+        self.bins = bins if bins is not None else self.DEFAULT_BINS
 
-    def plot(
-        self,
-        selector: Iterable[dict[str, Any]],
-        selector_config: dict[str, Any],
-        per_sample_results: list[dict[str, Any]],
-        per_sample_configs: list[dict[str, Any]],
-        aggregated_results: list[dict[str, Any]],
-        aggregator_configs: list[dict[str, Any]],
-        output_dir: Path,
-    ) -> None:
-        if not per_sample_results:
-            logging.warning("No per-sample results available for scalar plot")
-            return
+    def plot(self, results: AnalysisResults, output_dir: Path) -> None:
+        root = output_dir / "scalar_plots"
 
-        # Extract values for the specified key
-        values = [sample.get(self.value_key) for sample in per_sample_results if self.value_key in sample]
+        for reader_idx, reader_selectors in enumerate(results.selectors):
+            logging.info(f"    Predictions {reader_idx + 1}/{len(results.selectors)}.")
 
-        if not values:
-            logging.warning(f"Value key '{self.value_key}' not found in per-sample results")
-            return
+            for sel_idx, selector in enumerate(reader_selectors):
+                logging.info(f"      Selector {sel_idx + 1}/{len(reader_selectors)}.")
+                sel_label_str = selector_label(results.selectors_config, sel_idx)
+                sel_cfg = results.selectors_config[sel_idx] if sel_idx < len(results.selectors_config) else {}
 
-        values_arr = np.array(values)
+                stream: JSONLStream | None = None
+                if reader_idx < len(results.collector_results) and sel_idx < len(results.collector_results[reader_idx]):
+                    stream = results.collector_results[reader_idx][sel_idx]
 
-        # Create output path
-        output_path = output_dir / f"scalar_{self.value_key}_{self.plot_type}.pdf"
+                values_by_key = collect_scalar_values(selector, stream)
+                if not values_by_key:
+                    continue
 
-        with PdfPages(output_path) as pdf:
-            # Create plot based on type
-            fig, ax = plt.subplots(figsize=self.figsize)
+                combo_label = f"pred_{reader_idx:03d}__sel_{sel_idx:03d}_{sel_label_str}"
+                combo_dir = root / combo_label
+                subtitle = _subtitle(combo_label, sel_cfg, reader_idx)
 
-            # Scientific styling
-            plt.rcParams.update(
-                {
-                    "font.size": 11,
-                    "axes.labelsize": 12,
-                    "axes.titlesize": 13,
-                    "xtick.labelsize": 10,
-                    "ytick.labelsize": 10,
-                    "legend.fontsize": 10,
-                    "font.family": "serif",
-                    "axes.linewidth": 1.2,
-                    "grid.linewidth": 0.8,
-                    "grid.alpha": 0.3,
-                }
-            )
+                for key, vals in values_by_key.items():
+                    key_dir = combo_dir / key
+                    key_dir.mkdir(parents=True, exist_ok=True)
+                    arr = np.array(vals)
 
-            if self.plot_type == "histogram":
-                counts, bins, patches = ax.hist(
-                    values_arr, bins=self.bins, edgecolor="black", linewidth=0.5, alpha=0.75, color="#4682B4"
-                )
-                ax.set_ylabel("Frequency", fontweight="bold")
-                ax.set_xlabel(self.value_key, fontweight="bold")
-            elif self.plot_type == "boxplot":
-                bp = ax.boxplot(
-                    values_arr,
-                    vert=True,
-                    patch_artist=True,
-                    boxprops=dict(facecolor="#4682B4", alpha=0.7),
-                    medianprops=dict(color="red", linewidth=2),
-                    whiskerprops=dict(linewidth=1.2),
-                    capprops=dict(linewidth=1.2),
-                )
-                ax.set_ylabel(self.value_key, fontweight="bold")
-                ax.set_xticklabels([self.value_key])
-            elif self.plot_type == "violin":
-                parts = ax.violinplot([values_arr], vert=True, showmeans=True, showmedians=True, showextrema=True)
-                for pc in parts["bodies"]:
-                    pc.set_facecolor("#4682B4")
-                    pc.set_alpha(0.7)
-                ax.set_ylabel(self.value_key, fontweight="bold")
-                ax.set_xticks([1])
-                ax.set_xticklabels([self.value_key])
+                    self._histogram(arr, key, subtitle, key_dir)
+                    self._boxplot(arr, key, subtitle, key_dir)
+                    self._violin(arr, key, subtitle, key_dir)
 
-            ax.set_title(f"Distribution of {self.value_key}", fontweight="bold", pad=15)
-            ax.grid(True, alpha=0.3, axis="y", linestyle="--")
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
+    def _histogram(self, arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        fig, ax = plt.subplots(figsize=(7, 4.5))
+        ax.hist(arr, bins=self.bins, edgecolor="black", alpha=0.75)
+        ax.set_xlabel(key)
+        ax.set_ylabel("Count")
+        ax.set_title(f"Histogram of {key}")
+        _add_subtitle(fig, subtitle)
+        _add_stats_text(ax, arr)
+        fig.tight_layout()
+        fig.savefig(out / "histogram.pdf", bbox_inches="tight")
+        plt.close(fig)
 
-            # Add statistics text box
-            stats_text = (
-                f"$n = {len(values_arr)}$\n"
-                f"$\\mu = {np.mean(values_arr):.4f}$\n"
-                f"$\\sigma = {np.std(values_arr):.4f}$\n"
-                f"median $= {np.median(values_arr):.4f}$\n"
-                f"min $= {np.min(values_arr):.4f}$\n"
-                f"max $= {np.max(values_arr):.4f}$"
-            )
-            ax.text(
-                0.98,
-                0.98,
-                stats_text,
-                transform=ax.transAxes,
-                verticalalignment="top",
-                horizontalalignment="right",
-                bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="gray", alpha=0.9, linewidth=1),
-                fontsize=10,
-                family="serif",
-            )
+    @staticmethod
+    def _boxplot(arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        fig, ax = plt.subplots(figsize=(5, 4.5))
+        bp = ax.boxplot(arr, vert=True, patch_artist=True)
+        bp["boxes"][0].set_facecolor("#4C72B0")
+        bp["boxes"][0].set_alpha(0.7)
+        ax.set_ylabel(key)
+        ax.set_xticklabels([""])
+        ax.set_title(f"Box plot of {key}")
+        _add_subtitle(fig, subtitle)
+        fig.tight_layout()
+        fig.savefig(out / "boxplot.pdf", bbox_inches="tight")
+        plt.close(fig)
 
-            plt.tight_layout()
-            pdf.savefig(fig, dpi=300, bbox_inches="tight")
-            plt.close(fig)
+    @staticmethod
+    def _violin(arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        fig, ax = plt.subplots(figsize=(5, 4.5))
+        vp = ax.violinplot(arr, showmedians=True, showextrema=True)
+        bodies = vp["bodies"]
+        assert isinstance(bodies, list)
+        for body in bodies:
+            body.set_facecolor("#4C72B0")
+            body.set_alpha(0.7)
+        ax.set_ylabel(key)
+        ax.set_xticks([1])
+        ax.set_xticklabels([""])
+        ax.set_title(f"Violin plot of {key}")
+        _add_subtitle(fig, subtitle)
+        fig.tight_layout()
+        fig.savefig(out / "violin.pdf", bbox_inches="tight")
+        plt.close(fig)
 
-        logging.info(f"Saved scalar plot to {output_path}")
+
+def _subtitle(combo_label: str, sel_cfg: dict[str, Any], reader_idx: int) -> str:
+    parts = [f"predictions={reader_idx}"]
+    sel_type = sel_cfg.get("selector_type", "?")
+    parts.append(f"selector={sel_type}")
+    extras = {k: v for k, v in sel_cfg.items() if k != "selector_type"}
+    if extras:
+        parts.append(" ".join(f"{k}={v}" for k, v in extras.items()))
+    return "  |  ".join(parts)
+
+
+def _add_subtitle(fig: Figure, text: str) -> None:
+    fig.text(0.5, -0.01, text, ha="center", va="top", fontsize=7, color="gray")
+
+
+def _add_stats_text(ax: Axes, arr: np.ndarray) -> None:
+    text = f"n={len(arr)}\n" f"mean={np.mean(arr):.4g}\n" f"std={np.std(arr):.4g}\n" f"median={np.median(arr):.4g}"
+    ax.text(
+        0.97,
+        0.95,
+        text,
+        transform=ax.transAxes,
+        fontsize=7,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5),
+    )

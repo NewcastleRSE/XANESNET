@@ -21,23 +21,21 @@ aggregators:
   - aggregator_type: "scalar"
     percentiles: [25, 50, 75, 90, 95]
 
+reporters:
+  - reporter_type: "scalar"
+  - reporter_type: "statistics"
+    format: "yaml"
+
 plotters:
   - plotter_type: scalar
-    value_key: mse  # or any other scalar from per_sample
-    plot_type: violin  # histogram, boxplot, violin
     bins: 50
 
-  - plotter_type: scalar
-    value_key: l1  # or any other scalar from per_sample
-    plot_type: violin  # histogram, boxplot, violin
-    bins: 50
-    
   - plotter_type: spectra
-    value_keys: ["mse"]
     sort_by_value: True
-    
+    sort_key: mse
+    sort_ascending: True
+    max_pages: 100
 
-# Reporting
-reporters:
-  - type: "markdown"
-  - type: "csv"
+  - plotter_type: stat_table
+    stat_keys: ["mean", "std", "median", "min", "max"]
+    precision: 4

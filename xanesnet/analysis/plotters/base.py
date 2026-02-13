@@ -15,14 +15,16 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+
+from ..result import AnalysisResults
 
 
 class Plotter(ABC):
     """
     Base class for plotting modules.
+
+    Plotters consume analysis results and write plots to disk.
     """
 
     def __init__(self, plotter_type: str) -> None:
@@ -31,24 +33,10 @@ class Plotter(ABC):
     @abstractmethod
     def plot(
         self,
-        selector: Iterable[dict[str, Any]],
-        selector_config: dict[str, Any],
-        per_sample_results: list[dict[str, Any]],
-        per_sample_configs: list[dict[str, Any]],
-        aggregated_results: list[dict[str, Any]],
-        aggregator_configs: list[dict[str, Any]],
+        results: AnalysisResults,
         output_dir: Path,
     ) -> None:
         """
-        Generate plots and save to output directory.
-
-        Args:
-            selector: Iterable over selected samples from data source
-            selector_config: Configuration dict for this selector
-            per_sample_results: List of per-sample results for this selection
-            per_sample_configs: List of configs for all per-sample modules
-            aggregated_results: List of aggregated results for this selection
-            aggregator_configs: List of configs for all aggregators
-            output_dir: Directory to save plots
+        Generate plots from analysis results and save to output_dir.
         """
         ...

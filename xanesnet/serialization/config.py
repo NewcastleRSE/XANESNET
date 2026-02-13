@@ -164,6 +164,15 @@ class Config:
     def get_optional_bool(self, key: str) -> bool | None:
         return self._get_typed(key, bool, optional=True)
 
+    def get_config_list(self, key: str) -> list["Config"]:
+        """
+        Get a list of Config objects from a list of dictionaries in the config.
+        """
+        value = self._get_typed(key, list)
+        if not all(isinstance(v, dict) for v in value):
+            raise ConfigError(f"Key '{key}' must be a list of dictionaries.")
+        return [Config(v) for v in value]
+
     def _get_typed(self, key: str, expected_type: type, optional: bool = False) -> Any:
         value = self._data.get(key, None)
         if value is None:
@@ -244,8 +253,20 @@ class Config:
 ################################# VALIDATION ##################################
 ###############################################################################
 
-# TODO writing better config validation
-# TODO config validation per pipeline command (train, infer, analyze)
+
+def validate_config_train(config: ConfigRaw) -> Config:
+    # TODO writing better train validation
+    return validate_config(config)
+
+
+def validate_config_infer(config: ConfigRaw) -> Config:
+    # TODO writing better infer validation
+    return validate_config(config)
+
+
+def validate_config_analyze(config: ConfigRaw) -> Config:
+    # TODO writing better analyze validation
+    return Config(config)
 
 
 def validate_config(config: ConfigRaw) -> Config:

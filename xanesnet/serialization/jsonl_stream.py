@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
@@ -48,7 +49,14 @@ class JSONLStream(Iterable[dict[str, Any]]):
                 meta = json.load(f)
             self._count = int(meta.get("count", 0))
             return self._count
-        return 0
+        logging.warning(f"Count not provided and no meta file found for {self.path}. Counting lines...")
+        count = 0
+        with open(self.path, "r") as f:
+            for line in f:
+                if line.strip():
+                    count += 1
+        self._count = count
+        return count
 
 
 def json_friendly(value: Any) -> Any:

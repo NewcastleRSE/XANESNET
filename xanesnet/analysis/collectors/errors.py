@@ -20,6 +20,7 @@ import numpy as np
 import torch
 
 from xanesnet.losses import LossRegistry
+from xanesnet.serialization.prediction_readers import PredictionSample
 
 from .base import Collector
 from .registry import CollectorRegistry
@@ -45,7 +46,7 @@ class ErrorMetrics(Collector):
         loss_class = LossRegistry.get(loss_type)
         self.loss_fn = loss_class(loss_type=loss_type, **loss_kwargs)
 
-    def process(self, sample: dict[str, Any]) -> dict[str, float]:
+    def process(self, sample: PredictionSample) -> dict[str, float]:
         pred = sample["prediction"]
         target = sample["target"]
 
@@ -69,7 +70,6 @@ class ErrorMetrics(Collector):
         target_torch = target_torch.float()
 
         # Compute loss
-        with torch.no_grad():
-            loss_value = self.loss_fn(pred_torch, target_torch)
+        loss_value = self.loss_fn(pred_torch, target_torch)
 
         return {self.loss_type: float(loss_value.item())}

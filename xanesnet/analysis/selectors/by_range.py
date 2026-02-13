@@ -14,7 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any, Iterable, Iterator
+from collections.abc import Iterator
+
+from xanesnet.serialization.prediction_readers import PredictionReader, PredictionSample
 
 from .base import Selector
 from .registry import SelectorRegistry
@@ -29,7 +31,7 @@ class IndexRangeSelector(Selector):
     def __init__(
         self,
         selector_type: str,
-        data_source: Iterable[dict[str, Any]],
+        data_source: PredictionReader,
         start: int,
         end: int | None,
     ) -> None:
@@ -38,7 +40,7 @@ class IndexRangeSelector(Selector):
         self.start = start
         self.end = end
 
-    def __iter__(self) -> Iterator[dict[str, Any]]:
+    def __iter__(self) -> Iterator[PredictionSample]:
         for idx, sample in enumerate(self.data_source):
             if idx < self.start:
                 continue

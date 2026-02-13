@@ -29,7 +29,7 @@ from xanesnet.serialization.config import (
     ConfigRaw,
     copy_raw_config,
     load_raw_config,
-    validate_config,
+    validate_config_train,
 )
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
@@ -108,7 +108,7 @@ def main(args: list[str]) -> None:
     logging.info(f"Configuration file saved to: {config_save_path}")
 
     # Config validation
-    config: Config = validate_config(config_raw)
+    config: Config = validate_config_train(config_raw)
     validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
     logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 

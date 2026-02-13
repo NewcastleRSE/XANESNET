@@ -79,6 +79,13 @@ class PredictionWriter(ABC):
             if array.ndim == 0:
                 raise ValueError(f"Value for key '{key}' is scalar; expected batch dimension")
 
+            # Bool and string are only supported as per-sample scalars (1D in batch)
+            if array.dtype.kind in ("U", "S", "b") and array.ndim > 1:
+                raise TypeError(
+                    f"Key '{key}': {array.dtype} arrays are not supported, "
+                    f"only per-sample scalars (got shape {array.shape})"
+                )
+
             if batch_size is None:
                 batch_size = array.shape[0]
             elif array.shape[0] != batch_size:
@@ -157,9 +164,13 @@ class PredictionWriter(ABC):
 class HDF5Writer(PredictionWriter):
     """
     HDF5-backed inference writer.
-    """
 
-    # TODO: Check saving
+    Supported per-sample data:
+        - float / int arrays of any shape
+        - scalar float, int, bool, or string values
+
+    Bool and string *arrays* (ndim > 0 per sample) are not supported.
+    """
 
     def __init__(
         self,
@@ -183,12 +194,13 @@ class HDF5Writer(PredictionWriter):
         shape = (0,) + data.shape[1:]
         maxshape = (None,) + data.shape[1:]
 
-        # Convert Unicode strings to fixed-length ASCII for HDF5 compatibility
         dtype = data.dtype
-        if dtype.kind == "U":  # Unicode string
-            # Convert to fixed-length ASCII/bytes string
-            # Use the maximum length from the data
+        compression = self.compression
+
+        if dtype.kind == "U":
             dtype = h5py.string_dtype(encoding="utf-8", length=None)
+            # HDF5 does not support filters on variable-length types
+            compression = None
 
         self._group.create_dataset(
             key,
@@ -196,7 +208,7 @@ class HDF5Writer(PredictionWriter):
             maxshape=maxshape,
             dtype=dtype,
             chunks=True,
-            compression=self.compression,
+            compression=compression,
         )
 
     def _write_batch(self, batch: dict[str, np.ndarray]) -> None:
@@ -207,10 +219,6 @@ class HDF5Writer(PredictionWriter):
             # Type narrowing: ensure we're working with a Dataset
             if not isinstance(dset, h5py.Dataset):
                 raise TypeError(f"Expected Dataset, got {type(dset).__name__}")
-
-            # Convert Unicode strings to bytes for HDF5 compatibility
-            if data.dtype.kind == "U":  # Unicode string
-                data = data.astype("S")  # Convert to byte strings
 
             start = dset.shape[0]
             dset.resize(start + data.shape[0], axis=0)

@@ -14,14 +14,15 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Reporter
-from .csv import CSVReporter
-from .markdown import MarkdownReporter
+from .base import Reporter, selector_label
 from .registry import ReporterRegistry
+from .scalar import ScalarReporter
+from .statistics import StatisticsReporter
 
 __all__ = [
     "Reporter",
     "ReporterRegistry",
-    "CSVReporter",
-    "MarkdownReporter",
+    "ScalarReporter",
+    "StatisticsReporter",
+    "selector_label",
 ]

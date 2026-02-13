@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Aggregator
+from .base import Aggregator, AggregatorResult
 from .registry import AggregatorRegistry
 from .scalar import ScalarAggregator
 
@@ -22,4 +22,5 @@ __all__ = [
     "Aggregator",
     "AggregatorRegistry",
     "ScalarAggregator",
+    "AggregatorResult",
 ]

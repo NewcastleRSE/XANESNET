@@ -15,35 +15,39 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+
+from ..result import AnalysisResults
 
 
 class Reporter(ABC):
     """
-    Base class for report generation modules.
+    Base class for reporters.
 
-    Reporters export analysis results to various formats.
+    Reporters consume analysis results and write mostly machine-readable
+    reports to disk (e.g. CSV, JSON, etc.).
     """
+
+    def __init__(self, reporter_type: str) -> None:
+        self.reporter_type = reporter_type
 
     @abstractmethod
     def report(
         self,
-        selector: Iterable[dict[str, Any]],
-        per_sample_results: list[dict[str, Any]],
-        aggregated_results: dict[str, Any],
+        results: AnalysisResults,
         output_dir: Path,
     ) -> None:
         """
-        Generate reports and save to output directory.
-
-        Args:
-            selector: Iterable over selected samples from data source. Can be iterated multiple times
-                     if needed to access original sample data.
-            per_sample_results: List of per-sample results dictionaries, each containing values collected
-                               by per-sample modules. Each dict includes 'sample_id' for traceability.
-            aggregated_results: Dictionary containing aggregated statistics across samples.
-            output_dir: Directory to save reports.
+        Generate a report from analysis results and save to output_dir.
         """
         ...
+
+
+def selector_label(selectors_config: list[dict[str, Any]], sel_idx: int) -> str:
+    """
+    Derive a human-readable label from the selector config at sel_idx.
+    """
+    if sel_idx < len(selectors_config):
+        return selectors_config[sel_idx].get("selector_type", "unknown")
+    return "unknown"

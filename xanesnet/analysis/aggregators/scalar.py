@@ -15,18 +15,33 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import Any, Iterable
+from typing import Any, TypeGuard
 
 import numpy as np
 
-from .base import Aggregator
+from xanesnet.serialization.jsonl_stream import JSONLStream
+from xanesnet.serialization.prediction_readers import PredictionSample
+
+from ..selectors import Selector
+from .base import Aggregator, AggregatorResult
 from .registry import AggregatorRegistry
+
+
+def _is_scalar(value: Any) -> TypeGuard[int | float | np.integer | np.floating]:
+    """Check if a value is a scalar int or float (excludes bools)."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    if isinstance(value, (np.integer, np.floating)):
+        return True
+    return False
 
 
 @AggregatorRegistry.register("scalar")
 class ScalarAggregator(Aggregator):
     """
-    Computes statistics (mean, std, min, max, median, percentiles) for each value.
+    Computes statistics (mean, std, min, max, median, percentiles) for all scalar values.
     """
 
     def __init__(
@@ -38,48 +53,47 @@ class ScalarAggregator(Aggregator):
 
         self.percentiles = percentiles if percentiles is not None else [25, 50, 75]
 
-    def aggregate(
-        self,
-        selector: Iterable[dict[str, Any]],
-        per_sample_values: Iterable[dict[str, Any]],
-    ) -> dict[str, Any]:
-        values_by_key: dict[str, list[Any]] = {}
-        seen_any = False
+    def aggregate(self, selector: Selector, per_sample_values: JSONLStream, index: int) -> AggregatorResult:
+        values_by_key: dict[str, list[float]] = {}
 
-        for sample_dict in per_sample_values:
-            seen_any = True
-            for key, value in sample_dict.items():
-                if key == "sample_id":
-                    continue
-                values_by_key.setdefault(key, []).append(value)
+        for sample in selector:
+            self._collect_scalars(sample, values_by_key)
 
-        if not seen_any:
-            logging.warning("No per-sample results to aggregate")
-            return {}
+        for sample in per_sample_values:
+            self._collect_scalars(sample, values_by_key)
 
-        aggregated: dict[str, Any] = {}
+        if not values_by_key:
+            raise ValueError(f"ScalarAggregator: No scalar values found for selector {selector} at index {index}.")
 
-        # Aggregate each value
-        for value_name, values in values_by_key.items():
-            if not values:
-                continue
+        data = {name: self._compute_stats(values) for name, values in values_by_key.items()}
+        result = AggregatorResult(
+            aggregator_type=self.aggregator_type,
+            aggregator_index=index,
+            data=data,
+        )
+        return result
 
-            # Convert to numpy array and compute statistics
-            try:
-                values_arr = np.array(values)
-                aggregated[value_name] = {
-                    "mean": float(np.mean(values_arr)),
-                    "std": float(np.std(values_arr)),
-                    "min": float(np.min(values_arr)),
-                    "max": float(np.max(values_arr)),
-                    "median": float(np.median(values_arr)),
-                }
+    @staticmethod
+    def _collect_scalars(sample: dict[str, Any] | PredictionSample, target: dict[str, list[float]]) -> None:
+        """
+        Extract all scalar float/int values from a sample dict.
+        """
+        for key, value in sample.items():
+            if _is_scalar(value):
+                target.setdefault(key, []).append(float(value))
 
-                # Add percentiles
-                for p in self.percentiles:
-                    aggregated[value_name][f"p{p}"] = float(np.percentile(values_arr, p))
-            except (ValueError, TypeError) as e:
-                logging.warning(f"Could not aggregate '{value_name}': {e}")
-                continue
-
-        return aggregated
+    def _compute_stats(self, values: list[float]) -> dict[str, float]:
+        """
+        Compute summary statistics for a list of scalar values.
+        """
+        arr = np.array(values)
+        stats = {
+            "mean": float(np.mean(arr)),
+            "std": float(np.std(arr)),
+            "min": float(np.min(arr)),
+            "max": float(np.max(arr)),
+            "median": float(np.median(arr)),
+        }
+        for p in self.percentiles:
+            stats[f"p{p}"] = float(np.percentile(arr, p))
+        return stats
