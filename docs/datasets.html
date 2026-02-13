@@ -1,0 +1,335 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Datasets &mdash; xanesnet 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=359c27e9"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Descriptors" href="descriptors.html" />
+    <link rel="prev" title="Input File" href="input.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            xanesnet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installing XANESNET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="running.html">Running XANESNET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Input File</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#xanesx">XANESX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#graph">Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multihead">Multihead</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#transformer">Transformer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#envembed">EnvEmbed</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="descriptors.html">Descriptors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/NewcastleRSE/xray-spectroscopy-ml">XANESNET GitHub Repository</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/xanesnet">XANESNET GitLab Repostiory</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/training-sets">XANESNET Training Datasets</a></li>
+<li class="toctree-l1"><a class="reference external" href="http://penfoldgroup.co.uk">Penfold Group</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/xanesnet_keras">Original Keras Implementation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">xanesnet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Datasets</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/datasets.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="datasets">
+<h1>Datasets<a class="headerlink" href="#datasets" title="Permalink to this heading"></a></h1>
+<section id="xanesx">
+<h2>XANESX<a class="headerlink" href="#xanesx" title="Permalink to this heading"></a></h2>
+<p>This dataset is compatible with the models <a class="reference internal" href="models.html#mlp"><span class="std std-ref">MLP</span></a>, <a class="reference internal" href="models.html#cnn"><span class="std std-ref">CNN</span></a>, <a class="reference internal" href="models.html#lstm"><span class="std std-ref">LSTM</span></a>,
+<a class="reference internal" href="models.html#ae-mlp"><span class="std std-ref">AE-MLP</span></a>, <a class="reference internal" href="models.html#ae-cnn"><span class="std std-ref">AE-CNN</span></a>, <a class="reference internal" href="models.html#aegan-mlp"><span class="std std-ref">AEGAN-MLP</span></a>.
+It supports both forward <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> and reverse <code class="docutils literal notranslate"><span class="pre">train_xanes</span></code> training modes.</p>
+<p>The XANESX dataset is a general-purpose dataset for
+representing featurised molecular structures and XANES spectra.
+Each sample corresponds to a single molecule and is stored as a
+serialized data object with the attributes of input features (<code class="docutils literal notranslate"><span class="pre">x</span></code>), target features (<code class="docutils literal notranslate"><span class="pre">y</span></code>),
+and the associated energy grid (<code class="docutils literal notranslate"><span class="pre">e</span></code>). Molecular structures are
+converted into fixed-length feature representations
+using the descriptor(s) defined in the <a class="reference internal" href="input.html#descriptors"><span class="std std-ref">Descriptors</span></a> section.
+XANES spectra are read from text files and can be optionally transformed during preprocessing.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">xanesx</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fourier</span></code> (float, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Fourier transformation to the XANES spectra</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gaussian</span></code> (int, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Gaussian transformation to the XANES spectra</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">xanesx</span>
+  <span class="n">root_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">processed_train</span>
+  <span class="n">xyz_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xyz_train</span>
+  <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xanes_train</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">fourier</span><span class="p">:</span> <span class="kc">True</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="graph">
+<h2>Graph<a class="headerlink" href="#graph" title="Permalink to this heading"></a></h2>
+<p>This dataset is compatible with the models <a class="reference internal" href="models.html#gnn"><span class="std std-ref">GNN</span></a>
+and supports the forward training mode <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> only.</p>
+<p>The Graph dataset represents molecular structures as graphs.
+Each molecule is encoded as a graph derived from its atomic geometry,
+where atom are represented as nodes and interatomic relationships are represented as edges.</p>
+<p>Node features include one-hot–encoded atomic numbers and an indicator specifying the absorber atom.
+Edge features are generated using a wACSF-style radial Gaussian expansion,
+capturing local geometric information over a fixed radial grid defined by <code class="docutils literal notranslate"><span class="pre">r_min</span></code>, <code class="docutils literal notranslate"><span class="pre">r_max</span></code>, and the number of points <code class="docutils literal notranslate"><span class="pre">n</span></code>.</p>
+<p>Graph-level attributes are computed using the descriptor(s) defined in the <a class="reference internal" href="input.html#descriptors"><span class="std std-ref">Descriptors</span></a> section.
+The target features XANES spectra (<code class="docutils literal notranslate"><span class="pre">y</span></code>) and the corresponding energy grid (<code class="docutils literal notranslate"><span class="pre">e</span></code>) are defined as additional global attributes.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">graph</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n</span></code> (int, <code class="docutils literal notranslate"><span class="pre">16</span></code>): Number of radial basis functions used to encode each edge.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r_min</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.0</span></code>): Minimum interatomic distance for the radial edge encoding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r_max</span></code> (float, <code class="docutils literal notranslate"><span class="pre">4.0</span></code>): Maximum interatomic distance for the radial edge encoding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fourier</span></code> (float, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Fourier transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gaussian</span></code> (int, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Gaussian transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">graph</span>
+  <span class="n">root_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">processed_train</span>
+  <span class="n">xyz_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">xyz_train</span>
+  <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">xanes_train</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">r_max</span><span class="p">:</span> <span class="mf">5.0</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="multihead">
+<h2>Multihead<a class="headerlink" href="#multihead" title="Permalink to this heading"></a></h2>
+<p>This dataset is compatible with the models <a class="reference internal" href="models.html#mh-mlp"><span class="std std-ref">Multihead-MLP</span></a>,
+<a class="reference internal" href="models.html#mh-cnn"><span class="std std-ref">Multihead-CNN</span></a>.
+It supports both forward <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> and reverse <code class="docutils literal notranslate"><span class="pre">train_xanes</span></code> training modes.</p>
+<p>The Multihead dataset extends the XANESX dataset to support multi-output (multi-head) learning,
+where a single molecular structure is associated with multiple XANES spectra.
+The dataset accepts multiple <code class="docutils literal notranslate"><span class="pre">xyz_path</span></code> and <code class="docutils literal notranslate"><span class="pre">xanes_path</span></code> entries.
+Each entry corresponds to a distinct prediction head.
+During preprocessing, the dataset automatically matches files with the same stem across all provided paths.</p>
+<p>Each sample corresponds to a single molecule and is stored as a
+serialized data object with the attributes of input features (<code class="docutils literal notranslate"><span class="pre">x</span></code>), target features (<code class="docutils literal notranslate"><span class="pre">y</span></code>),
+the associated energy grid (<code class="docutils literal notranslate"><span class="pre">e</span></code>),  head index (<code class="docutils literal notranslate"><span class="pre">head_idx</span></code>), and head name (<code class="docutils literal notranslate"><span class="pre">head_name</span></code>).</p>
+<p>Molecular structures are
+converted into fixed-length feature representations using
+the descriptor(s) defined in the <a class="reference internal" href="input.html#descriptors"><span class="std std-ref">Descriptors</span></a> section.
+XANES spectra are read from text files and can be optionally transformed
+(<code class="docutils literal notranslate"><span class="pre">fourier</span></code> or <code class="docutils literal notranslate"><span class="pre">gaussian</span></code> transformations) during preprocessing.
+The head index identifies the output head associated with the spectrum,
+and head name derived from the directory from which the spectrum was loaded.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">multihead</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n</span></code> (int, <code class="docutils literal notranslate"><span class="pre">16</span></code>): Number of radial basis functions used to encode each edge.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r_min</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.0</span></code>): Minimum interatomic distance for the radial edge encoding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r_max</span></code> (float, <code class="docutils literal notranslate"><span class="pre">4.0</span></code>): Maximum interatomic distance for the radial edge encoding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fourier</span></code> (float, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Fourier transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gaussian</span></code> (int, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Gaussian transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">multihead</span>
+  <span class="n">root_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">processed_train</span>
+  <span class="n">xyz_path</span><span class="p">:</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xyz1</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xyz2</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xyz3</span>
+  <span class="n">xanes_path</span><span class="p">:</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xanes1</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xanes2</span>
+    <span class="o">-</span> <span class="n">data</span><span class="o">/</span><span class="n">multihead</span><span class="o">/</span><span class="n">train</span><span class="o">/</span><span class="n">xanes3</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">preload</span><span class="p">:</span> <span class="kc">False</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="transformer">
+<h2>Transformer<a class="headerlink" href="#transformer" title="Permalink to this heading"></a></h2>
+<p>This dataset is compatible with the models <a class="reference internal" href="models.html#transformer"><span class="std std-ref">Transformer</span></a>
+and supports the forward training mode <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> only.</p>
+<p>The Transformer dataset can be applied for transformer-based architectures in XANESNET.
+Each sample corresponds to a single molecule and is encoded with a set of attributes of
+per-atom MACE embeddings (<code class="docutils literal notranslate"><span class="pre">mace</span></code>), auxiliary descriptors (<code class="docutils literal notranslate"><span class="pre">desc</span></code>),
+atomic positions (<code class="docutils literal notranslate"><span class="pre">pos</span></code>), atomic weights (<code class="docutils literal notranslate"><span class="pre">weight</span></code>), and padding masks (<code class="docutils literal notranslate"><span class="pre">mask</span></code>),
+XANES spectra as target features (<code class="docutils literal notranslate"><span class="pre">y</span></code>) and associated energy grid (<code class="docutils literal notranslate"><span class="pre">e</span></code>) .</p>
+<p>Both the MACE and auxiliary descriptors
+are configurable via the :ref:Descriptors &lt;descriptors&gt; section.
+XANES spectra are read from text files and can be optionally transformed during preprocessing.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">transformer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fourier</span></code> (float, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Fourier transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gaussian</span></code> (int, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Gaussian transformation to the XANES spectra.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">transformer</span>
+  <span class="n">root_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">processed_train</span>
+  <span class="n">xyz_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xyz_train</span>
+  <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xanes_train</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">fourier</span><span class="p">:</span> <span class="kc">True</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="envembed">
+<h2>EnvEmbed<a class="headerlink" href="#envembed" title="Permalink to this heading"></a></h2>
+<p>This dataset is compatible with the models <a class="reference internal" href="models.html#envembed"><span class="std std-ref">EnvEmbed</span></a>.
+It supports the forward training mode <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> only.</p>
+<p>The EnvEmbed dataset is designed for environment embedding-based architectures in XANESNET.
+Each sample corresponds to a single molecule and is represented with a set of attributes including
+descriptor features (<code class="docutils literal notranslate"><span class="pre">desc</span></code>) computed from the molecular structure
+(configurable via the <a class="reference internal" href="input.html#descriptors"><span class="std std-ref">Descriptors</span></a>), length of the descriptor features (<code class="docutils literal notranslate"><span class="pre">lengths</span></code>),
+distances of all atoms to the absorber atom (<code class="docutils literal notranslate"><span class="pre">dist</span></code>),
+coefficient of Gaussian basis transformation of the spectra (<code class="docutils literal notranslate"><span class="pre">c*</span></code>),
+and XANES spectra as target features (<code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">envembed</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">envembed</span>
+  <span class="n">root_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">processed_train</span>
+  <span class="n">xyz_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xyz_train</span>
+  <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">fe</span><span class="o">/</span><span class="n">xanes_train</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">preload</span><span class="p">:</span> <span class="kc">True</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="input.html" class="btn btn-neutral float-left" title="Input File" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="descriptors.html" class="btn btn-neutral float-right" title="Descriptors" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Newcastle University.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

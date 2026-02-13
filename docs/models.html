@@ -1,0 +1,844 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Models &mdash; xanesnet 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=359c27e9"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Descriptors" href="descriptors.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            xanesnet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installing XANESNET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="running.html">Running XANESNET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Input File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="descriptors.html">Descriptors</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#mlp">MLP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cnn">CNN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gnn">GNN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lstm">LSTM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#transformer">Transformer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mh-mlp">MH-MLP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mh-cnn">MH-CNN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mh-gnn">MH-GNN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#envembed">EnvEmbed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ae-mlp">AE-MLP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ae-cnn">AE-CNN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aegan-mlp">AEGAN-MLP</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project Links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/NewcastleRSE/xray-spectroscopy-ml">XANESNET GitHub Repository</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/xanesnet">XANESNET GitLab Repostiory</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/training-sets">XANESNET Training Datasets</a></li>
+<li class="toctree-l1"><a class="reference external" href="http://penfoldgroup.co.uk">Penfold Group</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitlab.com/team-xnet/xanesnet_keras">Original Keras Implementation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">xanesnet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Models</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="models">
+<h1>Models<a class="headerlink" href="#models" title="Permalink to this heading"></a></h1>
+<section id="mlp">
+<span id="id1"></span><h2>MLP<a class="headerlink" href="#mlp" title="Permalink to this heading"></a></h2>
+<p>The Multi-Layer Perceptron (MLP) is a fully connected feedforward neural network.
+In XANESNET, it consists of an input layer, one or more hidden layers defined by <code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code>, and an output layer.
+Each hidden layer is composed of a linear (dense) layer, a dropout layer for regularization, and an activation function.
+The output layer is a linear layer.</p>
+<p>The size of the hidden layers is controlled by an initial hidden size <code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> and a
+shrink rate <code class="docutils literal notranslate"><span class="pre">shrink_rate</span></code>, which multiplicatively reduces the number of neurons in successive
+hidden layers.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">mlp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>): Size of the first hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>):  Dropout probability for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">5</span></code>): Number of hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">shrink_rate</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.5</span></code>): Multiplicative reduction factor for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">mlp</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+    <span class="n">num_hidden_layers</span><span class="p">:</span> <span class="mi">5</span>
+    <span class="n">shrink_rate</span><span class="p">:</span> <span class="mf">0.5</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="cnn">
+<span id="id2"></span><h2>CNN<a class="headerlink" href="#cnn" title="Permalink to this heading"></a></h2>
+<p>The Convolutional Neural Network (CNN) is a feedforward neural network
+commonly used for feature extraction from sequential or grid-like data.
+In XANESNET, the CNN consists of one or more 1D convolutional layers,
+followed by two fully connected (dense) hidden layers and an output layer for prediction.</p>
+<p>Each convolutional layer contains a 1D convolution, batch normalization,
+an activation function, and dropout for regularization.
+The number of output channels for the first convolutional layer is defined
+by <code class="docutils literal notranslate"><span class="pre">out_channel</span></code>, and subsequent layers increase the number of channels multiplicatively
+by the factor <code class="docutils literal notranslate"><span class="pre">channel_mul</span></code>.</p>
+<p>The first dense layer consists of a linear layer, a dropout layer, and activation function.
+The second dense layer consists of a linear layer only (output layer).</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">cnn</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>): Size of the initial hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_conv_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of convolutional layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">out_channel</span></code> (int, <code class="docutils literal notranslate"><span class="pre">32</span></code>): Number of output channels for the initial convolutional layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channel_mul</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Channel multiplication factor for increasing output channels in subsequent convolutional layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">kernel_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Size of the convolutional kernel.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">1</span></code>): Stride of the convolution operation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">cnn</span>
+  <span class="n">params</span><span class="p">:</span>
+      <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">64</span>
+      <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+      <span class="n">num_conv_layers</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+      <span class="n">out_channel</span><span class="p">:</span> <span class="mi">32</span>
+      <span class="n">channel_mul</span><span class="p">:</span> <span class="mi">2</span>
+      <span class="n">kernel_size</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="n">stride</span><span class="p">:</span> <span class="mi">1</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="gnn">
+<span id="id3"></span><h2>GNN<a class="headerlink" href="#gnn" title="Permalink to this heading"></a></h2>
+<p>The Graph Neural Network (GNN) is a type of neural network that operates on graph-structured data.
+In XANESNET, the GNN processes node-level features using a sequence of customisable graph convolution layers
+(e.g., GCN, GAT, GATv2, GraphConv).
+Each layer includes batch normalization, activation, and dropout.
+These layers aggregate node features based on graph connectivity and edge attributes.</p>
+<p>After the GNN layers, node-level embeddings are pooled using global mean pooling to produce a graph-level
+representation. This representation is then concatenated with additional global graph attributes
+(descriptor features) and passed
+through a final MLP to produce predictions.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">gnn</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">layer_name</span></code> (str, <code class="docutils literal notranslate"><span class="pre">GATv2</span></code>): Type of graph convolution layer. Options:
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GCNConv">GCN</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GATConv">GAT</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GATv2Conv">GATv2</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GraphConv">GraphConv</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layer_params</span></code> (dict, optional): Parameters for the GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>): Size of hidden GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for GNN and MLP layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">5</span></code>): Number of GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_mlp_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of hidden layers in the MLP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">gnn</span>
+    <span class="n">params</span><span class="p">:</span>
+        <span class="n">layer_name</span><span class="p">:</span> <span class="n">GATv2</span>
+        <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+        <span class="n">num_hidden_layers</span><span class="p">:</span> <span class="mi">5</span>
+        <span class="n">num_mlp_hidden_layers</span><span class="p">:</span> <span class="mi">3</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+        <span class="n">layer_params</span><span class="p">:</span>
+            <span class="n">heads</span><span class="p">:</span> <span class="mi">2</span>
+            <span class="n">concat</span><span class="p">:</span> <span class="kc">True</span>
+            <span class="n">edge_dim</span><span class="p">:</span> <span class="mi">16</span>
+    <span class="n">weights</span><span class="p">:</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+        <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="lstm">
+<span id="id4"></span><h2>LSTM<a class="headerlink" href="#lstm" title="Permalink to this heading"></a></h2>
+<p>The Long Short-Term Memory (LSTM) network is a recurrent neural network to
+capture long-term dependencies in sequential data.
+In XANESNET, the LSTM model consists of a bidirectional LSTM layer, followed by
+two fully connected (dense) hidden layers.</p>
+<p>The bidirectional LSTM layer processes the input sequence in both
+forward and backward directions. The output of the LSTM has a feature dimension of <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">x</span> <span class="pre">hidden_size</span></code>.
+The first dense layer has size <code class="docutils literal notranslate"><span class="pre">hidden_out_size</span></code>.
+The second dense layer is the final output layer.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">lstm</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>): Number of hidden units in the LSTM layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_out_size</span></code> (float, <code class="docutils literal notranslate"><span class="pre">128</span></code>):  Size of the intermediate dense layer after LSTM.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">5</span></code>): Number of LSTM layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>):  Dropout probability for the dense layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+   <span class="nb">type</span><span class="p">:</span> <span class="n">lstm</span>
+   <span class="n">params</span><span class="p">:</span>
+     <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">256</span>
+     <span class="n">hidden_out_size</span><span class="p">:</span> <span class="mi">128</span>
+     <span class="n">num_layers</span><span class="p">:</span> <span class="mi">3</span>
+     <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+     <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="transformer">
+<span id="id5"></span><h2>Transformer<a class="headerlink" href="#transformer" title="Permalink to this heading"></a></h2>
+<p>The Transformer model in XANESNET implements a dual attention architecture
+to predict XANES spectra by modeling the interactions between local atomic environments
+and energy-dependent features.</p>
+<p>The self-attention mechanism projects MACE features into a latent space defined by <code class="docutils literal notranslate"><span class="pre">hidden_size</span></code>.
+These embeddings undergo multiple rounds of self-attention via <code class="docutils literal notranslate"><span class="pre">n_self_attn_layers</span></code> to
+capture long-range structural dependencies between atoms in the system.</p>
+<p>The cross-attention mechanism maps between the structural geometry and the energy domain.
+A learnable energy embedding is combined with additional features (e.g., PDOS) to provide
+a starting point for the cross-attention layers.
+By iterating through <code class="docutils literal notranslate"><span class="pre">n_cross_attn_layers</span></code>,
+the energy queries selectively extract structural information
+to determines the contributes of each atom to the
+absorption cross-section at a specific energy level.
+Final predictions are generated by passing the attended features through a residual MLP and a linear projection.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">transformer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">128</span></code>): Dimensionality of the latent space for atom and energy features.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_heads</span></code> (int, <code class="docutils literal notranslate"><span class="pre">8</span></code>):  Number of attention heads in multi-head attention blocks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>):  Dropout probability for attention and MLP layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_self_attn_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>):  Number of transformer blocks applied to MACE features.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_cross_attn_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>):  Number of blocks where energy queries interact with atomic context.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+   <span class="nb">type</span><span class="p">:</span> <span class="n">transformer</span>
+   <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">128</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.1</span>
+    <span class="n">n_heads</span><span class="p">:</span> <span class="mi">8</span>
+    <span class="n">n_self_attn_layers</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">n_cross_attn_layers</span><span class="p">:</span> <span class="mi">3</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="mh-mlp">
+<span id="id6"></span><h2>MH-MLP<a class="headerlink" href="#mh-mlp" title="Permalink to this heading"></a></h2>
+<p>The Multi-Head MLP (MH-MLP) is an extension of the standard MLP for multi-task learning.
+It consists of a shared backbone (trunk) that extracts general features from the input,
+followed by multiple independent heads to predict different spectrum simultaneously.</p>
+<p>The model architecture is split into two main components:
+The shared MLP follows the same architecture as the <a class="reference internal" href="#mlp"><span class="std std-ref">MLP</span></a> to
+process the initial input into a shared latent representation.
+The MLP heads is a set of independent sub-MLP modules.
+Each head processes the output of the shared MLP to produce a specific target spectrum.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">mh_mlp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>): Size of the first hidden layer in shared MLP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of hidden layers in shared MLP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">shrink_rate</span></code> (float, <code class="docutils literal notranslate"><span class="pre">1.0</span></code>): Multiplicative reduction factor for hidden layers in shared MLP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>):  Size of the first hidden layer in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of hidden layers in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_shrink_rate</span></code> (int, <code class="docutils literal notranslate"><span class="pre">1.0</span></code>): Multiplicative reduction factor for hidden layers in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">silu</span></code>):
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">mh_mlp</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+    <span class="n">head_hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+    <span class="n">num_hidden_layers</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="n">head_num_hidden_layers</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">shrink_rate</span><span class="p">:</span> <span class="mf">1.0</span>
+    <span class="n">head_shrink_rate</span><span class="p">:</span> <span class="mf">1.0</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="n">silu</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="mh-cnn">
+<span id="id7"></span><h2>MH-CNN<a class="headerlink" href="#mh-cnn" title="Permalink to this heading"></a></h2>
+<p>The Multi-Head CNN (MH-CNN) is an extension of the standard CNN for multi-task learning.
+It consists of a shared backbone (trunk) that extracts general features from the input,
+followed by multiple independent heads to predict different spectrum simultaneously.</p>
+<p>The model architecture is split into two main components:
+The shared CNN follows the same architecture as the <a class="reference internal" href="#cnn"><span class="std std-ref">CNN</span></a> to
+process the initial input into a shared latent representation.
+The heads components is a set of independent sub-MLP modules.
+Each head processes the output of the shared CNN to produce a specific target spectrum.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">mh_cnn</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>): Size of the initial hidden layer in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for hidden layers in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_conv_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of convolutional layers in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">out_channel</span></code> (int, <code class="docutils literal notranslate"><span class="pre">32</span></code>): Number of output channels for the initial convolutional layer in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channel_mul</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Channel multiplication factor for increasing output channels in subsequent convolutional layers in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">kernel_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Size of the convolutional kernel in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">1</span></code>): Stride of the convolution operation in shared CNN.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>):  Size of the first hidden layer in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of hidden layers in MLP heads.</p></li>
+</ul>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">silu</span></code>):</dt><dd><p><a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p>
+</dd>
+</dl>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">mh_cnn</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+    <span class="n">num_conv_layers</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+    <span class="n">out_channel</span><span class="p">:</span> <span class="mi">32</span>
+    <span class="n">channel_mul</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">kernel_size</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="n">stride</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="n">head_hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+    <span class="n">head_num_hidden_layers</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">head_shrink_rate</span><span class="p">:</span> <span class="mf">1.0</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="mh-gnn">
+<span id="id8"></span><h2>MH-GNN<a class="headerlink" href="#mh-gnn" title="Permalink to this heading"></a></h2>
+<p>The Multi-Head GNN (MH-GNN) is an extension of the standard GNN for multi-task learning.
+It consists of a shared backbone (trunk) that extracts general features from the input,
+followed by multiple independent heads to predict different spectrum simultaneously.</p>
+<p>The model architecture is split into two main components:
+The shared GNN follows the same architecture as the GNN layers in <a class="reference internal" href="#gnn"><span class="std std-ref">GNN</span></a> to
+process the initial input into a graph representation.
+The heads components is a set of independent sub-MLP modules.
+Each head processes the output of the shared GNN to produce a specific target spectrum.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">mh_gnn</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">layer_name</span></code> (str, <code class="docutils literal notranslate"><span class="pre">GATv2</span></code>): Type of graph convolution layer. Options:
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GCNConv">GCN</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GATConv">GAT</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GATv2Conv">GATv2</a>,
+<a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.GraphConv">GraphConv</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layer_params</span></code> (dict, optional): Parameters for the GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>): Size of hidden GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): Dropout probability for GNN and MLP layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">5</span></code>): Number of GNN layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">512</span></code>):  Size of the first hidden layer in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of hidden layers in MLP heads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">mh_gnn</span>
+    <span class="n">params</span><span class="p">:</span>
+        <span class="n">layer_name</span><span class="p">:</span> <span class="n">GATv2</span>
+        <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+        <span class="n">num_hidden_layers</span><span class="p">:</span> <span class="mi">5</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+        <span class="n">head_hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+        <span class="n">head_num_hidden_layers</span><span class="p">:</span> <span class="mi">2</span>
+        <span class="n">head_shrink_rate</span><span class="p">:</span> <span class="mf">1.0</span>
+        <span class="n">layer_params</span><span class="p">:</span>
+            <span class="n">heads</span><span class="p">:</span> <span class="mi">2</span>
+            <span class="n">concat</span><span class="p">:</span> <span class="kc">True</span>
+            <span class="n">edge_dim</span><span class="p">:</span> <span class="mi">16</span>
+    <span class="n">weights</span><span class="p">:</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+        <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="envembed">
+<span id="id9"></span><h2>EnvEmbed<a class="headerlink" href="#envembed" title="Permalink to this heading"></a></h2>
+<p>The environmental Embedding Network (EnvEmbed) is an absorber-centric environment embedding architecture
+to encode local atomic structure into a latent representation and predict Gaussian-transformed spectral coefficients.</p>
+<p>The model consists of two main components: a SoftRadialShellsEncoder and a Grouped Residual Head.
+The encoder performs soft radial binning of neighboring atoms around a central absorber atom
+using <code class="docutils literal notranslate"><span class="pre">n_shells</span></code> learnable distance shells within a cutoff radius defined by <code class="docutils literal notranslate"><span class="pre">max_radius_angs</span></code>,
+with the Gaussian shell widths initialised by <code class="docutils literal notranslate"><span class="pre">init_width</span></code>.
+The aggregated shell features are fused with the absorber representation and projected into a latent space.
+This latent embedding is then passed to the Grouped Residual Head,
+which applies a stack of Pre-LayerNorm residual feed-forward blocks. Each block consists of
+a normalization layer followed by a two-layer MLP with hidden dimension <code class="docutils literal notranslate"><span class="pre">head_hidden</span></code>, GELU activation and dropout.
+Finally, multiple grouped linear heads generate structured coefficient outputs from the shared latent representation.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">envembed</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_shells</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Number of learnable radial distance shells</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_radius_angs</span></code> (float, <code class="docutils literal notranslate"><span class="pre">7.0</span></code>):  Cutoff radius (in Å) for neighbor aggregation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">init_width</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.8</span></code>): Initial Gaussian width of each radial shell.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_hidden</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>):  Hidden dimension of the grouped coefficient head.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_depth</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>):  Number of stacked Pre-LayerNorm residual feed-forward blocks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code>  (float, <code class="docutils literal notranslate"><span class="pre">0.1</span></code>): Dropout probability applied within the residual feed-forward blocks.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation, see <a class="reference internal" href="input.html#model"><span class="std std-ref">model</span></a>.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">mh_gnn</span>
+<span class="n">params</span><span class="p">:</span>
+    <span class="n">n_shells</span><span class="p">:</span> <span class="mi">4</span>
+    <span class="n">max_radius_angs</span><span class="p">:</span> <span class="mf">7.0</span>
+    <span class="n">init_width</span><span class="p">:</span> <span class="mf">0.8</span>
+    <span class="n">use_gating</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="n">head_hidden</span><span class="p">:</span> <span class="mi">256</span>
+    <span class="n">head_depth</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.1</span>
+<span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">kaiming_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+<span class="n">weights_params</span><span class="p">:</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="n">fan_in</span>
+    <span class="n">nonlinearity</span><span class="p">:</span> <span class="n">relu</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="ae-mlp">
+<span id="id10"></span><h2>AE-MLP<a class="headerlink" href="#ae-mlp" title="Permalink to this heading"></a></h2>
+<p>Autoencoder Multilayer Perceptron (AE-MLP) is a type of deep neural network
+for unsupervised learning of compact data representations.
+In XANESNET, the AE-CNN architecture consists of three main components:
+an encoder, a decoder, and two fully connected (dense) hidden layers for prediction.</p>
+<p>The encoder is built from one or more hidden layers defined by <code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code>,
+each consisting of a linear layer followed by an activation function.
+The size of successive encoder layers
+decreases multiplicatively by the user-defined value <code class="docutils literal notranslate"><span class="pre">shrink_rate</span></code>.
+The decoder has a similar structure,
+with hidden layer sizes increasing multiplicatively to reconstruct the encoded representation.</p>
+<p>The dense prediction layers operate on the encoded latent representation.
+They consist of two fully connected layers: the first includes an activation
+function and a dropout layer for regularization, while the second produces the
+final output.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">ae_mlp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>): Size of the initial hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>):  Dropout probability for the hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">shrink_rate</span></code> (float, <code class="docutils literal notranslate"><span class="pre">1.0</span></code>):  Multiplicative reduction factor for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">ae_mlp</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">512</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+    <span class="n">num_hidden_layers</span><span class="p">:</span> <span class="mi">5</span>
+    <span class="n">shrink_rate</span><span class="p">:</span> <span class="mf">0.5</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="ae-cnn">
+<span id="id11"></span><h2>AE-CNN<a class="headerlink" href="#ae-cnn" title="Permalink to this heading"></a></h2>
+<p>The Autoencoder Convolutional Neural Network (AE-CNN) is a hybrid deep learning
+model that combines convolutional autoencoding with supervised prediction.
+In XANESNET, the AE-CNN architecture consists of three main components:
+an encoder, a decoder, and two fully connected (dense) hidden layers for prediction.</p>
+<p>The encoder is built from one or more 1D convolutional layers defined by <code class="docutils literal notranslate"><span class="pre">num_conv_layers</span></code>,
+each followed by an activation function. The number of output channels for the first convolutional
+layer is defined by <code class="docutils literal notranslate"><span class="pre">out_channel</span></code>, and the number of channels in subsequent layers
+increases multiplicatively based on the factor <code class="docutils literal notranslate"><span class="pre">channel_mul</span></code>.
+The decoder mirrors the encoder structure and is composed of a sequence of
+1D transposed convolutional layers.</p>
+<p>The dense prediction layers operate on the encoded latent representation.
+They consist of two fully connected layers: the first includes an activation
+function and a dropout layer for regularization, while the second produces the
+final output.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">ae_cnn</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">out_channel</span></code> (int, <code class="docutils literal notranslate"><span class="pre">32</span></code>): Number of output channels for the initial convolutional layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channel_mul</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Channel multiplication factor.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Size of the initial hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropout</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.2</span></code>):  Dropout probability for hidden layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_conv_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of 1D convolutional layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">kernel_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Size of the convolutional kernel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">1</span></code>): Stride for convolution and transpose convolution layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">ae_cnn</span>
+  <span class="n">params</span><span class="p">:</span>
+      <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">64</span>
+      <span class="n">dropout</span><span class="p">:</span> <span class="mf">0.2</span>
+      <span class="n">num_conv_layers</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+      <span class="n">out_channel</span><span class="p">:</span> <span class="mi">32</span>
+      <span class="n">channel_mul</span><span class="p">:</span> <span class="mi">2</span>
+      <span class="n">kernel_size</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="n">stride</span><span class="p">:</span> <span class="mi">1</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="aegan-mlp">
+<span id="id12"></span><h2>AEGAN-MLP<a class="headerlink" href="#aegan-mlp" title="Permalink to this heading"></a></h2>
+<p>The AutoEncoding Generative Adversarial Network with Multi-Layer Perceptrons (AEGAN-MLP)
+model simultaneously trains both structure and spectra using two autoencoders (or generators)
+with shared parameters, along with two discriminators.
+The discriminators encourage better performance from the generators,
+while the generators attempt to fool the discriminators.
+This architecture allows separate pathways for each data type.
+The model can be used to either reconstruct the input data or predict
+the output data for structure or spectra without modifying the model.
+All components of the model are implemented as multilayer perceptron (MLP) networks.
+Except for the input and output dimensions, the size of the linear layers is currently fixed.
+The generative and discriminative parts of the model can use different loss functions,
+learning rates, and optimizers.</p>
+<p>Training the AEGAN is achieved through alternating updates of the
+generative and discriminative components.
+The loss for the generative part is calculated as the sum of the
+scaled differences between model outputs and target outputs for both reconstructions
+and predictions of spectra and structure.
+Individual losses are scaled by the maximum value of the model output to
+compensate for differences in scaling between spectra and structure.</p>
+<p>The discriminator attempts to predict whether the data is real
+(from the training set) or fake (produced by the generator).
+The total discriminator loss is the sum of the real and fake losses.
+The fake loss is calculated as the difference between the predicted
+labels for real and fake data generated by the generator.
+The real loss is calculated as the difference between
+the predicted labels for fake data and the true labels for real data.</p>
+<p><strong>Network Diagram:</strong></p>
+<img alt="_images/model_aegan_diagram.png" class="align-center" src="_images/model_aegan_diagram.png" />
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">aegan_mlp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hidden_size</span></code> (int, <code class="docutils literal notranslate"><span class="pre">256</span></code>): Size of the initial hidden layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers_gen</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of hidden layers for the structure encoder and spectrum encoder in the generative part.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers_shared</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of hidden layers for the shared encoder and shared decoder in the generative part.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_hidden_layers_dis</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>):  Number of hidden layers for the discriminative part.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">activation</span></code> (str, <code class="docutils literal notranslate"><span class="pre">prelu</span></code>): Activation function. Supported options:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html">ReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html">Sigmoid</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html">Tanh</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html">PReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.ELU.html">ELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.LeakyReLU.html">LeakyReLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SELU.html">SELU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html">SiLU</a>,
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html">GELU</a>.</p></li>
+</ul>
+</li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">aegan_mlp</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">hidden_size</span><span class="p">:</span> <span class="mi">256</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="n">prelu</span>
+    <span class="n">num_hidden_layers_gen</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">num_hidden_layers_shared</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">num_hidden_layers_dis</span><span class="p">:</span> <span class="mi">2</span>
+  <span class="n">weights</span><span class="p">:</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">xavier_uniform</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="n">zeros</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2025</span>
+
+<span class="n">hyperparams</span><span class="p">:</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="mi">16</span>
+    <span class="n">epochs</span><span class="p">:</span> <span class="mi">100</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="mi">2021</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.00001</span><span class="p">]</span>     <span class="c1">#[generative autoencoder, discriminator]</span>
+    <span class="n">optim_fn</span><span class="p">:</span> <span class="p">[</span><span class="n">Adam</span><span class="p">,</span> <span class="n">Adam</span><span class="p">]</span>
+    <span class="n">loss</span><span class="p">:</span> <span class="p">[</span><span class="n">mse</span><span class="p">,</span> <span class="n">bce</span><span class="p">]</span>
+    <span class="n">loss_reg</span><span class="p">:</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">loss_lambda</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">]</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="descriptors.html" class="btn btn-neutral float-left" title="Descriptors" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Newcastle University.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

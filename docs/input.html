@@ -19,7 +19,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Library of Descriptors" href="descriptor.html" />
+    <link rel="next" title="Datasets" href="datasets.html" />
     <link rel="prev" title="Running XANESNET" href="running.html" /> 
 </head>
 
@@ -58,8 +58,9 @@
 <li class="toctree-l2"><a class="reference internal" href="#ensemble">ensemble</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="descriptor.html">Library of Descriptors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="model.html">Library of Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="descriptors.html">Descriptors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul>
@@ -101,14 +102,14 @@ parameters for the training and prediction.
 The input file is divided into several sections, each corresponding to a different aspect of the configuration.
 This page details the syntax of each section, and provides guidance on how to customise your model.</p>
 <section id="dataset">
-<h2>dataset<a class="headerlink" href="#dataset" title="Permalink to this heading"></a></h2>
+<span id="id1"></span><h2>dataset<a class="headerlink" href="#dataset" title="Permalink to this heading"></a></h2>
 <p>The dataset section defines the dataset type, file locations,
 and preprocessing options used during model training.
 It specifies where the raw XYZ structures and XANES spectra are stored,
 where processed data should be saved, and how the data should be loaded and transformed.
-See <span class="xref std std-doc">dataset</span> for a detailed explanation.</p>
+The <a class="reference internal" href="datasets.html"><span class="doc">Datasets</span></a> page provides a detailed explanation of all available datasets and their configurations.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Dataset type (see <span class="xref std std-doc">dataset</span>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Dataset type (see <a class="reference internal" href="datasets.html"><span class="doc">Datasets</span></a>).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">root_path</span></code> (str): Directory where the processed dataset will be stored or loaded from.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">xyz_path</span></code> (str): Directory containing structure files.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">xanes_path</span></code> (str): Directory containing XANES spectra files.</p></li>
@@ -116,25 +117,39 @@ See <span class="xref std std-doc">dataset</span> for a detailed explanation.</p
 </ul>
 </section>
 <section id="descriptors">
-<h2>descriptors<a class="headerlink" href="#descriptors" title="Permalink to this heading"></a></h2>
-<p>The descriptor section defines the type of descriptor to be used for feature extraction.
-A descriptor aims to transform atomic structures into fixed-size numeric vectors.</p>
-<p>XANESNET provides a range of descriptor functions. Each of which requires different parameters to be specified.
-See <a class="reference internal" href="descriptor.html"><span class="doc">Library of Descriptors</span></a> for a detailed explanation.</p>
+<span id="id2"></span><h2>descriptors<a class="headerlink" href="#descriptors" title="Permalink to this heading"></a></h2>
+<p>The descriptors section defines the descriptor(s) used for feature extraction.
+A descriptor transforms atomic structures into fixed-size numerical vectors.</p>
+<p>XANESNET provides a range of descriptor functions,
+each requiring its own set of parameters.
+See the <a class="reference internal" href="descriptors.html"><span class="doc">Descriptors</span></a> page for a detailed explanation of the available types and their configurations.</p>
+<p>Multiple descriptors can be specified.
+When more than one descriptor is used, the resulting feature vectors are concatenated along the feature dimension.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of descriptor (see <a class="reference internal" href="descriptor.html"><span class="doc">Library of Descriptors</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of descriptor (see <a class="reference internal" href="descriptors.html"><span class="doc">Descriptors</span></a>).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional): Parameters for the chosen descriptor type.</p></li>
 </ul>
+<dl>
+<dt>Example:</dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">descriptors</span><span class="p">:</span>
+  <span class="o">-</span> <span class="nb">type</span><span class="p">:</span> <span class="n">wacsf</span>
+
+  <span class="o">-</span> <span class="nb">type</span><span class="p">:</span> <span class="n">pdos</span>
+    <span class="n">params</span><span class="p">:</span>
+      <span class="n">code</span><span class="p">:</span> <span class="n">pyscf</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </section>
 <section id="model">
-<h2>model<a class="headerlink" href="#model" title="Permalink to this heading"></a></h2>
+<span id="id3"></span><h2>model<a class="headerlink" href="#model" title="Permalink to this heading"></a></h2>
 <p>The model section defines the architecture and specific parameters of the neural network model.
 This section determines how the model is structured, including the type of neural network and the hyperparameters
 that control its training and operation.</p>
 <p>XANESNET supports a variety of widely-used deep neural network architecture.
-Their architectures and parameters are further explained in the <a class="reference internal" href="model.html"><span class="doc">Library of Models</span></a>.</p>
+Their architectures and parameters are further explained in the <a class="reference internal" href="models.html"><span class="doc">Models</span></a> page.</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of model (see <a class="reference internal" href="model.html"><span class="doc">Library of Models</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (str): Type of model (see <a class="reference internal" href="models.html"><span class="doc">Models</span></a>).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional): Model-specific parameters.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weights</span></code> (dict, optional): Configuration of the model weight initialisation.</p>
 <blockquote>
@@ -173,7 +188,7 @@ Weight initialization method for kernel parameters. Supported options:
 </dl>
 </section>
 <section id="hyperparameters">
-<h2>hyperparameters<a class="headerlink" href="#hyperparameters" title="Permalink to this heading"></a></h2>
+<span id="id4"></span><h2>hyperparameters<a class="headerlink" href="#hyperparameters" title="Permalink to this heading"></a></h2>
 <p>The hyperparameter section defines the settings that
 govern the training process of the neural network model.</p>
 <ul class="simple">
@@ -300,7 +315,7 @@ each with a different random seed.</p>
 <span class="n">bootstrap_params</span><span class="p">:</span>
   <span class="n">n_boot</span><span class="p">:</span> <span class="mi">4</span>
   <span class="n">n_size</span><span class="p">:</span> <span class="mf">1.0</span>
-  <span class="n">weight_seed</span><span class="p">:</span> <span class="p">[</span><span class="mi">97</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">22</span><span class="p">]</span>
+  <span class="n">weight_seed</span><span class="p">:</span> <span class="p">[</span><span class="mi">97</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">22</span><span class="p">,</span> <span class="mi">44</span><span class="p">]</span>
 </pre></div>
 </div>
 </dd>
@@ -338,7 +353,7 @@ Each ensemble member is initialized with a distinct random seed.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="running.html" class="btn btn-neutral float-left" title="Running XANESNET" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="descriptor.html" class="btn btn-neutral float-right" title="Library of Descriptors" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="datasets.html" class="btn btn-neutral float-right" title="Datasets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -6,6 +6,8 @@ parameters for the training and prediction.
 The input file is divided into several sections, each corresponding to a different aspect of the configuration.
 This page details the syntax of each section, and provides guidance on how to customise your model.
 
+.. _dataset:
+
 ========
 dataset
 ========
@@ -14,26 +16,44 @@ The dataset section defines the dataset type, file locations,
 and preprocessing options used during model training.
 It specifies where the raw XYZ structures and XANES spectra are stored,
 where processed data should be saved, and how the data should be loaded and transformed.
-See :doc:`dataset` for a detailed explanation.
+The :doc:`datasets` page provides a detailed explanation of all available datasets and their configurations.
 
-* ``type`` (str): Dataset type (see :doc:`dataset`).
+* ``type`` (str): Dataset type (see :doc:`datasets`).
 * ``root_path`` (str): Directory where the processed dataset will be stored or loaded from.
 * ``xyz_path`` (str): Directory containing structure files.
 * ``xanes_path`` (str): Directory containing XANES spectra files.
 * ``params`` (dict, optional): Parameters for the chosen dataset type.
 
+.. _descriptors:
+
 ===========
 descriptors
 ===========
 
-The descriptor section defines the type of descriptor to be used for feature extraction.
-A descriptor aims to transform atomic structures into fixed-size numeric vectors.
+The descriptors section defines the descriptor(s) used for feature extraction.
+A descriptor transforms atomic structures into fixed-size numerical vectors.
 
-XANESNET provides a range of descriptor functions. Each of which requires different parameters to be specified.
-See :doc:`descriptor` for a detailed explanation.
+XANESNET provides a range of descriptor functions,
+each requiring its own set of parameters.
+See the :doc:`descriptors` page for a detailed explanation of the available types and their configurations.
 
-* ``type`` (str): Type of descriptor (see :doc:`descriptor`).
+Multiple descriptors can be specified.
+When more than one descriptor is used, the resulting feature vectors are concatenated along the feature dimension.
+
+* ``type`` (str): Type of descriptor (see :doc:`descriptors`).
 * ``params`` (dict, optional): Parameters for the chosen descriptor type.
+
+Example:
+    .. code-block::
+
+        descriptors:
+          - type: wacsf
+
+          - type: pdos
+            params:
+              code: pyscf
+
+.. _model:
 
 ========
 model
@@ -44,9 +64,9 @@ This section determines how the model is structured, including the type of neura
 that control its training and operation.
 
 XANESNET supports a variety of widely-used deep neural network architecture.
-Their architectures and parameters are further explained in the :doc:`model`.
+Their architectures and parameters are further explained in the :doc:`models` page.
 
-* ``type`` (str): Type of model (see :doc:`model`).
+* ``type`` (str): Type of model (see :doc:`models`).
 * ``params`` (dict, optional): Model-specific parameters.
 * ``weights`` (dict, optional): Configuration of the model weight initialisation.
 
@@ -78,6 +98,8 @@ Example:
           weights_params:
               mode: fan_in
               nonlinearity: relu
+
+.. _hyperparameters:
 
 ================
 hyperparameters
@@ -207,7 +229,7 @@ Example:
         bootstrap_params:
           n_boot: 4
           n_size: 1.0
-          weight_seed: [97, 39, 22]
+          weight_seed: [97, 39, 22, 44]
 
 
 ==============

@@ -25,8 +25,9 @@ This documentation provides a guide to interacting with and contributing to XANE
     install
     running
     input
-    descriptor
-    model
+    datasets
+    descriptors
+    models
 
 .. toctree::
     :maxdepth: 5
