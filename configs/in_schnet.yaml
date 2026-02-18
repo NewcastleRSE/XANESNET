@@ -36,7 +36,7 @@ model:
 trainer:
   # general:
   trainer_type: nntrainer
-  batch_size: 10
+  batch_size: 4
   shuffle: True
   drop_last: False
   num_workers: 0
@@ -48,8 +48,7 @@ trainer:
   loss:
     loss_type: mse
   regularizer:
-    regularizer_type: l1
-    weight: 0.00001
+    regularizer_type: none
   lr_scheduler:
     lr_scheduler_type: linear
     start_factor: 1.0 

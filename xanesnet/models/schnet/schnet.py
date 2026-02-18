@@ -172,28 +172,18 @@ class SchNet(Model):
 
         return out
 
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"hidden_channels={self.hidden_channels}, "
-            f"num_filters={self.num_filters}, "
-            f"num_interactions={self.num_interactions}, "
-            f"num_gaussians={self.num_gaussians}, "
-            f"cutoff={self.cutoff})"
-        )
-
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
-        bias_init_fn = BiasInitRegistry.get(bias_init)
-
         # Init embedding parameters (non-linear layer, keep default init)
         self.embedding.reset_parameters()
 
         # Init interaction blocks (includes CFConv, MLP sub-networks)
         for interaction in self.interactions:
-            interaction.init_weights(weight_init_fn, bias_init_fn)
+            interaction.init_weights(weights_init, bias_init, **kwargs)
 
         # Init top-level linear layers
+        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
+        bias_init_fn = BiasInitRegistry.get(bias_init)
+
         weight_init_fn(self.lin1.weight)
         bias_init_fn(self.lin1.bias)
         weight_init_fn(self.lin2.weight)
@@ -230,7 +220,13 @@ class SchNet(Model):
 
 
 class InteractionBlock(torch.nn.Module):
-    def __init__(self, hidden_channels: int, num_gaussians: int, num_filters: int, cutoff: float):
+    def __init__(
+        self,
+        hidden_channels: int,
+        num_gaussians: int,
+        num_filters: int,
+        cutoff: float,
+    ) -> None:
         super().__init__()
 
         # Shallow MLP
@@ -249,17 +245,24 @@ class InteractionBlock(torch.nn.Module):
         # Single linear layer
         self.lin = torch.nn.Linear(hidden_channels, hidden_channels)
 
-    def init_weights(self, weight_init_fn: Callable, bias_init_fn: Callable) -> None:
+    def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
+        bias_init_fn = BiasInitRegistry.get(bias_init)
+
         weight_init_fn(self.mlp[0].weight)
         bias_init_fn(self.mlp[0].bias)
         weight_init_fn(self.mlp[2].weight)
         bias_init_fn(self.mlp[2].bias)
-        self.conv.init_weights(weight_init_fn, bias_init_fn)
+        self.conv.init_weights(weights_init, bias_init, **kwargs)
         weight_init_fn(self.lin.weight)
         bias_init_fn(self.lin.bias)
 
     def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor, edge_weight: torch.Tensor, edge_attr: torch.Tensor
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_attr: torch.Tensor,
     ) -> torch.Tensor:
         x = self.conv(x, edge_index, edge_weight, edge_attr)
         x = self.act(x)
@@ -275,7 +278,7 @@ class CFConv(tgnn.MessagePassing):
         num_filters: int,
         net: torch.nn.Sequential,
         cutoff: float,
-    ):
+    ) -> None:
         super().__init__(aggr="add")
         self.lin1 = torch.nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = torch.nn.Linear(num_filters, out_channels)
@@ -283,13 +286,20 @@ class CFConv(tgnn.MessagePassing):
         self.net = net
         self.cutoff = cutoff
 
-    def init_weights(self, weight_init_fn: Callable, bias_init_fn: Callable) -> None:
+    def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
+        bias_init_fn = BiasInitRegistry.get(bias_init)
+
         weight_init_fn(self.lin1.weight)
         weight_init_fn(self.lin2.weight)
         bias_init_fn(self.lin2.bias)
 
     def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor, edge_weight: torch.Tensor, edge_attr: torch.Tensor
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_attr: torch.Tensor,
     ) -> torch.Tensor:
         C = 0.5 * (torch.cos(edge_weight * math.pi / self.cutoff) + 1.0)
         W = self.net(edge_attr) * C.view(-1, 1)
@@ -309,15 +319,20 @@ class RadiusInteractionGraph(torch.nn.Module):
     Creates edges based on atom positions to all points within the cutoff distance.
     """
 
-    def __init__(self, cutoff: float = 10.0, max_num_neighbors: int = 32):
+    def __init__(
+        self,
+        cutoff: float = 10.0,
+        max_num_neighbors: int = 32,
+    ) -> None:
         super().__init__()
         self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
 
-    def forward(self, pos: torch.Tensor, batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass.
-        """
+    def forward(
+        self,
+        pos: torch.Tensor,
+        batch: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         edge_index = tgnn.radius_graph(pos, r=self.cutoff, batch=batch, max_num_neighbors=self.max_num_neighbors)
         row, col = edge_index
         edge_weight = (pos[row] - pos[col]).norm(dim=-1)
@@ -330,7 +345,7 @@ class GaussianSmearing(torch.nn.Module):
         start: float = 0.0,
         stop: float = 5.0,
         num_gaussians: int = 50,
-    ):
+    ) -> None:
         super().__init__()
         offset = torch.linspace(start, stop, num_gaussians)
         self.coeff = -0.5 / (offset[1] - offset[0]).item() ** 2
@@ -342,17 +357,17 @@ class GaussianSmearing(torch.nn.Module):
 
 
 class FourierEncoding(torch.nn.Module):
-    def __init__(self, num_frequencies=5):
+    def __init__(self, num_frequencies=5) -> None:
         super().__init__()
         self.freqs = 2 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, 1) * self.freqs.view(1, -1)  # Element-wise multiplication
         return torch.cat([torch.sin(x), torch.cos(x)], dim=-1)
 
 
 class ShiftedSoftplus(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.shift = torch.log(torch.tensor(2.0)).item()
 

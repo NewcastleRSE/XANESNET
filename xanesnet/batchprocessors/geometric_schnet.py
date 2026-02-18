@@ -14,31 +14,20 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any, Protocol
-
 import numpy as np
 import torch
 from torch_geometric.data import Data
+
+from xanesnet.datasets import GeometricBatch
 
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-# For type hinting. Batch from torch_geometric always has these attributes.
-class GraphBatch(Protocol):
-    x: torch.Tensor
-    pos: torch.Tensor
-    energies: torch.Tensor
-    intensities: torch.Tensor
-    sample_id: torch.Tensor
-    atomic_symbols: torch.Tensor
-    batch: torch.Tensor
-
-
 @BatchProcessorRegistry.register("geometric", "schnet")
 class GeometricSchNet(BatchProcessor):
 
-    def input_preparation(self, batch: GraphBatch) -> dict[str, torch.Tensor]:
+    def input_preparation(self, batch: GeometricBatch) -> dict[str, torch.Tensor]:
         return {"z": batch.x, "pos": batch.pos, "batch": batch.batch}
 
     def input_preparation_single(self, sample: Data) -> dict[str, torch.Tensor]:
@@ -46,11 +35,11 @@ class GeometricSchNet(BatchProcessor):
         assert sample.pos is not None, "Input data 'pos' is None!"
         return {"z": sample.x, "pos": sample.pos, "batch": torch.zeros(sample.x.size(0), dtype=torch.long)}
 
-    def target_preparation(self, batch: GraphBatch) -> torch.Tensor:
+    def target_preparation(self, batch: GeometricBatch) -> torch.Tensor:
         return batch.intensities
 
     def target_preparation_single(self, sample: Data) -> torch.Tensor:
         return sample.intensities.unsqueeze(0)
 
-    def sample_id_extraction(self, batch: GraphBatch) -> np.ndarray:
+    def sample_id_extraction(self, batch: GeometricBatch) -> np.ndarray:
         return np.array(batch.sample_id.cpu(), dtype=str)

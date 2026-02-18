@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
+from typing import Protocol
 
 import torch
 from torch_geometric.data import Batch, Data
@@ -26,6 +27,18 @@ from xanesnet.serialization.config import Config
 
 from .registry import DatasetRegistry
 from .torchgeometric_dataset import TorchGeometricDataset
+
+
+# for typing
+class GeometricBatch(Protocol):
+    x: torch.Tensor
+    pos: torch.Tensor
+    energies: torch.Tensor
+    intensities: torch.Tensor
+    sample_id: torch.Tensor
+    atomic_symbols: torch.Tensor
+    batch: torch.Tensor
+
 
 ###############################################################################
 #################################### CLASS ####################################
