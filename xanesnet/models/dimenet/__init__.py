@@ -15,7 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .dimenet import DimeNet
+from .dimenet_pp import DimeNetPlusPlus
 
 __all__ = [
     "DimeNet",
+    "DimeNetPlusPlus",
 ]

@@ -15,18 +15,21 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections.abc import Callable
+from typing import TypeVar
 
 from .base import Model
+
+ModelType = TypeVar("ModelType", bound=Model)
 
 
 class ModelRegistry:
     _registry: dict[str, type[Model]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[type[Model]], type[Model]]:
+    def register(cls, name: str) -> Callable[[type[ModelType]], type[ModelType]]:
         name = name.lower()
 
-        def decorator(ds_cls: type[Model]) -> type[Model]:
+        def decorator(ds_cls: type[ModelType]) -> type[ModelType]:
             if name in cls._registry:
                 raise KeyError(f"Model '{name}' already registered")
             cls._registry[name] = ds_cls

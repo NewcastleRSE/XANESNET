@@ -84,6 +84,23 @@ MODEL_DEFAULTS = {
         "act": "swish",
         "output_initializer": "zeros",
     },
+    "dimenet++": {
+        "hidden_channels": 128,
+        "num_blocks": 4,
+        "int_emb_size": 64,
+        "basis_emb_size": 8,
+        "out_emb_channels": 256,
+        "num_spherical": 7,
+        "num_radial": 6,
+        "cutoff": 5.0,
+        "max_num_neighbors": 32,
+        "envelope_exponent": 5,
+        "num_before_skip": 1,
+        "num_after_skip": 2,
+        "num_output_layers": 3,
+        "act": "swish",
+        "output_initializer": "zeros",
+    },
 }
 
 TRAINER_DEFAULTS = {
@@ -160,6 +177,7 @@ MODEL_REQUIRED = {
     "mlp": ["out_size", "in_size"],
     "schnet": ["reduce_channels_2"],
     "dimenet": ["out_channels"],
+    "dimenet++": ["out_channels"],
 }
 
 TRAINER_REQUIRED = {

@@ -25,6 +25,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("geometric", "dimenet")
+@BatchProcessorRegistry.register("geometric", "dimenet++")
 class GeometricDimeNet(BatchProcessor):
 
     def input_preparation(self, batch: GeometricBatch) -> dict[str, torch.Tensor]:

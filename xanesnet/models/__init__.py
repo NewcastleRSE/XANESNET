@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Model
-from .dimenet import DimeNet
+from .dimenet import DimeNet, DimeNetPlusPlus
 from .mlp import MLP
 from .pre_trained import ModelInfo, PretrainedModels
 from .registry import ModelRegistry
@@ -31,4 +31,5 @@ __all__ = [
     "ModelRegistry",
     "SchNet",
     "DimeNet",
+    "DimeNetPlusPlus",
 ]
