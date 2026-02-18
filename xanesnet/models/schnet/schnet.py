@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import math
-from collections.abc import Callable
 
 import torch
 import torch.nn.functional as F
@@ -57,9 +56,12 @@ class SchNet(Model):
         cutoff: float,
         max_num_neighbors: int,
         readout: str,  # "add" | "mean"
-        dipole: bool,
+        # TODO me might remove the dipole argument
+        dipole: bool,  # If set to True, will use the magnitude of the dipole moment to make the final prediction
+        # TODO is mean and std useful for XANES prediction?
         mean: float | None,
         std: float | None,
+        # TODO atomref not used currently, we might remove it
         atomref: OptTensor,  # ! atomref not used currently
     ) -> None:
         super().__init__(model_type)

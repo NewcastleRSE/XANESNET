@@ -50,8 +50,8 @@ class DimeNetPlusPlus(DimeNet):
         num_before_skip: int,
         num_after_skip: int,
         num_output_layers: int,
-        act: str = "swish",
-        output_initializer: str = "zeros",
+        act: str,
+        output_initializer: str,
     ) -> None:
         super().__init__(
             model_type,
