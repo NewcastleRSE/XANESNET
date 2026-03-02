@@ -10,7 +10,7 @@
 </p>
 
 <p>
-    <a href="https://xanesnet.readthedocs.io">User Manual</a> • <a href="#setup">Setup</a> • <a href="#getting">Quickstart</a> • <a href="#publications">Publications</a>
+    <a href="https://xanesnet.readthedocs.io">User Manual</a> • <a href="#setup">Setup</a> • <a href="#getting-started">Getting Started</a> • <a href="#contact">Contact</a> • <a href="#publications">Publications</a>
 </p>
 
 </td></tr></table>
