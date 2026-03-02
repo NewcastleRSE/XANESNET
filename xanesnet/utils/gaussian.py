@@ -64,7 +64,7 @@ class GaussianBasis(nn.Module):
         self.register_buffer("centers", centers)
 
     def synthesize(self, coeffs: torch.Tensor):
-        return coeffs @ self.Phi.T
+        return coeffs @ self.Phi.to(coeffs.device).T
 
 
 def build_ridge_operator(Phi: Tensor, lam: float = 1e-2) -> Tensor:
