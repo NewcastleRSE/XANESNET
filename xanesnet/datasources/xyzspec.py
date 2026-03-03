@@ -14,9 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import numpy as np
 from pymatgen.core import Molecule
@@ -34,6 +33,12 @@ from .registry import DataSourceRegistry
 
 @DataSourceRegistry.register("xyzspec")
 class XYZSpecSource(DataSource):
+    """
+    Datasource for paired XYZ coordinate files and XANES spectra.
+    Expects two directories: one with .xyz files and one with .txt files containing the spectra.
+    The file names (without extensions) must match between the two directories.
+    """
+
     def __init__(
         self,
         datasource_type: str,
@@ -52,8 +57,8 @@ class XYZSpecSource(DataSource):
 
     def __iter__(self) -> Iterator[Molecule]:
         for file in self.file_names:
-            xyz_file = os.path.join(self.xyz_path, f"{file}.xyz")
-            xanes_file = os.path.join(self.xanes_path, f"{file}.txt")
+            xyz_file = Path(self.xyz_path) / f"{file}.xyz"
+            xanes_file = Path(self.xanes_path) / f"{file}.txt"
 
             molecule = self.load_xyz(xyz_file)
             energies, intensities = self.load_xanes(xanes_file)
@@ -87,7 +92,7 @@ class XYZSpecSource(DataSource):
         return file_names
 
     @staticmethod
-    def load_xanes(file_path: str) -> tuple[np.ndarray, np.ndarray]:
+    def load_xanes(file_path: Path) -> tuple[np.ndarray, np.ndarray]:
         """
         Load XANES spectrum from a file.
         """
@@ -105,7 +110,7 @@ class XYZSpecSource(DataSource):
         return energies, intensities
 
     @staticmethod
-    def load_xyz(file_path: str) -> Molecule:
+    def load_xyz(file_path: Path) -> Molecule:
         """
         Load XYZ coordinates from a file.
         """

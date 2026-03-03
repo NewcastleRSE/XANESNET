@@ -22,6 +22,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 DATASOURCE_DEFAULT = {
     "xyzspec": {},
+    "multixyzspec": {},
 }
 
 DATASET_DEFAULT = {
@@ -201,6 +202,7 @@ STRATEGY_DEFAULTS = {
 
 DATASOURCE_REQUIRED = {
     "xyzspec": ["xyz_path", "xanes_path"],
+    "multixyzspec": ["root_path"],
 }
 
 DATASET_REQUIRED = {

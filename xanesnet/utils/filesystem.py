@@ -39,6 +39,18 @@ def list_filestems(d: Path) -> list[str]:
     return [f.stem for f in list_files(d)]
 
 
+def list_subdirs(path: Path) -> list[Path]:
+    # returns a list of subdirectories (as str) found in a directory (`d`);
+    # 'hidden' directories are always omitted
+    return [d for d in path.iterdir() if d.is_dir() and not d.name.startswith(".")]
+
+
+def list_subdir_stems(path: Path) -> list[str]:
+    # returns a list of subdirectory stems (as str) found in a directory (`d`);
+    # 'hidden' directories are always omitted
+    return [d.stem for d in path.iterdir() if d.is_dir() and not d.name.startswith(".")]
+
+
 ###############################################################################
 ################################### CREATION ##################################
 ###############################################################################
