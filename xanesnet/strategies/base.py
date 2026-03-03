@@ -41,6 +41,7 @@ class Strategy(ABC):
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
+        tensorboard_dir: str | Path | None,
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
@@ -53,7 +54,7 @@ class Strategy(ABC):
         self.bias_init = bias_init
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_interval = checkpoint_interval
-
+        self.tensorboard_dir = tensorboard_dir
         self.trainer_config = trainer_config
         self.inferencer_config = inferencer_config
 

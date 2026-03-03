@@ -46,7 +46,7 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
-    strategy = _setup_strategy(config, dataset, save_dir / "checkpoints")
+    strategy = _setup_strategy(config, dataset, save_dir, args_namespace.tensorboard)
     strategy.setup_models()
     strategy.setup_checkpointer()
     strategy.init_model_weights()
@@ -119,7 +119,7 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_strategy(config: Config, dataset: Dataset, checkpoint_dir: str | Path) -> Strategy:
+def _setup_strategy(config: Config, dataset: Dataset, save_dir: Path, enable_tensorboard: bool) -> Strategy:
     """
     Initialises the training strategy.
     """
@@ -132,7 +132,8 @@ def _setup_strategy(config: Config, dataset: Dataset, checkpoint_dir: str | Path
     logging.info(f"Initialising strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config.as_kwargs(),
-        checkpoint_dir=checkpoint_dir,
+        checkpoint_dir=save_dir / "checkpoints",
+        tensorboard_dir=save_dir / "tensorboard" if enable_tensorboard else None,
         dataset=dataset,
         model_config=model_config,
         trainer_config=trainer_config,

@@ -39,6 +39,7 @@ class Ensemble(Strategy):
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
+        tensorboard_dir: str | Path | None,
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
@@ -51,6 +52,7 @@ class Ensemble(Strategy):
             bias_init,
             checkpoint_dir,
             checkpoint_interval,
+            tensorboard_dir,
             trainer_config,
             inferencer_config,
         )

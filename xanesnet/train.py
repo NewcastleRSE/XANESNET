@@ -31,6 +31,7 @@ from xanesnet.serialization.config import (
     load_raw_config,
     validate_config_train,
 )
+from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
@@ -67,6 +68,12 @@ def parse_args(args: list[str]) -> Namespace:
         type=str,
         help="Optional name for the training run.",
     )
+    parser.add_argument(
+        "-t",
+        "--tensorboard",
+        action="store_true",
+        help="Whether to write training metrics to TensorBoard logs.",
+    )
 
     args_namespace = parser.parse_args(args)
     return args_namespace
@@ -98,7 +105,8 @@ def main(args: list[str]) -> None:
     # Get saving directory
     save_dir = create_run_dir("./runs", name=f"train_{args_namespace.name}" if args_namespace.name else "train")
     logging.info(f"Run directory: {save_dir}")
-    create_subfolders(save_dir, subfolder_names=["models", "checkpoints"])
+    subfolders = ["models", "checkpoints"] + (["tensorboard"] if args_namespace.tensorboard else [])
+    create_subfolders(save_dir, subfolder_names=subfolders)
 
     # Setup file logging
     setup_file_logging(save_dir)
@@ -118,6 +126,13 @@ def main(args: list[str]) -> None:
         logging.warning("No global seed specified in configuration file. Choosing random seed.")
     seed = set_global_seed(seed)
     logging.info(f"Global seed: {seed}")
+
+    # Tensorboard
+    if args_namespace.tensorboard:
+        logging.info("TensorBoard logging enabled.")
+        tb_logger.set_config(config)
+    else:
+        logging.info("TensorBoard logging disabled.")
 
     # Branching into training mode
     train(config, args_namespace, save_dir)  # Run training

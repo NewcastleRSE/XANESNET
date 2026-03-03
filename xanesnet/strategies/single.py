@@ -24,6 +24,7 @@ from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
 from xanesnet.serialization.config import Config
+from xanesnet.serialization.tensorboard import tb_logger
 
 from .base import Strategy
 from .registry import StrategyRegistry
@@ -42,6 +43,7 @@ class Single(Strategy):
         bias_init: str,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
+        tensorboard_dir: str | Path | None,
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
@@ -54,6 +56,7 @@ class Single(Strategy):
             bias_init,
             checkpoint_dir,
             checkpoint_interval,
+            tensorboard_dir,
             trainer_config,
             inferencer_config,
         )
@@ -102,7 +105,12 @@ class Single(Strategy):
         assert self.checkpointer is not None
         self.checkpointer.new_model()
 
+        if self.tensorboard_dir is not None:
+            tb_logger.new_run(self.tensorboard_dir)
+
         self.trainer.train()
+
+        tb_logger.close()
 
         return [self.model]
 

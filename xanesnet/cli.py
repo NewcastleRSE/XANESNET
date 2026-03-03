@@ -41,18 +41,22 @@ HELP = """Usage: python xanesnet/cli.py <command> [options]
 Commands (mutually exclusive):
   train    Train a model using a configuration file.
     Arguments:
-      -i, --in_file    Path to input YAML configuration file. (Required)
-      --in_model       Path to a pre-trained model directory (optional). ! Not implemented yet. !
+      -i, --in_file       Path to input YAML configuration file. (Required)
+      --in_model          Path to a pre-trained model directory (Optional). ! Not implemented yet. !
+      -n, --name          Name for the training run used for logging and saving (Optional).
+      -t, --tensorboard   Whether to write training metrics to TensorBoard logs (Optional).
 
   infer    Run inference on data using a trained model.
     Arguments:
       -i, --in_file    Path to input YAML configuration file. (Required)
       -m, --in_model   Path to a trained model .pth file. (Required)
+      -n, --name       Name for the inference run used for logging and saving (Optional).
 
   analyze  Analyze predictions from inference runs.
     Arguments:
       -i, --in_file         Path to input YAML configuration file. (Required)
       -p, --predictions     Path to directory containing predictions. (Required)
+      -n, --name            Name for the analysis run used for logging and saving (Optional).
 """
 
 TRAIN = r"""

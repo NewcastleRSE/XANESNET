@@ -26,6 +26,7 @@ from xanesnet.losses import Loss, LossRegistry
 from xanesnet.models import Model
 from xanesnet.regularizers import Regularizer, RegularizerRegistry
 from xanesnet.serialization.config import Config
+from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.stoppers import EarlyStopper, EarlyStopperRegistry
 
 from ..base import Runner
@@ -106,6 +107,16 @@ class Trainer(Runner):
 
         logging.info(f"Start training: {self.epochs} epochs.")
 
+        # Log model graph (once, using first training batch as example input)
+        # TODO check this!
+        try:
+            sample_batch = next(iter(self.dataloader))
+            sample_batch.to(self.device)
+            sample_inputs = self.batchprocessor.input_preparation(sample_batch)
+            tb_logger.log_model_graph(self.model, sample_inputs)
+        except Exception as e:
+            logging.debug(f"Could not log model graph: {e}")
+
         train_total = None
         valid_total = None
 
@@ -132,6 +143,19 @@ class Trainer(Runner):
                 valid_total,
                 epoch,
             )
+
+            # TensorBoard logging
+            tb_logger.log_epoch_metrics(
+                epoch,
+                train_loss,
+                train_regularization,
+                train_total,
+                valid_loss,
+                valid_regularization,
+                valid_total,
+            )
+            tb_logger.log_learning_rate(epoch, self.optimizer.param_groups[0]["lr"])
+            tb_logger.log_model_weights(epoch, self.model)
 
             # Learning rate scheduler
             self.lr_scheduler.step()
@@ -267,7 +291,7 @@ class Trainer(Runner):
         dataloader_cls = self.dataset.get_dataloader()
 
         dataloader = dataloader_cls(
-            self.dataset.train_subset,
+            self.dataset.train_subset,  # TODO what is the issure here?
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             collate_fn=self.dataset.collate_fn,
