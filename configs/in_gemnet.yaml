@@ -1,0 +1,83 @@
+seed: 2025
+device: cpu
+
+datasource:
+  datasource_type: xyzspec
+  xyz_path: ./data/fe/xyz_train
+  xanes_path: ./data/fe/xanes_train
+
+
+dataset: 
+  # general:
+  dataset_type: gemset
+  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  force_prepare: True
+  split_ratios: [0.8, 0.2]
+  # params:
+  cutoff: 5.0
+  int_cutoff: 10.0
+  triplets_only: False
+
+model:
+  # general:
+  model_type: gemnet
+  # params:
+  num_spherical: 6
+  num_radial: 5
+  num_blocks: 3
+  emb_size_atom: 64
+  emb_size_edge: 64
+  emb_size_trip: 32
+  emb_size_quad: 16
+  emb_size_rbf: 8
+  emb_size_cbf: 8
+  emb_size_sbf: 16
+  emb_size_bil_quad: 16
+  emb_size_bil_trip: 32
+  num_before_skip: 1
+  num_after_skip: 1
+  num_concat: 1
+  num_atom: 2
+  triplets_only: False
+  num_targets: 226
+  cutoff: 5.0
+  int_cutoff: 10.0 
+  envelope_exponent: 5
+  readout: mean
+  output_init: HeOrthogonal
+  activation: swish
+  scale_file: null
+
+trainer:
+  # general:
+  trainer_type: nntrainer
+  batch_size: 1
+  shuffle: True
+  drop_last: False
+  num_workers: 0
+  # params:
+  epochs: 500
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 10
+  loss:
+    loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0 
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic 
+    patience: 25
+    min_delta: 0.001
+    restore_best: True
+  
+strategy:
+  # general:
+  strategy_type: single
+  checkpoint_interval: 25
+  # params:

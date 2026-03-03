@@ -45,6 +45,15 @@ DATASET_DEFAULT = {
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
+    "gemset": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+        "cutoff": 5.0,
+        "int_cutoff": 10.0,
+        "triplets_only": False,
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -100,6 +109,32 @@ MODEL_DEFAULTS = {
         "num_output_layers": 3,
         "act": "swish",
         "output_initializer": "zeros",
+    },
+    "gemnet": {
+        "num_spherical": 7,
+        "num_radial": 6,
+        "num_blocks": 4,
+        "emb_size_atom": 128,
+        "emb_size_edge": 128,
+        "emb_size_trip": 64,
+        "emb_size_quad": 32,
+        "emb_size_rbf": 16,
+        "emb_size_cbf": 16,
+        "emb_size_sbf": 32,
+        "emb_size_bil_quad": 32,
+        "emb_size_bil_trip": 64,
+        "num_before_skip": 1,
+        "num_after_skip": 1,
+        "num_concat": 1,
+        "num_atom": 2,
+        "triplets_only": False,
+        "cutoff": 5.0,
+        "int_cutoff": 10.0,
+        "envelope_exponent": 5,
+        "readout": "mean",
+        "output_init": "HeOrthogonal",
+        "activation": "swish",
+        "scale_file": None,
     },
 }
 
@@ -171,6 +206,7 @@ DATASOURCE_REQUIRED = {
 DATASET_REQUIRED = {
     "xanesx": ["root"],
     "geometric": ["root"],
+    "gemset": ["root"],
 }
 
 MODEL_REQUIRED = {
@@ -178,6 +214,7 @@ MODEL_REQUIRED = {
     "schnet": ["reduce_channels_2"],
     "dimenet": ["out_channels"],
     "dimenet++": ["out_channels"],
+    "gemnet": ["num_targets"],
 }
 
 TRAINER_REQUIRED = {

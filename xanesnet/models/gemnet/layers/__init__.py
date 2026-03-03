@@ -13,25 +13,3 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from .base import Model
-from .dimenet import DimeNet, DimeNetPlusPlus
-from .gemnet import GemNet
-from .mlp import MLP
-from .pre_trained import ModelInfo, PretrainedModels
-from .registry import ModelRegistry
-from .schnet import SchNet
-from .softshell import SoftShellSpectraNet
-
-__all__ = [
-    "Model",
-    "MLP",
-    "SoftShellSpectraNet",
-    "ModelInfo",
-    "PretrainedModels",
-    "ModelRegistry",
-    "SchNet",
-    "DimeNet",
-    "DimeNetPlusPlus",
-    "GemNet",
-]
