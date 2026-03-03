@@ -126,21 +126,34 @@ class TensorBoardLogger:
         w = self.writer
 
         # Training scalars
-        w.add_scalar("train/loss", train_loss, epoch)
-        w.add_scalar("train/regularization", train_regularization, epoch)
-        w.add_scalar("train/total", train_total, epoch)
+        w.add_scalar("loss/train", train_loss, epoch)
+        w.add_scalar("regularization/train", train_regularization, epoch)
+        w.add_scalar("total/train", train_total, epoch)
 
         # Validation scalars
         if valid_total is not None:
-            w.add_scalar("valid/loss", valid_loss, epoch)
-            w.add_scalar("valid/regularization", valid_regularization, epoch)
-            w.add_scalar("valid/total", valid_total, epoch)
+            w.add_scalar("loss/valid", valid_loss, epoch)
+            w.add_scalar("regularization/valid", valid_regularization, epoch)
+            w.add_scalar("total/valid", valid_total, epoch)
 
-        # Combined overlay: train vs valid total loss
-        totals: dict[str, float] = {"train": train_total}
-        if valid_total is not None:
-            totals["valid"] = valid_total
-        w.add_scalars("loss/total", totals, epoch)
+        # Combined single-plot view (all metrics overlaid)
+        # TODO make this good. Maybe remove?
+        # NOTE: add_scalars creates sub-runs in the runs sidebar – this is a
+        # known TensorBoard quirk. Just ignore/collapse those extra entries.
+        if False:
+            combined: dict[str, float] = {
+                "train_loss": train_loss,
+                "train_regularization": train_regularization,
+                "train_total": train_total,
+            }
+            if valid_loss is not None:
+                combined["valid_loss"] = valid_loss
+            if valid_regularization is not None:
+                combined["valid_regularization"] = valid_regularization
+            if valid_total is not None:
+                combined["valid_total"] = valid_total
+
+            w.add_scalars("epoch_metrics", combined, epoch)
 
     def log_learning_rate(self, epoch: int, lr: float) -> None:
         """
@@ -149,7 +162,7 @@ class TensorBoardLogger:
         if not self._enabled:
             return
 
-        self.writer.add_scalar("train/learning_rate", lr, epoch)
+        self.writer.add_scalar("other/learning_rate", lr, epoch)
 
     def log_model_weights(self, epoch: int, model: torch.nn.Module) -> None:
         """
@@ -198,15 +211,6 @@ class TensorBoardLogger:
 
         self.writer.add_scalar(tag, value, step)
 
-    def log_scalars(self, main_tag: str, tag_scalar_dict: dict[str, float], step: int) -> None:
-        """
-        Log multiple scalars under the same main tag (overlaid in one chart).
-        """
-        if not self._enabled:
-            return
-
-        self.writer.add_scalars(main_tag, tag_scalar_dict, step)
-
     def log_histogram(self, tag: str, values: torch.Tensor, step: int) -> None:
         """
         Log a histogram of tensor values.
@@ -246,7 +250,8 @@ class TensorBoardLogger:
             flat_hparams = self._flatten_dict(self._config.as_dict())
             # add_hparams only accepts str/bool/int/float/Tensor values
             hparams = {k: v for k, v in flat_hparams.items() if isinstance(v, (str, bool, int, float))}
-            self.writer.add_hparams(hparams, metric_dict)
+            # run_name="." prevents add_hparams from creating a sub-directory
+            self.writer.add_hparams(hparams, metric_dict, run_name=".")
 
     def flush(self) -> None:
         """
