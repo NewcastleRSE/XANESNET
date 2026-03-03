@@ -173,7 +173,6 @@ def _summary_models(model_list: list[Model], dataset: Dataset) -> None:
 
     for idx, model in enumerate(model_list):
         batchprocessor = BatchProcessorRegistry.get(dataset.dataset_type, model.model_type)()
-        sample = dataset[0]
-        inputs = batchprocessor.input_preparation_single(sample)
+        inputs = batchprocessor.input_preparation_single(dataset, 0)
         logging.info(f"Model  {idx}:")
         summary(model, input_data=inputs)

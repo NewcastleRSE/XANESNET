@@ -31,20 +31,10 @@ class XanesXMLP(BatchProcessor):
             raise ValueError("Input data 'x' is None!")
         return {"x": batch.x}
 
-    def input_preparation_single(self, sample: XanesXData) -> dict[str, torch.Tensor]:
-        if sample.x is None:
-            raise ValueError("Input data 'x' is None!")
-        return {"x": sample.x.unsqueeze(0)}
-
     def target_preparation(self, batch: XanesXData) -> torch.Tensor:
         if batch.y is None:
             raise ValueError("Target data 'y' is None!")
         return batch.y
-
-    def target_preparation_single(self, sample: XanesXData) -> torch.Tensor:
-        if sample.y is None:
-            raise ValueError("Target data 'y' is None!")
-        return sample.y.unsqueeze(0)
 
     def sample_id_extraction(self, batch: XanesXData) -> np.ndarray:
         if batch.file_name is None:

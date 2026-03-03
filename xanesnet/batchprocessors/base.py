@@ -15,7 +15,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+
+# TODO do we need this ?
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+import torch
+
+if TYPE_CHECKING:
+    from xanesnet.datasets import Dataset
 
 
 class BatchProcessor(ABC):
@@ -31,30 +39,35 @@ class BatchProcessor(ABC):
         """
         ...
 
-    @abstractmethod
-    def input_preparation_single(self, sample: Any) -> dict[str, Any]:
+    def input_preparation_single(self, dataset: "Dataset", index: int) -> dict[str, Any]:
         """
         Prepares the model inputs from a single sample.
+        Collates the sample into a batch of size 1 and delegates to input_preparation.
         """
-        ...
+        sample = dataset[index]
+        batch = dataset.collate_fn([sample])
+        return self.input_preparation(batch)
 
     @abstractmethod
-    def target_preparation(self, batch: Any) -> Any:
+    def target_preparation(self, batch: Any) -> torch.Tensor:
         """
         Prepares the model targets from a batch.
         """
         ...
 
-    @abstractmethod
-    def target_preparation_single(self, sample: Any) -> Any:
+    def target_preparation_single(self, dataset: "Dataset", index: int) -> torch.Tensor:
         """
         Prepares the model targets from a single sample.
+        Collates the sample into a batch of size 1 and delegates to target_preparation.
         """
-        ...
+        sample = dataset[index]
+        batch = dataset.collate_fn([sample])
+        return self.target_preparation(batch)
 
     @abstractmethod
-    def sample_id_extraction(self, batch: Any) -> Any:
+    def sample_id_extraction(self, batch: Any) -> np.ndarray:
         """
         Extracts sample IDs from a batch.
         """
+        ...
         ...

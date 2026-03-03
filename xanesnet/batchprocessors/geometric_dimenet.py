@@ -16,7 +16,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
 import torch
-from torch_geometric.data import Data
 
 from xanesnet.datasets import GeometricBatch
 
@@ -31,16 +30,8 @@ class GeometricDimeNet(BatchProcessor):
     def input_preparation(self, batch: GeometricBatch) -> dict[str, torch.Tensor]:
         return {"z": batch.x, "pos": batch.pos, "batch": batch.batch}
 
-    def input_preparation_single(self, sample: Data) -> dict[str, torch.Tensor]:
-        assert sample.x is not None, "Input data 'x' is None!"
-        assert sample.pos is not None, "Input data 'pos' is None!"
-        return {"z": sample.x, "pos": sample.pos, "batch": torch.zeros(sample.x.size(0), dtype=torch.long)}
-
     def target_preparation(self, batch: GeometricBatch) -> torch.Tensor:
         return batch.intensities
-
-    def target_preparation_single(self, sample: Data) -> torch.Tensor:
-        return sample.intensities.unsqueeze(0)
 
     def sample_id_extraction(self, batch: GeometricBatch) -> np.ndarray:
         return np.array(batch.sample_id.cpu(), dtype=str)

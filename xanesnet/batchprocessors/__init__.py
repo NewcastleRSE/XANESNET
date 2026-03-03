@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import BatchProcessor
+from .gemset_gemnet import GemsetGemNet
 from .geometric_dimenet import GeometricDimeNet
 from .geometric_schnet import GeometricSchNet
 from .registry import BatchProcessorRegistry
@@ -26,4 +27,5 @@ __all__ = [
     "XanesXMLP",
     "GeometricSchNet",
     "GeometricDimeNet",
+    "GemsetGemNet",
 ]
