@@ -19,6 +19,7 @@ __pycache__/
 ############################################
 models/
 runs/
+!xanesnet/models/
 
 ############################################
 # Data (usually not committed)
