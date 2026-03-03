@@ -65,27 +65,22 @@ class GeometricDataset(TorchGeometricDataset):
         if already_processed:
             return True
 
-        for idx, data in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            sample_id = data.properties["file_name"]
-            atomic_symbols = data.labels
+        for idx, struct in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
+            sample_id = struct.properties["file_name"]
+            atomic_symbols = struct.labels
 
-            # Atomic numbers
-            atomic_numbers = data.atomic_numbers
-            atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int32)
-
-            # Cartesian coordinates
-            cart_coords = data.cart_coords
-            cart_coords = torch.tensor(cart_coords, dtype=torch.float32)
+            atomic_numbers = torch.tensor(struct.atomic_numbers, dtype=torch.int64)
+            cart_coords = torch.tensor(struct.cart_coords, dtype=torch.float32)
 
             # XANES (first atom)
             energies, intensities = (
-                data.site_properties["XANES"][0]["energies"],
-                data.site_properties["XANES"][0]["intensities"],
+                struct.site_properties["XANES"][0]["energies"],
+                struct.site_properties["XANES"][0]["intensities"],
             )
             energies = torch.tensor(energies, dtype=torch.float32)
             intensities = torch.tensor(intensities, dtype=torch.float32)
 
-            data = Data(
+            struct = Data(
                 x=atomic_numbers,
                 pos=cart_coords,
                 energies=energies,
@@ -95,7 +90,7 @@ class GeometricDataset(TorchGeometricDataset):
             )
 
             save_path = os.path.join(self.processed_dir, f"{idx}.pth")
-            self._save_data(data, save_path)
+            self._save_data(struct, save_path)
 
         return True
 
