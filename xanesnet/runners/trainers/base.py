@@ -105,17 +105,13 @@ class Trainer(Runner):
         """
         self.model.to(self.device)
 
-        logging.info(f"Start training: {self.epochs} epochs.")
-
         # Log model graph (once, using first training batch as example input)
-        # TODO check this!
-        try:
-            sample_batch = next(iter(self.dataloader))
-            sample_batch.to(self.device)
-            sample_inputs = self.batchprocessor.input_preparation(sample_batch)
-            tb_logger.log_model_graph(self.model, sample_inputs)
-        except Exception as e:
-            logging.debug(f"Could not log model graph: {e}")
+        sample_batch = next(iter(self.dataloader))
+        sample_batch.to(self.device)
+        sample_inputs = self.batchprocessor.input_preparation(sample_batch)
+        tb_logger.log_model_graph(self.model, sample_inputs)
+
+        logging.info(f"Start training: {self.epochs} epochs.")
 
         train_total = None
         valid_total = None
@@ -289,7 +285,7 @@ class Trainer(Runner):
 
     def _setup_train_dataloader(self) -> Any:
         if self.dataset.train_subset is None:
-            return None  # TODO should we raise an error here?
+            raise ValueError("Training subset is required but was not provided.")
 
         dataloader_cls = self.dataset.get_dataloader()
 
@@ -309,7 +305,7 @@ class Trainer(Runner):
 
     def _setup_valid_dataloader(self) -> Any | None:
         if self.dataset.valid_subset is None:
-            return None  # TODO should we raise an error here?
+            raise ValueError("Validation subset is required but was not provided.")
 
         dataloader_cls = self.dataset.get_dataloader()
 

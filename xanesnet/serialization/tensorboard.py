@@ -136,25 +136,6 @@ class TensorBoardLogger:
             w.add_scalar("regularization/valid", valid_regularization, epoch)
             w.add_scalar("total/valid", valid_total, epoch)
 
-        # Combined single-plot view (all metrics overlaid)
-        # TODO make this good. Maybe remove?
-        # NOTE: add_scalars creates sub-runs in the runs sidebar – this is a
-        # known TensorBoard quirk. Just ignore/collapse those extra entries.
-        if False:
-            combined: dict[str, float] = {
-                "train_loss": train_loss,
-                "train_regularization": train_regularization,
-                "train_total": train_total,
-            }
-            if valid_loss is not None:
-                combined["valid_loss"] = valid_loss
-            if valid_regularization is not None:
-                combined["valid_regularization"] = valid_regularization
-            if valid_total is not None:
-                combined["valid_total"] = valid_total
-
-            w.add_scalars("epoch_metrics", combined, epoch)
-
     def log_learning_rate(self, epoch: int, lr: float) -> None:
         """
         Log the current learning rate.
@@ -178,27 +159,16 @@ class TensorBoardLogger:
             if param.grad is not None:
                 w.add_histogram(f"gradients/{tag}", param.grad.data, epoch)
 
-    def log_model_graph(self, model: torch.nn.Module, input_example: Any) -> None:
+    def log_model_graph(self, model: torch.nn.Module, input_example: dict[str, Any]) -> None:
         """
         Log the model computation graph (call once at the start of training).
-
-        Args:
-            model: The model to log.
-            input_example: Either a tuple of tensors (positional args) or a dict
-                of tensors (keyword args). Dicts are converted to a tuple of
-                their values since ``add_graph`` only supports positional input.
         """
         if not self._enabled:
             return
 
-        try:
-            # add_graph expects positional input (a tuple of tensors).
-            # Our models are called with **kwargs from a dict, so convert.
-            if isinstance(input_example, dict):
-                input_example = tuple(input_example.values())
-            self.writer.add_graph(model, input_example)
-        except Exception as e:
-            logging.warning(f"Could not log model graph to TensorBoard: {e}")
+        input_example_tuple = tuple(input_example.values())
+        self.writer.add_graph(model, input_example_tuple)
+        logging.info("Logged model graph to TensorBoard.")
 
     # PRIMITIVE LOGGING FUNCTIONS
 
