@@ -63,6 +63,12 @@ def parse_args(args: list[str]) -> Namespace:
         action="append",
     )
     parser.add_argument(
+        "-o",
+        "--out_dir",
+        type=str,
+        help="Path to output directory. (Optional, default: ./runs )",
+    )
+    parser.add_argument(
         "-n",
         "--name",
         type=str,
@@ -95,7 +101,8 @@ def main(args: list[str]) -> None:
     config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
     # Get saving directory
-    save_dir = create_run_dir("./runs", name=f"analyze_{args_namespace.name}" if args_namespace.name else "analyze")
+    out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
+    save_dir = create_run_dir(out_dir, name=f"analyze_{args_namespace.name}" if args_namespace.name else "analyze")
     logging.info(f"Run directory: {save_dir}")
     create_subfolders(save_dir, subfolder_names=["plots", "reports", "aux"])
 

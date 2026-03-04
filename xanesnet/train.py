@@ -58,9 +58,10 @@ def parse_args(args: list[str]) -> Namespace:
         help="Path to input YAML configuration file.",
     )
     parser.add_argument(
-        "--in_model",  # TODO pretrained model loading
+        "-o",
+        "--out_dir",
         type=str,
-        help="Path to a pre-trained model directory (optional).",
+        help="Path to output directory. (Optional, default: ./runs )",
     )
     parser.add_argument(
         "-n",
@@ -103,7 +104,8 @@ def main(args: list[str]) -> None:
     config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
     # Get saving directory
-    save_dir = create_run_dir("./runs", name=f"train_{args_namespace.name}" if args_namespace.name else "train")
+    out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
+    save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
     logging.info(f"Run directory: {save_dir}")
     subfolders = ["models", "checkpoints"] + (["tensorboard"] if args_namespace.tensorboard else [])
     create_subfolders(save_dir, subfolder_names=subfolders)

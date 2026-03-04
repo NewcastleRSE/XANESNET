@@ -67,6 +67,12 @@ def parse_args(args: list[str]) -> Namespace:
         help="Path to a trained model .pth file.",
     )
     parser.add_argument(
+        "-o",
+        "--out_dir",
+        type=str,
+        help="Path to output directory. (Optional, default: ./runs )",
+    )
+    parser.add_argument(
         "-n",
         "--name",
         type=str,
@@ -104,7 +110,8 @@ def main(args: list[str]) -> None:
     checkpoint = Checkpoint.load(args_namespace.in_model)
 
     # Get saving directory
-    save_dir = create_run_dir("./runs", name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
+    out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
+    save_dir = create_run_dir(out_dir, name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
     logging.info(f"Run directory: {save_dir}")
     create_subfolders(save_dir, subfolder_names=["predictions"])
 

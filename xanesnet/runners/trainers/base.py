@@ -288,22 +288,28 @@ class Trainer(Runner):
         return valid_loss, valid_regularization, valid_total
 
     def _setup_train_dataloader(self) -> Any:
+        if self.dataset.train_subset is None:
+            return None  # TODO should we raise an error here?
+
         dataloader_cls = self.dataset.get_dataloader()
 
         dataloader = dataloader_cls(
-            self.dataset.train_subset,  # TODO what is the issure here?
+            self.dataset.train_subset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             collate_fn=self.dataset.collate_fn,
             drop_last=self.drop_last,
             num_workers=self.num_workers,
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=2,
         )
 
         return dataloader
 
     def _setup_valid_dataloader(self) -> Any | None:
         if self.dataset.valid_subset is None:
-            return None
+            return None  # TODO should we raise an error here?
 
         dataloader_cls = self.dataset.get_dataloader()
 
@@ -314,6 +320,9 @@ class Trainer(Runner):
             collate_fn=self.dataset.collate_fn,
             drop_last=False,  # Keep all validation samples
             num_workers=self.num_workers,
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=2,
         )
 
         return dataloader
