@@ -18,10 +18,12 @@ from .base import EarlyStopper
 from .basic import BasicStopper
 from .no import NoStopper
 from .registry import EarlyStopperRegistry
+from .time import TimeStopper
 
 __all__ = [
     "EarlyStopper",
     "BasicStopper",
     "EarlyStopperRegistry",
     "NoStopper",
+    "TimeStopper",
 ]
