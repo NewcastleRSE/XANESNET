@@ -13,5 +13,6 @@ from .mh_gnn import MultiHead_GNN
 
 from .transformer import Transformer
 from .envembed import EnvEmbedNet
+from .e3eembed import E3EEmbed
 
 from .pre_trained import PretrainedModels
