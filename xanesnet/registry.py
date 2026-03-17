@@ -83,6 +83,10 @@ def register_scheme(model_name, scheme_name):
                         "learn": scheme.AEGANLearn,
                         "predict": scheme.AEGANPredict,
                     },
+                    "e3ee": {
+                        "learn": scheme.E3EELearn,
+                        "predict": scheme.E3EEPredict,
+                    },
                 },
             )
 
