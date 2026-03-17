@@ -15,3 +15,6 @@ from .mh_predict import MHPredict
 
 from .ee_learn import EELearn
 from .ee_predict import EEPredict
+
+from .e3ee_learn import E3EELearn
+from .e3ee_predict import E3EEPredict
