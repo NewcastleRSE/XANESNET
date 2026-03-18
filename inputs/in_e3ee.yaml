@@ -1,0 +1,74 @@
+dataset:
+  type: e3eembed 
+  root_path:  ./processed-learn
+  xyz_path: ./trn_XYZ 
+  xanes_path: ./trn_XAS 
+  params:
+#    preload: True           
+#    fourier: False
+#    fourier_concat: False
+     gaussian: False 
+#    widths_eV: [1.0, 2.0, 4.0]
+#    basis_stride: 2
+
+descriptors:
+  - type: none
+
+lr_scheduler: True
+scheduler_params:
+  type: step
+  step_size: 50
+  gamma: 0.5
+
+model:
+  type: e3eenet
+  params:
+    max_z: 100
+    atom_emb_dim: 32
+    atom_hidden_dim: 64 
+    atom_layers: 3
+    local_cutoff: 6.0
+    rbf_dim: 16
+    energy_rbf_dim: 24
+    scatter_dim: 64
+    latent_dim: 64 
+    head_hidden_dim: 64
+    e3nn_irreps: "32x0e + 16x1o + 8x2e"
+    e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
+    e3nn_lmax: 2
+    out_mlp_layers: 2
+    use_path_terms: False
+    max_paths_per_structure: 128
+    residual_scale_init: 0.1
+    attention_heads: 4
+
+hyperparams:
+  batch_size: 2
+  epochs: 100
+  lr: 0.002
+  optimizer: Adam
+  loss: mw_ssim1d
+  loss_params:
+    spec_size: 159
+    fractions: [0.05, 0.10, 0.25]
+    weights: [0.33, 0.33, 0.33]
+  use_amp: false
+  grad_accum_steps: 1
+  grad_clip_norm: 1.0
+
+kfold: False
+#kfold_params:
+#  n_splits: 3
+#  n_repeats: 1
+#  seed: 2021
+
+bootstrap: False 
+bootstrap_params:
+  n_boot: 15
+  n_size: 1.0
+  weight_seed: [97, 39, 22, 54, 62, 78, 81, 12, 27, 9, 71, 66, 91, 17, 8]
+
+ensemble: False
+#ensemble_params:
+#  n_ens: 3
+#  weight_seed: [97, 39, 22]
