@@ -39,7 +39,8 @@ setup(
         "sphinx_rtd_theme==1.3.0",
         "pyscf==2.4.0",
         "tblite==0.3.0",
-        "mace-torch==0.3.6",
+        "mace-torch==0.3.13",
         "pytest==8.3.3",
+        "e3nn==0.4.4",
     ],
 )
