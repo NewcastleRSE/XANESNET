@@ -34,7 +34,6 @@ class E3EELearn(Learn):
         self.use_amp = self.hyper_params.get("use_amp", True)
         self.grad_accum_steps = max(1, int(self.hyper_params.get("grad_accum_steps", 1)))
         self.grad_clip_norm = float(self.hyper_params.get("grad_clip_norm", 0.0))
-        self.deriv_lambda = float(self.hyper_params.get("deriv_lambda", 0.0))
 
         # AMP is only useful on CUDA
         self.amp_enabled = bool(self.use_amp and self.device.type == "cuda")
@@ -56,11 +55,11 @@ class E3EELearn(Learn):
         state = EarlyStopState() if self.earlystop_flag else None
         valid_loss = 0.0
 
-        logging.info(f"--- Starting e3nn XANES Training for {self.epochs} epochs ---")
+        logging.info(f"--- Starting e3ee Training for {self.epochs} epochs ---")
 
         for epoch in range(self.epochs):
-            train_loss = self._run_one_epoch(
-                "train",
+            train_loss = self._run_one_epoch_train(
+                epoch,
                 train_loader,
                 model,
                 criterion,
@@ -68,13 +67,11 @@ class E3EELearn(Learn):
                 optimizer,
             )
 
-            valid_loss = self._run_one_epoch(
-                "valid",
+            valid_loss = self._run_one_epoch_valid(
                 valid_loader,
                 model,
                 criterion,
                 regularizer,
-                optimizer=None,
             )
 
             if self.lr_scheduler:
@@ -124,13 +121,11 @@ class E3EELearn(Learn):
 
             test_data = self.dataset[test_index]
             test_loader = self._create_loader(test_data)
-            test_score = self._run_one_epoch(
-                "valid",
+            test_score = self._run_one_epoch_valid(
                 test_loader,
                 model,
                 criterion,
                 regularizer,
-                optimizer=None,
             )
 
             score_list["train_score"].append(train_score)
@@ -155,28 +150,76 @@ class E3EELearn(Learn):
 
         return best_model
 
-    def _run_one_epoch(
+    def _run_one_epoch_train(
         self,
-        phase,
+        epoch,
         loader,
         model,
         criterion,
         regularizer,
-        optimizer=None,
+        optimizer,
     ):
-        is_train = phase == "train"
-        model.train() if is_train else model.eval()
-
+        model.train()
         running_loss = 0.0
         device = self.device
 
-        if is_train:
-            optimizer.zero_grad(set_to_none=True)
+        optimizer.zero_grad(set_to_none=True)
 
         for step, batch in enumerate(loader):
             batch.to(device)
 
-            with torch.set_grad_enabled(is_train):
+            with torch.set_grad_enabled(True):
+                with torch.cuda.amp.autocast(enabled=self.amp_enabled):
+                    input_data = batch if model.batch_flag else batch.x
+                    pred = model(input_data)
+
+                    if model.gnn_flag:
+                        pred = pred.view(-1)
+
+                    criterion = LossSwitch().get(self.loss, **self.loss_params)
+                    loss_spec = criterion(batch.y, pred)
+                    loss_aux = F.mse_loss(batch.y, pred)
+                    if epoch < 10:
+                        aux_weight = 1.0
+                    elif epoch >= 50:
+                        aux_weight = 0.0
+                    else:
+                        aux_weight = 1.0 - (epoch - 10) / (50 - 10)
+
+                    loss = loss_spec + aux_weight * loss_aux
+                    loss = loss / self.grad_accum_steps
+
+                self.scaler.scale(loss).backward()
+
+                do_step = ((step + 1) % self.grad_accum_steps == 0) or ((step + 1) == len(loader))
+                if do_step:
+                    if self.grad_clip_norm > 0.0:
+                        self.scaler.unscale_(optimizer)
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_clip_norm)
+
+                    self.scaler.step(optimizer)
+                    self.scaler.update()
+                    optimizer.zero_grad(set_to_none=True)
+
+            running_loss += loss.item() * self.grad_accum_steps
+
+        return running_loss / len(loader)
+
+    def _run_one_epoch_valid(
+        self,
+        loader,
+        model,
+        criterion,
+        regularizer,
+    ):
+        model.eval()
+        running_loss = 0.0
+        device = self.device
+
+        for batch in loader:
+            batch.to(device)
+
+            with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=self.amp_enabled):
                     input_data = batch if model.batch_flag else batch.x
                     pred = model(input_data)
@@ -189,24 +232,7 @@ class E3EELearn(Learn):
                     loss_aux = F.mse_loss(batch.y, pred)
                     loss = loss_spec + loss_aux
 
-                    if is_train:
-                        loss = loss / self.grad_accum_steps
-
-                if is_train:
-                    self.scaler.scale(loss).backward()
-
-                    do_step = ((step + 1) % self.grad_accum_steps == 0) or ((step + 1) == len(loader))
-                    if do_step:
-                        if self.grad_clip_norm > 0.0:
-                            self.scaler.unscale_(optimizer)
-                            torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_clip_norm)
-
-                        self.scaler.step(optimizer)
-                        self.scaler.update()
-                        optimizer.zero_grad(set_to_none=True)
-
-            # log the unscaled batch loss
-            running_loss += loss.item() * self.grad_accum_steps if is_train else loss.item()
+            running_loss += loss.item()
 
         return running_loss / len(loader)
 
