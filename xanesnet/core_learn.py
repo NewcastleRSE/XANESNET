@@ -98,12 +98,19 @@ def setup_descriptors(config: Dict) -> List:
         logging.info(f">> Loading pretrained model descriptors: {model_type}")
         return load_pretrained_descriptors(model_type)
 
-    descriptor_cfg = config["descriptors"]
+    descriptor_cfg = config.get("descriptors", None)
+
+    if descriptor_cfg is None or descriptor_cfg == "none":
+        logging.info(">> No descriptors used (descriptor: none)")
+        return []  # IMPORTANT: return empty list, not None
+
+    if isinstance(descriptor_cfg, list):
+        if len(descriptor_cfg) == 0 or str(descriptor_cfg[0].get("type", "")).lower() == "none":
+            logging.info(">> No descriptors used (descriptor: none)")
+            return []
+
     descriptor_types = ", ".join(d["type"] for d in descriptor_cfg)
     logging.info(f">> Initialising descriptors: {descriptor_types}")
-
-    return create_descriptors(config=descriptor_cfg)
-
 
 def setup_dataset(config: Dict, mode: Mode, descriptors: List) -> BaseDataset:
     """Create and preprocess dataset."""
