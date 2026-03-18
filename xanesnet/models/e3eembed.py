@@ -1,6 +1,14 @@
 """
-Absorber-centred e3ee XANES model for XANESNET,
-with neighbour and optional path scattering branches.
+Absorber-centred e3ee XANES model for XANESNET.
+
+Revised version with:
+- smooth cosine cutoff envelope
+- irrep-aware normalization
+- gentler residual updates
+- weighted message aggregation in equivariant encoder
+- invariant summaries from all irreps for downstream use
+- energy-conditioned attention over atomwise invariant features
+- optional path branch retained
 """
 
 from typing import Optional, List
@@ -8,6 +16,7 @@ from typing import Optional, List
 import torch
 import torch.nn as nn
 from e3nn import o3
+from e3nn.nn import Gate
 from e3nn.o3 import FullyConnectedTensorProduct
 
 from xanesnet.models.base_model import Model
@@ -40,6 +49,40 @@ def build_absorber_relative_geometry(
     }
 
 
+def invariant_feature_dim(irreps: o3.Irreps) -> int:
+    return sum(mul for mul, _ in irreps)
+
+
+def invariant_features_from_irreps(x: torch.Tensor, irreps: o3.Irreps) -> torch.Tensor:
+    """
+    Convert flattened irreps features into invariant features.
+
+    For l = 0:
+        keep scalar channels directly
+
+    For l > 0:
+        take RMS norm of each irrep copy
+    """
+    outs = []
+    offset = 0
+    B, N, _ = x.shape
+
+    for mul, ir in irreps:
+        dim = ir.dim
+        block_dim = mul * dim
+        xb = x[:, :, offset:offset + block_dim].view(B, N, mul, dim)
+
+        if ir.l == 0:
+            outs.append(xb.view(B, N, mul))
+        else:
+            inv = torch.sqrt((xb ** 2).mean(dim=-1) + 1e-8) 
+            outs.append(inv)
+
+        offset += block_dim
+
+    return torch.cat(outs, dim=-1)
+
+
 class GaussianRBF(nn.Module):
     def __init__(self, start: float, stop: float, n_rbf: int, gamma: Optional[float] = None):
         super().__init__()
@@ -52,6 +95,18 @@ class GaussianRBF(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.exp(-self.gamma * (x.unsqueeze(-1) - self.centers) ** 2)
+
+
+class CosineCutoff(nn.Module):
+    def __init__(self, cutoff: float):
+        super().__init__()
+        self.cutoff = float(cutoff)
+
+    def forward(self, r: torch.Tensor) -> torch.Tensor:
+        x = r / self.cutoff
+        out = 0.5 * (torch.cos(torch.pi * x) + 1.0)
+        out = out * (r <= self.cutoff).to(r.dtype)
+        return out
 
 
 class EnergyRBFEmbedding(nn.Module):
@@ -106,6 +161,57 @@ class RadialMLP(nn.Module):
         return self.net(x)
 
 
+class IrrepNorm(nn.Module):
+    """
+    Simple irrep-respecting normalization.
+
+    - l = 0 blocks:
+        mean/variance normalization across multiplicity channels
+    - l > 0 blocks:
+        RMS normalization per irrep copy
+    """
+
+    def __init__(self, irreps: o3.Irreps, eps: float = 1e-8, affine: bool = True):
+        super().__init__()
+        self.irreps = o3.Irreps(irreps)
+        self.eps = eps
+        self.affine = affine
+
+        if affine:
+            self.weight = nn.Parameter(torch.ones(self.irreps.dim))
+            self.bias = nn.Parameter(torch.zeros(self.irreps.dim))
+        else:
+            self.register_parameter("weight", None)
+            self.register_parameter("bias", None)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        outs = []
+        offset = 0
+        B = x.shape[0]
+
+        for mul, ir in self.irreps:
+            dim = ir.dim
+            block_dim = mul * dim
+            xb = x[:, offset:offset + block_dim].view(B, mul, dim)
+
+            if ir.l == 0:
+                mean = xb.mean(dim=1, keepdim=True)
+                var = ((xb - mean) ** 2).mean(dim=1, keepdim=True)
+                xb = (xb - mean) / torch.sqrt(var + self.eps)
+            else:
+                norm = torch.sqrt((xb ** 2).mean(dim=2, keepdim=True) + self.eps)
+                xb = xb / norm
+
+            outs.append(xb.reshape(B, block_dim))
+            offset += block_dim
+
+        out = torch.cat(outs, dim=-1)
+
+        if self.affine:
+            out = out * self.weight + self.bias
+
+        return out
+
 # ============================================================
 # e3ee graph builder
 # ============================================================
@@ -153,20 +259,8 @@ class RadiusGraphBuilder:
 
         return edge_src, edge_dst, edge_vec
 
-
-def scalar_indices_from_irreps(irreps: o3.Irreps) -> List[int]:
-    idx = []
-    offset = 0
-    for mul, ir in irreps:
-        block_dim = mul * ir.dim
-        if ir.l == 0:
-            idx.extend(range(offset, offset + block_dim))
-        offset += block_dim
-    return idx
-
-
 # ============================================================
-# e3ee encoder
+# Equivariant encoder
 # ============================================================
 
 class EquivariantInteractionBlock(nn.Module):
@@ -174,22 +268,60 @@ class EquivariantInteractionBlock(nn.Module):
         self,
         irreps_node: str,
         irreps_sh: str,
+        irreps_message: str,
         rbf_dim: int,
-        hidden_dim: int,
+        radial_hidden_dim: int,
+        cutoff: float,
+        residual_scale_init: float = 0.1,
     ):
         super().__init__()
+
         self.irreps_node = o3.Irreps(irreps_node)
         self.irreps_sh = o3.Irreps(irreps_sh)
+        self.irreps_message = o3.Irreps(irreps_message)
+
+        self.pre_norm = IrrepNorm(self.irreps_node)
+        self.cutoff_fn = CosineCutoff(cutoff)
 
         self.tp = FullyConnectedTensorProduct(
             self.irreps_node,
             self.irreps_sh,
-            self.irreps_node,
+            self.irreps_message,
             shared_weights=False,
         )
-        self.weight_mlp = RadialMLP(rbf_dim, hidden_dim, self.tp.weight_numel)
-        self.lin_self = o3.Linear(self.irreps_node, self.irreps_node)
-        self.lin_out = o3.Linear(self.irreps_node, self.irreps_node)
+        self.weight_mlp = RadialMLP(rbf_dim, radial_hidden_dim, self.tp.weight_numel)
+
+        self.edge_gate = nn.Sequential(
+            nn.Linear(rbf_dim, radial_hidden_dim),
+            nn.SiLU(),
+            nn.Linear(radial_hidden_dim, 1),
+            nn.Sigmoid(),
+        )
+
+        irreps_scalars = o3.Irreps([(mul, ir) for mul, ir in self.irreps_message if ir.l == 0])
+        irreps_gated = o3.Irreps([(mul, ir) for mul, ir in self.irreps_message if ir.l > 0])
+        irreps_gates = (
+            o3.Irreps(f"{irreps_gated.num_irreps}x0e")
+            if irreps_gated.num_irreps > 0
+            else o3.Irreps("")
+        )
+
+        self.msg_linear = o3.Linear(
+            self.irreps_message,
+            irreps_scalars + irreps_gates + irreps_gated,
+        )
+
+        self.gate = Gate(
+            irreps_scalars=irreps_scalars,
+            act_scalars=[torch.nn.functional.silu] * len(irreps_scalars),
+            irreps_gates=irreps_gates,
+            act_gates=[torch.sigmoid] * len(irreps_gates),
+            irreps_gated=irreps_gated,
+        )
+
+        self.update_linear = o3.Linear(self.gate.irreps_out, self.irreps_node)
+        self.self_linear = o3.Linear(self.irreps_node, self.irreps_node)
+        self.res_scale = nn.Parameter(torch.tensor(float(residual_scale_init), dtype=torch.float32))
 
     def forward(
         self,
@@ -198,23 +330,44 @@ class EquivariantInteractionBlock(nn.Module):
         edge_dst: torch.Tensor,
         edge_sh: torch.Tensor,
         edge_rbf: torch.Tensor,
+        edge_len: torch.Tensor,
     ) -> torch.Tensor:
         if edge_src.numel() == 0:
             return x
 
-        weights = self.weight_mlp(edge_rbf)
-        m = self.tp(x[edge_src], edge_sh, weights)
+        x_norm = self.pre_norm(x)
 
-        agg = torch.zeros_like(x)
+        tp_weights = self.weight_mlp(edge_rbf)
+        m = self.tp(x_norm[edge_src], edge_sh, tp_weights)
+
+        cutoff_w = self.cutoff_fn(edge_len).unsqueeze(-1)
+        gate_w = self.edge_gate(edge_rbf)
+        edge_w = cutoff_w * gate_w
+
+        m = m * edge_w
+
+        agg = torch.zeros(
+            x.shape[0],
+            self.irreps_message.dim,
+            device=x.device,
+            dtype=x.dtype,
+        )
         agg.index_add_(0, edge_dst, m)
 
-        # degree normalization for stability
-        deg = torch.zeros(x.shape[0], device=x.device, dtype=x.dtype)
-        deg.index_add_(0, edge_dst, torch.ones_like(edge_dst, dtype=x.dtype))
-        deg = deg.clamp_min(1.0).unsqueeze(-1)
-        agg = agg / deg
+        norm = torch.zeros(
+            x.shape[0],
+            1,
+            device=x.device,
+            dtype=x.dtype,
+        )
+        norm.index_add_(0, edge_dst, edge_w)
+        agg = agg / norm.clamp_min(1e-8)
 
-        return self.lin_self(x) + self.lin_out(agg)
+        agg = self.msg_linear(agg)
+        agg = self.gate(agg)
+
+        out = self.self_linear(x_norm) + self.update_linear(agg)
+        return x + self.res_scale.to(x.dtype) * out
 
 
 class TrueE3EEAtomEncoder(nn.Module):
@@ -228,11 +381,14 @@ class TrueE3EEAtomEncoder(nn.Module):
         node_attr_dim: int = 64,
         hidden_dim: int = 128,
         irreps_node: str = "64x0e + 32x1o + 16x2e",
+        irreps_message: str = "16x0e + 8x1o + 4x2e",
+        residual_scale_init: float = 0.1,
     ):
         super().__init__()
         self.cutoff = cutoff
         self.rbf_dim = rbf_dim
         self.irreps_node = o3.Irreps(irreps_node)
+        self.irreps_message = o3.Irreps(irreps_message)
 
         self.graph_builder = RadiusGraphBuilder(cutoff=cutoff)
         self.dist_rbf = GaussianRBF(0.0, cutoff, rbf_dim)
@@ -250,13 +406,16 @@ class TrueE3EEAtomEncoder(nn.Module):
             EquivariantInteractionBlock(
                 irreps_node=str(self.irreps_node),
                 irreps_sh=str(self.irreps_sh),
+                irreps_message=str(self.irreps_message),
                 rbf_dim=rbf_dim,
-                hidden_dim=hidden_dim,
+                radial_hidden_dim=hidden_dim,
+                cutoff=cutoff,
+                residual_scale_init=residual_scale_init,
             )
             for _ in range(num_interactions)
         ])
 
-        self.out_norm = nn.LayerNorm(self.irreps_node.dim)
+        self.out_norm = IrrepNorm(self.irreps_node)
 
     def forward(
         self,
@@ -298,16 +457,18 @@ class TrueE3EEAtomEncoder(nn.Module):
                 normalization="component",
             )
         else:
+            edge_len = torch.zeros(0, device=device, dtype=pos.dtype)
             edge_rbf = torch.zeros(0, self.rbf_dim, device=device, dtype=pos.dtype)
             edge_sh = torch.zeros(0, self.irreps_sh.dim, device=device, dtype=pos.dtype)
 
         for block in self.blocks:
-            x = x + block(
+            x = block(
                 x=x,
                 edge_src=edge_src,
                 edge_dst=edge_dst,
                 edge_sh=edge_sh,
                 edge_rbf=edge_rbf,
+                edge_len=edge_len,
             )
 
         x = self.out_norm(x)
@@ -315,38 +476,9 @@ class TrueE3EEAtomEncoder(nn.Module):
 
         return x.view(B, N, self.irreps_node.dim)
 
-
 # ============================================================
-# Energy-conditioned scattering heads
+# Optional path branch
 # ============================================================
-
-class ElementEnergyScattering(nn.Module):
-    def __init__(
-        self,
-        max_z: int,
-        z_emb_dim: int,
-        e_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-    ):
-        super().__init__()
-        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
-        self.mlp = MLP(
-            in_dim=z_emb_dim + e_dim,
-            hidden_dim=hidden_dim,
-            out_dim=out_dim,
-            n_layers=3,
-        )
-
-    def forward(self, z_neigh: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        B, M = z_neigh.shape
-        nE, dE = e_feat.shape
-
-        zf = self.z_emb(z_neigh).unsqueeze(2).expand(B, M, nE, -1)
-        ef = e_feat.unsqueeze(0).unsqueeze(0).expand(B, M, nE, dE)
-
-        return self.mlp(torch.cat([zf, ef], dim=-1))
-
 
 class PairElementEnergyScattering(nn.Module):
     def __init__(
@@ -377,68 +509,10 @@ class PairElementEnergyScattering(nn.Module):
         return self.mlp(torch.cat([ej, ek, ef], dim=-1))
 
 
-class AbsorberNeighbourAggregator(nn.Module):
-    def __init__(
-        self,
-        atom_dim: int,
-        rbf_dim: int,
-        geom_hidden_dim: int,
-        scatter_dim: int,
-        out_dim: int,
-        cutoff: float,
-    ):
-        super().__init__()
-        self.cutoff = cutoff
-        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
-
-        self.geom_mlp = MLP(
-            in_dim=2 * atom_dim + rbf_dim + 3,
-            hidden_dim=geom_hidden_dim,
-            out_dim=scatter_dim,
-            n_layers=3,
-        )
-
-        self.out_proj = MLP(
-            in_dim=scatter_dim,
-            hidden_dim=geom_hidden_dim,
-            out_dim=out_dim,
-            n_layers=2,
-        )
-
-    def forward(
-        self,
-        h: torch.Tensor,
-        z: torch.Tensor,
-        pos: torch.Tensor,
-        mask: torch.Tensor,
-        elem_energy: ElementEnergyScattering,
-        e_feat: torch.Tensor,
-        absorber_index: int = 0,
-    ) -> torch.Tensor:
-        B, N, H = h.shape
-
-        geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
-        r = geom["r"]
-        u = geom["u"]
-        valid = geom["valid_neigh"] & (r <= self.cutoff)
-
-        h0 = h[:, absorber_index, :].unsqueeze(1).expand(B, N, H)
-        hr = self.rbf(r.clamp(max=self.cutoff))
-
-        geom_in = torch.cat([h0, h, hr, u], dim=-1)
-        g_geom = self.geom_mlp(geom_in)              # (B,N,D)
-        g_elem = elem_energy(z, e_feat)              # (B,N,nE,D)
-
-        contrib = g_geom.unsqueeze(2) * g_elem
-        contrib = contrib * valid.unsqueeze(-1).unsqueeze(-1).to(contrib.dtype)
-
-        agg = contrib.sum(dim=1)                     # (B,nE,D)
-        return self.out_proj(agg)                    # (B,nE,L)
-
-
 class AbsorberPathAggregator(nn.Module):
     """
-    3-body absorber-centred path aggregator for paths (0, j, k).
+    3-body absorber-centred path aggregator for paths (0, j, k),
+    operating on invariant atomwise features.
     """
 
     def __init__(
@@ -455,6 +529,7 @@ class AbsorberPathAggregator(nn.Module):
         self.cutoff = cutoff
         self.max_paths_per_structure = max_paths_per_structure
         self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
 
         self.geom_mlp = MLP(
             in_dim=2 * atom_dim + 3 * rbf_dim + 1,
@@ -470,13 +545,7 @@ class AbsorberPathAggregator(nn.Module):
             n_layers=2,
         )
 
-    def _enumerate_paths(
-        self,
-        z: torch.Tensor,
-        pos: torch.Tensor,
-        mask: torch.Tensor,
-        absorber_index: int,
-    ):
+    def _enumerate_paths(self, z, pos, mask, absorber_index):
         B, N = z.shape
         device = z.device
 
@@ -484,9 +553,7 @@ class AbsorberPathAggregator(nn.Module):
         r = geom["r"]
         valid = geom["valid_neigh"] & (r <= self.cutoff)
 
-        all_j = []
-        all_k = []
-        all_m = []
+        all_j, all_k, all_m = [], [], []
         Pmax = self.max_paths_per_structure
 
         for b in range(B):
@@ -498,10 +565,23 @@ class AbsorberPathAggregator(nn.Module):
                 pmask = torch.zeros(Pmax, dtype=torch.bool, device=device)
             else:
                 pairs = torch.combinations(idx, r=2)
+
+                pos0 = pos[b, absorber_index].unsqueeze(0)
+                posj = pos[b, pairs[:, 0]]
+                posk = pos[b, pairs[:, 1]]
+
+                r0j = torch.linalg.norm(posj - pos0, dim=-1)
+                r0k = torch.linalg.norm(posk - pos0, dim=-1)
+                rjk = torch.linalg.norm(posk - posj, dim=-1)
+
+                score = r0j + r0k + 0.5 * rjk
+                order = torch.argsort(score)
+                pairs = pairs[order]
+
                 if pairs.shape[0] > Pmax:
                     pairs = pairs[:Pmax]
-                P = pairs.shape[0]
 
+                P = pairs.shape[0]
                 j_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
                 k_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
                 pmask = torch.zeros(Pmax, dtype=torch.bool, device=device)
@@ -532,8 +612,8 @@ class AbsorberPathAggregator(nn.Module):
         j_idx, k_idx, path_mask = self._enumerate_paths(z, pos, mask, absorber_index)
         batch_idx = torch.arange(B, device=device)[:, None]
 
-        hj = h[batch_idx, j_idx]  # (B,P,H)
-        hk = h[batch_idx, k_idx]  # (B,P,H)
+        hj = h[batch_idx, j_idx]
+        hk = h[batch_idx, k_idx]
 
         pos0 = pos[:, absorber_index, :].unsqueeze(1)
         posj = pos[batch_idx, j_idx]
@@ -556,17 +636,198 @@ class AbsorberPathAggregator(nn.Module):
         fjk = self.rbf(rjk.clamp(max=self.cutoff))
 
         geom_in = torch.cat([hj, hk, f0j, f0k, fjk, cosang], dim=-1)
-        g_geom = self.geom_mlp(geom_in)                         # (B,P,D)
+        g_geom = self.geom_mlp(geom_in)
 
         zj = z[batch_idx, j_idx]
         zk = z[batch_idx, k_idx]
-        g_elem = pair_elem_energy(zj, zk, e_feat)              # (B,P,nE,D)
+        g_elem = pair_elem_energy(zj, zk, e_feat)
+
+        cutoff_w = (
+            self.cutoff_fn(r0j) *
+            self.cutoff_fn(r0k) *
+            self.cutoff_fn(rjk)
+        ).unsqueeze(-1).unsqueeze(-1)
 
         contrib = g_geom.unsqueeze(2) * g_elem
+        contrib = contrib * cutoff_w
         contrib = contrib * path_mask.unsqueeze(-1).unsqueeze(-1).to(contrib.dtype)
 
-        agg = contrib.sum(dim=1)                               # (B,nE,D)
-        return self.out_proj(agg)                              # (B,nE,L)
+        agg = contrib.sum(dim=1)
+
+        norm = cutoff_w.squeeze(-1) * path_mask.unsqueeze(-1).to(cutoff_w.dtype)
+        norm = norm.sum(dim=1).clamp_min(1e-8)
+        agg = agg / norm.unsqueeze(1)
+
+        return self.out_proj(agg)
+
+# ============================================================
+# Energy-conditioned atomwise attention
+# ============================================================
+
+class EnergyConditionedAtomAttention(nn.Module):
+    """
+    Energy-conditioned attention over atomwise invariant features.
+
+    For each energy:
+    - build an energy-dependent query from absorber invariant features + energy embedding
+    - build atom keys/values from atom invariant features + geometry
+    - attend over atoms to obtain an energy-dependent latent vector
+    """
+
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        rbf_dim: int,
+        hidden_dim: int,
+        latent_dim: int,
+        cutoff: float,
+        max_z: int = 100,
+        z_emb_dim: int = 32,
+        n_heads: int = 4,
+    ):
+        super().__init__()
+        assert latent_dim % n_heads == 0, "latent_dim must be divisible by n_heads"
+
+        self.atom_dim = atom_dim
+        self.e_dim = e_dim
+        self.rbf_dim = rbf_dim
+        self.hidden_dim = hidden_dim
+        self.latent_dim = latent_dim
+        self.cutoff = cutoff
+        self.n_heads = n_heads
+        self.head_dim = latent_dim // n_heads
+
+        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
+        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
+
+        self.query_mlp = MLP(
+            in_dim=atom_dim + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        self.key_mlp = MLP(
+            in_dim=atom_dim + z_emb_dim + rbf_dim + 3 + 1 + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        self.value_mlp = MLP(
+            in_dim=atom_dim + z_emb_dim + rbf_dim + 3 + 1 + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        self.out_proj = MLP(
+            in_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=2,
+        )
+
+        self.score_scale = self.head_dim ** -0.5
+
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        new_shape = x.shape[:-1] + (self.n_heads, self.head_dim)
+        return x.view(*new_shape)
+
+    def forward(
+        self,
+        h: torch.Tensor,          
+        z: torch.Tensor,          
+        pos: torch.Tensor,        
+        mask: torch.Tensor,       
+        e_feat: torch.Tensor,     
+        absorber_index: int = 0,
+    ) -> torch.Tensor:
+        B, N, H = h.shape
+        nE, dE = e_feat.shape
+        device = h.device
+        dtype = h.dtype
+
+        geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
+        r = geom["r"]                              
+        u = geom["u"]                              
+        valid = mask & (r <= self.cutoff)          
+
+        h_abs = h[:, absorber_index, :]            
+        q_in = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+        ], dim=-1)                                 
+
+        q = self.query_mlp(q_in)                   
+        q = self._split_heads(q)                   
+
+        zr = self.z_emb(z)                         
+        rr = self.rbf(r.clamp(max=self.cutoff))    
+        cutoff_w = self.cutoff_fn(r)               
+
+        is_abs = torch.zeros_like(r)
+        is_abs[:, absorber_index] = 1.0
+
+        atom_base = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)  
+        atom_base = atom_base.unsqueeze(2).expand(B, N, nE, atom_base.shape[-1])
+        ef = e_feat.unsqueeze(0).unsqueeze(0).expand(B, N, nE, dE)
+
+        kv_in = torch.cat([atom_base, ef], dim=-1)  
+        k = self.key_mlp(kv_in)                     
+        v = self.value_mlp(kv_in)                   
+
+        k = k.permute(0, 2, 1, 3).contiguous()      
+        v = v.permute(0, 2, 1, 3).contiguous()      
+
+        k = self._split_heads(k)                    
+        v = self._split_heads(v)                    
+
+        scores = (q.unsqueeze(2) * k).sum(dim=-1) * self.score_scale
+
+        radial_bias = torch.log(cutoff_w.clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)  
+        scores = scores + radial_bias
+
+        attn_mask = valid.unsqueeze(1).unsqueeze(-1)  
+        scores = scores.masked_fill(~attn_mask, -1e9)
+
+        attn = torch.softmax(scores, dim=2)        
+        attn = attn * attn_mask.to(attn.dtype)
+        out = (attn.unsqueeze(-1) * v).sum(dim=2)   
+        out = out.reshape(B, nE, self.latent_dim)   
+
+        return self.out_proj(out)
+
+
+class EnergyConditionedAbsorberBranch(nn.Module):
+    """
+    Energy-dependent absorber branch.
+    """
+
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.mlp = MLP(
+            in_dim=atom_dim + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
+
+    def forward(self, h_abs: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
+        B, H = h_abs.shape
+        nE, dE = e_feat.shape
+
+        ha = h_abs.unsqueeze(1).expand(B, nE, H)
+        ef = e_feat.unsqueeze(0).expand(B, nE, dE)
+        return self.mlp(torch.cat([ha, ef], dim=-1))
 
 
 # ============================================================
@@ -577,7 +838,11 @@ class AbsorberPathAggregator(nn.Module):
 @register_scheme("e3eenet", scheme_name="e3ee")
 class E3EEmbed(Model):
     """
-    Absorber-centred energy embedded e3 XANES model with neighbour and optional path scattering.
+    Absorber-centred energy embedded e3 XANES model with:
+    - equivariant atom encoder
+    - invariant atomwise summaries
+    - energy-conditioned attention over atoms
+    - optional path branch
     """
 
     def __init__(
@@ -595,10 +860,13 @@ class E3EEmbed(Model):
         latent_dim: int = 128,
         head_hidden_dim: int = 128,
         e3nn_irreps: str = "64x0e + 32x1o + 16x2e",
+        e3nn_irreps_message: str = "16x0e + 8x1o + 4x2e",
         e3nn_lmax: int = 2,
         out_mlp_layers: int = 3,
         use_path_terms: bool = False,
         max_paths_per_structure: int = 128,
+        residual_scale_init: float = 0.1,
+        attention_heads: int = 4,
     ):
         super().__init__()
         self.nn_flag = 1
@@ -615,11 +883,11 @@ class E3EEmbed(Model):
             node_attr_dim=atom_emb_dim,
             hidden_dim=atom_hidden_dim,
             irreps_node=e3nn_irreps,
+            irreps_message=e3nn_irreps_message,
+            residual_scale_init=residual_scale_init,
         )
 
-        scalar_idx = scalar_indices_from_irreps(self.atom_encoder.irreps_node)
-        self.register_buffer("scalar_idx", torch.tensor(scalar_idx, dtype=torch.long))
-        scalar_dim = len(scalar_idx)
+        self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
 
         self.energy_embedding = EnergyRBFEmbedding(
             e_min=0.0,
@@ -627,21 +895,23 @@ class E3EEmbed(Model):
             n_rbf=energy_rbf_dim,
         )
 
-        self.elem_energy = ElementEnergyScattering(
-            max_z=max_z,
-            z_emb_dim=32,
+        self.abs_branch = EnergyConditionedAbsorberBranch(
+            atom_dim=self.inv_dim,
             e_dim=energy_rbf_dim,
-            hidden_dim=128,
-            out_dim=scatter_dim,
+            hidden_dim=head_hidden_dim,
+            out_dim=latent_dim,
         )
 
-        self.neigh_agg = AbsorberNeighbourAggregator(
-            atom_dim=scalar_dim,
+        self.atom_attention = EnergyConditionedAtomAttention(
+            atom_dim=self.inv_dim,
+            e_dim=energy_rbf_dim,
             rbf_dim=rbf_dim,
-            geom_hidden_dim=128,
-            scatter_dim=scatter_dim,
-            out_dim=latent_dim,
+            hidden_dim=atom_hidden_dim,
+            latent_dim=latent_dim,
             cutoff=local_cutoff,
+            max_z=max_z,
+            z_emb_dim=32,
+            n_heads=attention_heads,
         )
 
         if self.use_path_terms:
@@ -654,7 +924,7 @@ class E3EEmbed(Model):
             )
 
             self.path_agg = AbsorberPathAggregator(
-                atom_dim=scalar_dim,
+                atom_dim=self.inv_dim,
                 rbf_dim=rbf_dim,
                 geom_hidden_dim=128,
                 scatter_dim=scatter_dim,
@@ -662,13 +932,6 @@ class E3EEmbed(Model):
                 cutoff=local_cutoff,
                 max_paths_per_structure=max_paths_per_structure,
             )
-
-        self.abs_proj = MLP(
-            in_dim=scalar_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=latent_dim,
-            n_layers=2,
-        )
 
         head_in_dim = 3 * latent_dim if self.use_path_terms else 2 * latent_dim
         self.head = MLP(
@@ -693,10 +956,13 @@ class E3EEmbed(Model):
                 "latent_dim": latent_dim,
                 "head_hidden_dim": head_hidden_dim,
                 "e3nn_irreps": e3nn_irreps,
+                "e3nn_irreps_message": e3nn_irreps_message,
                 "e3nn_lmax": e3nn_lmax,
                 "out_mlp_layers": out_mlp_layers,
                 "use_path_terms": use_path_terms,
                 "max_paths_per_structure": max_paths_per_structure,
+                "residual_scale_init": residual_scale_init,
+                "attention_heads": attention_heads,
             },
             type="e3eenet",
         )
@@ -705,7 +971,8 @@ class E3EEmbed(Model):
         z = batch.z
         pos = batch.pos
         mask = batch.mask
-        absorber_index = int(batch.absorber_index.item()) if batch.absorber_index is not None else 0
+
+        absorber_index = 0
 
         if getattr(batch, "e", None) is not None:
             energies = batch.e
@@ -727,24 +994,21 @@ class E3EEmbed(Model):
             )
 
         h_full = self.atom_encoder(z, pos, mask, absorber_index=absorber_index)
-        h = torch.index_select(h_full, dim=-1, index=self.scalar_idx)
+        h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)  
 
-        e_feat = self.energy_embedding(energies)
+        e_feat = self.energy_embedding(energies)  
 
-        neigh_lat = self.neigh_agg(
+        abs_lat = self.abs_branch(h[:, absorber_index, :], e_feat)  
+        attn_lat = self.atom_attention(
             h=h,
             z=z,
             pos=pos,
             mask=mask,
-            elem_energy=self.elem_energy,
             e_feat=e_feat,
             absorber_index=absorber_index,
-        )  # (B,nE,L)
+        )  
 
-        abs_lat = self.abs_proj(h[:, absorber_index, :])        # (B,L)
-        abs_lat = abs_lat.unsqueeze(1).expand(-1, len(energies), -1)
-
-        parts = [abs_lat, neigh_lat]
+        parts = [abs_lat, attn_lat]
 
         if self.use_path_terms:
             path_lat = self.path_agg(
@@ -755,9 +1019,9 @@ class E3EEmbed(Model):
                 pair_elem_energy=self.pair_elem_energy,
                 e_feat=e_feat,
                 absorber_index=absorber_index,
-            )  # (B,nE,L)
+            )
             parts.append(path_lat)
 
         x = torch.cat(parts, dim=-1)
-        y = self.head(x).squeeze(-1)                            # (B,nE)
+        y = self.head(x).squeeze(-1)
         return y
