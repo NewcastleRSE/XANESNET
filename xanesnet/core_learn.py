@@ -112,6 +112,8 @@ def setup_descriptors(config: Dict) -> List:
     descriptor_types = ", ".join(d["type"] for d in descriptor_cfg)
     logging.info(f">> Initialising descriptors: {descriptor_types}")
 
+    return create_descriptors(config=descriptor_cfg)
+    
 def setup_dataset(config: Dict, mode: Mode, descriptors: List) -> BaseDataset:
     """Create and preprocess dataset."""
     dataset_cfg = config["dataset"]
