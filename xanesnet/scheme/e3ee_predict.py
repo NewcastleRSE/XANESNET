@@ -46,6 +46,17 @@ class E3EEPredict(Predict):
                 output = self._postprocess(output)
                 predictions.append(output)
 
+                # get and write to file the latent descriptor
+                # commented out for time being
+#               name = data.stem[0]
+#               desc = model.get_descriptor(input_data)   
+#               desc = desc[0].detach().cpu().numpy()     
+
+#               with open(f"{name}.dsc", "w") as f:
+#                   for i in range(desc.shape[0]):        
+#                       for j in range(desc.shape[1]):    
+#                           f.write(f"{desc[i, j]:.10e}\n")
+
                 if self.pred_eval:
                     target = self._postprocess(data.y)
                     targets.append(target)
@@ -53,7 +64,6 @@ class E3EEPredict(Predict):
         predictions = np.array(predictions)
         targets = np.array(targets)
 
-        # Flatten (n_batches, batch_size, nE) → (n_samples, nE)
         if predictions.ndim == 3:
             predictions = predictions.reshape(-1, predictions.shape[-1])
 

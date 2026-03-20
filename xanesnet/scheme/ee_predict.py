@@ -63,6 +63,18 @@ class EEPredict(Predict):
                     target = self._to_numpy(data.y)
                     targets.append(target)
 
+                # get and write to file the latent descriptor
+                # commented out for time being
+#               name = data.stem[0]
+#               desc = model.get_descriptor(data)   
+#               desc = desc[0].detach().cpu().numpy()
+
+#               with open(f"{name}.dsc", "w") as f:
+#                   for i in range(desc.shape[0]): 
+#                       f.write(f"{desc[i]:.10e}\n")
+
+
+
         predictions = np.array(predictions)
         targets = np.array(targets)
 
