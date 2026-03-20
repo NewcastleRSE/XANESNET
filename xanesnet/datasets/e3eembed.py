@@ -65,12 +65,6 @@ class E3EEmbdedDataset(BaseDataset):
         xanes_path = self._unique_path(xanes_path)
 
         # dataset-specific kwargs
-#       self.energy_col = kwargs.get("energy_col", 0)
-#       self.intensity_col = kwargs.get("intensity_col", 1)
-#       self.emin = kwargs.get("emin", None)
-#       self.emax = kwargs.get("emax", None)
-#       self.estep = kwargs.get("estep", None)
-#       self.normalize = kwargs.get("normalize", "none")  # none|max|area|zscore
         self.absorber_index = kwargs.get("absorber_index", 0)
 
         super().__init__(
@@ -84,12 +78,6 @@ class E3EEmbdedDataset(BaseDataset):
 
         self._register_config(
             dataset_type="e3eembed",
-#           energy_col=self.energy_col,
-#           intensity_col=self.intensity_col,
-#           emin=self.emin,
-#           emax=self.emax,
-#           estep=self.estep,
-#           normalize=self.normalize,
             absorber_index=self.absorber_index,
         )
 
@@ -154,6 +142,8 @@ class E3EEmbdedDataset(BaseDataset):
         mask_list = [sample.mask for sample in batch]
         y_list = [sample.y for sample in batch]
         e_list = [sample.e for sample in batch]
+        stem_list = [getattr(sample, "stem", None) for sample in batch]
+
 
         z = self._safe_pad(z_list, dtype=torch.long)
         pos = self._safe_pad(pos_list, dtype=torch.float32)
@@ -169,6 +159,7 @@ class E3EEmbdedDataset(BaseDataset):
             y=y,
             e=e,
             absorber_index=torch.tensor(self.absorber_index, dtype=torch.long),
+            stem=stem_list,
         )
         return data
 
