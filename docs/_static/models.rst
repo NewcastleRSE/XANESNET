@@ -547,6 +547,7 @@ Finally, multiple grouped linear heads generate structured coefficient outputs f
             mode: fan_in
             nonlinearity: relu
 
+.. _e3eenet:
 ========
 e3eenet
 ========
@@ -584,28 +585,27 @@ local environment. Optionally, absorber-centred path terms may be added to captu
 **Example:**
     .. code-block::
 
-model:
-  type: e3eenet
-  params:
-    max_z: 100
-    atom_emb_dim: 32
-    atom_hidden_dim: 64
-    atom_layers: 3
-    local_cutoff: 6.0
-    rbf_dim: 32
-    energy_rbf_dim: 64
-    scatter_dim: 64
-    latent_dim: 64
-    head_hidden_dim: 64
-    e3nn_irreps: "32x0e + 16x1o + 8x2e"
-    e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
-    e3nn_lmax: 2
-    out_mlp_layers: 2
-    use_path_terms: False
-    max_paths_per_structure: 128
-    residual_scale_init: 0.1
-    attention_heads: 4
-
+      model:
+        type: e3eenet
+        params:
+          max_z: 100
+          atom_emb_dim: 32
+          atom_hidden_dim: 64
+          atom_layers: 3
+          local_cutoff: 6.0
+          rbf_dim: 32
+          energy_rbf_dim: 64
+          scatter_dim: 64
+          latent_dim: 64
+          head_hidden_dim: 64
+          e3nn_irreps: "32x0e + 16x1o + 8x2e"
+          e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
+          e3nn_lmax: 2
+          out_mlp_layers: 2
+          use_path_terms: False
+          max_paths_per_structure: 128
+          residual_scale_init: 0.1
+          attention_heads: 4
 
 
 .. _ae-mlp:
