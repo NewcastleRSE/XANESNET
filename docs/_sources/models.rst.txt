@@ -549,10 +549,10 @@ Finally, multiple grouped linear heads generate structured coefficient outputs f
 
 .. _e3eenet:
 ========
-e3eenet
+E3EENet
 ========
 
-The Equivariant Graph Neural Network with Energy-Conditioned Attention (e3eenet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.
+The Equivariant Graph Neural Network with Energy-Conditioned Attention (E3EENet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.
 
 First, an equivariant atomic encoder generates per-atom latent features. Second, these equivariant features are converted into rotationally invariant atomwise summaries that retain
 information from scalar and higher-order channels. Third, an energy-conditioned attention mechanism constructs an energy-dependent absorber representation by attending over all atoms in the

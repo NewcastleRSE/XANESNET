@@ -59,7 +59,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#mh-cnn">MH-CNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mh-gnn">MH-GNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#envembed">EnvEmbed</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#e3eenet">e3eenet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#e3eenet">E3EENet</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ae-mlp">AE-MLP</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ae-cnn">AE-CNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#aegan-mlp">AEGAN-MLP</a></li>
@@ -613,8 +613,8 @@ Finally, multiple grouped linear heads generate structured coefficient outputs f
 </dl>
 </section>
 <section id="e3eenet">
-<span id="id10"></span><h2>e3eenet<a class="headerlink" href="#e3eenet" title="Permalink to this heading"></a></h2>
-<p>The Equivariant Graph Neural Network with Energy-Conditioned Attention (e3eenet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.</p>
+<span id="id10"></span><h2>E3EENet<a class="headerlink" href="#e3eenet" title="Permalink to this heading"></a></h2>
+<p>The Equivariant Graph Neural Network with Energy-Conditioned Attention (E3EENet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.</p>
 <p>First, an equivariant atomic encoder generates per-atom latent features. Second, these equivariant features are converted into rotationally invariant atomwise summaries that retain
 information from scalar and higher-order channels. Third, an energy-conditioned attention mechanism constructs an energy-dependent absorber representation by attending over all atoms in the
 local environment. Optionally, absorber-centred path terms may be added to capture higher-order geometric effects.</p>
