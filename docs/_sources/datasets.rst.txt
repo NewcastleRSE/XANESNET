@@ -89,6 +89,49 @@ The target features XANES spectra (``y``) and the corresponding energy grid (``e
             r_max: 5.0
 
 
+=====
+E3EEmbed
+=====
+
+This dataset is compatible with the E3EEmbed models
+and supports the forward training mode ``train_xyz`` only.
+
+The e3eembed dataset represents molecular structures using absorber-centred atomic environments derived directly from Cartesian geometry.
+Each structure is defined by its atomic numbers (z), Cartesian coordinates (pos), and a mask indicating valid atoms within the system.
+
+Atoms are treated as nodes, with the absorbing atom explicitly identified (by convention index 0).
+Node features are not provided as explicit one-hot encodings; instead, atomic numbers are mapped to learnable embeddings within the model.
+
+Geometric relationships between atoms are not precomputed as edge features.
+Instead, relative positions with respect to the absorber atom are constructed on-the-fly, enabling the model to compute interatomic distances, unit vectors, and neighbourhood information dynamically.
+
+This formulation allows the use of equivariant message passing, where rotationally consistent features are built directly from interatomic vectors and radial basis expansions during the forward pass, rather than relying on fixed descriptors such as wACSF.
+
+Optional graph-level attributes may be included using the descriptor(s) defined in the :ref:Descriptors <descriptors> section.
+The target XANES spectra (y) and the corresponding energy grid (e) are stored as global attributes associated with each structure.
+
+**Input file:**
+
+* ``type: graph``
+* ``params`` (dict, optional):
+
+  * ``preload`` (int, ``true``): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.
+  * ``fourier`` (float, ``false``): If true,  apply Fourier transformation to the XANES spectra.
+  * ``gaussian`` (int, ``false``): If true,  apply Gaussian transformation to the XANES spectra.
+  * ``widths_eV`` (float, ``[0.5, 1.0, 2.0, 4.0]``): Widths (eV) of the Gaussian basis function.
+  * ``basis_stride`` (int, ``4``): Stride between Gaussian centers on the energy grid.
+
+**Example:**
+    .. code-block::
+
+        dataset:
+          type: graph
+          root_path:  data/graph-set/processed_train
+          xyz_path: data/graph-set/xyz_train
+          xanes_path: data/graph-set/xanes_train
+          params:
+
+
 =========
 Multihead
 =========

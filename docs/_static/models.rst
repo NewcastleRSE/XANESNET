@@ -547,6 +547,66 @@ Finally, multiple grouped linear heads generate structured coefficient outputs f
             mode: fan_in
             nonlinearity: relu
 
+.. _e3eenet:
+========
+E3EENet
+========
+
+The Equivariant Graph Neural Network with Energy-Conditioned Attention (E3EENet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.
+
+First, an equivariant atomic encoder generates per-atom latent features. Second, these equivariant features are converted into rotationally invariant atomwise summaries that retain
+information from scalar and higher-order channels. Third, an energy-conditioned attention mechanism constructs an energy-dependent absorber representation by attending over all atoms in the
+local environment. Optionally, absorber-centred path terms may be added to capture higher-order geometric effects.
+
+**Input file:**
+
+* ``type: e3eenet``
+* ``params``:
+
+* ``max_z`` (int, ``100``): Maximum atomic number supported by the model. Defines the size of the atom embedding lookup table.
+* ``atom_emb_dim`` (int, ``32``): Dimensionality of the initial learned embedding for each atomic species.
+* ``atom_hidden_dim`` (int, ``64``): Hidden feature size used within the atom-wise encoder network.
+* ``atom_layers`` (int, ``3``): Number of layers in the atom-wise feature encoder applied before message passing.
+* ``local_cutoff`` (float, ``6.0``): Radial cutoff (in Å) for constructing the local neighbourhood graph around each atom.
+* ``rbf_dim`` (int, ``32``): Number of radial basis functions used to expand interatomic distances.
+* ``energy_rbf_dim`` (int, ``64``): Number of radial basis functions used to embed the energy grid.
+* ``scatter_dim`` (int, ``64``): Dimensionality of features used to represent scattering contributions from neighbouring atoms.
+* ``latent_dim`` (int, ``64``): Size of the latent representation after equivariant message passing and pooling.
+* ``head_hidden_dim`` (int, ``64``): Hidden dimension of the final prediction head mapping latent features to spectral outputs.
+* ``e3nn_irreps`` (str, ``"32x0e + 16x1o + 8x2e"``): Irreducible representation structure for node features, defining the number and type of scalar (ℓ=0), vector (ℓ=1), and higher-order (ℓ=2) components.
+* ``e3nn_irreps_message`` (str, ``"16x0e + 8x1o + 4x2e"``): Irreducible representation structure used for intermediate message features during equivariant message passing.
+* ``e3nn_lmax`` (int, ``2``): Maximum angular momentum order (ℓ) included in the equivariant representation.
+* ``out_mlp_layers`` (int, ``2``): Number of layers in the final output MLP used to predict spectral intensities.
+* ``use_path_terms`` (bool, ``False``): Whether to include explicit multiple-scattering (path-based) contributions in addition to local atomic interactions.
+* ``max_paths_per_structure`` (int, ``128``): Maximum number of scattering paths considered per structure when path terms are enabled.
+* ``residual_scale_init`` (float, ``0.1``): Initial scaling factor applied to residual connections to stabilise early training.
+* ``attention_heads`` (int, ``4``): Number of attention heads used in the energy-conditioned attention mechanism.
+
+**Example:**
+    .. code-block::
+
+      model:
+        type: e3eenet
+        params:
+          max_z: 100
+          atom_emb_dim: 32
+          atom_hidden_dim: 64
+          atom_layers: 3
+          local_cutoff: 6.0
+          rbf_dim: 32
+          energy_rbf_dim: 64
+          scatter_dim: 64
+          latent_dim: 64
+          head_hidden_dim: 64
+          e3nn_irreps: "32x0e + 16x1o + 8x2e"
+          e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
+          e3nn_lmax: 2
+          out_mlp_layers: 2
+          use_path_terms: False
+          max_paths_per_structure: 128
+          residual_scale_init: 0.1
+          attention_heads: 4
+
 
 .. _ae-mlp:
 

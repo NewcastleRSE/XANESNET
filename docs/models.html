@@ -59,6 +59,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#mh-cnn">MH-CNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mh-gnn">MH-GNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#envembed">EnvEmbed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#e3eenet">E3EENet</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ae-mlp">AE-MLP</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ae-cnn">AE-CNN</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#aegan-mlp">AEGAN-MLP</a></li>
@@ -611,8 +612,64 @@ Finally, multiple grouped linear heads generate structured coefficient outputs f
 </dd>
 </dl>
 </section>
+<section id="e3eenet">
+<span id="id10"></span><h2>E3EENet<a class="headerlink" href="#e3eenet" title="Permalink to this heading"></a></h2>
+<p>The Equivariant Graph Neural Network with Energy-Conditioned Attention (E3EENet) is an absorber-centric architecture designed to model local electronic structure in X-ray absorption processes. Built upon a tensor-product message-passing framework within the broader class of E(3)-equivariant neural networks, the model preserves rotational and translational symmetries while explicitly encoding the geometric environment of the absorbing atom. This equivariant formulation enables a physically consistent representation of both radial and angular correlations, allowing the network to capture anisotropic scattering and local coordination effects with high fidelity. By conditioning interactions on the incident energy, e3eenet further introduces an adaptive mechanism that modulates the contribution of neighbouring atoms as a function of energy, providing a natural route to modelling energy-dependent spectral features.</p>
+<p>First, an equivariant atomic encoder generates per-atom latent features. Second, these equivariant features are converted into rotationally invariant atomwise summaries that retain
+information from scalar and higher-order channels. Third, an energy-conditioned attention mechanism constructs an energy-dependent absorber representation by attending over all atoms in the
+local environment. Optionally, absorber-centred path terms may be added to capture higher-order geometric effects.</p>
+<p><strong>Input file:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">e3eenet</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code>:</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_z</span></code> (int, <code class="docutils literal notranslate"><span class="pre">100</span></code>): Maximum atomic number supported by the model. Defines the size of the atom embedding lookup table.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">atom_emb_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">32</span></code>): Dimensionality of the initial learned embedding for each atomic species.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">atom_hidden_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Hidden feature size used within the atom-wise encoder network.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">atom_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">3</span></code>): Number of layers in the atom-wise feature encoder applied before message passing.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">local_cutoff</span></code> (float, <code class="docutils literal notranslate"><span class="pre">6.0</span></code>): Radial cutoff (in Å) for constructing the local neighbourhood graph around each atom.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rbf_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">32</span></code>): Number of radial basis functions used to expand interatomic distances.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">energy_rbf_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Number of radial basis functions used to embed the energy grid.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scatter_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Dimensionality of features used to represent scattering contributions from neighbouring atoms.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">latent_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Size of the latent representation after equivariant message passing and pooling.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">head_hidden_dim</span></code> (int, <code class="docutils literal notranslate"><span class="pre">64</span></code>): Hidden dimension of the final prediction head mapping latent features to spectral outputs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e3nn_irreps</span></code> (str, <code class="docutils literal notranslate"><span class="pre">&quot;32x0e</span> <span class="pre">+</span> <span class="pre">16x1o</span> <span class="pre">+</span> <span class="pre">8x2e&quot;</span></code>): Irreducible representation structure for node features, defining the number and type of scalar (ℓ=0), vector (ℓ=1), and higher-order (ℓ=2) components.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e3nn_irreps_message</span></code> (str, <code class="docutils literal notranslate"><span class="pre">&quot;16x0e</span> <span class="pre">+</span> <span class="pre">8x1o</span> <span class="pre">+</span> <span class="pre">4x2e&quot;</span></code>): Irreducible representation structure used for intermediate message features during equivariant message passing.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e3nn_lmax</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Maximum angular momentum order (ℓ) included in the equivariant representation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">out_mlp_layers</span></code> (int, <code class="docutils literal notranslate"><span class="pre">2</span></code>): Number of layers in the final output MLP used to predict spectral intensities.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">use_path_terms</span></code> (bool, <code class="docutils literal notranslate"><span class="pre">False</span></code>): Whether to include explicit multiple-scattering (path-based) contributions in addition to local atomic interactions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_paths_per_structure</span></code> (int, <code class="docutils literal notranslate"><span class="pre">128</span></code>): Maximum number of scattering paths considered per structure when path terms are enabled.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">residual_scale_init</span></code> (float, <code class="docutils literal notranslate"><span class="pre">0.1</span></code>): Initial scaling factor applied to residual connections to stabilise early training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">attention_heads</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Number of attention heads used in the energy-conditioned attention mechanism.</p></li>
+</ul>
+<dl>
+<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="nb">type</span><span class="p">:</span> <span class="n">e3eenet</span>
+  <span class="n">params</span><span class="p">:</span>
+    <span class="n">max_z</span><span class="p">:</span> <span class="mi">100</span>
+    <span class="n">atom_emb_dim</span><span class="p">:</span> <span class="mi">32</span>
+    <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">atom_layers</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="n">local_cutoff</span><span class="p">:</span> <span class="mf">6.0</span>
+    <span class="n">rbf_dim</span><span class="p">:</span> <span class="mi">32</span>
+    <span class="n">energy_rbf_dim</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">scatter_dim</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">latent_dim</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">head_hidden_dim</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">e3nn_irreps</span><span class="p">:</span> <span class="s2">&quot;32x0e + 16x1o + 8x2e&quot;</span>
+    <span class="n">e3nn_irreps_message</span><span class="p">:</span> <span class="s2">&quot;16x0e + 8x1o + 4x2e&quot;</span>
+    <span class="n">e3nn_lmax</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">out_mlp_layers</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="n">use_path_terms</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="n">max_paths_per_structure</span><span class="p">:</span> <span class="mi">128</span>
+    <span class="n">residual_scale_init</span><span class="p">:</span> <span class="mf">0.1</span>
+    <span class="n">attention_heads</span><span class="p">:</span> <span class="mi">4</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
 <section id="ae-mlp">
-<span id="id10"></span><h2>AE-MLP<a class="headerlink" href="#ae-mlp" title="Permalink to this heading"></a></h2>
+<span id="id11"></span><h2>AE-MLP<a class="headerlink" href="#ae-mlp" title="Permalink to this heading"></a></h2>
 <p>Autoencoder Multilayer Perceptron (AE-MLP) is a type of deep neural network
 for unsupervised learning of compact data representations.
 In XANESNET, the AE-CNN architecture consists of three main components:
@@ -668,7 +725,7 @@ final output.</p>
 </dl>
 </section>
 <section id="ae-cnn">
-<span id="id11"></span><h2>AE-CNN<a class="headerlink" href="#ae-cnn" title="Permalink to this heading"></a></h2>
+<span id="id12"></span><h2>AE-CNN<a class="headerlink" href="#ae-cnn" title="Permalink to this heading"></a></h2>
 <p>The Autoencoder Convolutional Neural Network (AE-CNN) is a hybrid deep learning
 model that combines convolutional autoencoding with supervised prediction.
 In XANESNET, the AE-CNN architecture consists of three main components:
@@ -730,7 +787,7 @@ final output.</p>
 </dl>
 </section>
 <section id="aegan-mlp">
-<span id="id12"></span><h2>AEGAN-MLP<a class="headerlink" href="#aegan-mlp" title="Permalink to this heading"></a></h2>
+<span id="id13"></span><h2>AEGAN-MLP<a class="headerlink" href="#aegan-mlp" title="Permalink to this heading"></a></h2>
 <p>The AutoEncoding Generative Adversarial Network with Multi-Layer Perceptrons (AEGAN-MLP)
 model simultaneously trains both structure and spectra using two autoencoders (or generators)
 with shared parameters, along with two discriminators.
