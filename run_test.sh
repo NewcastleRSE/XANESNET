@@ -300,4 +300,31 @@ python3 -m xanesnet.cli --mode predict_xanes --in_model models/envembed_ensemble
 sed -i 's/ensemble: True/ensemble: False/' ./.github/workflows/inputs/in_envembed.yaml
 rm -rf ./.github/workflows/data/graph-set/processed*
 
+# --- e3ee Models ---
+echo "--- Running: EnvEmbed (STD) XYZ -> XANES ---"
+python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_e3ee.yaml --save
+python3 -m xanesnet.cli --mode predict_xanes --in_model models/e3eenet_std_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+rm -rf ./.github/workflows/data/fe/processed*
+
+echo "--- Running: EnvEmbed (Kfold) XYZ -> XANES ---"
+sed -i 's/kfold: False/kfold: True/' ./.github/workflows/inputs/in_e3ee.yaml
+python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_e3ee.yaml --save
+python3 -m xanesnet.cli --mode predict_xanes --in_model models/e3eenet_kfold_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+sed -i 's/kfold: True/kfold: False/' ./.github/workflows/inputs/in_envembed.yaml
+rm -rf ./.github/workflows/data/fe/processed*
+
+echo "--- Running: EnvEmbed (Bootstrap) XYZ -> XANES ---"
+sed -i 's/bootstrap: False/bootstrap: True/' ./.github/workflows/inputs/in_e3ee.yaml
+python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_e3ee.yaml --save
+python3 -m xanesnet.cli --mode predict_xanes --in_model models/e3eenet_bootstrap_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+sed -i 's/bootstrap: True/bootstrap: False/' ./.github/workflows/inputs/in_envembed.yaml
+rm -rf ./.github/workflows/data/fe/processed*
+
+echo "--- Running: EnvEmbed (Ensemble) ---"
+sed -i 's/ensemble: False/ensemble: True/' ./.github/workflows/inputs/in_e3ee.yaml
+python3 -m xanesnet.cli --mode train_xyz --in_file ./.github/workflows/inputs/in_e3ee.yaml --save
+python3 -m xanesnet.cli --mode predict_xanes --in_model models/e3eenet_ensemble_xyz_001 --in_file ./.github/workflows/inputs/in_predict.yaml
+sed -i 's/ensemble: True/ensemble: False/' ./.github/workflows/inputs/in_envembed.yaml
+rm -rf ./.github/workflows/data/graph-set/processed*
+
 echo "--- All tasks completed successfully! ---"
