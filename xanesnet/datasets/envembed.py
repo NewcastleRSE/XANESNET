@@ -41,6 +41,7 @@ class Data:
     e: torch.Tensor = None  # energies
     c_star: torch.Tensor = None  # coefficient C*
     lengths: torch.Tensor = None
+    stem: Union[str, List[str]] = None  # filename stem
 
     def to(self, device):
         # send batch do device, e is excluded
@@ -122,7 +123,7 @@ class EnvEmbedDataset(BaseDataset):
                 c_star = gaussian_forward(basis=self.gauss_basis, xanes=xanes)
 
             # initialise data object
-            data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star)
+            data = Data(desc=desc, dist=dist, y=xanes, e=e, c_star=c_star, stem=stem)
             # save data to disk
             save_path = os.path.join(self.processed_dir, f"{stem}.pt")
             torch.save(data, save_path)
@@ -136,6 +137,8 @@ class EnvEmbedDataset(BaseDataset):
         y_list = [sample.y for sample in batch]
         c_list = [sample.c_star for sample in batch]
         lengths = torch.tensor([d.size(0) for d in desc_list], dtype=torch.long)
+        stem_list = [sample.stem for sample in batch]   # <-- added
+
 
         batched_desc = self._safe_pad(desc_list)
         batched_dist = self._safe_pad(dist_list)
@@ -148,6 +151,7 @@ class EnvEmbedDataset(BaseDataset):
             y=batched_y,
             c_star=batched_c,
             lengths=lengths,
+            stem=stem_list,   # <-- added
         )
 
     @property

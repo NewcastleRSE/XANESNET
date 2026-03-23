@@ -3,3 +3,4 @@ from .xanesx import XanesXDataset
 from .multihead import MultiheadDataset
 from .transformer import TransformerDataset
 from .envembed import EnvEmbedDataset
+from .e3eembed import E3EEmbdedDataset

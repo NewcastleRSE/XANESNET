@@ -1,30 +1,17 @@
 """
-XANESNET
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+Custom prediction scheme for absorber-centred e3nn XANES models.
 """
 
 import logging
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
 import torch
 
-from typing import List, Optional, Tuple
-
 from xanesnet.models.base_model import Model
 from xanesnet.scheme.base_predict import Predict
-from xanesnet.utils.gaussian import gaussian_inverse
+from xanesnet.utils.mode import Mode
 
 
 @dataclass
@@ -36,59 +23,60 @@ class Prediction:
     targets: Optional[np.ndarray] = None
 
 
-class EEPredict(Predict):
+# -------------------------------------------------
+# Prediction scheme
+# -------------------------------------------------
+class E3EEPredict(Predict):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
     def predict(self, model):
-        """
-        Performs a single prediction with a given model.
-        """
+        """Perform standard single-model prediction."""
+
         data_loader = self._create_loader(model, self.dataset)
-        gauss_basis = self.dataset.gauss_basis
 
         model.eval()
         predictions, targets = [], []
 
-        # ---- Run inference ----
         with torch.no_grad():
             for data in data_loader:
-                c_pred = model(data)
-                output = gaussian_inverse(gauss_basis, c_pred)  # (B,N)
-                output = self._to_numpy(output.squeeze(0))
+                input_data = data if model.batch_flag else data.x
 
+                output = model(input_data)
+                output = self._postprocess(output)
                 predictions.append(output)
-
-                if self.pred_eval:
-                    target = self._to_numpy(data.y)
-                    targets.append(target)
 
                 # get and write to file the latent descriptor
                 # commented out for time being
 #               name = data.stem[0]
-#               desc = model.get_descriptor(data)   
-#               desc = desc[0].detach().cpu().numpy()
+#               desc = model.get_descriptor(input_data)   
+#               desc = desc[0].detach().cpu().numpy()     
 
 #               with open(f"{name}.dsc", "w") as f:
-#                   for i in range(desc.shape[0]): 
-#                       f.write(f"{desc[i]:.10e}\n")
+#                   for i in range(desc.shape[0]):        
+#                       for j in range(desc.shape[1]):    
+#                           f.write(f"{desc[i, j]:.10e}\n")
 
-
+                if self.pred_eval:
+                    target = self._postprocess(data.y)
+                    targets.append(target)
 
         predictions = np.array(predictions)
         targets = np.array(targets)
 
-        # ---- Evaluation ----
+        if predictions.ndim == 3:
+            predictions = predictions.reshape(-1, predictions.shape[-1])
+
+        if self.pred_eval and targets.ndim == 3:
+            targets = targets.reshape(-1, targets.shape[-1])
+
         if self.pred_eval:
             Predict.print_mse("target", "prediction", targets, predictions)
 
         return predictions, targets
 
     def predict_std(self, model: Model) -> Prediction:
-        """
-        Performs a single prediction and returns the result with a zero (dummy)
-        standard deviation array.
-        """
+        """Perform standard single-model prediction."""
         logging.info(
             f"\n--- Starting prediction with model: {model.__class__.__name__.lower()} ---"
         )
@@ -96,11 +84,12 @@ class EEPredict(Predict):
         predictions, targets = self.predict(model)
         std_pred = np.zeros_like(predictions)
 
+        if self.mode is Mode.XANES_TO_XYZ:
+            return Prediction(xyz_pred=(predictions, std_pred), targets=targets)
         return Prediction(xanes_pred=(predictions, std_pred), targets=targets)
 
     def predict_bootstrap(self, model_list: List[Model]) -> Prediction:
         """Aggregate predictions from multiple bootstrap-trained models."""
-        # Get all predictions and targets from model_list
         prediction_list, targets = self._predict_from_models(model_list)
 
         mean_pred = np.mean(prediction_list, axis=0)
@@ -110,6 +99,8 @@ class EEPredict(Predict):
             logging.info("-" * 55)
             Predict.print_mse("target", "mean prediction", targets, mean_pred)
 
+        if self.mode is Mode.XANES_TO_XYZ:
+            return Prediction(xyz_pred=(mean_pred, std_pred), targets=targets)
         return Prediction(xanes_pred=(mean_pred, std_pred), targets=targets)
 
     def predict_ensemble(self, model_list: List[Model]) -> Prediction:
@@ -122,7 +113,7 @@ class EEPredict(Predict):
 
         for i, model in enumerate(model_list, start=0):
             logging.info(
-                f">> Predicting with model {model.__class__.__name__.lower()} ({i}/{len(model_list)})..."
+                f">> Predicting with model {model.__class__.__name__.lower()} ({i+1}/{len(model_list)})..."
             )
             predictions, targets = self.predict(model)
             prediction_list.append(predictions)
