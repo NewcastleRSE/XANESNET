@@ -9,6 +9,8 @@ Revised version with:
 - invariant summaries from all irreps for downstream use
 - energy-conditioned attention over atomwise invariant features
 - optional path branch retained
+- late equivariant absorber head to keep equivariant information alive deeper into the head
+- physical absolute energy support (uses batch.e directly, not energy index)
 """
 
 from typing import Optional, List
@@ -57,30 +59,39 @@ def invariant_features_from_irreps(x: torch.Tensor, irreps: o3.Irreps) -> torch.
     """
     Convert flattened irreps features into invariant features.
 
+    Supports x of shape [..., D], e.g.
+      [B, N, D]
+      [B, nE, D]
+
     For l = 0:
         keep scalar channels directly
 
     For l > 0:
         take RMS norm of each irrep copy
     """
+    orig_shape = x.shape[:-1]
+    D = x.shape[-1]
+
+    x = x.reshape(-1, D)
     outs = []
     offset = 0
-    B, N, _ = x.shape
+    M = x.shape[0]
 
     for mul, ir in irreps:
         dim = ir.dim
         block_dim = mul * dim
-        xb = x[:, :, offset:offset + block_dim].view(B, N, mul, dim)
+        xb = x[:, offset:offset + block_dim].view(M, mul, dim)
 
         if ir.l == 0:
-            outs.append(xb.view(B, N, mul))
+            outs.append(xb.reshape(M, mul))
         else:
-            inv = torch.sqrt((xb ** 2).mean(dim=-1) + 1e-8) 
+            inv = torch.sqrt((xb ** 2).mean(dim=-1) + 1e-8)
             outs.append(inv)
 
         offset += block_dim
 
-    return torch.cat(outs, dim=-1)
+    out = torch.cat(outs, dim=-1)
+    return out.view(*orig_shape, out.shape[-1])
 
 
 class GaussianRBF(nn.Module):
@@ -212,6 +223,7 @@ class IrrepNorm(nn.Module):
 
         return out
 
+
 # ============================================================
 # e3ee graph builder
 # ============================================================
@@ -258,6 +270,7 @@ class RadiusGraphBuilder:
             edge_vec = torch.cat(edge_vec_all, dim=0)
 
         return edge_src, edge_dst, edge_vec
+
 
 # ============================================================
 # Equivariant encoder
@@ -476,6 +489,7 @@ class TrueE3EEAtomEncoder(nn.Module):
 
         return x.view(B, N, self.irreps_node.dim)
 
+
 # ============================================================
 # Optional path branch
 # ============================================================
@@ -660,6 +674,7 @@ class AbsorberPathAggregator(nn.Module):
 
         return self.out_proj(agg)
 
+
 # ============================================================
 # Energy-conditioned atomwise attention
 # ============================================================
@@ -738,72 +753,70 @@ class EnergyConditionedAtomAttention(nn.Module):
 
     def forward(
         self,
-        h: torch.Tensor,          
-        z: torch.Tensor,          
-        pos: torch.Tensor,        
-        mask: torch.Tensor,       
-        e_feat: torch.Tensor,     
+        h: torch.Tensor,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        e_feat: torch.Tensor,
         absorber_index: int = 0,
     ) -> torch.Tensor:
         B, N, H = h.shape
         nE, dE = e_feat.shape
-        device = h.device
-        dtype = h.dtype
 
         geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
-        r = geom["r"]                              
-        u = geom["u"]                              
-        valid = mask & (r <= self.cutoff)          
+        r = geom["r"]
+        u = geom["u"]
+        valid = mask & (r <= self.cutoff)
 
-        h_abs = h[:, absorber_index, :]            
+        h_abs = h[:, absorber_index, :]
         q_in = torch.cat([
             h_abs.unsqueeze(1).expand(B, nE, H),
             e_feat.unsqueeze(0).expand(B, nE, dE),
-        ], dim=-1)                                 
+        ], dim=-1)
 
-        q = self.query_mlp(q_in)                   
-        q = self._split_heads(q)                   
+        q = self.query_mlp(q_in)
+        q = self._split_heads(q)
 
-        zr = self.z_emb(z)                         
-        rr = self.rbf(r.clamp(max=self.cutoff))    
-        cutoff_w = self.cutoff_fn(r)               
+        zr = self.z_emb(z)
+        rr = self.rbf(r.clamp(max=self.cutoff))
+        cutoff_w = self.cutoff_fn(r)
 
         is_abs = torch.zeros_like(r)
         is_abs[:, absorber_index] = 1.0
 
-        atom_base = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)  
+        atom_base = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)
         atom_base = atom_base.unsqueeze(2).expand(B, N, nE, atom_base.shape[-1])
         ef = e_feat.unsqueeze(0).unsqueeze(0).expand(B, N, nE, dE)
 
-        kv_in = torch.cat([atom_base, ef], dim=-1)  
-        k = self.key_mlp(kv_in)                     
-        v = self.value_mlp(kv_in)                   
+        kv_in = torch.cat([atom_base, ef], dim=-1)
+        k = self.key_mlp(kv_in)
+        v = self.value_mlp(kv_in)
 
-        k = k.permute(0, 2, 1, 3).contiguous()      
-        v = v.permute(0, 2, 1, 3).contiguous()      
+        k = k.permute(0, 2, 1, 3).contiguous()
+        v = v.permute(0, 2, 1, 3).contiguous()
 
-        k = self._split_heads(k)                    
-        v = self._split_heads(v)                    
+        k = self._split_heads(k)
+        v = self._split_heads(v)
 
         scores = (q.unsqueeze(2) * k).sum(dim=-1) * self.score_scale
 
-        radial_bias = torch.log(cutoff_w.clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)  
+        radial_bias = torch.log(cutoff_w.clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
         scores = scores + radial_bias
 
-        attn_mask = valid.unsqueeze(1).unsqueeze(-1)  
+        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
         scores = scores.masked_fill(~attn_mask, -1e9)
 
-        attn = torch.softmax(scores, dim=2)        
+        attn = torch.softmax(scores, dim=2)
         attn = attn * attn_mask.to(attn.dtype)
-        out = (attn.unsqueeze(-1) * v).sum(dim=2)   
-        out = out.reshape(B, nE, self.latent_dim)   
+        out = (attn.unsqueeze(-1) * v).sum(dim=2)
+        out = out.reshape(B, nE, self.latent_dim)
 
         return self.out_proj(out)
 
 
 class EnergyConditionedAbsorberBranch(nn.Module):
     """
-    Energy-dependent absorber branch.
+    Energy-dependent absorber branch based on invariant absorber features.
     """
 
     def __init__(
@@ -831,6 +844,99 @@ class EnergyConditionedAbsorberBranch(nn.Module):
 
 
 # ============================================================
+# Late equivariant head
+# ============================================================
+
+class EnergyIrrepModulation(nn.Module):
+    """
+    Energy-conditioned scalar modulation of each irrep copy.
+
+    For each energy, predicts one scalar per irrep copy and multiplies
+    the full irrep block by that scalar. This preserves equivariance.
+    """
+
+    def __init__(self, irreps: o3.Irreps, e_dim: int, hidden_dim: int):
+        super().__init__()
+        self.irreps = o3.Irreps(irreps)
+        self.n_copies = sum(mul for mul, _ in self.irreps)
+
+        self.mlp = MLP(
+            in_dim=e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=self.n_copies,
+            n_layers=3,
+        )
+
+    def forward(self, x: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
+        """
+        x:      [B, D]
+        e_feat: [nE, e_dim]
+        return: [B, nE, D]
+        """
+        B, D = x.shape
+        nE = e_feat.shape[0]
+
+        gates = self.mlp(e_feat)  # [nE, n_copies]
+
+        outs = []
+        xoff = 0
+        goff = 0
+
+        for mul, ir in self.irreps:
+            dim = ir.dim
+            block_dim = mul * dim
+
+            xb = x[:, xoff:xoff + block_dim].view(B, mul, dim)
+            gb = gates[:, goff:goff + mul]
+
+            xb = xb.unsqueeze(1)                 # [B, 1, mul, dim]
+            gb = gb.unsqueeze(0).unsqueeze(-1)  # [1, nE, mul, 1]
+
+            outs.append((xb * gb).reshape(B, nE, block_dim))
+
+            xoff += block_dim
+            goff += mul
+
+        return torch.cat(outs, dim=-1)
+
+
+class EnergyConditionedEquivariantAbsorberHead(nn.Module):
+    """
+    Keeps absorber equivariant information alive until late in the head.
+
+    Steps:
+    - take absorber equivariant feature
+    - apply energy-conditioned irrep-wise modulation
+    - convert to invariant summaries only at the end
+    - project to latent
+    """
+
+    def __init__(
+        self,
+        irreps_node: o3.Irreps,
+        e_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.irreps_node = o3.Irreps(irreps_node)
+        self.mod = EnergyIrrepModulation(self.irreps_node, e_dim=e_dim, hidden_dim=hidden_dim)
+        self.inv_dim = invariant_feature_dim(self.irreps_node)
+
+        self.out_mlp = MLP(
+            in_dim=self.inv_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
+
+    def forward(self, h_abs_full: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
+        h_mod = self.mod(h_abs_full, e_feat)  # [B, nE, D]
+        inv = invariant_features_from_irreps(h_mod, self.irreps_node)  # [B, nE, inv_dim]
+        return self.out_mlp(inv)
+
+
+# ============================================================
 # Final model
 # ============================================================
 
@@ -842,7 +948,9 @@ class E3EEmbed(Model):
     - equivariant atom encoder
     - invariant atomwise summaries
     - energy-conditioned attention over atoms
+    - late equivariant absorber head
     - optional path branch
+    - physical absolute energy input
     """
 
     def __init__(
@@ -873,6 +981,8 @@ class E3EEmbed(Model):
         self.gnn_flag = 0
         self.batch_flag = 1
         self.use_path_terms = use_path_terms
+        self.energy_min = 0.0
+        self.energy_max = float(out_features - 1)
 
         self.atom_encoder = TrueE3EEAtomEncoder(
             max_z=max_z,
@@ -890,8 +1000,8 @@ class E3EEmbed(Model):
         self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
 
         self.energy_embedding = EnergyRBFEmbedding(
-            e_min=0.0,
-            e_max=max(float(out_features - 1), 1.0),
+            e_min=self.energy_min,
+            e_max=self.energy_max,
             n_rbf=energy_rbf_dim,
         )
 
@@ -914,6 +1024,13 @@ class E3EEmbed(Model):
             n_heads=attention_heads,
         )
 
+        self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
+            irreps_node=self.atom_encoder.irreps_node,
+            e_dim=energy_rbf_dim,
+            hidden_dim=head_hidden_dim,
+            out_dim=latent_dim,
+        )
+
         if self.use_path_terms:
             self.pair_elem_energy = PairElementEnergyScattering(
                 max_z=max_z,
@@ -933,7 +1050,7 @@ class E3EEmbed(Model):
                 max_paths_per_structure=max_paths_per_structure,
             )
 
-        head_in_dim = 3 * latent_dim if self.use_path_terms else 2 * latent_dim
+        head_in_dim = 4 * latent_dim if self.use_path_terms else 3 * latent_dim
         self.head = MLP(
             in_dim=head_in_dim,
             hidden_dim=head_hidden_dim,
@@ -967,38 +1084,31 @@ class E3EEmbed(Model):
             type="e3eenet",
         )
 
-    def forward(self, batch):
+    def _get_energy_grid(self, batch, device, dtype):
+        return torch.arange(
+            batch.y.shape[-1],
+            device=device,
+            dtype=dtype,
+        )
+
+    def get_descriptor(self, batch):
         z = batch.z
         pos = batch.pos
         mask = batch.mask
 
         absorber_index = 0
-
-        if getattr(batch, "e", None) is not None:
-            energies = batch.e
-            if energies.ndim > 1:
-                energies = energies[0]
-            energies = energies.to(pos.device)
-            energies = torch.linspace(
-                0.0,
-                float(len(energies) - 1),
-                len(energies),
-                device=pos.device,
-                dtype=pos.dtype,
-            )
-        else:
-            energies = torch.arange(
-                batch.y.shape[-1],
-                device=pos.device,
-                dtype=pos.dtype,
-            )
+        energies = self._get_energy_grid(batch, device=pos.device, dtype=pos.dtype)
 
         h_full = self.atom_encoder(z, pos, mask, absorber_index=absorber_index)
-        h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)  
+        h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)
 
-        e_feat = self.energy_embedding(energies)  
+        e_feat = self.energy_embedding(energies)
 
-        abs_lat = self.abs_branch(h[:, absorber_index, :], e_feat)  
+        abs_lat = self.abs_branch(
+            h[:, absorber_index, :],
+            e_feat,
+        )
+
         attn_lat = self.atom_attention(
             h=h,
             z=z,
@@ -1006,9 +1116,14 @@ class E3EEmbed(Model):
             mask=mask,
             e_feat=e_feat,
             absorber_index=absorber_index,
-        )  
+        )
 
-        parts = [abs_lat, attn_lat]
+        eq_abs_lat = self.eq_abs_head(
+            h_full[:, absorber_index, :],
+            e_feat,
+        )
+    
+        parts = [abs_lat, attn_lat, eq_abs_lat]
 
         if self.use_path_terms:
             path_lat = self.path_agg(
@@ -1023,5 +1138,9 @@ class E3EEmbed(Model):
             parts.append(path_lat)
 
         x = torch.cat(parts, dim=-1)
+        return x
+
+    def forward(self, batch):
+        x = self.get_descriptor(batch)
         y = self.head(x).squeeze(-1)
         return y
