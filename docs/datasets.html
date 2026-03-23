@@ -51,7 +51,6 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Datasets</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#xanesx">XANESX</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#graph">Graph</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#e3eembed">E3EEmbed</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multihead">Multihead</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#transformer">Transformer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#envembed">EnvEmbed</a></li>
@@ -170,44 +169,6 @@ The target features XANES spectra (<code class="docutils literal notranslate"><s
   <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">xanes_train</span>
   <span class="n">params</span><span class="p">:</span>
     <span class="n">r_max</span><span class="p">:</span> <span class="mf">5.0</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</section>
-<section id="e3eembed">
-<h2>E3EEmbed<a class="headerlink" href="#e3eembed" title="Permalink to this heading"></a></h2>
-<p>This dataset is compatible with the E3EEmbed models
-and supports the forward training mode <code class="docutils literal notranslate"><span class="pre">train_xyz</span></code> only.</p>
-<p>The e3eembed dataset represents molecular structures using absorber-centred atomic environments derived directly from Cartesian geometry.
-Each structure is defined by its atomic numbers (z), Cartesian coordinates (pos), and a mask indicating valid atoms within the system.</p>
-<p>Atoms are treated as nodes, with the absorbing atom explicitly identified (by convention index 0).
-Node features are not provided as explicit one-hot encodings; instead, atomic numbers are mapped to learnable embeddings within the model.</p>
-<p>Geometric relationships between atoms are not precomputed as edge features.
-Instead, relative positions with respect to the absorber atom are constructed on-the-fly, enabling the model to compute interatomic distances, unit vectors, and neighbourhood information dynamically.</p>
-<p>This formulation allows the use of equivariant message passing, where rotationally consistent features are built directly from interatomic vectors and radial basis expansions during the forward pass, rather than relying on fixed descriptors such as wACSF.</p>
-<p>Optional graph-level attributes may be included using the descriptor(s) defined in the :ref:Descriptors &lt;descriptors&gt; section.
-The target XANES spectra (y) and the corresponding energy grid (e) are stored as global attributes associated with each structure.</p>
-<p><strong>Input file:</strong></p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">graph</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">params</span></code> (dict, optional):</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">preload</span></code> (int, <code class="docutils literal notranslate"><span class="pre">true</span></code>): If true, preload the entire dataset into RAM; otherwise load samples on-the-fly.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">fourier</span></code> (float, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Fourier transformation to the XANES spectra.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">gaussian</span></code> (int, <code class="docutils literal notranslate"><span class="pre">false</span></code>): If true,  apply Gaussian transformation to the XANES spectra.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">widths_eV</span></code> (float, <code class="docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.0,</span> <span class="pre">2.0,</span> <span class="pre">4.0]</span></code>): Widths (eV) of the Gaussian basis function.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">basis_stride</span></code> (int, <code class="docutils literal notranslate"><span class="pre">4</span></code>): Stride between Gaussian centers on the energy grid.</p></li>
-</ul>
-</li>
-</ul>
-<dl>
-<dt><strong>Example:</strong></dt><dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">:</span>
-  <span class="nb">type</span><span class="p">:</span> <span class="n">graph</span>
-  <span class="n">root_path</span><span class="p">:</span>  <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">processed_train</span>
-  <span class="n">xyz_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">xyz_train</span>
-  <span class="n">xanes_path</span><span class="p">:</span> <span class="n">data</span><span class="o">/</span><span class="n">graph</span><span class="o">-</span><span class="nb">set</span><span class="o">/</span><span class="n">xanes_train</span>
-  <span class="n">params</span><span class="p">:</span>
 </pre></div>
 </div>
 </dd>
