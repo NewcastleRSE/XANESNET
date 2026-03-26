@@ -1,13 +1,15 @@
 dataset:
-  type: e3eembed 
+  type: e3eembed
   root_path:  ./processed-learn
-  xyz_path: ./trn_XYZ 
-  xanes_path: ./trn_XAS 
+  xyz_path: trn_XYZ
+  xanes_path: trn_XAS
   params:
-#    preload: True           
+     require_charge_spin: True
+     spin_is_multiplicity: False
+#    preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 #    fourier: False
 #    fourier_concat: False
-     gaussian: False 
+     gaussian: False
 #    widths_eV: [1.0, 2.0, 4.0]
 #    basis_stride: 2
 
@@ -17,7 +19,7 @@ descriptors:
 lr_scheduler: True
 scheduler_params:
   type: step
-  step_size: 50
+  step_size: 25
   gamma: 0.5
 
 model:
@@ -25,22 +27,25 @@ model:
   params:
     max_z: 100
     atom_emb_dim: 32
-    atom_hidden_dim: 64 
+    atom_hidden_dim: 64
     atom_layers: 3
-    local_cutoff: 6.0
-    rbf_dim: 16
-    energy_rbf_dim: 24
+    local_cutoff: 5.0
+    rbf_dim: 24
+    energy_rbf_dim: 64
     scatter_dim: 64
-    latent_dim: 64 
+    latent_dim: 64
     head_hidden_dim: 64
     e3nn_irreps: "32x0e + 16x1o + 8x2e"
     e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
     e3nn_lmax: 2
-    out_mlp_layers: 2
-    use_path_terms: False
-    max_paths_per_structure: 128
+    out_mlp_layers: 3
     residual_scale_init: 0.1
     attention_heads: 4
+    polar_hidden_dim: 64
+    polar_iterations: 2
+    use_charge_spin: True
+    use_average_baseline: True
+    field_sigma: 0.4
 
 hyperparams:
   batch_size: 2
