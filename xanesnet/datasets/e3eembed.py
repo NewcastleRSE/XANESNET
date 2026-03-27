@@ -43,7 +43,6 @@ class GraphData:
     spin: Optional[torch.Tensor] = None
     atom_charges: Optional[torch.Tensor] = None
     atom_spins: Optional[torch.Tensor] = None
-    average_baseline: Optional[torch.Tensor] = None
     stem: Optional[str] = None
 
     def to(self, device):
@@ -58,7 +57,6 @@ class GraphData:
             "spin",
             "atom_charges",
             "atom_spins",
-            "average_baseline",
         ]:
             val = getattr(self, attr)
             if val is not None and torch.is_tensor(val):
@@ -287,46 +285,7 @@ class E3EEmbdedDataset(BaseDataset):
             print(f"[WARN] {msg}")
             return None, None
 
-    def _compute_average_baseline(self) -> Optional[torch.Tensor]:
-        """
-        Compute the mean XANES spectrum over all files in this dataset.
-        Assumes this dataset corresponds to the training set if used for baseline learning.
-        """
-        if not self.xanes_path:
-            return None
-
-        total = None
-        n = 0
-
-        for stem in self.file_names:
-            xanes_file = os.path.join(self.xanes_path, f"{stem}.txt")
-            _, xanes = self.transform_xanes(xanes_file)
-
-            if xanes is None:
-                continue
-
-            xanes = xanes.to(torch.float32)
-
-            if total is None:
-                total = torch.zeros_like(xanes)
-
-            total += xanes
-            n += 1
-
-        if total is None or n == 0:
-            return None
-
-        return total / n
-
     def process(self):
-
-        average_baseline = self._compute_average_baseline()
-
-        if average_baseline is not None:
-            torch.save(
-                average_baseline,
-                os.path.join(self.processed_dir, "average_baseline.pt"),
-            )
 
         for stem in tqdm(self.file_names, total=len(self.file_names)):
             z = pos = mask = y = e = charge = spin = atom_charges = atom_spins = None
@@ -389,7 +348,6 @@ class E3EEmbdedDataset(BaseDataset):
                 spin=spin,
                 atom_charges=atom_charges,
                 atom_spins=atom_spins,
-                average_baseline=average_baseline,
                 stem=stem,
             )
             torch.save(data, os.path.join(self.processed_dir, f"{stem}.pt"))
@@ -404,7 +362,6 @@ class E3EEmbdedDataset(BaseDataset):
         spin_list = [sample.spin for sample in batch]
         atom_charges_list = [sample.atom_charges for sample in batch]
         atom_spins_list = [sample.atom_spins for sample in batch]
-        average_baseline_list = [sample.average_baseline for sample in batch]
         stem_list = [getattr(sample, "stem", None) for sample in batch]
 
         z = self._safe_pad(z_list, dtype=torch.long)
@@ -419,12 +376,6 @@ class E3EEmbdedDataset(BaseDataset):
 
         atom_charges = self._safe_pad(atom_charges_list, dtype=torch.float32)
         atom_spins = self._safe_pad(atom_spins_list, dtype=torch.float32)
-
-        average_baseline = (
-           average_baseline_list[0]
-            if all(x is not None for x in average_baseline_list)
-            else None
-        )
 
         if charge is not None:
             charge = charge.view(-1)
@@ -442,7 +393,6 @@ class E3EEmbdedDataset(BaseDataset):
             spin=spin,
             atom_charges=atom_charges,
             atom_spins=atom_spins,
-            average_baseline=average_baseline,
             stem=stem_list,
         )
         return data
