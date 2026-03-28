@@ -2051,7 +2051,10 @@ class E3EEmbed(Model):
                 latent_dim=latent_dim,
             )
 
-            local_in_dim = 3 * latent_dim
+            if self.use_invariant_block:
+                local_in_dim = 2 * latent_dim
+            else:
+                local_in_dim = 3 * latent_dim
             self.local_head = MLP(
                 in_dim=local_in_dim,
                 hidden_dim=head_hidden_dim,
