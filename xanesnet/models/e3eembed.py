@@ -227,7 +227,115 @@ class BatchedRadiusGraphBuilder(nn.Module):
 
 
 # ============================================================
-# Invariant encoder
+# Invariant/scalar encoder
+# ============================================================
+
+class TrueInvariantAtomEncoder(nn.Module):
+    def __init__(
+        self,
+        max_z: int = 100,
+        cutoff: float = 6.0,
+        num_interactions: int = 3,
+        rbf_dim: int = 16,
+        node_attr_dim: int = 64,
+        hidden_dim: int = 128,
+        node_dim: int = 128,
+        residual_scale_init: float = 0.1,
+    ):
+        super().__init__()
+        self.cutoff = float(cutoff)
+        self.rbf_dim = int(rbf_dim)
+        self.node_dim = int(node_dim)
+
+        self.graph_builder = BatchedRadiusGraphBuilder(cutoff=cutoff)
+        self.dist_rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.z_emb = nn.Embedding(max_z + 1, node_attr_dim)
+
+        self.input_scalar_dim = node_attr_dim + 1 + rbf_dim
+        self.input_mlp = MLP(
+            in_dim=self.input_scalar_dim,
+            hidden_dim=hidden_dim,
+            out_dim=node_dim,
+            n_layers=2,
+            layer_norm=True,
+        )
+
+        self.blocks = nn.ModuleList([
+            InvariantInteractionBlock(
+                node_dim=node_dim,
+                rbf_dim=rbf_dim,
+                radial_hidden_dim=hidden_dim,
+                cutoff=cutoff,
+                residual_scale_init=residual_scale_init,
+            )
+            for _ in range(num_interactions)
+        ])
+        self.out_norm = nn.LayerNorm(node_dim)
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N = z.shape
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(
+                z=z,
+                pos=pos,
+                mask=mask,
+                absorber_index=absorber_index,
+            )
+
+        r_abs = geom["r"]
+
+        abs_flag = torch.zeros_like(z, dtype=pos.dtype)
+        abs_flag[:, absorber_index] = 1.0
+
+        zf = self.z_emb(z)
+        rf = self.dist_rbf(r_abs.clamp(max=self.cutoff))
+
+        scalar_in = torch.cat([zf, abs_flag.unsqueeze(-1), rf], dim=-1)
+        x = self.input_mlp(scalar_in)
+
+        flat_mask = mask.reshape(B * N)
+        x = x.reshape(B * N, self.node_dim)
+        x = x * flat_mask.unsqueeze(-1).to(x.dtype)
+
+        edge_src, edge_dst, edge_vec = self.graph_builder(pos, mask)
+
+        if edge_vec.numel() > 0:
+            edge_len = torch.linalg.norm(edge_vec, dim=-1)
+            edge_rbf = self.dist_rbf(edge_len.clamp(max=self.cutoff))
+            edge_sh = torch.zeros(
+                edge_vec.shape[0], 1, device=edge_vec.device, dtype=edge_vec.dtype
+            )  # unused placeholder
+        else:
+            edge_len = torch.zeros(0, device=pos.device, dtype=pos.dtype)
+            edge_rbf = torch.zeros(0, self.rbf_dim, device=pos.device, dtype=pos.dtype)
+            edge_sh = torch.zeros(0, 1, device=pos.device, dtype=pos.dtype)
+
+        for block in self.blocks:
+            x = block(
+                x=x,
+                edge_src=edge_src,
+                edge_dst=edge_dst,
+                edge_sh=edge_sh,   # unused by InvariantInteractionBlock
+                edge_rbf=edge_rbf,
+                edge_len=edge_len,
+            )
+
+        x = self.out_norm(x)
+        x = x * flat_mask.unsqueeze(-1).to(x.dtype)
+
+        return x.view(B, N, self.node_dim)
+
+
+# ============================================================
+# True invariant interaction block (scalar MPNN)
 # ============================================================
 
 
@@ -244,8 +352,11 @@ class InvariantInteractionBlock(nn.Module):
 
         self.pre_norm = nn.LayerNorm(node_dim)
         self.cutoff_fn = CosineCutoff(cutoff)
+
+        # distance → weights
         self.weight_mlp = RadialMLP(rbf_dim, radial_hidden_dim, node_dim)
 
+        # scalar edge gating
         self.edge_gate = nn.Sequential(
             nn.Linear(rbf_dim, radial_hidden_dim),
             nn.SiLU(),
@@ -253,22 +364,27 @@ class InvariantInteractionBlock(nn.Module):
             nn.Sigmoid(),
         )
 
+        # message transform
         self.msg_mlp = nn.Sequential(
             nn.Linear(node_dim, radial_hidden_dim),
             nn.SiLU(),
             nn.Linear(radial_hidden_dim, node_dim),
         )
 
+        # update
         self.self_linear = nn.Linear(node_dim, node_dim)
         self.update_linear = nn.Linear(node_dim, node_dim)
-        self.res_scale = nn.Parameter(torch.tensor(float(residual_scale_init), dtype=torch.float32))
+
+        self.res_scale = nn.Parameter(
+            torch.tensor(float(residual_scale_init), dtype=torch.float32)
+        )
 
     def forward(
         self,
         x: torch.Tensor,
         edge_src: torch.Tensor,
         edge_dst: torch.Tensor,
-        edge_sh: torch.Tensor,
+        edge_sh: torch.Tensor,   # unused (kept for interface compatibility)
         edge_rbf: torch.Tensor,
         edge_len: torch.Tensor,
     ) -> torch.Tensor:
@@ -277,11 +393,14 @@ class InvariantInteractionBlock(nn.Module):
 
         x_norm = self.pre_norm(x)
 
+        # scalar weights
         edge_w = self.cutoff_fn(edge_len).unsqueeze(-1) * self.edge_gate(edge_rbf)
 
+        # message: scalar features only
         m = x_norm[edge_src] * self.weight_mlp(edge_rbf)
         m = m * edge_w
 
+        # aggregate
         agg = torch.zeros_like(x)
         agg.index_add_(0, edge_dst, m)
 
@@ -291,14 +410,13 @@ class InvariantInteractionBlock(nn.Module):
 
         agg = self.msg_mlp(agg)
 
+        # residual update
         out = self.self_linear(x_norm) + self.update_linear(agg)
         return x + self.res_scale.to(x.dtype) * out
-
 
 # ============================================================
 # Equivariant encoder
 # ============================================================
-
 
 class EquivariantInteractionBlock(nn.Module):
     def __init__(
@@ -420,12 +538,12 @@ class TrueE3EEAtomEncoder(nn.Module):
         irreps_node: str = "64x0e + 32x1o + 16x2e",
         irreps_message: str = "16x0e + 8x1o + 4x2e",
         residual_scale_init: float = 0.1,
-        use_invariant_block: bool = False,
+        use_invariance: bool = False,
     ):
         super().__init__()
         self.cutoff = cutoff
         self.rbf_dim = rbf_dim
-        self.use_invariant_block = use_invariant_block
+        self.use_invariance = use_invariance
         self.irreps_node = o3.Irreps(irreps_node)
         self.irreps_message = o3.Irreps(irreps_message)
 
@@ -441,7 +559,7 @@ class TrueE3EEAtomEncoder(nn.Module):
 
         self.irreps_sh = o3.Irreps.spherical_harmonics(lmax)
 
-        if self.use_invariant_block:
+        if self.use_invariance:
             self.blocks = nn.ModuleList([
                 InvariantInteractionBlock(
                     node_dim=self.irreps_node.dim,
@@ -535,7 +653,68 @@ class TrueE3EEAtomEncoder(nn.Module):
 # Absorber branches
 # ============================================================
 
+class FieldConditionedInvariantAbsorberHead(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        field_abs_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.mlp = MLP(
+            in_dim=atom_dim + e_dim + field_abs_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
 
+    def forward(
+        self,
+        h_abs: torch.Tensor,
+        e_feat: torch.Tensor,
+        field_abs_feat: torch.Tensor,
+    ) -> torch.Tensor:
+        B, H = h_abs.shape
+        nE, dE = e_feat.shape
+        ff = field_abs_feat.shape[-1]
+
+        x = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+            field_abs_feat.unsqueeze(1).expand(B, nE, ff),
+        ], dim=-1)
+        return self.mlp(x)
+
+
+class EnergyConditionedInvariantAbsorberHead(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.mlp = MLP(
+            in_dim=atom_dim + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
+
+    def forward(self, h_abs: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
+        B, H = h_abs.shape
+        nE, dE = e_feat.shape
+
+        x = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+        ], dim=-1)
+        return self.mlp(x)
+
+    
 class FieldConditionedAbsorberBranch(nn.Module):
     def __init__(
         self,
@@ -716,7 +895,6 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
 # Invariant attention heads
 # ============================================================
 
-
 class FieldConditionedAtomAttention(nn.Module):
     def __init__(
         self,
@@ -751,7 +929,7 @@ class FieldConditionedAtomAttention(nn.Module):
             n_layers=3,
         )
 
-        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 3 + 1 + field_atom_dim
+        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 1 + field_atom_dim
         self.key_mlp = MLP(
             in_dim=atom_static_dim,
             hidden_dim=hidden_dim,
@@ -796,8 +974,7 @@ class FieldConditionedAtomAttention(nn.Module):
             geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
 
         r = geom["r"]
-        u = geom["u"]
-        valid = mask & (r <= self.cutoff)
+        valid = geom["valid_neigh"] & (r <= self.cutoff)  # exclude self, match equivariant branch
 
         h_abs = h[:, absorber_index, :]
         faf = field_abs_feat
@@ -815,7 +992,7 @@ class FieldConditionedAtomAttention(nn.Module):
         is_abs[:, absorber_index] = 1.0
 
         atom_static = torch.cat(
-            [h, zr, rr, u, is_abs.unsqueeze(-1), field_atom_lat],
+            [h, zr, rr, is_abs.unsqueeze(-1), field_atom_lat],
             dim=-1,
         )
         k = self.key_mlp(atom_static)
@@ -840,6 +1017,71 @@ class FieldConditionedAtomAttention(nn.Module):
 
         return self.out_proj(out)
 
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        return x.view(*x.shape[:-1], self.n_heads, self.head_dim)
+
+    def forward(
+        self,
+        h: torch.Tensor,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        e_feat: torch.Tensor,
+        field_atom_lat: torch.Tensor,
+        field_abs_feat: torch.Tensor,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N, H = h.shape
+        nE, dE = e_feat.shape
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
+
+        r = geom["r"]
+        u = geom["u"]
+        valid = mask & (r <= self.cutoff)
+
+        h_abs = h[:, absorber_index, :]
+        faf = field_abs_feat
+
+        q_in = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+            faf.unsqueeze(1).expand(B, nE, faf.shape[-1]),
+        ], dim=-1)
+        q = self.query_mlp(q_in)
+
+        zr = self.z_emb(z)
+        rr = self.rbf(r.clamp(max=self.cutoff))
+        is_abs = torch.zeros_like(r)
+        is_abs[:, absorber_index] = 1.0
+
+        atom_static = torch.cat(
+            [h, zr, rr, is_abs.unsqueeze(-1), field_atom_lat],
+            dim=-1,
+        )
+        k = self.key_mlp(atom_static)
+        v = self.value_mlp(atom_static)
+
+        q = self._split_heads(q)
+        k = self._split_heads(k)
+        v = self._split_heads(v)
+
+        scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) * self.score_scale
+        radial_bias = torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
+        scores = scores + radial_bias
+
+        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
+        scores = scores.masked_fill(~attn_mask, -1e9)
+
+        attn = torch.softmax(scores, dim=2)
+        attn = attn * attn_mask.to(attn.dtype)
+
+        out = (attn.unsqueeze(-1) * v.unsqueeze(1)).sum(dim=2)
+        out = out.reshape(B, nE, self.latent_dim)
+
+        return self.out_proj(out)
 
 class EnergyConditionedAtomAttention(nn.Module):
     def __init__(
@@ -873,7 +1115,7 @@ class EnergyConditionedAtomAttention(nn.Module):
             n_layers=3,
         )
 
-        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 3 + 1
+        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 1
         self.key_mlp = MLP(
             in_dim=atom_static_dim,
             hidden_dim=hidden_dim,
@@ -916,8 +1158,7 @@ class EnergyConditionedAtomAttention(nn.Module):
             geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
 
         r = geom["r"]
-        u = geom["u"]
-        valid = mask & (r <= self.cutoff)
+        valid = geom["valid_neigh"] & (r <= self.cutoff)  # exclude self
 
         h_abs = h[:, absorber_index, :]
 
@@ -932,7 +1173,7 @@ class EnergyConditionedAtomAttention(nn.Module):
         is_abs = torch.zeros_like(r)
         is_abs[:, absorber_index] = 1.0
 
-        atom_static = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)
+        atom_static = torch.cat([h, zr, rr, is_abs.unsqueeze(-1)], dim=-1)
         k = self.key_mlp(atom_static)
         v = self.value_mlp(atom_static)
 
@@ -955,13 +1196,11 @@ class EnergyConditionedAtomAttention(nn.Module):
 
         return self.out_proj(out)
 
-
 # ============================================================
 # Equivariant attention heads
 # mode 1: energy-independent TP values
 # mode 2: low-rank energy-dependent TP weights
 # ============================================================
-
 
 class FieldConditionedEquivariantAtomAttention(nn.Module):
     """
@@ -1434,7 +1673,7 @@ class EnergyConditionedEquivariantAtomAttentionLowRank(nn.Module):
         hidden_dim: int,
         latent_dim: int,
         cutoff: float,
-        tp_rank: int = 8,
+        tp_rank: int = 4,
         max_z: int = 100,
         z_emb_dim: int = 32,
     ):
@@ -1925,8 +2164,7 @@ class E3EEmbed(Model):
         polar_iterations: int = 2,
         field_sigma: float = 0.6,
         use_charge_spin: bool = True,
-        use_invariant_block: bool = False,
-        use_invariant_attention: bool = False,
+        use_invariance: bool = False,
         use_energy_dependent_equivariant_attention: bool = False,
         tp_rank: int = 8,
     ):
@@ -1936,35 +2174,46 @@ class E3EEmbed(Model):
         self.batch_flag = 1
 
         self.use_charge_spin = use_charge_spin
-        self.use_invariant_block = use_invariant_block
-        self.use_invariant_attention = use_invariant_attention
+        self.use_invariance = use_invariance
         self.use_energy_dependent_equivariant_attention = use_energy_dependent_equivariant_attention
         self.tp_rank = tp_rank
 
-        if self.use_invariant_attention and self.use_energy_dependent_equivariant_attention:
+        if self.use_invariance and self.use_energy_dependent_equivariant_attention:
             raise ValueError(
-                "use_invariant_attention and use_energy_dependent_equivariant_attention "
+                "use_invariance and use_energy_dependent_equivariant_attention "
                 "cannot both be True."
             )
 
         self.energy_min = 0.0
         self.energy_max = float(out_features - 1)
 
-        self.atom_encoder = TrueE3EEAtomEncoder(
-            max_z=max_z,
-            cutoff=local_cutoff,
-            num_interactions=atom_layers,
-            rbf_dim=rbf_dim,
-            lmax=e3nn_lmax,
-            node_attr_dim=atom_emb_dim,
-            hidden_dim=atom_hidden_dim,
-            irreps_node=e3nn_irreps,
-            irreps_message=e3nn_irreps_message,
-            residual_scale_init=residual_scale_init,
-            use_invariant_block=use_invariant_block,
-        )
-
-        self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
+        if self.use_invariance:
+            self.atom_encoder = TrueInvariantAtomEncoder(
+                max_z=max_z,
+                cutoff=local_cutoff,
+                num_interactions=atom_layers,
+                rbf_dim=rbf_dim,
+                node_attr_dim=atom_emb_dim,
+                hidden_dim=atom_hidden_dim,
+                node_dim=atom_hidden_dim,
+                residual_scale_init=residual_scale_init,
+            )
+            self.inv_dim = atom_hidden_dim
+        else:
+            self.atom_encoder = TrueE3EEAtomEncoder(
+                max_z=max_z,
+                cutoff=local_cutoff,
+                num_interactions=atom_layers,
+                rbf_dim=rbf_dim,
+                lmax=e3nn_lmax,
+                node_attr_dim=atom_emb_dim,
+                hidden_dim=atom_hidden_dim,
+                irreps_node=e3nn_irreps,
+                irreps_message=e3nn_irreps_message,
+                residual_scale_init=residual_scale_init,
+                use_invariance=False,
+            )
+            self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
 
         self.energy_embedding = EnergyRBFEmbedding(
             e_min=self.energy_min,
@@ -1992,7 +2241,7 @@ class E3EEmbed(Model):
                 out_dim=latent_dim,
             )
 
-            if self.use_invariant_attention:
+            if self.use_invariance:
                 self.atom_attention = FieldConditionedAtomAttention(
                     atom_dim=self.inv_dim,
                     e_dim=energy_rbf_dim,
@@ -2036,13 +2285,22 @@ class E3EEmbed(Model):
                     z_emb_dim=32,
                 )
 
-            self.eq_abs_head = FieldConditionedEquivariantAbsorberHead(
-                irreps_node=self.atom_encoder.irreps_node,
-                e_dim=energy_rbf_dim,
-                field_abs_dim=self.field_abs_dim,
-                hidden_dim=head_hidden_dim,
-                out_dim=latent_dim,
-            )
+            if self.use_invariance:
+                self.eq_abs_head = FieldConditionedInvariantAbsorberHead(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+            else:
+                self.eq_abs_head = FieldConditionedEquivariantAbsorberHead(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    e_dim=energy_rbf_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
 
             self.field_attention = EnergyConditionedFieldAttention(
                 field_dim=polar_hidden_dim,
@@ -2051,7 +2309,7 @@ class E3EEmbed(Model):
                 latent_dim=latent_dim,
             )
 
-            if self.use_invariant_block:
+            if self.use_invariance:
                 local_in_dim = 2 * latent_dim
             else:
                 local_in_dim = 3 * latent_dim
@@ -2080,7 +2338,7 @@ class E3EEmbed(Model):
                 out_dim=latent_dim,
             )
 
-            if self.use_invariant_attention:
+            if self.use_invariance:
                 self.atom_attention = EnergyConditionedAtomAttention(
                     atom_dim=self.inv_dim,
                     e_dim=energy_rbf_dim,
@@ -2118,14 +2376,22 @@ class E3EEmbed(Model):
                     z_emb_dim=32,
                 )
 
-            self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
-                irreps_node=self.atom_encoder.irreps_node,
-                e_dim=energy_rbf_dim,
-                hidden_dim=head_hidden_dim,
-                out_dim=latent_dim,
-            )
+            if self.use_invariance:
+                self.eq_abs_head = EnergyConditionedInvariantAbsorberHead(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+            else:
+                self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    e_dim=energy_rbf_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
 
-            if self.use_invariant_block:
+            if self.use_invariance:
                 local_in_dim = 2 * latent_dim
             else:
                 local_in_dim = 3 * latent_dim
@@ -2160,8 +2426,7 @@ class E3EEmbed(Model):
                 "polar_iterations": polar_iterations,
                 "field_sigma": field_sigma,
                 "use_charge_spin": use_charge_spin,
-                "use_invariant_block": use_invariant_block,
-                "use_invariant_attention": use_invariant_attention,
+                "use_invariance": use_invariance,
                 "use_energy_dependent_equivariant_attention": use_energy_dependent_equivariant_attention,
                 "tp_rank": tp_rank,
             },
@@ -2191,14 +2456,20 @@ class E3EEmbed(Model):
         energies = self._get_energy_grid(batch, device=pos.device, dtype=pos.dtype)
         e_feat = self.energy_embedding(energies)
 
-        h_full = self.atom_encoder(
+        enc = self.atom_encoder(
             z=z,
             pos=pos,
             mask=mask,
             absorber_index=absorber_index,
             geom=geom,
         )
-        h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)
+
+        if self.use_invariance:
+            h = enc
+            h_full = None
+        else:
+            h_full = enc
+            h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)
 
         if self.use_charge_spin:
             atom_charges = getattr(batch, "atom_charges", None)
@@ -2226,7 +2497,7 @@ class E3EEmbed(Model):
                 field_abs_feat,
             )
 
-            if self.use_invariant_attention:
+            if self.use_invariance:
                 attn_lat = self.atom_attention(
                     h=h,
                     z=z,
@@ -2251,11 +2522,11 @@ class E3EEmbed(Model):
                     geom=geom,
                 )
 
-            eq_abs_lat = self.eq_abs_head(
-                h_full[:, absorber_index, :],
-                e_feat,
-                field_abs_feat,
-            )
+                eq_abs_lat = self.eq_abs_head(
+                    h_full[:, absorber_index, :],
+                    e_feat,
+                    field_abs_feat,
+                )
 
             field_lat = self.field_attention(
                 field_atom_lat=field_atom_lat,
@@ -2263,11 +2534,10 @@ class E3EEmbed(Model):
                 e_feat=e_feat,
             )
 
-            if self.use_invariant_block:
-                local_parts = [eq_abs_lat, attn_lat]
+            if self.use_invariance:
+                 local_x = torch.cat([abs_lat, attn_lat], dim=-1)
             else:
-                local_parts = [abs_lat, eq_abs_lat, attn_lat]
-            local_x = torch.cat(local_parts, dim=-1)
+                local_x = torch.cat([abs_lat, eq_abs_lat, attn_lat], dim=-1)
 
             field_x = torch.cat(
                 [
@@ -2292,7 +2562,7 @@ class E3EEmbed(Model):
                 e_feat,
             )
 
-            if self.use_invariant_attention:
+            if self.use_invariance:
                 attn_lat = self.atom_attention(
                     h=h,
                     z=z,
@@ -2313,16 +2583,15 @@ class E3EEmbed(Model):
                     geom=geom,
                 )
 
-            eq_abs_lat = self.eq_abs_head(
-                h_full[:, absorber_index, :],
-                e_feat,
-            )
+                eq_abs_lat = self.eq_abs_head(
+                    h_full[:, absorber_index, :],
+                    e_feat,
+                )
 
-            if self.use_invariant_block:
-                local_parts = [eq_abs_lat, attn_lat]
+            if self.use_invariance:
+                 local_x = torch.cat([abs_lat, attn_lat], dim=-1)
             else:
-                local_parts = [abs_lat, eq_abs_lat, attn_lat]
-            local_x = torch.cat(local_parts, dim=-1)
+                local_x = torch.cat([abs_lat, eq_abs_lat, attn_lat], dim=-1)
 
             return {
                 "local_x": local_x,
