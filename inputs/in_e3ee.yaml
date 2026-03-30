@@ -42,9 +42,10 @@ model:
     residual_scale_init: 0.1
     attention_heads: 4
     polar_hidden_dim: 64
-    polar_iterations: 2
+    polar_iterations: 4
     use_charge_spin: True
-    use_average_baseline: True
+    use_invariance: False
+    use_energy_dependent_equivariant_attention: True
     field_sigma: 0.4
 
 hyperparams:
