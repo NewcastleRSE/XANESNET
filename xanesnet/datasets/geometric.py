@@ -73,6 +73,8 @@ class GeometricDataset(TorchGeometricDataset):
             cart_coords = torch.tensor(struct.cart_coords, dtype=torch.float32)
 
             # XANES (first atom)
+            # TODO if we want to do multi-absorber training in the future, we would need to store
+            # TODO energies and intensities for all atoms and index them in the model forward pass.
             energies, intensities = (
                 struct.site_properties["XANES"][0]["energies"],
                 struct.site_properties["XANES"][0]["intensities"],

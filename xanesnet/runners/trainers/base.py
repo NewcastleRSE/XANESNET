@@ -297,8 +297,8 @@ class Trainer(Runner):
             drop_last=self.drop_last,
             num_workers=self.num_workers,
             pin_memory=True,
-            persistent_workers=True,
-            prefetch_factor=2,
+            persistent_workers=False if self.num_workers == 0 else True,
+            prefetch_factor=None if self.num_workers == 0 else 2,
         )
 
         return dataloader
@@ -317,8 +317,8 @@ class Trainer(Runner):
             drop_last=False,  # Keep all validation samples
             num_workers=self.num_workers,
             pin_memory=True,
-            persistent_workers=True,
-            prefetch_factor=2,
+            persistent_workers=False if self.num_workers == 0 else True,
+            prefetch_factor=None if self.num_workers == 0 else 2,
         )
 
         return dataloader
