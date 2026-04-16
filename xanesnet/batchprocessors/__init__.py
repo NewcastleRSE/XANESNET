@@ -16,18 +16,18 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import BatchProcessor
 from .e3ee import E3EEBatchProcessor
-from .gemset_gemnet import GemsetGemNet
-from .geometric_dimenet import GeometricDimeNet
-from .geometric_schnet import GeometricSchNet
+from .gemset_gemnet import GemsetGemNetBatchProcessor
+from .geometric_dimenet import GeometricDimeNetBatchProcessor
+from .geometric_schnet import GeometricSchNetBatchProcessor
 from .registry import BatchProcessorRegistry
-from .xanesx_mlp import XanesXMLP
+from .xanesx_mlp import XanesXMLPBatchProcessor
 
 __all__ = [
     "BatchProcessor",
     "BatchProcessorRegistry",
-    "XanesXMLP",
-    "GeometricSchNet",
-    "GeometricDimeNet",
-    "GemsetGemNet",
+    "XanesXMLPBatchProcessor",
+    "GeometricSchNetBatchProcessor",
+    "GeometricDimeNetBatchProcessor",
+    "GemsetGemNetBatchProcessor",
     "E3EEBatchProcessor",
 ]

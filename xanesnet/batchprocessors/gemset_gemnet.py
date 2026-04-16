@@ -24,7 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("gemset", "gemnet")
-class GemsetGemNet(BatchProcessor):
+class GemsetGemNetBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: GemNetBatch) -> dict[str, torch.Tensor | None]:
         inputs = {

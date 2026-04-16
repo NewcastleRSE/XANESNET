@@ -24,7 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("xanesx", "mlp")
-class XanesXMLP(BatchProcessor):
+class XanesXMLPBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: XanesXData) -> dict[str, torch.Tensor]:
         if batch.x is None:

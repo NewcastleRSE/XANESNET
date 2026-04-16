@@ -24,7 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("geometric", "schnet")
-class GeometricSchNet(BatchProcessor):
+class GeometricSchNetBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: GeometricBatch) -> dict[str, torch.Tensor]:
         return {"z": batch.x, "pos": batch.pos, "batch": batch.batch}
