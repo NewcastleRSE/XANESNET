@@ -16,6 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import Model
 from .dimenet import DimeNet, DimeNetPlusPlus
+from .e3ee import E3EE
 from .gemnet import GemNet
 from .mlp import MLP
 from .pre_trained import ModelInfo, PretrainedModels
@@ -34,4 +35,5 @@ __all__ = [
     "DimeNet",
     "DimeNetPlusPlus",
     "GemNet",
+    "E3EE",
 ]

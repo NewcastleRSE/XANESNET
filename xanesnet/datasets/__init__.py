@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Dataset
+from .e3ee import E3EEDataset
 from .gemset import GemNetBatch, GemNetData, GemNetDataset
 from .geometric import GeometricBatch, GeometricDataset
 from .registry import DatasetRegistry
@@ -30,4 +31,5 @@ __all__ = [
     "GemNetDataset",
     "GemNetData",
     "GemNetBatch",
+    "E3EEDataset",
 ]

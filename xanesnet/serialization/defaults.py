@@ -56,6 +56,12 @@ DATASET_DEFAULT = {
         "int_cutoff": 10.0,
         "triplets_only": False,
     },
+    "e3ee": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -138,6 +144,26 @@ MODEL_DEFAULTS = {
         "activation": "swish",
         "scale_file": None,
     },
+    "e3ee": {
+        "max_z": 100,
+        "atom_emb_dim": 128,
+        "atom_hidden_dim": 128,
+        "atom_layers": 3,
+        "local_cutoff": 6.0,
+        "rbf_dim": 32,
+        "energy_rbf_dim": 48,
+        "scatter_dim": 128,
+        "latent_dim": 128,
+        "head_hidden_dim": 128,
+        "e3nn_irreps": "64x0e + 32x1o + 16x2e",
+        "e3nn_irreps_message": "16x0e + 8x1o + 4x2e",
+        "e3nn_lmax": 2,
+        "out_mlp_layers": 3,
+        "use_path_terms": False,
+        "max_paths_per_structure": 128,
+        "residual_scale_init": 0.1,
+        "attention_heads": 4,
+    },
 }
 
 TRAINER_DEFAULTS = {
@@ -211,6 +237,7 @@ DATASET_REQUIRED = {
     "xanesx": ["root"],
     "geometric": ["root"],
     "gemset": ["root"],
+    "e3ee": ["root"],
 }
 
 MODEL_REQUIRED = {
@@ -219,6 +246,7 @@ MODEL_REQUIRED = {
     "dimenet": ["out_channels"],
     "dimenet++": ["out_channels"],
     "gemnet": ["num_targets"],
+    "e3ee": ["out_size"],
 }
 
 TRAINER_REQUIRED = {

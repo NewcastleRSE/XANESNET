@@ -14,20 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import BatchProcessor
-from .e3ee import E3EEBatchProcessor
-from .gemset_gemnet import GemsetGemNet
-from .geometric_dimenet import GeometricDimeNet
-from .geometric_schnet import GeometricSchNet
-from .registry import BatchProcessorRegistry
-from .xanesx_mlp import XanesXMLP
+from .e3ee import E3EE
 
 __all__ = [
-    "BatchProcessor",
-    "BatchProcessorRegistry",
-    "XanesXMLP",
-    "GeometricSchNet",
-    "GeometricDimeNet",
-    "GemsetGemNet",
-    "E3EEBatchProcessor",
+    "E3EE",
 ]

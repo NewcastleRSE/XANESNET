@@ -1,0 +1,75 @@
+seed: 2025
+device: cuda
+
+datasource:
+  datasource_type: xyzspec
+  xyz_path: ./data/fe/xyz_train
+  xanes_path: ./data/fe/xanes_train
+
+
+dataset: 
+  # general:
+  dataset_type: e3ee
+  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
+  force_prepare: True
+  split_ratios: [0.8, 0.2]
+
+model:
+  # general:
+  model_type: e3ee
+  # params:
+  out_size: 226
+  max_z: 100
+  atom_emb_dim: 64
+  atom_hidden_dim: 128
+  atom_layers: 3
+  local_cutoff: 6.0
+  rbf_dim: 32
+  energy_rbf_dim: 48
+  scatter_dim: 128
+  latent_dim: 128
+  head_hidden_dim: 128
+  e3nn_irreps: "64x0e + 32x1o + 16x2e"
+  e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
+  e3nn_lmax: 2
+  out_mlp_layers: 3
+  use_path_terms: False
+  max_paths_per_structure: 128
+  residual_scale_init: 0.1
+  attention_heads: 4
+
+trainer:
+  # general:
+  trainer_type: nntrainer
+  batch_size: 4
+  shuffle: True
+  drop_last: False
+  num_workers: 0
+  # params:
+  epochs: 500
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 10
+  loss:
+    loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0 
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic 
+    patience: 25
+    min_delta: 0.001
+    restore_best: True
+  
+strategy:
+  # general:
+  strategy_type: single
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 25
+  # params:
