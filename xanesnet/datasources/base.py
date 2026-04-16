@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Iterator
+from collections.abc import Iterator
 
 from pymatgen.core import Molecule, Structure
 

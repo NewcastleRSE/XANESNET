@@ -16,6 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import DataSource
 from .multixyzspec import MultiXYZSpecSource
+from .pmgjson import PMGJSONSource
 from .registry import DataSourceRegistry
 from .xyzspec import XYZSpecSource
 
@@ -24,4 +25,5 @@ __all__ = [
     "XYZSpecSource",
     "DataSourceRegistry",
     "MultiXYZSpecSource",
+    "PMGJSONSource",
 ]

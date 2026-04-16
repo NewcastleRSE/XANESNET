@@ -2,16 +2,15 @@ seed: 2025
 device: cuda
 
 datasource:
-  datasource_type: xyzspec
-  xyz_path: ./data/fe/xyz_train
-  xanes_path: ./data/fe/xanes_train
+  datasource_type: pmgjson
+  json_path: /media/hendrik/ExternalSSD/final_data/tmQM_xas/
 
 
 dataset: 
   # general:
   dataset_type: geometric
-  root: ./data/fe/processed_train/  # Where should the processed data be stored
-  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  root: ./data/tmQM_xas/processed_train/  # Where should the processed data be stored
+  preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
   force_prepare: True
   split_ratios: [0.8, 0.2]
 
