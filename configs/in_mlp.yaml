@@ -1,18 +1,17 @@
-seed: 2025
+seed: 20260001
 device: cuda
 
 datasource:
-  datasource_type: xyzspec
-  xyz_path: ./data/fe/xyz_train
-  xanes_path: ./data/fe/xanes_train
+  datasource_type: multixyzspec
+  root_path: /mnt/ssd/tmQM-XAS/
 
 dataset:
   # general:
   dataset_type: xanesx
-  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  root: ./data/tmQM/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-  force_prepare: True
-  split_ratios: [0.8, 0.2]
+  force_prepare: False
+  split_indexfile: ./data/tmQM/split_indices.json
   # params:
   mode: forward
   fourier: False
@@ -43,29 +42,27 @@ model:
 trainer:
   # general:
   trainer_type: nntrainer
-  batch_size: 10
+  batch_size: 100
   shuffle: True
   drop_last: False
-  num_workers: 0
+  num_workers: 4
   # params:
-  epochs: 500
+  epochs: 100000
   learning_rate: 0.001
   optimizer: Adam
   validation_interval: 10
   loss:
     loss_type: mse
   regularizer:
-    regularizer_type: l1
-    weight: 0.001
+    regularizer_type: none
   lr_scheduler:
     lr_scheduler_type: linear
     start_factor: 1.0 
     end_factor: 0.1
-    total_iters: 40
+    total_iters: 100
   early_stopper:
-    early_stopper_type: basic 
-    patience: 25
-    min_delta: 0.001
+    early_stopper_type: time 
+    time_limit_seconds: 28800  # 8 hours
     restore_best: True
   
 strategy:

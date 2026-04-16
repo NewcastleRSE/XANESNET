@@ -33,4 +33,4 @@ class GeometricSchNet(BatchProcessor):
         return batch.intensities
 
     def sample_id_extraction(self, batch: GeometricBatch) -> np.ndarray:
-        return np.array(batch.sample_id.cpu(), dtype=str)
+        return np.array(batch.sample_id, dtype=str)

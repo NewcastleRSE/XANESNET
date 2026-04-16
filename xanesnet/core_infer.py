@@ -99,6 +99,7 @@ def _setup_strategy(config: Config, dataset: Dataset) -> Strategy:
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config.as_kwargs(),
         checkpoint_dir=None,
+        tensorboard_dir=None,
         dataset=dataset,
         model_config=model_config,
         inferencer_config=inferencer_config,

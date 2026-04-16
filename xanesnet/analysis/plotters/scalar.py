@@ -95,7 +95,7 @@ class ScalarPlotter(Plotter):
     def _boxplot(arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
         fig, ax = plt.subplots(figsize=(5, 4.5))
         bp = ax.boxplot(arr, vert=True, patch_artist=True)
-        bp["boxes"][0].set_facecolor("#4C72B0")
+        bp["boxes"][0].set_facecolor("#005186")
         bp["boxes"][0].set_alpha(0.7)
         ax.set_ylabel(key)
         ax.set_xticklabels([""])
@@ -112,7 +112,7 @@ class ScalarPlotter(Plotter):
         bodies = vp["bodies"]
         assert isinstance(bodies, list)
         for body in bodies:
-            body.set_facecolor("#4C72B0")
+            body.set_facecolor("#005186")
             body.set_alpha(0.7)
         ax.set_ylabel(key)
         ax.set_xticks([1])

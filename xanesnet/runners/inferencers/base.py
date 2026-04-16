@@ -74,6 +74,8 @@ class Inferencer(Runner):
         """
         self.model.eval()
 
+        # TODO some progress bar?
+
         for batch in self.dataloader:
             batch.to(self.device)
 
@@ -114,7 +116,7 @@ class Inferencer(Runner):
                         "prediction": predictions,
                         "target": targets,
                         # Optional:
-                        "input": inputs,
+                        # "input": inputs # TODO: inputs currently dict
                         "sample_id": self.batch_processor.sample_id_extraction(batch),
                         "forward_time": forward_time,
                     }

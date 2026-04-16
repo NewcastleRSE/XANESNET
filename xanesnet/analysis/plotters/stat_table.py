@@ -146,7 +146,7 @@ class StatTablePlotter(Plotter):
         # Style header cells
         for (r, c), cell in table.get_celld().items():
             if r == 0:  # header row
-                cell.set_facecolor("#4C72B0")
+                cell.set_facecolor("#204aff")
                 cell.set_text_props(color="white", weight="bold")
             if c == -1:  # row labels
                 cell.set_text_props(fontsize=7, ha="right")

@@ -139,17 +139,17 @@ class SpectraPlotter(Plotter):
         fig, (ax_spec, ax_res) = plt.subplots(
             nrows=2,
             ncols=1,
-            figsize=(8, 5),
+            figsize=(10, 5),
             gridspec_kw={"height_ratios": [3, 1]},
             sharex=True,
         )
 
         # Spectra panel
-        ax_spec.plot(x, target, label="Target", linewidth=1.0, color="#2ca02c")
-        ax_spec.plot(x, pred, label="Prediction", linewidth=1.0, color="#1f77b4", linestyle="--")
+        ax_spec.plot(x, target, label="Target", linewidth=2.0, color="#019cd8")
+        ax_spec.plot(x, pred, label="Prediction", linewidth=2.0, color="#005186", linestyle="--")
         ax_spec.set_ylabel("Intensity")
         ax_spec.set_title(f"Sample: {sample_id}")
-        ax_spec.legend(fontsize=8, loc="upper right")
+        ax_spec.legend(fontsize=10, loc="upper right")
 
         # Scalar annotation
         scalars: dict[str, float] = {}
@@ -167,15 +167,15 @@ class SpectraPlotter(Plotter):
                 0.97,
                 text,
                 transform=ax_spec.transAxes,
-                fontsize=7,
+                fontsize=10,  # originally 7
                 verticalalignment="top",
                 fontfamily="monospace",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8),
             )
 
         # Residual panel
-        ax_res.plot(x, residual, color="#d62728", linewidth=0.8)
-        ax_res.axhline(0, color="black", linewidth=0.5, linestyle=":")
+        ax_res.plot(x, residual, color="#e85651", linewidth=2.0)
+        ax_res.axhline(0, color="black", linewidth=1.0, linestyle=":")
         ax_res.set_xlabel("Channel")
         ax_res.set_ylabel("Residual")
 
