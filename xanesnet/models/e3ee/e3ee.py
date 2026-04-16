@@ -31,6 +31,8 @@ from .layers import (
     EnergyRBFEmbedding,
     EquivariantAtomEncoder,
     PairElementEnergyScattering,
+)
+from .utils import (
     build_absorber_relative_geometry,
     invariant_feature_dim,
     invariant_features_from_irreps,
