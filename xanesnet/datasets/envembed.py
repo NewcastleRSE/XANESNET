@@ -95,6 +95,11 @@ class EnvEmbedData:
         return cls.from_state_dict(state)
 
 
+###############################################################################
+#################################### CLASS ####################################
+###############################################################################
+
+
 @DatasetRegistry.register("envembed")
 class EnvEmbedDataset(TorchDataset):
     def __init__(

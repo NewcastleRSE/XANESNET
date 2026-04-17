@@ -36,7 +36,6 @@ class E3EEBatch(Protocol):
     intensities: torch.Tensor
     sample_id: torch.Tensor  # TODO maybe rename to file_name for consistency
     atomic_symbols: torch.Tensor
-    batch: torch.Tensor
 
 
 ###############################################################################
