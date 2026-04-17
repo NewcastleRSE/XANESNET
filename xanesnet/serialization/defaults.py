@@ -62,6 +62,16 @@ DATASET_DEFAULT = {
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
+    "envembed": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+        "widths_eV": [0.2, 1.0, 2.0, 4.0],
+        "basis_stride": 4,
+        "basis_path": None,
+        "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -164,6 +174,15 @@ MODEL_DEFAULTS = {
         "residual_scale_init": 0.1,
         "attention_heads": 4,
     },
+    "envembed": {
+        "n_shells": 4,
+        "max_radius_angs": 7.0,
+        "init_width": 0.8,
+        "use_gating": True,
+        "head_hidden": 256,
+        "head_depth": 3,
+        "dropout": 0.1,
+    },
 }
 
 TRAINER_DEFAULTS = {
@@ -238,6 +257,7 @@ DATASET_REQUIRED = {
     "geometric": ["root"],
     "gemset": ["root"],
     "e3ee": ["root"],
+    "envembed": ["root"],
 }
 
 MODEL_REQUIRED = {
@@ -247,6 +267,7 @@ MODEL_REQUIRED = {
     "dimenet++": ["out_channels"],
     "gemnet": ["num_targets"],
     "e3ee": ["out_size"],
+    "envembed": ["in_size", "kgroups", "out_size"],
 }
 
 TRAINER_REQUIRED = {

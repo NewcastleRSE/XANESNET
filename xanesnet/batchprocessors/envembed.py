@@ -14,22 +14,26 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import BatchProcessor
-from .e3ee import E3EEBatchProcessor
-from .envembed import EnvEmbedBatchProcessor
-from .gemset_gemnet import GemsetGemNetBatchProcessor
-from .geometric_dimenet import GeometricDimeNetBatchProcessor
-from .geometric_schnet import GeometricSchNetBatchProcessor
-from .registry import BatchProcessorRegistry
-from .xanesx_mlp import XanesXMLPBatchProcessor
+import numpy as np
+import torch
 
-__all__ = [
-    "BatchProcessor",
-    "BatchProcessorRegistry",
-    "XanesXMLPBatchProcessor",
-    "GeometricSchNetBatchProcessor",
-    "GeometricDimeNetBatchProcessor",
-    "GemsetGemNetBatchProcessor",
-    "E3EEBatchProcessor",
-    "EnvEmbedBatchProcessor",
-]
+from .base import BatchProcessor
+from .registry import BatchProcessorRegistry
+
+
+@BatchProcessorRegistry.register("envembed", "envembed")
+class EnvEmbedBatchProcessor(BatchProcessor):
+    """
+    Batch processor for the EnvEmbed dataset + EnvEmbed model combination.
+    """
+
+    def input_preparation(self, batch) -> dict[str, torch.Tensor]:
+        # TODO implement input preparation
+        raise NotImplementedError
+
+    def target_preparation(self, batch) -> torch.Tensor:
+        # TODO implement target preparation
+        raise NotImplementedError
+
+    def sample_id_extraction(self, batch) -> np.ndarray:
+        return np.array(batch.sample_id, dtype=str)
