@@ -136,6 +136,7 @@ class XanesXDataset(TorchDataset):
             self.descriptor_list.append(descriptor)
 
         # Setup spectral basis only if needed
+        self.basis: SpectralBasis | None = None
         if self.gaussian:
             self._setup_spectral_basis()
 
@@ -170,6 +171,7 @@ class XanesXDataset(TorchDataset):
             # Gaussian
             c_star = None
             if self.gaussian:
+                assert self.basis is not None, "Spectral basis must be set up successfully before preparing data."
                 c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
             # Mode

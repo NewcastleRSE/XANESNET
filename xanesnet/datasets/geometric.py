@@ -87,7 +87,7 @@ class GeometricDataset(TorchGeometricDataset):
                 pos=cart_coords,
                 energies=energies,
                 intensities=intensities,
-                sample_id=sample_id,
+                sample_id=sample_id,  # TODO maybe rename to file_name for consistency
                 atomic_symbols=atomic_symbols,
             )
 
