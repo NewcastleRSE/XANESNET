@@ -29,9 +29,8 @@ model:
   # general:
   model_type: envembed
   # params:
-  in_size: 49
-  kgroups: [16, 32, 64]
-  out_size: 226
+  in_size: 49 # dimensionality of the descriptor features 
+  kgroups: [57, 57, 57, 57] # output gaussian dimensions: len(widths_eV) * [Phi.shape[1] // len(widths_eV)]
 
 trainer:
   # general:

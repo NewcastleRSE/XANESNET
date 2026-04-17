@@ -43,10 +43,19 @@ class EnvEmbedData:
     c_star: torch.Tensor | None = None
     lengths: torch.Tensor | None = None
     file_name: str | list[Any] | None = None  # TODO can we make this more type safe?
+    basis: SpectralBasis | None = None  # not saved in state dict
 
     def to(self, device: str | torch.device) -> "EnvEmbedData":
         # send batch do device
-        for attr in ["descriptor_features", "distance_features", "intensities", "energies", "c_star", "lengths"]:
+        for attr in [
+            "descriptor_features",
+            "distance_features",
+            "intensities",
+            "energies",
+            "c_star",
+            "lengths",
+            "basis",
+        ]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -73,6 +82,7 @@ class EnvEmbedData:
             c_star=state.get("c_star"),
             lengths=state.get("lengths"),
             file_name=state.get("file_name"),
+            basis=None,  # basis is not saved in state dict
         )
 
     def save(self, path: str) -> str:
@@ -120,12 +130,15 @@ class EnvEmbedDataset(TorchDataset):
             self.descriptor_list.append(descriptor)
 
         # Setup spectral basis
+        self.basis: SpectralBasis | None = None
         self._setup_spectral_basis()
 
     def prepare(self) -> bool:
         already_processed = super().prepare()
         if already_processed:
             return True
+
+        assert self.basis is not None, "Spectral basis must be set up successfully."
 
         for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
             # Compute descriptor features
@@ -159,6 +172,7 @@ class EnvEmbedDataset(TorchDataset):
                 energies=energies,
                 c_star=c_star,
                 file_name=pmg_obj.properties["file_name"],
+                basis=self.basis,
             )
 
             # Save processed data
@@ -171,7 +185,7 @@ class EnvEmbedDataset(TorchDataset):
         # Load directly from file
         if self.basis_path is not None:
             # TODO never tested this.
-            self.basis = torch.load(self.basis_path)  # TODO: till uses torch.load without weights_only=True
+            self.basis = torch.load(self.basis_path)  # TODO: still uses torch.load without weights_only=True
             logging.info(f"Loaded spectral basis from file @ {self.basis_path}")
         # Create from datasource
         else:
@@ -219,10 +233,14 @@ class EnvEmbedDataset(TorchDataset):
             c_star=c_star,
             lengths=lengths,
             file_name=file_name_list,
+            basis=batch[0].basis,  # all samples in batch should have same basis
         )
 
     def _load_item(self, path: str) -> EnvEmbedData:
-        return EnvEmbedData.load(path)
+        data = EnvEmbedData.load(path)
+        assert self.basis is not None, "Spectral basis must be set before loading data items."
+        data.basis = self.basis  # attach basis to data object
+        return data
 
     @property
     def signature(self) -> Config:
@@ -233,7 +251,9 @@ class EnvEmbedDataset(TorchDataset):
         signature.update_with_dict(
             {
                 "descriptors": self.descriptor_configs,
-                # TODO add params
+                "widths_eV": self.widths_eV,
+                "basis_stride": self.basis_stride,
+                "basis_path": self.basis_path,
             }
         )
         return signature

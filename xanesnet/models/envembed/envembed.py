@@ -14,25 +14,41 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Any
-
 import torch
+import torch.nn as nn
 
+from xanesnet.components import BiasInitRegistry, WeightInitRegistry
 from xanesnet.serialization.config import Config
+from xanesnet.utils.math import SpectralBasis, gaussian_inverse
 
 from ..base import Model
 from ..registry import ModelRegistry
+from .layers import (
+    CoeffHeadGroupedResidualPreLN,
+    ResidualPreLNBlock,
+    SoftRadialShellsEncoder,
+)
 
 
 @ModelRegistry.register("envembed")
 class EnvEmbed(Model):
+    """
+    Environment Embedding model for XANES prediction.
+
+    Architecture:
+        1. SoftRadialShellsEncoder: learnable soft radial shell binning over
+           absorber-centric distances, fused with the absorber descriptor to
+           produce a fixed-size latent vector.
+        2. CoeffHeadGroupedResidualPreLN: shared Pre-LN residual trunk with
+           per-width grouped linear heads predicting spectral basis coefficients.
+    """
+
     def __init__(
         self,
         model_type: str,
         # params:
-        in_size: Any,  # TODO specify type more precisely
-        kgroups: Any,  # TODO specify type more precisely
-        out_size: int,
+        in_size: int,
+        kgroups: list[int],
         n_shells: int,
         max_radius_angs: float,
         init_width: float,
@@ -45,7 +61,6 @@ class EnvEmbed(Model):
 
         self.in_size = in_size
         self.kgroups = kgroups
-        self.out_size = out_size
         self.n_shells = n_shells
         self.max_radius_angs = max_radius_angs
         self.init_width = init_width
@@ -54,19 +69,71 @@ class EnvEmbed(Model):
         self.head_depth = head_depth
         self.dropout = dropout
 
-        # TODO implement init
+        latent_dim = in_size * 2
 
-        # Placeholder linear layer such that parameters are not empty
-        # TODO should be removed
-        linear_layer = torch.nn.Linear(in_size, out_size)
-        self.add_module("linear_layer", linear_layer)
+        self.encoder = SoftRadialShellsEncoder(
+            d_input=in_size,
+            n_shells=n_shells,
+            latent_dim=latent_dim,
+            max_radius_angs=max_radius_angs,
+            init_width=init_width,
+            use_gating=use_gating,
+        )
 
-    # TODO implement rest
-    # TODO put layers in layers folder for clean structure similar to E3EE
+        self.coeff_head = CoeffHeadGroupedResidualPreLN(
+            latent_dim=latent_dim,
+            k_groups=kgroups,
+            hidden=head_hidden,
+            depth=head_depth,
+            dropout=dropout,
+        )
+
+    def forward(
+        self,
+        descriptor_features: torch.Tensor,
+        distance_features: torch.Tensor,
+        lengths: torch.Tensor,
+        basis: SpectralBasis,
+    ) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Args:
+            descriptor_features: (B, N, H) padded descriptor features; absorber at index 0.
+            distance_features:   (B, N) distances from absorber atom.
+            lengths:             (B,) number of real atoms per sample.
+
+        Returns:
+            (B, sum(kgroups)) predicted spectral basis coefficients.
+        """
+        h = self.encoder(descriptor_features, dists=distance_features, lengths=lengths)
+        coeff = self.coeff_head(h)
+        # TODO can we do better if directly returning coefficients?
+        return gaussian_inverse(basis=basis, coeffs=coeff)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        # TODO implement weight initialization
-        pass
+        """
+        Initialise model weights and biases.
+
+        Applies the given initialisation to ``nn.Linear`` layers in the encoder.
+        For the coefficient head, ``ResidualPreLNBlock`` inner layers are
+        initialised while group head layers keep their zero initialisation.
+        """
+        weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
+        bias_init_fn = BiasInitRegistry.get(bias_init)
+
+        for module in self.encoder.modules():
+            if isinstance(module, nn.Linear):
+                weight_init_fn(module.weight)
+                if module.bias is not None:
+                    bias_init_fn(module.bias)
+
+        for module in self.coeff_head.modules():
+            if isinstance(module, ResidualPreLNBlock):
+                weight_init_fn(module.fc1.weight)
+                bias_init_fn(module.fc1.bias)
+                weight_init_fn(module.fc2.weight)
+                bias_init_fn(module.fc2.bias)
 
     @property
     def signature(self) -> Config:
@@ -78,7 +145,6 @@ class EnvEmbed(Model):
             {
                 "in_size": self.in_size,
                 "kgroups": self.kgroups,
-                "out_size": self.out_size,
                 "n_shells": self.n_shells,
                 "max_radius_angs": self.max_radius_angs,
                 "init_width": self.init_width,
@@ -88,5 +154,4 @@ class EnvEmbed(Model):
                 "dropout": self.dropout,
             }
         )
-        return signature
         return signature

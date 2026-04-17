@@ -267,7 +267,7 @@ MODEL_REQUIRED = {
     "dimenet++": ["out_channels"],
     "gemnet": ["num_targets"],
     "e3ee": ["out_size"],
-    "envembed": ["in_size", "kgroups", "out_size"],
+    "envembed": ["in_size", "kgroups"],
 }
 
 TRAINER_REQUIRED = {
