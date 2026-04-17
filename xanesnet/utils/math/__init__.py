@@ -15,7 +15,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .fourier import fft, inverse_fft
-from .gaussian import SpectralBasis, SpectralPost, build_ridge_operator, gaussian_fit
+from .gaussian import (
+    SpectralBasis,
+    SpectralPost,
+    build_ridge_operator,
+    gaussian_fit,
+    gaussian_inverse,
+)
 
 __all__ = [
     "fft",
@@ -24,4 +30,5 @@ __all__ = [
     "SpectralPost",
     "build_ridge_operator",
     "gaussian_fit",
+    "gaussian_inverse",
 ]

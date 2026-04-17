@@ -120,3 +120,14 @@ def gaussian_fit(basis: SpectralBasis, xanes: torch.Tensor) -> torch.Tensor:
     A = build_ridge_operator(basis.Phi, lam=1e-2)
 
     return xanes @ A.T
+
+
+def gaussian_inverse(
+    basis: SpectralBasis,
+    coeffs: torch.Tensor,
+    nonneg_output: bool = False,
+) -> torch.Tensor:
+    y = basis.synthesize(coeffs)
+    if nonneg_output:
+        y = y.clamp_min_(0)
+    return y
