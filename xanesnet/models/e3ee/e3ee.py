@@ -228,6 +228,7 @@ class E3EE(Model):
         abs_lat = self.abs_branch(h[:, absorber_index, :], e_feat)  # [B, nE, latent]
 
         # Branch 2: energy-conditioned attention
+        # TODO understand branch 2
         attn_lat = self.atom_attention(
             h=h,
             z=x,
@@ -239,11 +240,13 @@ class E3EE(Model):
         )  # [B, nE, latent]
 
         # Branch 3: late equivariant absorber head
+        # TODO understand branch 3
         eq_abs_lat = self.eq_abs_head(h_full[:, absorber_index, :], e_feat)  # [B, nE, latent]
 
         parts = [abs_lat, attn_lat, eq_abs_lat]
 
         # Branch 4 (optional): path terms
+        # TODO understand branch 4
         if self.use_path_terms:
             path_lat = self.path_agg(
                 h=h,
