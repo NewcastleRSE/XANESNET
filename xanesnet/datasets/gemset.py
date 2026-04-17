@@ -197,17 +197,17 @@ class GemNetDataset(TorchDataset):
         if already_processed:
             return True
 
-        for idx, struct in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            sample_id = struct.properties["file_name"]
+        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
+            sample_id = pmg_obj.properties["file_name"]
 
-            atomic_numbers = torch.tensor(struct.atomic_numbers, dtype=torch.int64)
-            cart_coords = torch.tensor(struct.cart_coords, dtype=torch.float32)
+            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+            cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
             num_atoms = torch.tensor(len(atomic_numbers), dtype=torch.int64)
 
             # XANES (first atom)
             energies_np, intensities_np = (
-                struct.site_properties["XANES"][0]["energies"],
-                struct.site_properties["XANES"][0]["intensities"],
+                pmg_obj.site_properties["XANES"][0]["energies"],
+                pmg_obj.site_properties["XANES"][0]["intensities"],
             )
             energies = torch.tensor(energies_np, dtype=torch.float32)
             spectra = torch.tensor(intensities_np, dtype=torch.float32)

@@ -65,19 +65,19 @@ class GeometricDataset(TorchGeometricDataset):
         if already_processed:
             return True
 
-        for idx, struct in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            sample_id = struct.properties["file_name"]
-            atomic_symbols = struct.labels
+        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
+            sample_id = pmg_obj.properties["file_name"]
+            atomic_symbols = pmg_obj.labels
 
-            atomic_numbers = torch.tensor(struct.atomic_numbers, dtype=torch.int64)
-            cart_coords = torch.tensor(struct.cart_coords, dtype=torch.float32)
+            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+            cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
 
             # XANES (first atom)
             # TODO if we want to do multi-absorber training in the future, we would need to store
             # TODO energies and intensities for all atoms and index them in the model forward pass.
             energies, intensities = (
-                struct.site_properties["XANES"][0]["energies"],
-                struct.site_properties["XANES"][0]["intensities"],
+                pmg_obj.site_properties["XANES"][0]["energies"],
+                pmg_obj.site_properties["XANES"][0]["intensities"],
             )
             energies = torch.tensor(energies, dtype=torch.float32)
             intensities = torch.tensor(intensities, dtype=torch.float32)

@@ -24,7 +24,7 @@ import torch
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
-from xanesnet.descriptors import DescriptorRegistry
+from xanesnet.descriptors import Descriptor, DescriptorRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
@@ -44,7 +44,7 @@ class XanesXData:
 
     def to(self, device: str | torch.device) -> "XanesXData":
         # send batch do device
-        for attr in ["x", "y", "fourier", "c_star"]:
+        for attr in ["x", "y", "fourier", "c_star", "e"]:  # TODO 'e' to device?
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -127,7 +127,7 @@ class XanesXDataset(TorchDataset):
 
         # Create descriptors
         self.descriptor_configs = descriptors
-        self.descriptor_list = []
+        self.descriptor_list: list[Descriptor] = []
         descriptor_types = ", ".join(d.get_str("descriptor_type") for d in descriptors)
         logging.info(f"Initialising descriptors: {descriptor_types}")
         for descriptor_config in descriptors:
@@ -144,19 +144,20 @@ class XanesXDataset(TorchDataset):
         if already_processed:
             return True
 
-        for idx, data in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
+        for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
             # Compute descriptor features
             descriptor_features = []
             for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(data)
+                feature = descriptor.transform_pmg(pmg_obj)
                 descriptor_features.append(feature)
             descriptor_features = np.concatenate(descriptor_features, axis=0)
             descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
 
             # XANES (first atom)
+            # TODO hardcoded 0
             energies, intensities = (
-                data.site_properties["XANES"][0]["energies"],
-                data.site_properties["XANES"][0]["intensities"],
+                pmg_obj.site_properties["XANES"][0]["energies"],
+                pmg_obj.site_properties["XANES"][0]["intensities"],
             )
             energies = torch.tensor(energies, dtype=torch.float32)
             intensities = torch.tensor(intensities, dtype=torch.float32)
@@ -183,7 +184,12 @@ class XanesXDataset(TorchDataset):
 
             # Create Data object
             data = XanesXData(
-                x=x, y=y, e=energies, fourier=fourier, c_star=c_star, file_name=data.properties["file_name"]
+                x=x,
+                y=y,
+                e=energies,
+                fourier=fourier,
+                c_star=c_star,
+                file_name=pmg_obj.properties["file_name"],
             )
 
             # Save processed data
@@ -203,7 +209,7 @@ class XanesXDataset(TorchDataset):
             logging.info("Creating spectral basis from datasource")
             first_data = next(iter(self.datasource))
             # ? Does this require that every XANES spectrum has the same energy grid?
-            energies = first_data.site_properties["XANES"][0]["energies"]
+            energies = torch.tensor(first_data.site_properties["XANES"][0]["energies"], dtype=torch.float32)
             self.basis = SpectralBasis(
                 energies=energies,
                 widths_eV=self.widths_eV,
