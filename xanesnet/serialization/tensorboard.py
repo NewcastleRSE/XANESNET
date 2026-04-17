@@ -14,6 +14,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import inspect
 import logging
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,70 @@ import torch
 from torch.utils.tensorboard.writer import SummaryWriter
 
 from xanesnet.serialization.config import Config
+
+
+class _TensorBoardGraphWrapper(torch.nn.Module):
+    """
+    Wrap a model so TensorBoard graph tracing only receives tensor inputs.
+
+    Non-tensor inputs are bound once during construction and reused when the
+    wrapper forwards to the original model.
+    """
+
+    def __init__(self, model: torch.nn.Module, input_example: dict[str, Any]) -> None:
+        super().__init__()
+        self.model = model
+        self._ordered_arg_names: list[str] = []
+        self._tensor_arg_names: list[str] = []
+        self._static_arg_values: dict[str, Any] = {}
+
+        for name, parameter in inspect.signature(model.forward).parameters.items():
+            if name == "self":
+                continue
+
+            if parameter.kind not in {
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            }:
+                raise TypeError(f"TensorBoard graph logging does not support variadic forward parameter '{name}'.")
+
+            if name not in input_example:
+                if parameter.default is inspect.Parameter.empty:
+                    raise ValueError(f"Missing model input '{name}' required for TensorBoard graph logging.")
+                continue
+
+            value = input_example[name]
+            self._ordered_arg_names.append(name)
+
+            if isinstance(value, torch.Tensor):
+                self._tensor_arg_names.append(name)
+                continue
+
+            if isinstance(value, torch.nn.Module):
+                module_name = f"_graph_static_module_{len(self._static_arg_values)}"
+                self.add_module(module_name, value)
+                value = getattr(self, module_name)
+
+            self._static_arg_values[name] = value
+
+    @property
+    def tensor_arg_names(self) -> tuple[str, ...]:
+        return tuple(self._tensor_arg_names)
+
+    def forward(self, *tensor_args: torch.Tensor) -> Any:
+        if len(tensor_args) != len(self._tensor_arg_names):
+            raise ValueError(
+                f"Expected {len(self._tensor_arg_names)} tensor inputs for TensorBoard graph logging, "
+                f"got {len(tensor_args)}."
+            )
+
+        tensor_arg_values = dict(zip(self._tensor_arg_names, tensor_args, strict=True))
+        ordered_args = [
+            tensor_arg_values[name] if name in tensor_arg_values else self._static_arg_values[name]
+            for name in self._ordered_arg_names
+        ]
+        return self.model(*ordered_args)
 
 
 class TensorBoardLogger:
@@ -166,9 +231,33 @@ class TensorBoardLogger:
         if not self._enabled:
             return
 
-        input_example_tuple = tuple(input_example.values())
-        self.writer.add_graph(model, input_example_tuple)
-        logging.info("Logged model graph to TensorBoard.")
+        try:
+            non_tensor_input_names = [
+                name for name, value in input_example.items() if not isinstance(value, torch.Tensor)
+            ]
+
+            graph_model: torch.nn.Module = model
+            graph_inputs = tuple(input_example.values())
+
+            if non_tensor_input_names:
+                graph_model = _TensorBoardGraphWrapper(model, input_example)
+                graph_inputs = tuple(input_example[name] for name in graph_model.tensor_arg_names)
+
+                if not graph_inputs:
+                    logging.warning(
+                        "Skipping TensorBoard graph logging because the model has no tensor inputs to trace."
+                    )
+                    return
+
+                logging.info(
+                    "Binding non-tensor model inputs for TensorBoard graph logging: %s",
+                    ", ".join(non_tensor_input_names),
+                )
+
+            self.writer.add_graph(graph_model, graph_inputs)
+            logging.info("Logged model graph to TensorBoard.")
+        except Exception as exc:
+            logging.warning("Skipping TensorBoard graph logging because tracing failed: %s", exc)
 
     # PRIMITIVE LOGGING FUNCTIONS
 
