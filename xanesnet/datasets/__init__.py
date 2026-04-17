@@ -20,6 +20,7 @@ from .envembed import EnvEmbedData
 from .gemset import GemNetBatch, GemNetData, GemNetDataset
 from .geometric import GeometricBatch, GeometricDataset
 from .registry import DatasetRegistry
+from .richgraph import RichGraphDataset
 from .xanesx import XanesXData, XanesXDataset
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "E3EEDataset",
     "EnvEmbedData",
     "E3EEBatch",
+    "RichGraphDataset",
 ]

@@ -72,6 +72,12 @@ DATASET_DEFAULT = {
         "basis_path": None,
         "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
     },
+    "richgraph": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -258,6 +264,7 @@ DATASET_REQUIRED = {
     "gemset": ["root"],
     "e3ee": ["root"],
     "envembed": ["root"],
+    "richgraph": ["root"],
 }
 
 MODEL_REQUIRED = {

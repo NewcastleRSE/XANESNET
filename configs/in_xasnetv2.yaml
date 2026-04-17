@@ -1,0 +1,69 @@
+seed: 2025
+device: cuda
+
+datasource:
+  datasource_type: xyzspec
+  xyz_path: ./data/fe/xyz_train
+  xanes_path: ./data/fe/xanes_train
+
+
+dataset: 
+  # general:
+  dataset_type: richgraph
+  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  preload: True                     # Preload dataset into RAM if True; otherwise load on-the-fly
+  force_prepare: True
+  split_ratios: [0.8, 0.2]
+
+model:
+  # general:
+  model_type: schnet
+  # params:
+  hidden_channels: 128
+  reduce_channels_1: 64
+  reduce_channels_2: 226
+  num_filters: 128
+  num_interactions: 6
+  num_gaussians: 50
+  cutoff: 10.0
+  max_num_neighbors: 32
+  readout: add
+  dipole: False
+  mean: null
+  std: null 
+  atomref: null
+
+trainer:
+  # general:
+  trainer_type: nntrainer
+  batch_size: 4
+  shuffle: True
+  drop_last: False
+  num_workers: 0
+  # params:
+  epochs: 500
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 10
+  loss:
+    loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0 
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic 
+    patience: 25
+    min_delta: 0.001
+    restore_best: True
+  
+strategy:
+  # general:
+  strategy_type: single
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 25
+  # params:
