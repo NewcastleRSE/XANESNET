@@ -17,6 +17,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import torch
 
+from xanesnet.datasets import E3EEBatch
+
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
@@ -34,7 +36,7 @@ class E3EEBatchProcessor(BatchProcessor):
         intensities: [B, nE]   XANES intensities (targets)
     """
 
-    def input_preparation(self, batch) -> dict[str, torch.Tensor]:
+    def input_preparation(self, batch: E3EEBatch) -> dict[str, torch.Tensor]:
         return {
             "x": batch.x,
             "pos": batch.pos,
@@ -42,8 +44,8 @@ class E3EEBatchProcessor(BatchProcessor):
             "energies": batch.energies,
         }
 
-    def target_preparation(self, batch) -> torch.Tensor:
+    def target_preparation(self, batch: E3EEBatch) -> torch.Tensor:
         return batch.intensities
 
-    def sample_id_extraction(self, batch) -> np.ndarray:
+    def sample_id_extraction(self, batch: E3EEBatch) -> np.ndarray:
         return np.array(batch.sample_id, dtype=str)

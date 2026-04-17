@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Protocol
+
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.data import Batch
@@ -23,6 +25,19 @@ from xanesnet.datasources import DataSource
 
 from .geometric import GeometricDataset
 from .registry import DatasetRegistry
+
+
+# for typing
+class E3EEBatch(Protocol):
+    x: torch.Tensor
+    pos: torch.Tensor
+    mask: torch.Tensor
+    energies: torch.Tensor
+    intensities: torch.Tensor
+    sample_id: torch.Tensor  # TODO maybe rename to file_name for consistency
+    atomic_symbols: torch.Tensor
+    batch: torch.Tensor
+
 
 ###############################################################################
 #################################### CLASS ####################################
