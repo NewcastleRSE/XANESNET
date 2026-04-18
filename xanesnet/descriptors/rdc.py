@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
 from ase import Atoms
+from ase.neighborlist import neighbor_list
 
 from .base import Descriptor
 from .registry import DescriptorRegistry
@@ -73,30 +74,38 @@ class RDC(Descriptor):
         nr_aux = int(np.absolute(self.r_max - self.r_min) / self.dr) + 1
         self.r_aux = np.linspace(self.r_min, self.r_max, nr_aux)
 
-    def transform(self, system: Atoms, site_index: int | None = 0) -> np.ndarray:
-        if site_index is not None:
-            return self._transform_single(system, site_index)
+    def transform(self, system: Atoms, site_index: int | list[int] | None = 0) -> np.ndarray:
+        if isinstance(site_index, int):
+            site_index = [site_index]
 
-        return np.vstack([self._transform_single(system, i) for i in range(len(system))])
+        # Use ASE neighbor_list for correct periodic image enumeration.
+        # mic=True only finds the closest image per atom, which is wrong
+        # for small unit cells where r_max exceeds the cell dimensions.
+        i_arr, j_arr, d_arr = neighbor_list("ijd", system, cutoff=self.r_max)
 
-    def _transform_single(self, system: Atoms, site_index: int) -> np.ndarray:
+        indices = range(len(system)) if site_index is None else site_index
+        return np.vstack([self._transform_single(system, idx, i_arr, j_arr, d_arr) for idx in indices])
+
+    def _transform_single(
+        self,
+        system: Atoms,
+        site_index: int,
+        i_arr: np.ndarray,
+        j_arr: np.ndarray,
+        d_arr: np.ndarray,
+    ) -> np.ndarray:
         """Compute the RDC for a single site."""
-        n_atoms = len(system)
-        distances = system.get_distances(site_index, range(n_atoms))
+        mask = i_arr == site_index
 
-        # Filter atoms within cutoff (excluding self)
-        mask = (distances < self.r_max) & (distances > 0.0)
-        neighbours = np.where(mask)[0]
-
-        if len(neighbours) < 1:
+        if mask.sum() < 1:
             raise RuntimeError(
                 f"Too few atoms within {self.r_max:.2f} A of site {site_index} "
                 "to compute a non-zero radial distribution curve."
             )
 
         zi = system.get_atomic_numbers()[site_index]
-        zj = system.get_atomic_numbers()[neighbours]
-        rij = distances[neighbours]
+        zj = system.get_atomic_numbers()[j_arr[mask]]
+        rij = d_arr[mask]
 
         rij_r_sq = np.square(rij[:, np.newaxis] - self.r_aux)
         exp = np.exp(-1.0 * self.alpha * rij_r_sq)

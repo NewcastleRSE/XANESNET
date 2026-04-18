@@ -43,7 +43,7 @@ class MACE(Descriptor):
     def transform(
         self,
         system: Atoms,
-        site_index: int | None = 0,
+        site_index: int | list[int] | None = 0,
     ) -> np.ndarray:
         descriptors = np.asarray(
             self.mace.get_descriptors(
@@ -52,6 +52,8 @@ class MACE(Descriptor):
                 num_layers=self.num_layers,
             )
         )
+        if isinstance(site_index, int):
+            site_index = [site_index]
         if site_index is not None:
             return descriptors[site_index, :]
         return descriptors

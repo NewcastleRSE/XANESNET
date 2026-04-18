@@ -16,6 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
 from ase import Atoms
+from ase.neighborlist import neighbor_list
 
 from .base import Descriptor
 from .registry import DescriptorRegistry
@@ -109,47 +110,49 @@ class WACSF(Descriptor):
     def transform(
         self,
         system: Atoms,
-        site_index: int | None = 0,
+        site_index: int | list[int] | None = 0,
     ) -> np.ndarray:
-        positions = system.get_positions()
-        n_atoms = len(system)
+        # Use ASE neighbor_list for correct periodic image enumeration.
+        # get_all_distances(mic=True) only finds the closest image per atom,
+        # which is wrong for small unit cells where r_max exceeds cell dimensions.
+        i_arr, j_arr, d_arr, D_arr = neighbor_list("ijdD", system, cutoff=self.r_max)
 
-        # Precompute pairwise distances (N x N)
-        diff = positions[:, None, :] - positions[None, :, :]
-        dist_matrix = np.linalg.norm(diff, axis=2)
+        if isinstance(site_index, int):
+            site_index = [site_index]
 
-        if site_index is not None:
-            return self._transform_single(system, site_index, dist_matrix)
-
-        return np.vstack([self._transform_single(system, i, dist_matrix) for i in range(n_atoms)])
+        indices = range(len(system)) if site_index is None else site_index
+        return np.vstack([self._transform_single(system, idx, i_arr, j_arr, d_arr, D_arr) for idx in indices])
 
     def _transform_single(
         self,
         system: Atoms,
         site_index: int,
-        dist_matrix: np.ndarray,
+        i_arr: np.ndarray,
+        j_arr: np.ndarray,
+        d_arr: np.ndarray,
+        D_arr: np.ndarray,
     ) -> np.ndarray:
         """Compute the WACSF for a single site."""
-        # Neighbour detection
-        rij_all = dist_matrix[site_index]
-        mask = (rij_all < self.r_max) & (rij_all > 0.0)
-        neighbours = np.where(mask)[0]
+        mask = i_arr == site_index
 
         # If no neighbours, return zeros
-        if len(neighbours) == 0:
+        if mask.sum() == 0:
             base_size = 1 + self.n_g2 + self.n_g4 + self.use_charge + self.use_spin
             return np.zeros(base_size)
 
         Z = 0.1 * system.get_atomic_numbers()
 
+        j_neigh = j_arr[mask]
+        rij = d_arr[mask]
+        Dij = D_arr[mask]  # displacement vectors to each periodic image
+
         # G1 term (radial cutoff sum)
-        rij = rij_all[neighbours]
         g1 = np.sum(_cosine_cutoff(rij, self.r_max))
         features: list[np.ndarray] = [np.array([g1], dtype=float)]
 
         # G2 symmetry functions
         if self.n_g2:
-            zj = Z[neighbours]
+            zj = Z[j_neigh]
             cutoff_ij = _cosine_cutoff(rij, self.r_max)
 
             g2_vals = []
@@ -161,36 +164,35 @@ class WACSF(Descriptor):
 
         # G4 symmetry functions
         if self.n_g4:
-            j_idx, k_idx = np.triu_indices(len(neighbours), k=1)
-            j = neighbours[j_idx]
-            k = neighbours[k_idx]
+            n_neigh = len(j_neigh)
+            jj, kk = np.triu_indices(n_neigh, k=1)
 
-            rij = dist_matrix[site_index, j]
-            rik = dist_matrix[site_index, k]
-            rjk = dist_matrix[j, k]
+            r_ij = rij[jj]
+            r_ik = rij[kk]
+            # j-k distance from displacement vectors (correct for specific periodic images)
+            r_jk = np.linalg.norm(Dij[kk] - Dij[jj], axis=1)
 
-            cutoff_ij = _cosine_cutoff(rij, self.r_max)
-            cutoff_ik = _cosine_cutoff(rik, self.r_max)
-            cutoff_jk = _cosine_cutoff(rjk, self.r_max)
+            cutoff_ij = _cosine_cutoff(r_ij, self.r_max)
+            cutoff_ik = _cosine_cutoff(r_ik, self.r_max)
+            cutoff_jk = _cosine_cutoff(r_jk, self.r_max)
 
-            # Angles j-site-k
-            pos = system.get_positions()
-            vj = pos[j] - pos[site_index]
-            vk = pos[k] - pos[site_index]
+            # Angles j-site-k from displacement vectors
+            v_ij = Dij[jj]
+            v_ik = Dij[kk]
 
-            dot = np.einsum("ij,ij->i", vj, vk)
-            norms = np.linalg.norm(vj, axis=1) * np.linalg.norm(vk, axis=1)
+            dot = np.einsum("ij,ij->i", v_ij, v_ik)
+            norms = np.linalg.norm(v_ij, axis=1) * np.linalg.norm(v_ik, axis=1)
             cosang = np.divide(dot, norms, out=np.zeros_like(dot), where=norms > 0.0)
             cosang = np.clip(cosang, -1.0, 1.0)
 
-            zj = Z[j]
-            zk = Z[k]
+            zj = Z[j_neigh[jj]]
+            zk = Z[j_neigh[kk]]
 
             g4_vals = []
             for h, m in zip(self.g4_h, self.g4_m):
-                gauss_ij = np.exp(-h * (rij - m) ** 2)
-                gauss_ik = np.exp(-h * (rik - m) ** 2)
-                gauss_jk = np.exp(-h * (rjk - m) ** 2)
+                gauss_ij = np.exp(-h * (r_ij - m) ** 2)
+                gauss_ik = np.exp(-h * (r_ik - m) ** 2)
+                gauss_jk = np.exp(-h * (r_jk - m) ** 2)
 
                 base_val = zj * zk * gauss_ij * cutoff_ij * gauss_ik * cutoff_ik * gauss_jk * cutoff_jk
 

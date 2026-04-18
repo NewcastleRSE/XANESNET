@@ -38,13 +38,13 @@ class Descriptor(ABC):
     def transform_pmg(
         self,
         pmg_structure: Structure | Molecule,
-        site_index: int | None = 0,
+        site_index: list[int] | int | None = 0,
     ) -> np.ndarray:
         """
         Args:
             pmg_structure (Structure | Molecule): Pymatgen Structure or Molecule
                 representing the atomic system.
-            site_index (int | None): Index of the site to compute the descriptor for.
+            site_index (int | list[int] | None): Index or list of indices of the sites to compute the descriptor for.
                 If None, computes descriptors for all sites. Defaults to 0 (absorber).
 
         Returns:
@@ -58,12 +58,12 @@ class Descriptor(ABC):
     def transform(
         self,
         system: Atoms,
-        site_index: int | None = 0,
+        site_index: int | list[int] | None = 0,
     ) -> np.ndarray:
         """
         Args:
             system (Atoms): A molecular system.
-            site_index (int | None): Index of the site to compute the descriptor for.
+            site_index (int | list[int] | None): Index or list of indices of the sites to compute the descriptor for.
                 If None, computes descriptors for all sites. Defaults to 0 (absorber).
 
         Returns:

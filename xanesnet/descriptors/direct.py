@@ -44,6 +44,6 @@ class DIRECT(Descriptor):
     def transform(
         self,
         system: Atoms,
-        site_index: int | None = 0,
+        site_index: int | list[int] | None = 0,
     ) -> np.ndarray:
         raise NotImplementedError("DIRECT descriptor not implemented yet.")
