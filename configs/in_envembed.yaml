@@ -2,14 +2,13 @@ seed: 20260001
 device: cuda
 
 datasource:
-  datasource_type: xyzspec
-  xyz_path: ./data/fe/xyz_train
-  xanes_path: ./data/fe/xanes_train
+  datasource_type: pmgjson
+  json_path: /media/hendrik/ExternalSSD/final_data/omnixas_test/
 
 dataset:
   # general:
   dataset_type: envembed
-  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   force_prepare: True
   split_ratios: [0.8, 0.2]
@@ -18,6 +17,11 @@ dataset:
   basis_stride: 4
   # descriptors:
   descriptors:
+    - descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
     - descriptor_type: wacsf
       r_min: 1.0
       r_max: 6.0

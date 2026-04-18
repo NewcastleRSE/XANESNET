@@ -33,6 +33,8 @@ from xanesnet.utils.math import SpectralBasis, gaussian_fit
 from .registry import DatasetRegistry
 from .torch_dataset import TorchDataset
 
+SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
+
 
 @dataclass
 class EnvEmbedData:
@@ -145,44 +147,69 @@ class EnvEmbedDataset(TorchDataset):
 
         assert self.basis is not None, "Spectral basis must be set up successfully."
 
+        counter = 0  # Counter for naming processed files
         for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
+            # Check if XANES spectrum is available for the sample; if not, skip processing
+            for key in SPECTRUM_KEYS:
+                if key in pmg_obj.site_properties.keys():
+                    break
+            else:
+                logging.warning(
+                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
+                )
+                continue
+
+            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+
             # Compute descriptor features (all sites for env embedding)
             descriptor_features = []
             for descriptor in self.descriptor_list:
                 feature = descriptor.transform_pmg(pmg_obj, site_index=None)
                 descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=0)
+            descriptor_features = np.concatenate(descriptor_features, axis=1)
             descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
 
-            # XANES (first atom)
-            # TODO hardcoded 0
-            energies, intensities = (
-                pmg_obj.site_properties["XANES"][0]["energies"],
-                pmg_obj.site_properties["XANES"][0]["intensities"],
-            )
-            energies = torch.tensor(energies, dtype=torch.float32)
-            intensities = torch.tensor(intensities, dtype=torch.float32)
+            for site_idx in xanes_idxs:
+                # TODO the entire envembed model is built around the fact that we only care about molecules.
+                # TODO how do we make this work for periodic structures?
+                # TODO the descriptors we get above are already descriptors that take periodicity into account.
+                # TODO However the distance features we compute below do not take periodicity into account.
+                # TODO so if we have a very small unit cell with just 2 atoms we only have distance features for those 2
+                # TODO making it look like a molecule.
+                # TODO How can we make this really work for periodic strcucture?
+                # TODO Maybe we need for the envembed a radius parameter
+                # TODO then we can compute the distance features for all atoms within that radius and use the descriptors for those atoms as well?
 
-            # Distance feature tensor
-            dist = self._distances_to_absorber(pmg_obj, absorber_idx=0)  # TODO hardcoded 0
+                # XANES
+                energies, intensities = (
+                    pmg_obj.site_properties["XANES"][site_idx]["energies"],
+                    pmg_obj.site_properties["XANES"][site_idx]["intensities"],
+                )
+                energies = torch.tensor(energies, dtype=torch.float32)
+                intensities = torch.tensor(intensities, dtype=torch.float32)
 
-            # Gaussian
-            c_star = gaussian_fit(basis=self.basis, xanes=intensities)
+                # Distance feature tensor
+                dist = self._distances_to_absorber(pmg_obj, absorber_idx=site_idx)
 
-            # Create Data object
-            data = EnvEmbedData(
-                descriptor_features=descriptor_features,
-                distance_features=dist,
-                intensities=intensities,
-                energies=energies,
-                c_star=c_star,
-                file_name=pmg_obj.properties["file_name"],
-                basis=self.basis,
-            )
+                # Gaussian
+                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
-            # Save processed data
-            save_path = os.path.join(self.processed_dir, f"{idx}.pth")
-            data.save(save_path)
+                # Create Data object
+                data = EnvEmbedData(
+                    descriptor_features=descriptor_features,
+                    distance_features=dist,
+                    intensities=intensities,
+                    energies=energies,
+                    c_star=c_star,
+                    file_name=pmg_obj.properties["file_name"],
+                    basis=self.basis,
+                )
+
+                # Save processed data
+                save_path = os.path.join(self.processed_dir, f"{counter}.pth")
+                data.save(save_path)
+                counter += 1
 
         return True
 
@@ -196,8 +223,16 @@ class EnvEmbedDataset(TorchDataset):
         else:
             logging.info("Creating spectral basis from datasource")
             first_data = next(iter(self.datasource))
-            # ? Does this require that every XANES spectrum has the same energy grid?
-            energies = torch.tensor(first_data.site_properties["XANES"][0]["energies"], dtype=torch.float32)
+            # TODO requires same energy grid for all samples!
+            for key in SPECTRUM_KEYS:
+                if key in first_data.site_properties.keys():
+                    break
+            else:
+                raise ValueError("No XANES spectrum found in datasource to set up spectral basis.")
+
+            xanes = np.array(first_data.site_properties[key], dtype=object)
+            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+            energies = torch.tensor(first_data.site_properties[key][xanes_idxs[0]]["energies"], dtype=torch.float32)
             self.basis = SpectralBasis(
                 energies=energies,
                 widths_eV=self.widths_eV,

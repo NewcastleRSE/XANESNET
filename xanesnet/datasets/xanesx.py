@@ -32,7 +32,7 @@ from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 from .registry import DatasetRegistry
 from .torch_dataset import TorchDataset
 
-SPECTRUM_KEYS = ["XANES", "XANES_K"]
+SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 
 
 @dataclass
@@ -223,14 +223,22 @@ class XanesXDataset(TorchDataset):
         # Load directly from file
         if self.basis_path is not None:
             # TODO never tested this.
-            self.basis = torch.load(self.basis_path)  # TODO: till uses torch.load without weights_only=True
+            self.basis = torch.load(self.basis_path)  # TODO: still uses torch.load without weights_only=True
             logging.info(f"Loaded spectral basis from file @ {self.basis_path}")
         # Create from datasource
         else:
             logging.info("Creating spectral basis from datasource")
             first_data = next(iter(self.datasource))
-            # ? Does this require that every XANES spectrum has the same energy grid?
-            energies = torch.tensor(first_data.site_properties["XANES"][0]["energies"], dtype=torch.float32)
+            # TODO requires same energy grid for all samples!
+            for key in SPECTRUM_KEYS:
+                if key in first_data.site_properties.keys():
+                    break
+            else:
+                raise ValueError("No XANES spectrum found in datasource to set up spectral basis.")
+
+            xanes = np.array(first_data.site_properties[key], dtype=object)
+            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+            energies = torch.tensor(first_data.site_properties[key][xanes_idxs[0]]["energies"], dtype=torch.float32)
             self.basis = SpectralBasis(
                 energies=energies,
                 widths_eV=self.widths_eV,
