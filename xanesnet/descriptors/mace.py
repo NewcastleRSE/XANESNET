@@ -33,42 +33,25 @@ class MACE(Descriptor):
         descriptor_type: str,
         invariants_only: bool = False,
         num_layers: int = -1,
-        absorber_atom_only: bool = False,
     ):
         super().__init__(descriptor_type)
 
-        self.register_config(locals(), type="mace")
         self.invariants_only = invariants_only
         self.num_layers = num_layers
-        self.absorber_atom_only = absorber_atom_only
         self.mace = mace_mp()
 
-    def transform(self, system: Atoms) -> np.ndarray:
-        tmp = self.mace.get_descriptors(system, invariants_only=self.invariants_only, num_layers=self.num_layers)
-        if self.absorber_atom_only:
-            return tmp[0, :]
-        else:
-            return tmp
-
-    def get_nfeatures(self) -> int:
-        num_interactions = int(self.mace.models[0].num_interactions)
-        if self.num_layers == -1:
-            self.num_layers = num_interactions
-        elif self.num_layers > num_interactions + 1:
-            raise ValueError("num_layers cannot be greater than num_interactions+1")
-
-        irreps_out = self.mace.models[0].products[0].linear.__dict__["irreps_out"]
-        l_max = irreps_out.lmax
-        num_features = irreps_out.dim // (l_max + 1) ** 2
-
-        if self.invariants_only:
-            total = 0
-            for i in range(self.num_layers - 1):
-                total += (i * (l_max + 1) ** 2 + 1) * num_features - i * (l_max + 1) ** 2 * num_features
-            n_feats = num_features + total
-        else:
-            n_feats = ((num_interactions - 1) * (l_max + 1) ** 2 + 1) * num_features
-        return n_feats
-
-    def get_type(self) -> str:
-        return "mace"
+    def transform(
+        self,
+        system: Atoms,
+        site_index: int | None = 0,
+    ) -> np.ndarray:
+        descriptors = np.asarray(
+            self.mace.get_descriptors(
+                system,
+                invariants_only=self.invariants_only,
+                num_layers=self.num_layers,
+            )
+        )
+        if site_index is not None:
+            return descriptors[site_index, :]
+        return descriptors

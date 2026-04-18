@@ -19,7 +19,6 @@ dataset:
   # descriptors:
   descriptors:
     - descriptor_type: wacsf
-      absorber_atom_only: False
       r_min: 1.0
       r_max: 6.0
       n_g2: 16

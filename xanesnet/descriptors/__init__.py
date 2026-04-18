@@ -14,9 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-# TODO Desciptors are not yet cleaned!
-
-# from .pdos import PDOS
 from .base import Descriptor
 from .direct import DIRECT
 from .mace import MACE
@@ -30,6 +27,5 @@ __all__ = [
     "MACE",
     "RDC",
     "WACSF",
-    # "PDOS",
     "DescriptorRegistry",
 ]

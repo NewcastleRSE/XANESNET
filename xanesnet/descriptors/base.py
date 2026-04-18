@@ -1,6 +1,5 @@
 """
 XANESNET
-Copyright (C) 2021  Conor D. Rankine
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
-from typing import Union
 
 import numpy as np
 from ase import Atoms
@@ -36,63 +34,39 @@ class Descriptor(ABC):
         descriptor_type: str,
     ) -> None:
         self.descriptor_type = descriptor_type
-        self.config = {}
 
-    @abstractmethod
-    def transform(self, system: Atoms) -> np.ndarray:
-        """
-        Args:
-            system (Atoms): A molecular system.
-
-        Returns:
-            np.ndarray: A fingerprint feature vector for the molecular system.
-        """
-
-        pass
-
-    def transform_pmg(self, pmg_structure: Union[Structure, Molecule]) -> np.ndarray:
+    def transform_pmg(
+        self,
+        pmg_structure: Structure | Molecule,
+        site_index: int | None = 0,
+    ) -> np.ndarray:
         """
         Args:
             pmg_structure (Structure | Molecule): Pymatgen Structure or Molecule
-            representing the atomic system.
+                representing the atomic system.
+            site_index (int | None): Index of the site to compute the descriptor for.
+                If None, computes descriptors for all sites. Defaults to 0 (absorber).
 
         Returns:
             np.ndarray: A fingerprint feature vector for the molecular system.
         """
         ase_structure = AseAtomsAdaptor.get_atoms(pmg_structure)
-        return self.transform(ase_structure)
+        assert isinstance(ase_structure, Atoms), "Failed to convert pymatgen structure to ASE Atoms object."
+        return self.transform(ase_structure, site_index=site_index)
 
     @abstractmethod
-    def get_nfeatures(self) -> int:
+    def transform(
+        self,
+        system: Atoms,
+        site_index: int | None = 0,
+    ) -> np.ndarray:
         """
-        Return:
-            int: Number of features for this descriptor.
-        """
-
-        pass
-
-    @abstractmethod
-    def get_type(self) -> str:
-        """
-        Return:
-            str: descriptor type
-        """
-
-        pass
-
-    def register_config(self, args, **kwargs):
-        """
-        Assign arguments from the child class's constructor to self.config.
-
         Args:
-            args: The dictionary of arguments from the child class's constructor
-            **kwargs: additional arguments to store
+            system (Atoms): A molecular system.
+            site_index (int | None): Index of the site to compute the descriptor for.
+                If None, computes descriptors for all sites. Defaults to 0 (absorber).
+
+        Returns:
+            np.ndarray: A fingerprint feature vector for the molecular system.
         """
-        config = kwargs.copy()
-
-        # Extract parameters from the local_vars, excluding 'self' and '__class__'
-        args_dict = {key: val for key, val in args.items() if key not in ["self", "__class__"]}
-
-        config.update(args_dict)
-
-        self.config = config
+        ...

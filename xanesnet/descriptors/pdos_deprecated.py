@@ -19,8 +19,8 @@ from ase import Atoms
 from pyscf import gto, scf
 from tblite.interface import Calculator
 
+from .base import Descriptor
 from .registry import DescriptorRegistry
-from .vector_descriptor import VectorDescriptor
 
 ###############################################################################
 ################################## CLASSES ####################################
@@ -28,10 +28,10 @@ from .vector_descriptor import VectorDescriptor
 
 
 @DescriptorRegistry.register("pdos")
-class PDOS(VectorDescriptor):
+class PDOS(Descriptor):
     """
-    A class for transforming a molecular system into a project density of
-    states representation.
+    A class for transforming a molecular system into a projected density of
+    states (pDOS) representation.
     """
 
     def __init__(
@@ -44,14 +44,14 @@ class PDOS(VectorDescriptor):
         sigma: float = 0.7,
         orb_type: str = "p",
         quad_orb_type: str = "d",
-        num_points: float = 200,
+        num_points: int = 200,
         basis: str = "3-21g",
         init_guess: str = "minao",
-        max_cycles: float = 0,
-        use_charge=False,
-        use_spin=False,
-        use_quad=False,
-        use_occupied=False,
+        max_cycles: int = 0,
+        use_charge: bool = False,
+        use_spin: bool = False,
+        use_quad: bool = False,
+        use_occupied: bool = False,
         accuracy: float = 1.0,
         guess: int = 0,
         mixer_damping: float = 0.4,
@@ -61,54 +61,29 @@ class PDOS(VectorDescriptor):
     ):
         """
         Args:
-            e_min (float, optional): The minimum energy grid point for the pDOS (in eV)
-                Default: -20.0 eV.
-            e_max (float, optional): The maximum energy grid point for the pDOS (in eV)
-                Default: 20.0 eV.
-            sigma (float, optional): This is the FWHM of the Gaussian function used to
-                broaden the pDOS obtained from pySCF.
-                Default: 0.7 eV.
-            num_points (float, optional): This is the number of point over which the broadened
-                pDOS is projected.
-                Default: 200.
-            basis (string, optional): This is the basis set used by pySCF during developing
-                the pDOS.
-                Default: 3-21G
-            basis (string, optional): Defines the method of the initial guess used by pySCF
-                during generation of the pDOS.
-                Default: minao
-            max_cycles (float, optional): This is the number of SCF cycles used by pySCF
-                during develop the pDOS. Smaller numbers will be closer to the raw guess, while
-                larger number will take longer to load.
-                Note, the warnings are suppressed and so it will not tell you if the SCF is
-                converged. Larger numbers make this more likely, but do not gurantee it.
-                Default: 0
-            use_charge (bool): If True, includes an additional element in the
-                vector descriptor for the charge state of the complex.
-                Defaults to False.
-            use_spin (bool): If True, includes an additional element in the
-                vector descriptor for the spin state of the complex.
-                Defaults to False.
-            use_quad (bool): If True, includes d-orbitals in the p-DOS for
-                to account for quadrupole transitions.
-                Defaults to False.
-            accuracy (float): Numerical thresholds for SCC.
-                Defaults to 1.0.
-            guess (int): Initial guess for wavefunction.
-                Defaults to 0 (SAD).
-            mixer_damping (float): Parameter for the SCC mixer.
-                Defaults to 0.4.
-            save_integrals (int): Keep integral matrices in results.
-                Defaults to 0 (False).
-            temperature (float): Electronic temperature for filling.
-                Defaults to 9.500e-4.
-            verbosity (float): Set verbosity of printout
-                Defaults to 0
+            code (str): Backend code ('xtb' or 'pyscf'). Defaults to 'xtb'.
+            method (str): xTB method. Defaults to 'GFN2-xTB'.
+            e_min (float): Minimum energy grid point for the pDOS (eV). Defaults to 20.0.
+            e_max (float): Maximum energy grid point for the pDOS (eV). Defaults to 20.0.
+            sigma (float): FWHM of the Gaussian broadening function (eV). Defaults to 0.7.
+            orb_type (str): Orbital type for p-DOS projection. Defaults to 'p'.
+            quad_orb_type (str): Orbital type for quadrupole transitions. Defaults to 'd'.
+            num_points (int): Number of energy grid points. Defaults to 200.
+            basis (str): Basis set for pySCF. Defaults to '3-21g'.
+            init_guess (str): Initial guess method for pySCF. Defaults to 'minao'.
+            max_cycles (int): Number of SCF cycles. Defaults to 0.
+            use_charge (bool): Include charge state. Defaults to False.
+            use_spin (bool): Include spin state. Defaults to False.
+            use_quad (bool): Include d-orbitals for quadrupole transitions. Defaults to False.
+            use_occupied (bool): Use occupied orbitals instead of unoccupied. Defaults to False.
+            accuracy (float): Numerical thresholds for SCC. Defaults to 1.0.
+            guess (int): Initial guess for wavefunction. Defaults to 0.
+            mixer_damping (float): SCC mixer damping. Defaults to 0.4.
+            save_integrals (int): Keep integral matrices. Defaults to 0.
+            temperature (float): Electronic temperature for filling. Defaults to 9.5e-4.
+            verbosity (int): Printout verbosity. Defaults to 0.
         """
-
-        super().__init__(descriptor_type, 0.0, 6.0, use_charge, use_spin)
-
-        self.register_config(locals(), type="pdos")
+        super().__init__(descriptor_type)
 
         self.code = code
         self.method = method
@@ -127,13 +102,18 @@ class PDOS(VectorDescriptor):
         self.use_occupied = use_occupied
         self.verbosity = verbosity
 
-    def transform(self, system: Atoms) -> np.ndarray:
+    def transform(self, system: Atoms, site_index: int | None = 0) -> np.ndarray:
+        if site_index is None:
+            raise NotImplementedError(
+                "PDOS does not support computing descriptors for all sites at once. "
+                "The electronic structure calculation is per-molecule; pass a specific site_index."
+            )
         if self.code == "xtb":
-            return self._transform_xtb(system)
+            return self._transform_xtb(system, site_index)
         elif self.code == "pyscf":
-            return self._transform_pyscf(system)
+            return self._transform_pyscf(system, site_index)
         else:
-            raise ValueError(f"Unknown method: {self.method}")
+            raise ValueError(f"Unknown code: {self.code}")
 
     def _validate_charge_spin(self, total_electrons: int, charge: int, spin: int):
         if (self.use_spin and not self.use_charge) or (not self.use_spin and self.use_charge):
@@ -142,13 +122,12 @@ class PDOS(VectorDescriptor):
                 "Both should be included simultaneously or not at all."
             )
         if self.use_spin and self.use_charge:
-            # consistency between parity of electron count and spin multiplicity
             if (((total_electrons - charge) % 2) == 1) and (spin % 2) == 0:
                 raise ValueError("The number of electrons is inconsistent with the spin state you have defined.")
             if (((total_electrons - charge) % 2) == 0) and (spin % 2) == 1:
                 raise ValueError("The number of electrons is inconsistent with the spin state you have defined.")
 
-    def _transform_xtb(self, system: Atoms) -> np.ndarray:
+    def _transform_xtb(self, system: Atoms, site_index: int) -> np.ndarray:
         numbers = system.get_atomic_numbers()
         nelectron = int(np.sum(numbers))
         positions = system.get_positions() * 1.8897259886  # Å -> bohr
@@ -172,8 +151,8 @@ class PDOS(VectorDescriptor):
             res = calc.singlepoint()
             _ = res.get("energy")  # ensure computed
             coeff = np.square(res.get("orbital-coefficients"))  # AO contribution weights
-            # Pick p-channel rows depending on absorbing atom Z (first atom)
-            z0 = int(numbers[0])
+            # Pick p-channel rows depending on site atom Z
+            z0 = int(numbers[site_index])
             # For transition metals and heavier series the AO ordering can put core (0:?) then valence;
             # the original code used slices [6:8] for p and [0:4] for d. Preserve that intent.
             if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
@@ -217,7 +196,7 @@ class PDOS(VectorDescriptor):
 
         return pdos_gauss
 
-    def _transform_pyscf(self, system: Atoms) -> np.ndarray:
+    def _transform_pyscf(self, system: Atoms, site_index: int) -> np.ndarray:
         mol = gto.Mole()
         mol.atom = atoms_to_pyscf(system)
         mol.basis = self.basis
@@ -258,19 +237,18 @@ class PDOS(VectorDescriptor):
         a_pct = a_sq / np.sum(a_sq, axis=0, keepdims=True)
         b_pct = b_sq / np.sum(b_sq, axis=0, keepdims=True)
 
-        # Build masks for AOs on the absorbing atom (index 0) and by orbital type
-        absorbing_atom_index = 0
+        # Build masks for AOs on the target site and by orbital type
         parsed = [lbl.split() for lbl in ao_labels]  # [atom_idx, element, ao_type, ...]
-        ao_on_absorber = np.array([int(p[0]) == absorbing_atom_index for p in parsed])
+        ao_on_site = np.array([int(p[0]) == site_index for p in parsed])
         ao_types = [p[2] for p in parsed]
 
         def build_channel_mask(substr: str) -> np.ndarray:
             # match if substr (e.g., "p" or "d") appears in AO type string like "2px", "3dxy"
             return np.array([substr in t for t in ao_types])
 
-        p_mask = ao_on_absorber & build_channel_mask(self.orb_type)
+        p_mask = ao_on_site & build_channel_mask(self.orb_type)
         if self.use_quad:
-            d_mask = ao_on_absorber & build_channel_mask(self.quad_orb_type)
+            d_mask = ao_on_site & build_channel_mask(self.quad_orb_type)
 
         # Sum contributions over matching AOs for each MO
         alpha_pdos = np.sum(a_pct[p_mask, :], axis=0)
@@ -311,12 +289,6 @@ class PDOS(VectorDescriptor):
             pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
 
         return pdos_gauss
-
-    def get_nfeatures(self) -> int:
-        return int(self.num_points)
-
-    def get_type(self) -> str:
-        return "pdos"
 
 
 def atoms_to_pyscf(atoms):

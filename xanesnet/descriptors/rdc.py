@@ -18,8 +18,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 from ase import Atoms
 
+from .base import Descriptor
 from .registry import DescriptorRegistry
-from .vector_descriptor import VectorDescriptor
 
 ###############################################################################
 ################################## CLASSES ####################################
@@ -27,13 +27,13 @@ from .vector_descriptor import VectorDescriptor
 
 
 @DescriptorRegistry.register("rdc")
-class RDC(VectorDescriptor):
+class RDC(Descriptor):
     """
     A class for transforming a molecular system into a radial (or 'pair')
-    distribution curve (RDCs). The RDC is - simplistically - like a histogram
-    of pairwise internuclear distances discretised over an auxilliary
-    real-space grid and smoothed out using Gaussians; pairs are made between
-    the absorption site and all atoms within a defined radial cutoff.
+    distribution curve (RDC). The RDC is a histogram of pairwise internuclear
+    distances discretised over an auxiliary real-space grid and smoothed using
+    Gaussians; pairs are made between a given site and all atoms within a
+    defined radial cutoff.
     """
 
     def __init__(
@@ -43,71 +43,61 @@ class RDC(VectorDescriptor):
         r_max: float = 8.0,
         dr: float = 0.01,
         alpha: float = 10.0,
-        use_charge=False,
-        use_spin=False,
+        use_charge: bool = False,
+        use_spin: bool = False,
     ):
         """
         Args:
-            r_min (float): The minimum radial cutoff distance (in A) around
-                the absorption site; should be 0.0.
+            r_min (float): The minimum radial cutoff distance (in A).
                 Defaults to 0.0.
-            r_max (float): The maximum radial cutoff distance (in A) around
-                the absorption site.
-                Defaults to 6.0.
-            dr (float): The step size (in A) for the auxilliary real-space grid
-                that the RDC is discretised over.
+            r_max (float): The maximum radial cutoff distance (in A).
+                Defaults to 8.0.
+            dr (float): The step size (in A) for the auxiliary real-space grid.
                 Defaults to 0.01.
-            alpha (float): A smoothing parameter used in a Gaussian exponent
-                that defines the effective spatial resolution of the RDC.
+            alpha (float): A smoothing parameter for the Gaussian exponent.
                 Defaults to 10.0.
-            use_charge (bool): If True, includes an additional element in the
-                vector descriptor for the charge state of the complex.
+            use_charge (bool): If True, appends the charge state to the descriptor.
                 Defaults to False.
-            use_spin (bool): If True, includes an additional element in the
-                vector descriptor for the spin state of the complex.
+            use_spin (bool): If True, appends the spin state to the descriptor.
                 Defaults to False.
         """
+        super().__init__(descriptor_type)
 
-        super().__init__(descriptor_type, r_min, r_max, use_charge, use_spin)
-
-        self.register_config(locals(), type="rdc")
-
-        if isinstance(dr, (int, float)) and r_max >= dr > 0.0:
-            self.dr = float(dr)
-        else:
-            raise ValueError(f"expected dr: int/float > 0.0; got {dr}")
-
-        if isinstance(alpha, (int, float)) and alpha > 0.0:
-            self.alpha = float(alpha)
-        else:
-            raise ValueError(f"expected alpha: int/float > 0.0; got {alpha}")
+        self.r_min = float(r_min)
+        self.r_max = float(r_max)
+        self.dr = float(dr)
+        self.alpha = float(alpha)
+        self.use_charge = use_charge
+        self.use_spin = use_spin
 
         nr_aux = int(np.absolute(self.r_max - self.r_min) / self.dr) + 1
         self.r_aux = np.linspace(self.r_min, self.r_max, nr_aux)
 
-    def transform(self, system: Atoms) -> np.ndarray:
-        if not isinstance(system, Atoms):
-            raise TypeError(
-                f"systems passed as arguments to .transform ",
-                "should be ase.Atoms objects",
-            )
+    def transform(self, system: Atoms, site_index: int | None = 0) -> np.ndarray:
+        if site_index is not None:
+            return self._transform_single(system, site_index)
 
-        rij_in_range = system.get_distances(0, range(len(system))) < self.r_max
-        system = system[rij_in_range]
+        return np.vstack([self._transform_single(system, i) for i in range(len(system))])
 
-        ij = [[0, j] for j in range(1, len(system))]
-        if len(ij) < 1:
+    def _transform_single(self, system: Atoms, site_index: int) -> np.ndarray:
+        """Compute the RDC for a single site."""
+        n_atoms = len(system)
+        distances = system.get_distances(site_index, range(n_atoms))
+
+        # Filter atoms within cutoff (excluding self)
+        mask = (distances < self.r_max) & (distances > 0.0)
+        neighbours = np.where(mask)[0]
+
+        if len(neighbours) < 1:
             raise RuntimeError(
-                f"too few atoms within {self.r_max:.2f} A of ",
-                "the absorption site to set up non-zero radial distribution ",
-                "curve (no pairs)",
+                f"Too few atoms within {self.r_max:.2f} A of site {site_index} "
+                "to compute a non-zero radial distribution curve."
             )
-        else:
-            ij = np.array(ij, dtype="uint16")
 
-        zi = system.get_atomic_numbers()[ij[:, 0]]
-        zj = system.get_atomic_numbers()[ij[:, 1]]
-        rij = system.get_distances(ij[:, 0], ij[:, 1])
+        zi = system.get_atomic_numbers()[site_index]
+        zj = system.get_atomic_numbers()[neighbours]
+        rij = distances[neighbours]
+
         rij_r_sq = np.square(rij[:, np.newaxis] - self.r_aux)
         exp = np.exp(-1.0 * self.alpha * rij_r_sq)
         rdc = np.sum((zi * zj)[:, np.newaxis] * exp, axis=0)
@@ -119,9 +109,3 @@ class RDC(VectorDescriptor):
             rdc = np.append(system.info["q"], rdc)
 
         return rdc
-
-    def get_nfeatures(self) -> int:
-        return len(self.r_aux) + self.use_charge + self.use_spin
-
-    def get_type(self) -> str:
-        return "rdc"

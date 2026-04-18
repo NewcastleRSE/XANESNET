@@ -37,14 +37,14 @@ from .torch_dataset import TorchDataset
 class XanesXData:
     x: torch.Tensor | None = None
     y: torch.Tensor | None = None
-    e: torch.Tensor | None = None
+    energies: torch.Tensor | None = None
     fourier: torch.Tensor | None = None
     c_star: torch.Tensor | None = None
-    file_name: str | list[Any] | None = None  # TODO can we make this more type safe?
+    file_name: str | list[str] | None = None
 
     def to(self, device: str | torch.device) -> "XanesXData":
         # send batch do device
-        for attr in ["x", "y", "fourier", "c_star", "e"]:  # TODO 'e' to device?
+        for attr in ["x", "y", "fourier", "c_star", "energies"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -54,7 +54,7 @@ class XanesXData:
         return {
             "x": self.x,
             "y": self.y,
-            "e": self.e,
+            "energies": self.energies,
             "fourier": self.fourier,
             "c_star": self.c_star,
             "file_name": self.file_name,
@@ -65,7 +65,7 @@ class XanesXData:
         return cls(
             x=state.get("x"),
             y=state.get("y"),
-            e=state.get("e"),
+            energies=state.get("energies"),
             fourier=state.get("fourier"),
             c_star=state.get("c_star"),
             file_name=state.get("file_name"),
@@ -188,7 +188,7 @@ class XanesXDataset(TorchDataset):
             data = XanesXData(
                 x=x,
                 y=y,
-                e=energies,
+                energies=energies,
                 fourier=fourier,
                 c_star=c_star,
                 file_name=pmg_obj.properties["file_name"],
@@ -232,10 +232,10 @@ class XanesXDataset(TorchDataset):
         return XanesXData(
             x=_stack([b.x for b in batch]),
             y=_stack([b.y for b in batch]),
-            e=_stack([b.e for b in batch]),
+            energies=_stack([b.energies for b in batch]),
             fourier=_stack([b.fourier for b in batch]),
             c_star=_stack([b.c_star for b in batch]),
-            file_name=[b.file_name for b in batch],  # keep as list
+            file_name=[b.file_name for b in batch],  # type: ignore[list-item]
         )
 
     def _load_item(self, path: str) -> XanesXData:

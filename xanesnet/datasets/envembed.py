@@ -146,10 +146,10 @@ class EnvEmbedDataset(TorchDataset):
         assert self.basis is not None, "Spectral basis must be set up successfully."
 
         for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
-            # Compute descriptor features
+            # Compute descriptor features (all sites for env embedding)
             descriptor_features = []
             for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj)
+                feature = descriptor.transform_pmg(pmg_obj, site_index=None)
                 descriptor_features.append(feature)
             descriptor_features = np.concatenate(descriptor_features, axis=0)
             descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)

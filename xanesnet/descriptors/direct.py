@@ -28,25 +28,22 @@ from .registry import DescriptorRegistry
 @DescriptorRegistry.register("direct")
 class DIRECT(Descriptor):
     """
-    A class for reading the descriptor straight from a file. It tries to avoid
-    doing any of the fancy stuff the other descriptors do. Only reads the file
+    A descriptor that reads features straight from a file without any transformation.
     """
+
+    # TODO NOT IMPLEMENTED YET
 
     def __init__(
         self,
         descriptor_type: str,
-        nfeatures: int,
     ) -> None:
         super().__init__(descriptor_type)
 
-        self.register_config(locals(), type="direct")
-        self.nfeatures = nfeatures
+        raise NotImplementedError("DIRECT descriptor not implemented yet.")
 
-    def transform(self, system: Atoms) -> np.ndarray:
-        pass
-
-    def get_nfeatures(self) -> int:
-        return self.nfeatures
-
-    def get_type(self) -> str:
-        return "direct"
+    def transform(
+        self,
+        system: Atoms,
+        site_index: int | None = 0,
+    ) -> np.ndarray:
+        raise NotImplementedError("DIRECT descriptor not implemented yet.")
