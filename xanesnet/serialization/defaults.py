@@ -70,6 +70,7 @@ DATASET_DEFAULT = {
         "widths_eV": [0.2, 1.0, 2.0, 4.0],
         "basis_stride": 4,
         "basis_path": None,
+        "env_radius": None,
         "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
     },
     "richgraph": {

@@ -117,6 +117,7 @@ class EnvEmbedDataset(TorchDataset):
         widths_eV: list[float],
         basis_stride: int,
         basis_path: str | None,
+        env_radius: float | None,
         # descriptors
         descriptors: list[Config],
     ) -> None:
@@ -125,6 +126,7 @@ class EnvEmbedDataset(TorchDataset):
         self.widths_eV = widths_eV
         self.basis_stride = basis_stride
         self.basis_path = basis_path
+        self.env_radius = env_radius
 
         # Create descriptors
         self.descriptor_configs = descriptors
@@ -171,16 +173,6 @@ class EnvEmbedDataset(TorchDataset):
             descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
 
             for site_idx in xanes_idxs:
-                # TODO the entire envembed model is built around the fact that we only care about molecules.
-                # TODO how do we make this work for periodic structures?
-                # TODO the descriptors we get above are already descriptors that take periodicity into account.
-                # TODO However the distance features we compute below do not take periodicity into account.
-                # TODO so if we have a very small unit cell with just 2 atoms we only have distance features for those 2
-                # TODO making it look like a molecule.
-                # TODO How can we make this really work for periodic strcucture?
-                # TODO Maybe we need for the envembed a radius parameter
-                # TODO then we can compute the distance features for all atoms within that radius and use the descriptors for those atoms as well?
-
                 # XANES
                 energies, intensities = (
                     pmg_obj.site_properties["XANES"][site_idx]["energies"],
@@ -189,16 +181,20 @@ class EnvEmbedDataset(TorchDataset):
                 energies = torch.tensor(energies, dtype=torch.float32)
                 intensities = torch.tensor(intensities, dtype=torch.float32)
 
-                # Distance feature tensor
-                dist = self._distances_to_absorber(pmg_obj, absorber_idx=site_idx)
+                # Build per-site environment: descriptor features + distance features
+                # For periodic structures with env_radius, this finds all neighbors
+                # (incl. periodic images) within the radius. For molecules, unchanged.
+                site_descs, site_dists = self._build_site_environment(
+                    pmg_obj, absorber_idx=site_idx, all_descriptors=descriptor_features
+                )
 
                 # Gaussian
                 c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
                 # Create Data object
                 data = EnvEmbedData(
-                    descriptor_features=descriptor_features,
-                    distance_features=dist,
+                    descriptor_features=site_descs,
+                    distance_features=site_dists,
                     intensities=intensities,
                     energies=energies,
                     c_star=c_star,
@@ -239,6 +235,48 @@ class EnvEmbedDataset(TorchDataset):
                 normalize_atoms=True,
                 stride=self.basis_stride,
             )
+
+    def _build_site_environment(
+        self,
+        pmg_obj: Molecule | Structure,
+        absorber_idx: int,
+        all_descriptors: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Build per-site descriptor features and distance features for a single absorber.
+
+        For periodic structures with ``env_radius`` set:
+            Uses ``Structure.get_neighbors`` to find all atoms (including periodic
+            images) within the radius.  Returns descriptors and distances with the
+            absorber placed at index 0.
+
+        For molecules (or when ``env_radius`` is ``None``):
+            Returns the original all-atom descriptors and distances unchanged.
+        """
+        if self.env_radius is not None and isinstance(pmg_obj, Structure):
+            neighbors = pmg_obj.get_neighbors(pmg_obj[absorber_idx], r=self.env_radius)
+
+            # Absorber at index 0
+            absorber_desc = all_descriptors[absorber_idx].unsqueeze(0)  # (1, H)
+            absorber_dist = torch.zeros(1, dtype=torch.float32)
+
+            if len(neighbors) > 0:
+                # Sort by distance for deterministic ordering
+                neighbors.sort(key=lambda n: n.nn_distance)
+                neighbor_indices = [n.index for n in neighbors]
+                neighbor_dists = torch.tensor([n.nn_distance for n in neighbors], dtype=torch.float32)
+                neighbor_descs = all_descriptors[neighbor_indices]  # (N_neighbors, H)
+
+                desc = torch.cat([absorber_desc, neighbor_descs], dim=0)
+                dist = torch.cat([absorber_dist, neighbor_dists], dim=0)
+            else:
+                desc = absorber_desc
+                dist = absorber_dist
+
+            return desc, dist
+        else:
+            # Molecule or no env_radius: preserve original behavior
+            return all_descriptors, self._distances_to_absorber(pmg_obj, absorber_idx=absorber_idx)
 
     @staticmethod
     def _distances_to_absorber(data: Molecule | Structure, absorber_idx: int) -> torch.Tensor:
@@ -294,6 +332,7 @@ class EnvEmbedDataset(TorchDataset):
                 "widths_eV": self.widths_eV,
                 "basis_stride": self.basis_stride,
                 "basis_path": self.basis_path,
+                "env_radius": self.env_radius,
             }
         )
         return signature
