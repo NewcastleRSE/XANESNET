@@ -2,16 +2,16 @@ seed: 20260001
 device: cuda
 
 datasource:
-  datasource_type: multixyzspec
-  root_path: /mnt/ssd/tmQM-XAS/
+  datasource_type: pmgjson
+  json_path: /media/hendrik/ExternalSSD/final_data/omnixas_test/
 
 dataset:
   # general:
   dataset_type: xanesx
-  root: ./data/tmQM/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-  force_prepare: False
-  split_indexfile: ./data/tmQM/split_indices.json
+  force_prepare: True
+  split_ratios: [0.8, 0.2]
   # params:
   mode: forward
   fourier: False

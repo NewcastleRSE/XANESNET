@@ -32,6 +32,8 @@ from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 from .registry import DatasetRegistry
 from .torch_dataset import TorchDataset
 
+SPECTRUM_KEYS = ["XANES", "XANES_K"]
+
 
 @dataclass
 class XanesXData:
@@ -145,58 +147,75 @@ class XanesXDataset(TorchDataset):
         if already_processed:
             return True
 
+        counter = 0  # Counter for naming processed files
         for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
+            # Check if XANES spectrum is available for the sample; if not, skip processing
+            for key in SPECTRUM_KEYS:
+                if key in pmg_obj.site_properties.keys():
+                    break
+            else:
+                logging.warning(
+                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
+                )
+                continue
+
+            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+
             # Compute descriptor features
             descriptor_features = []
             for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj)
+                feature = descriptor.transform_pmg(pmg_obj, site_index=xanes_idxs)
                 descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=0)
-            descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
+            descriptor_features = np.concatenate(descriptor_features, axis=1)
 
-            # XANES (first atom)
-            # TODO hardcoded 0
-            energies, intensities = (
-                pmg_obj.site_properties["XANES"][0]["energies"],
-                pmg_obj.site_properties["XANES"][0]["intensities"],
-            )
-            energies = torch.tensor(energies, dtype=torch.float32)
-            intensities = torch.tensor(intensities, dtype=torch.float32)
+            for site_idx, df in zip(xanes_idxs, descriptor_features):
+                # descriptor features
+                df = torch.tensor(df, dtype=torch.float32)
 
-            # FFT
-            fourier = None
-            if self.fourier:
-                fourier = fft(intensities, self.fourier_concat)
+                # XANES
+                energies, intensities = (
+                    pmg_obj.site_properties["XANES"][site_idx]["energies"],
+                    pmg_obj.site_properties["XANES"][site_idx]["intensities"],
+                )
+                energies = torch.tensor(energies, dtype=torch.float32)
+                intensities = torch.tensor(intensities, dtype=torch.float32)
 
-            # Gaussian
-            c_star = None
-            if self.gaussian:
-                assert self.basis is not None, "Spectral basis must be set up successfully before preparing data."
-                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
+                # FFT
+                fourier = None
+                if self.fourier:
+                    fourier = fft(intensities, self.fourier_concat)
 
-            # Mode
-            if self.mode == "forward":
-                x = descriptor_features
-                y = intensities
-            elif self.mode == "reverse":
-                x = intensities
-                y = descriptor_features
-            else:
-                raise ConfigError(f"Invalid mode: {self.mode}")
+                # Gaussian
+                c_star = None
+                if self.gaussian:
+                    assert self.basis is not None, "Spectral basis must be set up successfully before preparing data."
+                    c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
-            # Create Data object
-            data = XanesXData(
-                x=x,
-                y=y,
-                energies=energies,
-                fourier=fourier,
-                c_star=c_star,
-                file_name=pmg_obj.properties["file_name"],
-            )
+                # Mode
+                if self.mode == "forward":
+                    x = df
+                    y = intensities
+                elif self.mode == "reverse":
+                    x = intensities
+                    y = df
+                else:
+                    raise ConfigError(f"Invalid mode: {self.mode}")
 
-            # Save processed data
-            save_path = os.path.join(self.processed_dir, f"{idx}.pth")
-            data.save(save_path)
+                # Create Data object
+                data = XanesXData(
+                    x=x,
+                    y=y,
+                    energies=energies,
+                    fourier=fourier,
+                    c_star=c_star,
+                    file_name=pmg_obj.properties["file_name"],
+                )
+
+                # Save processed data
+                save_path = os.path.join(self.processed_dir, f"{counter}.pth")
+                data.save(save_path)
+                counter += 1
 
         return True
 
