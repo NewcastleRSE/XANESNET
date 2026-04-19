@@ -27,8 +27,8 @@ from tqdm import tqdm
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 
-from .registry import DatasetRegistry
-from .torch_dataset import TorchDataset
+from ..base import TorchDataset
+from ..registry import DatasetRegistry
 
 ###############################################################################
 ################################# DATA CLASSES ################################

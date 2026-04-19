@@ -29,8 +29,8 @@ from xanesnet.serialization.config import Config
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 
-from .registry import DatasetRegistry
-from .torch_dataset import TorchDataset
+from ..base import TorchDataset
+from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 

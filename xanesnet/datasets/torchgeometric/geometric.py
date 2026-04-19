@@ -15,26 +15,38 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
+from typing import Protocol
 
 import torch
-from torch_geometric.data import Data
-from torch_geometric.nn import radius_graph
+from torch_geometric.data import Batch, Data
+from torch_geometric.data.data import BaseData
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 
-from .registry import DatasetRegistry
-from .torchgeometric_dataset import TorchGeometricDataset
+from ..base import TorchGeometricDataset
+from ..registry import DatasetRegistry
+
+
+# for typing
+class GeometricBatch(Protocol):
+    x: torch.Tensor
+    pos: torch.Tensor
+    energies: torch.Tensor
+    intensities: torch.Tensor
+    sample_id: torch.Tensor
+    atomic_symbols: torch.Tensor
+    batch: torch.Tensor
+
 
 ###############################################################################
 #################################### CLASS ####################################
 ###############################################################################
 
 
-@DatasetRegistry.register("richgraph")
-class RichGraphDataset(TorchGeometricDataset):
-
+@DatasetRegistry.register("geometric")
+class GeometricDataset(TorchGeometricDataset):
     def __init__(
         self,
         dataset_type: str,
@@ -54,32 +66,11 @@ class RichGraphDataset(TorchGeometricDataset):
             return True
 
         for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            file_name = pmg_obj.properties["file_name"]
+            sample_id = pmg_obj.properties["file_name"]
             atomic_symbols = pmg_obj.labels
+
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
-
-            # edge indices
-            # TODO add cutoff_radius config
-            edge_index = radius_graph(cart_coords, r=5.0, loop=False)
-
-            # edge weights (inverse distance)
-            row, col = edge_index
-            dist = torch.norm(cart_coords[row] - cart_coords[col], dim=1)
-            edge_weight = 1 / dist  # invert to make shorter distances a larger weight
-            edge_weight = edge_weight.view(-1, 1)
-
-            # node features
-            # TODO we need to decide on node features
-            x = torch.tensor([1.0])  # placeholder
-
-            # edge features
-            # TODO we need to decide on edge features
-            edge_attr = dist.view(-1, 1)
-
-            # global features
-            # TODO we need to decide on global features
-            global_attr = torch.tensor([1.0])  # placeholder
 
             # XANES (first atom)
             # TODO if we want to do multi-absorber training in the future, we would need to store
@@ -91,23 +82,26 @@ class RichGraphDataset(TorchGeometricDataset):
             energies = torch.tensor(energies, dtype=torch.float32)
             intensities = torch.tensor(intensities, dtype=torch.float32)
 
-            data = Data(
-                z=atomic_numbers,
-                x=x,
-                edge_index=edge_index,
-                edge_weight=edge_weight,
-                edge_attr=edge_attr,
-                global_attr=global_attr,
+            struct = Data(
+                x=atomic_numbers,
+                pos=cart_coords,
                 energies=energies,
                 intensities=intensities,
-                file_name=file_name,
+                sample_id=sample_id,  # TODO maybe rename to file_name for consistency
                 atomic_symbols=atomic_symbols,
             )
 
             save_path = os.path.join(self.processed_dir, f"{idx}.pth")
-            self._save_data(data, save_path)
+            self._save_data(struct, save_path)
 
         return True
+
+    def collate_fn(self, batch: list[BaseData]) -> Batch:
+        fields_to_stack = ["energies", "intensities"]
+        batched = Batch.from_data_list(batch, exclude_keys=fields_to_stack)
+        for field in fields_to_stack:
+            setattr(batched, field, torch.stack([getattr(d, field) for d in batch]))
+        return batched
 
     @staticmethod
     def _save_data(data: Data, path: str) -> None:

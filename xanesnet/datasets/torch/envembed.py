@@ -30,8 +30,8 @@ from xanesnet.descriptors import Descriptor, DescriptorRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.utils.math import SpectralBasis, gaussian_fit
 
-from .registry import DatasetRegistry
-from .torch_dataset import TorchDataset
+from ..base import TorchDataset
+from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 

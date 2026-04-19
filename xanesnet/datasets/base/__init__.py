@@ -14,40 +14,12 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .base import Dataset, TorchDataset, TorchGeometricDataset
-from .registry import DatasetRegistry
-from .torch import (
-    EnvEmbedData,
-    EnvEmbedDataset,
-    GemNetBatch,
-    GemNetData,
-    GemNetDataset,
-    XanesXData,
-    XanesXDataset,
-)
-from .torchgeometric import (
-    E3EEBatch,
-    E3EEDataset,
-    GeometricBatch,
-    GeometricDataset,
-    RichGraphDataset,
-)
+from .base import Dataset
+from .torch_dataset import TorchDataset
+from .torchgeometric_dataset import TorchGeometricDataset
 
 __all__ = [
     "Dataset",
     "TorchDataset",
     "TorchGeometricDataset",
-    "XanesXDataset",
-    "DatasetRegistry",
-    "XanesXData",
-    "GeometricDataset",
-    "GeometricBatch",
-    "GemNetDataset",
-    "GemNetData",
-    "GemNetBatch",
-    "E3EEDataset",
-    "EnvEmbedData",
-    "EnvEmbedDataset",
-    "E3EEBatch",
-    "RichGraphDataset",
 ]

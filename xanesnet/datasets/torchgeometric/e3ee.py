@@ -23,8 +23,8 @@ from torch_geometric.data.data import BaseData
 
 from xanesnet.datasources import DataSource
 
+from ..registry import DatasetRegistry
 from .geometric import GeometricDataset
-from .registry import DatasetRegistry
 
 
 # for typing
