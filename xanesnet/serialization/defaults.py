@@ -80,6 +80,7 @@ DATASET_DEFAULT = {
         "split_indexfile": None,
         "cutoff": 5.0,
         "max_num_neighbors": 32,
+        "compute_angles": False,
     },
 }
 

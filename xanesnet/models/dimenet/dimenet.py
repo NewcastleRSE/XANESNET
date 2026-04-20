@@ -25,10 +25,9 @@ import numpy.typing as npt
 import scipy
 import sympy as sp
 import torch
-from torch_geometric.nn import radius_graph
 from torch_geometric.nn.inits import glorot_orthogonal
 from torch_geometric.nn.resolver import activation_resolver
-from torch_geometric.typing import OptTensor, SparseTensor
+from torch_geometric.typing import OptTensor
 from torch_geometric.utils import scatter
 
 from xanesnet.serialization.config import Config
@@ -131,78 +130,36 @@ class DimeNet(Model):
     def forward(
         self,
         z: torch.Tensor,  # Atomic number of each atom with shape [num_atoms].
-        pos: torch.Tensor,  # Coordinates of each atom with shape [num_atoms, 3].
+        edge_index: torch.Tensor,  # Edge indices [2, num_edges] (j→i convention: row=source, col=target).
+        edge_weight: torch.Tensor,  # Edge distances [num_edges].
+        angle: torch.Tensor,  # Triplet angles [num_triplets].
+        idx_kj: torch.Tensor,  # Edge index of k→j for each triplet [num_triplets].
+        idx_ji: torch.Tensor,  # Edge index of j→i for each triplet [num_triplets].
         batch: OptTensor = None,  # Batch indices assigning each atom to a separate molecule with shape [num_atoms].
     ) -> torch.Tensor:
         """
-        Forward pass.
+        Forward pass. Expects precomputed edges, distances, angles, and triplet indices
+        (as provided by RadiusGraphDataset with compute_angles=True).
         """
-        # Create edges based on atom positions to all points within the cutoff distance.
-        edge_index = radius_graph(pos, r=self.cutoff, batch=batch, max_num_neighbors=self.max_num_neighbors)
-
-        # Constructing triplets of nodes (k→j→i) based on the edges defined in edge_index.
-        # It ensures that k and i are distinct to avoid degenerate cases.
-        i, j, idx_i, idx_j, idx_k, idx_kj, idx_ji = self.triplets(edge_index, num_nodes=z.size(0))
-
-        # Calculate distances.
-        dist = (pos[i] - pos[j]).pow(2).sum(dim=-1).sqrt()
-
-        # Calculate angles.
-        pos_ji, pos_ki = pos[idx_j] - pos[idx_i], pos[idx_k] - pos[idx_i]
-        a = (pos_ji * pos_ki).sum(dim=-1)
-        b = torch.cross(pos_ji, pos_ki, dim=1).norm(dim=-1)
-        angle = torch.atan2(b, a)
+        j, i = edge_index  # j->i
 
         # Encoding
-        rbf = self.rbf(dist)
-        sbf = self.sbf(dist, angle, idx_kj)
+        rbf = self.rbf(edge_weight)
+        sbf = self.sbf(edge_weight, angle, idx_kj)
 
         # Embedding block.
         x = self.emb(z, rbf, i, j)
-        P = self.output_blocks[0](x, rbf, i, num_nodes=pos.size(0))
+        P = self.output_blocks[0](x, rbf, i, num_nodes=z.size(0))
 
         # Interaction blocks.
         for interaction_block, output_block in zip(self.interaction_blocks, self.output_blocks[1:]):
             x = interaction_block(x, rbf, sbf, idx_kj, idx_ji)
-            P = P + output_block(x, rbf, i, num_nodes=pos.size(0))
+            P = P + output_block(x, rbf, i, num_nodes=z.size(0))
 
         if batch is None:
             return P.sum(dim=0)
         else:
             return scatter(P, batch, dim=0, reduce="sum")
-
-    @staticmethod
-    def triplets(
-        edge_index: torch.Tensor,
-        num_nodes: int,
-    ) -> tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-    ]:
-        row, col = edge_index  # j->i
-
-        value = torch.arange(row.size(0), device=row.device)
-        adj_t = SparseTensor(row=col, col=row, value=value, sparse_sizes=(num_nodes, num_nodes))
-        adj_t_row = adj_t.index_select(0, row)  # type: ignore[attr-defined]  # not in torch_sparse stubs
-        num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
-
-        # Node indices (k->j->i) for triplets.
-        idx_i = col.repeat_interleave(num_triplets)
-        idx_j = row.repeat_interleave(num_triplets)
-        idx_k = adj_t_row.storage.col()
-        mask = idx_i != idx_k  # Remove i == k triplets.
-        idx_i, idx_j, idx_k = idx_i[mask], idx_j[mask], idx_k[mask]
-
-        # Edge indices (k-j, j->i) for triplets.
-        idx_kj = adj_t_row.storage.value()[mask]
-        idx_ji = adj_t_row.storage.row()[mask]
-
-        return col, row, idx_i, idx_j, idx_k, idx_kj, idx_ji
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
         logging.warning(

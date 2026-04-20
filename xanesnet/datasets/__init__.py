@@ -29,6 +29,7 @@ from .torchgeometric import (
     E3EEBatch,
     E3EEDataset,
     RadiusGraphBatch,
+    RadiusGraphData,
     RadiusGraphDataset,
     RichGraphDataset,
 )
@@ -49,5 +50,6 @@ __all__ = [
     "E3EEBatch",
     "RichGraphDataset",
     "RadiusGraphBatch",
+    "RadiusGraphData",
     "RadiusGraphDataset",
 ]

@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .e3ee import E3EEBatch, E3EEDataset
-from .radiusgraph import RadiusGraphBatch, RadiusGraphDataset
+from .radiusgraph import RadiusGraphBatch, RadiusGraphData, RadiusGraphDataset
 from .richgraph import RichGraphDataset
 
 __all__ = [
@@ -23,5 +23,6 @@ __all__ = [
     "E3EEDataset",
     "RichGraphDataset",
     "RadiusGraphBatch",
+    "RadiusGraphData",
     "RadiusGraphDataset",
 ]
