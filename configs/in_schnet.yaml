@@ -3,16 +3,18 @@ device: cuda
 
 datasource:
   datasource_type: pmgjson
-  json_path: /media/hendrik/ExternalSSD/final_data/tmQM_xas/
+  json_path: /media/hendrik/ExternalSSD/final_data/omnixas_test/
 
 
 dataset: 
   # general:
-  dataset_type: geometric
-  root: ./data/tmQM_xas/processed_train/  # Where should the processed data be stored
+  dataset_type: radiusgraph
+  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
   force_prepare: True
   split_ratios: [0.8, 0.2]
+  cutoff: 5.0
+  max_num_neighbors: 32
 
 model:
   # general:
@@ -20,21 +22,15 @@ model:
   # params:
   hidden_channels: 128
   reduce_channels_1: 64
-  reduce_channels_2: 226
+  reduce_channels_2: 173
   num_filters: 128
   num_interactions: 6
   num_gaussians: 50
-  cutoff: 10.0
-  max_num_neighbors: 32
-  readout: add
-  dipole: False
-  mean: null
-  std: null 
-  atomref: null
+  cutoff: 5.0
 
 trainer:
   # general:
-  trainer_type: nntrainer
+  trainer_type: basic
   batch_size: 4
   shuffle: True
   drop_last: False

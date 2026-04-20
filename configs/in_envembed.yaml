@@ -33,7 +33,7 @@ model:
 
 trainer:
   # general:
-  trainer_type: nntrainer
+  trainer_type: basic
   batch_size: 100
   shuffle: True
   drop_last: False

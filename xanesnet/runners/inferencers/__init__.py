@@ -15,11 +15,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Inferencer
-from .nn import NNInferencer
+from .basic import BasicInferencer
 from .registry import InferencerRegistry
 
 __all__ = [
     "Inferencer",
-    "NNInferencer",
+    "BasicInferencer",
     "InferencerRegistry",
 ]

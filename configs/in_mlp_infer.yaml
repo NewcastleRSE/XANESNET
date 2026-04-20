@@ -13,7 +13,7 @@ dataset:
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
 
 inferencer:
-  inferencer_type: nninferencer
+  inferencer_type: basic
   batch_size: 3
   shuffle: False
   drop_last: False

@@ -15,11 +15,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import Trainer
-from .nn import NNTrainer
+from .basic import BasicTrainer
 from .registry import TrainerRegistry
 
 __all__ = [
     "Trainer",
-    "NNTrainer",
+    "BasicTrainer",
     "TrainerRegistry",
 ]

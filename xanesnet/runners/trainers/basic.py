@@ -1,0 +1,157 @@
+"""
+XANESNET
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+import torch
+
+from xanesnet.checkpointing import Checkpointer
+from xanesnet.datasets import Dataset
+from xanesnet.models import Model
+from xanesnet.serialization.config import Config
+
+from .base import Trainer
+from .registry import TrainerRegistry
+
+
+@TrainerRegistry.register("basic")
+class BasicTrainer(Trainer):
+    def __init__(
+        self,
+        dataset: Dataset,
+        model: Model,
+        device: str | torch.device,
+        checkpointer: Checkpointer,
+        # runner params:
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool,
+        num_workers: int,
+        loss: Config,
+        regularizer: Config,
+        # trainer params:
+        trainer_type: str,
+        epochs: int,
+        learning_rate: float,
+        optimizer: str,
+        lr_scheduler: Config,
+        early_stopper: Config,
+        validation_interval: int,
+    ) -> None:
+        super().__init__(
+            dataset,
+            model,
+            device,
+            checkpointer,
+            batch_size,
+            shuffle,
+            drop_last,
+            num_workers,
+            loss,
+            regularizer,
+            trainer_type,
+            epochs,
+            learning_rate,
+            optimizer,
+            lr_scheduler,
+            early_stopper,
+            validation_interval,
+        )
+
+    def _train_one_epoch(self) -> tuple[float, float, float]:
+        """
+        Runs a single training epoch.
+        """
+        self.model.train()
+
+        epoch_loss = 0.0
+        epoch_regularization = 0.0
+        epoch_total = 0.0
+
+        for batch in self.dataloader:
+            batch.to(self.device)
+
+            self.optimizer.zero_grad()
+
+            # Forward pass
+            inputs = self.batchprocessor.input_preparation(batch)
+            predictions = self.model(**inputs)
+            predictions = self.batchprocessor.prediction_preparation(batch, predictions)
+
+            # Target
+            targets = self.batchprocessor.target_preparation(batch)
+
+            # Criterion
+            loss = self.loss(predictions, targets)
+
+            # Regularization
+            regularization = self.regularizer(self.model)
+
+            # Gradient computation
+            total = loss + regularization
+            total.backward()
+            self.optimizer.step()
+
+            epoch_loss += loss.item()
+            epoch_regularization += regularization.item()
+            epoch_total += total.item()
+
+        epoch_loss = epoch_loss / len(self.dataloader)
+        epoch_regularization = epoch_regularization / len(self.dataloader)
+        epoch_total = epoch_total / len(self.dataloader)
+
+        return epoch_loss, epoch_regularization, epoch_total
+
+    def _validate_one_epoch(self) -> tuple[float, float, float]:
+        """
+        Runs a single validation epoch.
+        """
+        assert self.valid_dataloader is not None
+
+        self.model.eval()
+
+        valid_loss = 0.0
+        valid_regularization = 0.0
+        valid_total = 0.0
+
+        with torch.no_grad():
+            for batch in self.valid_dataloader:
+                batch.to(self.device)
+
+                # Forward pass
+                inputs = self.batchprocessor.input_preparation(batch)
+                predictions = self.model(**inputs)
+                predictions = self.batchprocessor.prediction_preparation(batch, predictions)
+
+                # Target
+                targets = self.batchprocessor.target_preparation(batch)
+
+                # Criterion
+                loss = self.loss(predictions, targets)
+
+                # Regularization
+                regularization = self.regularizer(self.model)
+
+                # Total
+                total = loss + regularization
+
+                valid_loss += loss.item()
+                valid_regularization += regularization.item()
+                valid_total += total.item()
+
+        valid_loss = valid_loss / len(self.valid_dataloader)
+        valid_regularization = valid_regularization / len(self.valid_dataloader)
+        valid_total = valid_total / len(self.valid_dataloader)
+
+        return valid_loss, valid_regularization, valid_total

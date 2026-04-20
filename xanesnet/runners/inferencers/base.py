@@ -15,7 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import time
+from abc import abstractmethod
 from pathlib import Path
 
 import torch
@@ -68,56 +68,9 @@ class Inferencer(Runner):
 
         writer.close() if writer is not None else None
 
+    @abstractmethod
     def _infer_one_epoch(self, writer: PredictionWriter | None) -> None:
         """
         Runs a single inference epoch.
         """
-        self.model.eval()
-
-        # TODO some progress bar?
-
-        for batch in self.dataloader:
-            batch.to(self.device)
-
-            # Prepare inputs
-            inputs = self.batch_processor.input_preparation(batch)
-
-            # Time the forward pass start
-            if torch.device(self.device).type == "cuda":
-                torch.cuda.synchronize()  # Needed to block CPU until all GPU ops are done
-            start_time = time.perf_counter()
-
-            # Forward pass
-            predictions = self.model(**inputs)
-
-            # Time the forward pass end
-            if torch.device(self.device).type == "cuda":
-                torch.cuda.synchronize()  # Needed to block CPU until all GPU ops are done
-            end_time = time.perf_counter()
-
-            # Create per-sample time tensor
-            # averaged if batch size > 1
-            per_sample_time = (end_time - start_time) / predictions.shape[0]
-            forward_time = torch.full(
-                (predictions.shape[0],),
-                per_sample_time,
-                dtype=torch.float32,
-                device=self.device,
-            )
-
-            # Target
-            targets = self.batch_processor.target_preparation(batch)
-
-            # Writer add
-            if writer is not None:
-                writer.add(
-                    {
-                        # Required:
-                        "prediction": predictions,
-                        "target": targets,
-                        # Optional:
-                        # "input": inputs # TODO: inputs currently dict
-                        "sample_id": self.batch_processor.sample_id_extraction(batch),
-                        "forward_time": forward_time,
-                    }
-                )
+        ...

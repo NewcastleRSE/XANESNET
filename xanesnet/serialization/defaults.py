@@ -193,7 +193,7 @@ MODEL_DEFAULTS = {
 }
 
 TRAINER_DEFAULTS = {
-    "nntrainer": {
+    "basic": {
         "batch_size": 3,
         "shuffle": True,
         "drop_last": False,
@@ -212,12 +212,12 @@ TRAINER_DEFAULTS = {
 }
 
 INFERENCER_DEFAULTS = {
-    "nninferencer": {
+    "basic": {
         "batch_size": 1,
         "shuffle": False,
         "drop_last": False,
         "num_workers": 0,
-    }
+    },
 }
 
 STRATEGY_DEFAULTS = {
@@ -279,11 +279,11 @@ MODEL_REQUIRED = {
 }
 
 TRAINER_REQUIRED = {
-    "nntrainer": [],
+    "basic": [],
 }
 
 INFERENCER_REQUIRED = {
-    "nninferencer": [],
+    "basic": [],
 }
 
 STRATEGY_REQUIRED = {

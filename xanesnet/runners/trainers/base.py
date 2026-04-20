@@ -15,6 +15,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+from abc import abstractmethod
 from typing import Any
 
 import torch
@@ -198,90 +199,19 @@ class Trainer(Runner):
 
         return score
 
+    @abstractmethod
     def _train_one_epoch(self) -> tuple[float, float, float]:
         """
         Runs a single training epoch.
         """
-        self.model.train()
+        ...
 
-        epoch_loss = 0.0
-        epoch_regularization = 0.0
-        epoch_total = 0.0
-
-        for batch in self.dataloader:
-            batch.to(self.device)
-
-            self.optimizer.zero_grad()
-
-            # Forward pass
-            inputs = self.batchprocessor.input_preparation(batch)
-            predictions = self.model(**inputs)
-
-            # Target
-            targets = self.batchprocessor.target_preparation(batch)
-
-            # Criterion
-            loss = self.loss(predictions, targets)
-
-            # Regularization
-            regularization = self.regularizer(self.model)
-
-            # Gradient computation
-            total = loss + regularization
-            total.backward()
-            self.optimizer.step()
-
-            epoch_loss += loss.item()
-            epoch_regularization += regularization.item()
-            epoch_total += total.item()
-
-        epoch_loss = epoch_loss / len(self.dataloader)
-        epoch_regularization = epoch_regularization / len(self.dataloader)
-        epoch_total = epoch_total / len(self.dataloader)
-
-        return epoch_loss, epoch_regularization, epoch_total
-
+    @abstractmethod
     def _validate_one_epoch(self) -> tuple[float, float, float]:
         """
         Runs a single validation epoch.
         """
-        assert self.valid_dataloader is not None
-
-        self.model.eval()
-
-        valid_loss = 0.0
-        valid_regularization = 0.0
-        valid_total = 0.0
-
-        with torch.no_grad():
-            for batch in self.valid_dataloader:
-                batch.to(self.device)
-
-                # Forward pass
-                inputs = self.batchprocessor.input_preparation(batch)
-                predictions = self.model(**inputs)
-
-                # Target
-                targets = self.batchprocessor.target_preparation(batch)
-
-                # Criterion
-                loss = self.loss(predictions, targets)
-
-                # Regularization
-                regularization = self.regularizer(self.model)
-
-                # Total
-                total = loss + regularization
-
-                valid_loss += loss.item()
-                valid_regularization += regularization.item()
-                valid_total += total.item()
-
-        valid_loss = valid_loss / len(self.valid_dataloader)
-        valid_regularization = valid_regularization / len(self.valid_dataloader)
-        valid_total = valid_total / len(self.valid_dataloader)
-
-        return valid_loss, valid_regularization, valid_total
+        ...
 
     def _setup_train_dataloader(self) -> Any:
         if self.dataset.train_subset is None:
