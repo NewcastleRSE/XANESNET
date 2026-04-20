@@ -48,6 +48,13 @@ class BatchProcessor(ABC):
         batch = dataset.collate_fn([sample])
         return self.input_preparation(batch)
 
+    def prediction_preparation(self, batch: Any, predictions: torch.Tensor) -> torch.Tensor:
+        """
+        Prepares the model predictions for loss/regularization computation.
+        By default, returns the raw predictions.
+        """
+        return predictions
+
     @abstractmethod
     def target_preparation(self, batch: Any) -> torch.Tensor:
         """
@@ -69,5 +76,4 @@ class BatchProcessor(ABC):
         """
         Extracts sample IDs from a batch.
         """
-        ...
         ...
