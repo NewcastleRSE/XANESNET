@@ -18,8 +18,7 @@ from .base import BatchProcessor
 from .e3ee import E3EEBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
 from .gemset_gemnet import GemsetGemNetBatchProcessor
-from .geometric_dimenet import GeometricDimeNetBatchProcessor
-from .geometric_schnet import GeometricSchNetBatchProcessor
+from .radiusgraph_schnet import RadiusGraphSchNetBatchProcessor
 from .registry import BatchProcessorRegistry
 from .xanesx_mlp import XanesXMLPBatchProcessor
 
@@ -27,9 +26,8 @@ __all__ = [
     "BatchProcessor",
     "BatchProcessorRegistry",
     "XanesXMLPBatchProcessor",
-    "GeometricSchNetBatchProcessor",
-    "GeometricDimeNetBatchProcessor",
     "GemsetGemNetBatchProcessor",
     "E3EEBatchProcessor",
     "EnvEmbedBatchProcessor",
+    "RadiusGraphSchNetBatchProcessor",
 ]

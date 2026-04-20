@@ -28,8 +28,8 @@ from .torch import (
 from .torchgeometric import (
     E3EEBatch,
     E3EEDataset,
-    GeometricBatch,
-    GeometricDataset,
+    RadiusGraphBatch,
+    RadiusGraphDataset,
     RichGraphDataset,
 )
 
@@ -40,8 +40,6 @@ __all__ = [
     "XanesXDataset",
     "DatasetRegistry",
     "XanesXData",
-    "GeometricDataset",
-    "GeometricBatch",
     "GemNetDataset",
     "GemNetData",
     "GemNetBatch",
@@ -50,4 +48,6 @@ __all__ = [
     "EnvEmbedDataset",
     "E3EEBatch",
     "RichGraphDataset",
+    "RadiusGraphBatch",
+    "RadiusGraphDataset",
 ]

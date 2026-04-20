@@ -17,21 +17,28 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import torch
 
-from xanesnet.datasets import GeometricBatch
+from xanesnet.datasets import RadiusGraphBatch
 
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-@BatchProcessorRegistry.register("geometric", "dimenet")
-@BatchProcessorRegistry.register("geometric", "dimenet++")
-class GeometricDimeNetBatchProcessor(BatchProcessor):
+@BatchProcessorRegistry.register("radiusgraph", "schnet")
+class RadiusGraphSchNetBatchProcessor(BatchProcessor):
 
-    def input_preparation(self, batch: GeometricBatch) -> dict[str, torch.Tensor]:
-        return {"z": batch.x, "pos": batch.pos, "batch": batch.batch}
+    def input_preparation(self, batch: RadiusGraphBatch) -> dict[str, torch.Tensor]:
+        return {
+            "z": batch.x,
+            "edge_index": batch.edge_index,
+            "edge_weight": batch.edge_weight,
+            "batch": batch.batch,
+        }
 
-    def target_preparation(self, batch: GeometricBatch) -> torch.Tensor:
+    def prediction_preparation(self, batch: RadiusGraphBatch, predictions: torch.Tensor) -> torch.Tensor:
+        return predictions[batch.absorber_mask]
+
+    def target_preparation(self, batch: RadiusGraphBatch) -> torch.Tensor:
         return batch.intensities
 
-    def sample_id_extraction(self, batch: GeometricBatch) -> np.ndarray:
-        return np.array(batch.sample_id.cpu(), dtype=str)
+    def sample_id_extraction(self, batch: RadiusGraphBatch) -> np.ndarray:
+        return np.array(batch.file_name, dtype=str)

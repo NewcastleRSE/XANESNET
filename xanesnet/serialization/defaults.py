@@ -41,12 +41,6 @@ DATASET_DEFAULT = {
         "basis_path": None,
         "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
     },
-    "geometric": {
-        "preload": True,
-        "force_prepare": False,
-        "split_ratios": [1.0],
-        "split_indexfile": None,
-    },
     "gemset": {
         "preload": True,
         "force_prepare": False,
@@ -79,6 +73,14 @@ DATASET_DEFAULT = {
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
+    "radiusgraph": {
+        "preload": True,
+        "force_prepare": False,
+        "split_ratios": [1.0],
+        "split_indexfile": None,
+        "cutoff": 5.0,
+        "max_num_neighbors": 32,
+    },
 }
 
 MODEL_DEFAULTS = {
@@ -96,12 +98,7 @@ MODEL_DEFAULTS = {
         "num_interactions": 6,
         "num_gaussians": 50,
         "cutoff": 10.0,
-        "max_num_neighbors": 32,
-        "readout": "add",
-        "dipole": False,
-        "mean": None,
-        "std": None,
-        "atomref": None,
+        "mean_spectrum": None,
     },
     "dimenet": {
         "hidden_channels": 128,
@@ -261,11 +258,11 @@ DATASOURCE_REQUIRED = {
 
 DATASET_REQUIRED = {
     "xanesx": ["root"],
-    "geometric": ["root"],
     "gemset": ["root"],
     "e3ee": ["root"],
     "envembed": ["root"],
     "richgraph": ["root"],
+    "radiusgraph": ["root"],
 }
 
 MODEL_REQUIRED = {
