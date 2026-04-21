@@ -56,7 +56,6 @@ class DimeNet(Model):
         num_spherical: int,
         num_radial: int,
         cutoff: float,
-        max_num_neighbors: int,
         envelope_exponent: int,
         num_before_skip: int,
         num_after_skip: int,
@@ -80,7 +79,6 @@ class DimeNet(Model):
         self.num_spherical = num_spherical
         self.num_radial = num_radial
         self.cutoff = cutoff
-        self.max_num_neighbors = max_num_neighbors
         self.envelope_exponent = envelope_exponent
         self.num_before_skip = num_before_skip
         self.num_after_skip = num_after_skip
@@ -141,7 +139,7 @@ class DimeNet(Model):
         Forward pass. Expects precomputed edges, distances, angles, and triplet indices
         (as provided by RadiusGraphDataset with compute_angles=True).
         """
-        j, i = edge_index  # j->i
+        j, i = edge_index[0], edge_index[1]  # j->i
 
         # Encoding
         rbf = self.rbf(edge_weight)
@@ -156,10 +154,8 @@ class DimeNet(Model):
             x = interaction_block(x, rbf, sbf, idx_kj, idx_ji)
             P = P + output_block(x, rbf, i, num_nodes=z.size(0))
 
-        if batch is None:
-            return P.sum(dim=0)
-        else:
-            return scatter(P, batch, dim=0, reduce="sum")
+        # Return per-atom predictions (one spectrum per site).
+        return P
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
         logging.warning(
@@ -187,7 +183,6 @@ class DimeNet(Model):
                 "num_spherical": self.num_spherical,
                 "num_radial": self.num_radial,
                 "cutoff": self.cutoff,
-                "max_num_neighbors": self.max_num_neighbors,
                 "envelope_exponent": self.envelope_exponent,
                 "num_before_skip": self.num_before_skip,
                 "num_after_skip": self.num_after_skip,

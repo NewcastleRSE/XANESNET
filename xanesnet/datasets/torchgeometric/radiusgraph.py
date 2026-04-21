@@ -69,6 +69,113 @@ class RadiusGraphBatch(Protocol):
 
 
 ###############################################################################
+#################################### UTILS ####################################
+###############################################################################
+
+
+def _edges_from_structure(
+    structure: Structure,
+    cutoff: float,
+    max_num_neighbors: int,
+    compute_vectors: bool,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    """
+    Build edge_index, edge_weight (and optionally displacement vectors) for a periodic structure.
+    """
+    all_neighbors = structure.get_all_neighbors(r=cutoff)
+    src, dst, dists = [], [], []
+    edge_vectors: list | None = [] if compute_vectors else None
+
+    for i, site_neighbors in enumerate(all_neighbors):
+        sorted_neighbors = sorted(site_neighbors, key=lambda n: n.nn_distance)
+        for neighbor in sorted_neighbors[:max_num_neighbors]:
+            src.append(i)
+            dst.append(neighbor.index)
+            dists.append(neighbor.nn_distance)
+            if edge_vectors is not None:
+                edge_vectors.append(neighbor.coords - structure.cart_coords[i])
+
+    edge_index = torch.tensor([src, dst], dtype=torch.int64)
+    edge_weight = torch.tensor(dists, dtype=torch.float32)
+    edge_vec = torch.tensor(np.array(edge_vectors), dtype=torch.float32) if compute_vectors else None
+    return edge_index, edge_weight, edge_vec
+
+
+def _edges_from_molecule(
+    molecule: Molecule,
+    cutoff: float,
+    max_num_neighbors: int,
+    compute_vectors: bool,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    """
+    Build edge_index, edge_weight (and optionally displacement vectors) for a molecule.
+    """
+    pos = torch.tensor(molecule.cart_coords, dtype=torch.float32)
+    edge_index = radius_graph(pos, r=cutoff, max_num_neighbors=max_num_neighbors)
+    row, col = edge_index
+    edge_weight = (pos[row] - pos[col]).norm(dim=-1)
+    edge_vec = pos[col] - pos[row] if compute_vectors else None  # displacement from source to target
+    return edge_index, edge_weight, edge_vec
+
+
+def _compute_triplets_and_angles(
+    edge_index: torch.Tensor,
+    edge_vec: torch.Tensor,
+    num_nodes: int,
+    is_periodic: bool,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Compute triplets (k->j->i) and the angle at node j for each triplet.
+
+    Returns (angle, idx_kj, idx_ji).
+    """
+    row, col = edge_index
+
+    value = torch.arange(row.size(0), device=row.device)
+    adj_t = SparseTensor(
+        row=col,
+        col=row,
+        value=value,
+        sparse_sizes=(num_nodes, num_nodes),
+    )
+    adj_t_row = adj_t.index_select(0, row)  # type: ignore[attr-defined]
+    num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
+
+    # Node indices (k->j->i) for triplets
+    idx_i = col.repeat_interleave(num_triplets)
+    idx_k = adj_t_row.storage.col()
+
+    # Edge indices (k->j, j->i) for triplets
+    idx_kj_raw = adj_t_row.storage.value()
+    idx_ji_raw = adj_t_row.storage.row()
+
+    # Remove degenerate triplets.
+    if is_periodic:
+        # For periodic structures, idx_i == idx_k does NOT imply a degenerate
+        # bounce-back: k and i may be different periodic images of the same atom.
+        # Only remove triplets where the same edge serves as both legs.
+        mask = idx_kj_raw != idx_ji_raw
+    else:
+        # For molecules, each atom pair has exactly one edge per direction,
+        # so idx_i == idx_k correctly identifies bounce-back triplets.
+        mask = idx_i != idx_k
+
+    idx_kj = idx_kj_raw[mask]
+    idx_ji = idx_ji_raw[mask]
+
+    # Compute the angle at node j (the intermediate node in the triplet k->j->i).
+    # vec_ji: j→i displacement, vec_jk: j→k displacement (negated k→j edge).
+    vec_ji = edge_vec[idx_ji]
+    vec_jk = -edge_vec[idx_kj]
+
+    a = (vec_ji * vec_jk).sum(dim=-1)
+    b = torch.cross(vec_ji, vec_jk, dim=1).norm(dim=-1)
+    angle = torch.atan2(b, a)
+
+    return angle, idx_kj, idx_ji
+
+
+###############################################################################
 #################################### CLASS ####################################
 ###############################################################################
 
@@ -177,92 +284,23 @@ class RadiusGraphDataset(TorchGeometricDataset):
             (edge_index, edge_weight, angle, idx_kj, idx_ji)
         where angle, idx_kj, idx_ji correspond to triplets (k->j->i) as used by e.g. DimeNet.
         """
-
-        edge_vec = torch.empty(0)  # populated below when compute_angles is True
-
-        if isinstance(pmg_obj, Structure):  # Structure
-            all_neighbors = pmg_obj.get_all_neighbors(r=cutoff)
-            src, dst, dists = [], [], []
-            edge_vectors: list | None = [] if compute_angles else None
-            for i, site_neighbors in enumerate(all_neighbors):
-                sorted_neighbors = sorted(site_neighbors, key=lambda n: n.nn_distance)
-                for neighbor in sorted_neighbors[:max_num_neighbors]:
-                    src.append(i)
-                    dst.append(neighbor.index)
-                    dists.append(neighbor.nn_distance)
-                    if edge_vectors is not None:
-                        edge_vectors.append(neighbor.coords - pmg_obj.cart_coords[i])
-            edge_index = torch.tensor([src, dst], dtype=torch.int64)
-            edge_weight = torch.tensor(dists, dtype=torch.float32)
-            if compute_angles:
-                edge_vec = torch.tensor(np.array(edge_vectors), dtype=torch.float32)
-        else:  # Molecule
-            pos = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
-            edge_index = radius_graph(pos, r=cutoff, max_num_neighbors=max_num_neighbors)
-            row, col = edge_index
-            edge_weight = (pos[row] - pos[col]).norm(dim=-1)
-            if compute_angles:
-                edge_vec = pos[col] - pos[row]  # displacement from source to target
+        if isinstance(pmg_obj, Structure):
+            edge_index, edge_weight, edge_vec = _edges_from_structure(
+                pmg_obj, cutoff, max_num_neighbors, compute_vectors=compute_angles
+            )
+        else:
+            edge_index, edge_weight, edge_vec = _edges_from_molecule(
+                pmg_obj, cutoff, max_num_neighbors, compute_vectors=compute_angles
+            )
 
         if not compute_angles:
             return edge_index, edge_weight, None, None, None
 
-        # Compute triplets (k->j->i) and angles following DimeNet's approach.
-        # Uses edge displacement vectors to correctly handle periodic boundaries.
-        num_nodes = len(pmg_obj)
-        row, col = edge_index
-
-        value = torch.arange(row.size(0), device=row.device)
-        adj_t = SparseTensor(
-            row=col,
-            col=row,
-            value=value,
-            sparse_sizes=(num_nodes, num_nodes),
+        assert edge_vec is not None
+        is_periodic = isinstance(pmg_obj, Structure)
+        angle, idx_kj, idx_ji = _compute_triplets_and_angles(
+            edge_index, edge_vec, num_nodes=len(pmg_obj), is_periodic=is_periodic
         )
-        adj_t_row = adj_t.index_select(0, row)  # type: ignore[attr-defined]
-        num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
-
-        # Node indices (k->j->i) for triplets
-        idx_i = col.repeat_interleave(num_triplets)
-        idx_j = row.repeat_interleave(num_triplets)
-        idx_k = adj_t_row.storage.col()
-
-        # Edge indices (k->j, j->i) for triplets
-        idx_kj_raw = adj_t_row.storage.value()
-        idx_ji_raw = adj_t_row.storage.row()
-
-        # Remove degenerate triplets.
-        if isinstance(pmg_obj, Structure):
-            # For periodic structures, idx_i == idx_k does NOT imply a degenerate
-            # bounce-back: k and i may be different periodic images of the same atom,
-            # forming a physically valid triplet with a meaningful angle.
-            # Only remove triplets where the same edge serves as both legs (self-loop
-            # edge referencing itself), which always gives the trivial angle pi.
-            mask = idx_kj_raw != idx_ji_raw
-        else:
-            # For molecules, each atom pair has exactly one edge per direction,
-            # so idx_i == idx_k correctly identifies bounce-back triplets.
-            mask = idx_i != idx_k
-
-        idx_i, idx_j, idx_k = idx_i[mask], idx_j[mask], idx_k[mask]
-        idx_kj = idx_kj_raw[mask]
-        idx_ji = idx_ji_raw[mask]
-
-        # Compute the angle at node j (the intermediate node in the triplet k->j->i).
-        # edge_vec[e] = displacement from source to target of edge e.
-        # For triplet k->j->i:
-        #   vec_ji = edge_vec[idx_ji]   (j→i displacement, j is central atom)
-        #   vec_jk = -edge_vec[idx_kj]  (j→k displacement, reverse of k→j)
-        # The reversal is correct even for periodic structures: if k→j displacement
-        # is (pos_j + L) - pos_k, then j→k displacement is pos_k - (pos_j + L) = -(k→j).
-        # Both vectors originate from the same pos_j, so the angle is well-defined.
-        vec_ji = edge_vec[idx_ji]
-        vec_jk = -edge_vec[idx_kj]
-
-        a = (vec_ji * vec_jk).sum(dim=-1)
-        b = torch.cross(vec_ji, vec_jk, dim=1).norm(dim=-1)
-        angle = torch.atan2(b, a)
-
         return edge_index, edge_weight, angle, idx_kj, idx_ji
 
     @staticmethod

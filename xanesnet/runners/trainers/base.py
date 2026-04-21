@@ -107,6 +107,7 @@ class Trainer(Runner):
         self.model.to(self.device)
 
         # Log model graph (once, using first training batch as example input)
+        # TODO maybe remove this?
         sample_batch = next(iter(self.dataloader))
         sample_batch.to(self.device)
         sample_inputs = self.batchprocessor.input_preparation(sample_batch)

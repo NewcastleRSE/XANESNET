@@ -45,7 +45,6 @@ class DimeNetPlusPlus(DimeNet):
         num_spherical: int,
         num_radial: int,
         cutoff: float,
-        max_num_neighbors: int,
         envelope_exponent: int,
         num_before_skip: int,
         num_after_skip: int,
@@ -62,7 +61,6 @@ class DimeNetPlusPlus(DimeNet):
             num_spherical,
             num_radial,
             cutoff,
-            max_num_neighbors,
             envelope_exponent,
             num_before_skip,
             num_after_skip,
@@ -253,7 +251,7 @@ class OutputBlock(torch.nn.Module):
         self.lin_rbf = torch.nn.Linear(num_radial, hidden_channels, bias=False)
 
         # The up-projection layer:
-        self.lin_up = torch.nn.Linear(hidden_channels, out_emb_channels, bias=False)
+        self.lin_up = torch.nn.Linear(hidden_channels, out_emb_channels)
         self.lins = torch.nn.ModuleList()
         for _ in range(num_layers):
             self.lins.append(torch.nn.Linear(out_emb_channels, out_emb_channels))
