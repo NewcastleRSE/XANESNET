@@ -178,7 +178,7 @@ class GemNetDataset(TorchDataset):
         datasource: DataSource,
         root: str,
         preload: bool,
-        force_prepare: bool,
+        skip_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
         # params:
@@ -186,17 +186,18 @@ class GemNetDataset(TorchDataset):
         int_cutoff: float,
         triplets_only: bool = False,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
+        super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff
         self.int_cutoff = int_cutoff
         self.triplets_only = triplets_only
 
     def prepare(self) -> bool:
-        already_processed = super().prepare()
-        if already_processed:
+        skip_processing = super().prepare()
+        if skip_processing:
             return True
 
+        counter = 0  # Counter for naming processed files
         for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
@@ -219,9 +220,11 @@ class GemNetDataset(TorchDataset):
                 file_name=pmg_obj.properties["file_name"],
             )
 
-            save_path = os.path.join(self.processed_dir, f"{idx}.pth")
+            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
             data.save(save_path)
+            counter += 1
 
+        self._length = counter
         return True
 
     def _load_item(self, path: str) -> GemNetData:

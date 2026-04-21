@@ -40,11 +40,11 @@ class TorchGeometricDataset(Dataset, tgdata.Dataset):
         datasource: DataSource,
         root: str,
         preload: bool,
-        force_prepare: bool,
+        skip_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
+        super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         """

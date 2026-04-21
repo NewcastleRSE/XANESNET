@@ -29,7 +29,7 @@ DATASOURCE_DEFAULT = {
 DATASET_DEFAULT = {
     "xanesx": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "mode": "forward",
         "split_ratios": [1.0],
         "split_indexfile": None,
@@ -43,7 +43,7 @@ DATASET_DEFAULT = {
     },
     "gemset": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "split_ratios": [1.0],
         "split_indexfile": None,
         "cutoff": 5.0,
@@ -52,13 +52,13 @@ DATASET_DEFAULT = {
     },
     "e3ee": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
     "envembed": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "split_ratios": [1.0],
         "split_indexfile": None,
         "widths_eV": [0.2, 1.0, 2.0, 4.0],
@@ -69,13 +69,13 @@ DATASET_DEFAULT = {
     },
     "richgraph": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
     "radiusgraph": {
         "preload": True,
-        "force_prepare": False,
+        "skip_prepare": False,
         "split_ratios": [1.0],
         "split_indexfile": None,
         "cutoff": 5.0,

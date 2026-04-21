@@ -10,7 +10,7 @@ dataset:
   dataset_type: envembed
   root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-  force_prepare: True
+  skip_prepare: False
   split_ratios: [0.8, 0.2]
   # params:
   widths_eV: [0.2, 1.0, 2.0, 4.0]

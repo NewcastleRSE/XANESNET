@@ -41,18 +41,19 @@ class RichGraphDataset(TorchGeometricDataset):
         datasource: DataSource,
         root: str,
         preload: bool,
-        force_prepare: bool,
+        skip_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
+        super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
     def prepare(self) -> bool:
-        already_processed = super().prepare()
+        skip_processing = super().prepare()
 
-        if already_processed:
+        if skip_processing:
             return True
 
+        counter = 0  # Counter for naming processed files
         for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
             file_name = pmg_obj.properties["file_name"]
             atomic_symbols = pmg_obj.labels
@@ -104,9 +105,11 @@ class RichGraphDataset(TorchGeometricDataset):
                 atomic_symbols=atomic_symbols,
             )
 
-            save_path = os.path.join(self.processed_dir, f"{idx}.pth")
+            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
             self._save_data(data, save_path)
+            counter += 1
 
+        self._length = counter
         return True
 
     @staticmethod

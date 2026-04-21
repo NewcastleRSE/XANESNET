@@ -46,7 +46,7 @@ class Dataset(TorchDataset, ABC):
         datasource: DataSource,
         root: str,
         preload: bool,
-        force_prepare: bool,
+        skip_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
@@ -54,27 +54,30 @@ class Dataset(TorchDataset, ABC):
         self.datasource = datasource
         self.root = root
         self.preload = preload
-        self.force_prepare = force_prepare
+        self.skip_prepare = skip_prepare
+
+        # dataset length
+        self._length: int = -1  # will be set in prepare()
 
         # preloaded dataset
         self.inmemory_dataset: list[Any] = []
 
-        # subsets for splits
-        self._subsets: list[Subset] = self._setup_splits(split_ratios, split_indexfile)
+        # splits
+        self._split_ratios = split_ratios
+        self._split_indexfile = split_indexfile
+        self._subsets: list[Subset] = []
 
     @abstractmethod
     def prepare(self) -> bool:
         """
         Process the raw data and prepare it for use in the model.
         """
-        if self.force_prepare:
-            logging.info("force_prepare is True. Re-processing data even if processed files already exist.")
-            return False
-
-        # Check if processing already done
-        if all(os.path.exists(f) for f in self.processed_files):
-            logging.info("Processed data files already exist. Skipping processing.")
+        if self.skip_prepare:
+            logging.info("skip_prepare is True. Skipping data preparation.")
+            self._length = sum(1 for f in os.listdir(self.processed_dir) if f.endswith(".pth"))
             return True
+
+        # Check root directory and processed data
         if not os.path.exists(self.root):
             os.makedirs(self.root)
             logging.info(f"Created root data directory at: {self.root}")
@@ -96,30 +99,30 @@ class Dataset(TorchDataset, ABC):
             self.inmemory_dataset = preload_data
         return self.preload
 
-    def _setup_splits(self, split_ratios: list[float] | None, split_indexfile: str | None) -> list[Subset]:
+    def setup_splits(self) -> None:
         """
         Create multiple subsets based on the split_indexfile or by generating them from split_ratios.
         """
         subsets: list[Subset] = []
 
-        if split_indexfile is not None:
-            logging.info(f"Setting up dataset splits from index file: {split_indexfile}")
-            indices_list: list[list[int]] = load_split_indices(split_indexfile)
+        if self._split_indexfile is not None:
+            logging.info(f"Setting up dataset splits from index file: {self._split_indexfile}")
+            indices_list: list[list[int]] = load_split_indices(self._split_indexfile)
 
             for indices in indices_list:
                 subsets.append(Subset(self, indices))
-        elif split_ratios is not None:
-            ratio_sum = sum(split_ratios)
+        elif self._split_ratios is not None:
+            ratio_sum = sum(self._split_ratios)
             if not np.isclose(ratio_sum, 1.0):
                 raise ConfigError(f"split_ratios must sum to 1.0, but got {ratio_sum}")
 
-            logging.info(f"Setting up dataset splits with ratios: {split_ratios}")
+            logging.info(f"Setting up dataset splits with ratios: {self._split_ratios}")
 
             dataset_size = len(self)
             indices = np.random.permutation(dataset_size).tolist()
 
-            for i, ratio in enumerate(split_ratios):
-                if i == len(split_ratios) - 1:
+            for i, ratio in enumerate(self._split_ratios):
+                if i == len(self._split_ratios) - 1:
                     end_idx = dataset_size
                 else:
                     end_idx = int(dataset_size * ratio)
@@ -128,9 +131,10 @@ class Dataset(TorchDataset, ABC):
                 subsets.append(Subset(self, split_indices))
         else:
             logging.warning("No split_ratios or split_indexfile provided. Dataset will be created without splits.")
-            return []
+            self._subsets = []
+            return
 
-        return subsets
+        self._subsets = subsets
 
     def get_subset_indices(self, index: int) -> list[int] | None:
         """
@@ -198,9 +202,11 @@ class Dataset(TorchDataset, ABC):
 
     def __len__(self) -> int:
         """
-        Return the number of samples in the dataset.
+        Return the number of processed samples in the dataset.
         """
-        return len(self.datasource)
+        if self._length < 0:
+            raise ValueError("Dataset length not set. Make sure to call prepare() before using the dataset.")
+        return self._length
 
     def __getitem__(self, idx: int) -> Any:
         """
@@ -236,4 +242,4 @@ class Dataset(TorchDataset, ABC):
         """
         List of processed data files according to datasource length.
         """
-        return [os.path.join(self.processed_dir, f"{i}.pth") for i in range(len(self.datasource))]
+        return [os.path.join(self.processed_dir, f"{i}.pth") for i in range(len(self))]

@@ -110,7 +110,7 @@ class EnvEmbedDataset(TorchDataset):
         datasource: DataSource,
         root: str,
         preload: bool,
-        force_prepare: bool,
+        skip_prepare: bool,
         split_ratios: list[float] | None,
         split_indexfile: str | None,
         # params:
@@ -121,7 +121,7 @@ class EnvEmbedDataset(TorchDataset):
         # descriptors
         descriptors: list[Config],
     ) -> None:
-        super().__init__(dataset_type, datasource, root, preload, force_prepare, split_ratios, split_indexfile)
+        super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.widths_eV = widths_eV
         self.basis_stride = basis_stride
@@ -143,8 +143,8 @@ class EnvEmbedDataset(TorchDataset):
         self._setup_spectral_basis()
 
     def prepare(self) -> bool:
-        already_processed = super().prepare()
-        if already_processed:
+        skip_processing = super().prepare()
+        if skip_processing:
             return True
 
         assert self.basis is not None, "Spectral basis must be set up successfully."
@@ -207,6 +207,7 @@ class EnvEmbedDataset(TorchDataset):
                 data.save(save_path)
                 counter += 1
 
+        self._length = counter
         return True
 
     def _setup_spectral_basis(self) -> None:

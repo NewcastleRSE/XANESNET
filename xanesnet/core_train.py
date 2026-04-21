@@ -111,6 +111,7 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     logging.info(f"Initialising training dataset: {dataset_type}")
     dataset = DatasetRegistry.get(dataset_type)(**dataset_config.as_kwargs(), datasource=datasource)
     dataset.prepare()
+    dataset.setup_splits()
     dataset.check_preload()  # may preload the dataset into memory
 
     # Log dataset summary
