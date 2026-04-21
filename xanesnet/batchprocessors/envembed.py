@@ -49,5 +49,5 @@ class EnvEmbedBatchProcessor(BatchProcessor):
     def target_preparation(self, batch: EnvEmbedData) -> torch.Tensor:
         return batch.intensities  # type: ignore
 
-    def sample_id_extraction(self, batch: EnvEmbedData) -> np.ndarray:
+    def file_name_extraction(self, batch: EnvEmbedData) -> np.ndarray:
         return np.array(batch.file_name, dtype=str)

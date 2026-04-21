@@ -40,5 +40,5 @@ class RadiusGraphSchNetBatchProcessor(BatchProcessor):
     def target_preparation(self, batch: RadiusGraphBatch) -> torch.Tensor:
         return batch.intensities
 
-    def sample_id_extraction(self, batch: RadiusGraphBatch) -> np.ndarray:
+    def file_name_extraction(self, batch: RadiusGraphBatch) -> np.ndarray:
         return np.array(batch.file_name, dtype=str)

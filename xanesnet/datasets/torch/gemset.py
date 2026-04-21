@@ -46,7 +46,7 @@ class GemNetData:
     atom_positions: torch.Tensor  # (num_atoms, 3)
     intensities: torch.Tensor  # (spectrum_size,)
     energies: torch.Tensor  # (spectrum_size,)
-    sample_id: str = ""
+    file_name: str = ""
 
     def to_state_dict(self) -> dict[str, Any]:
         return {
@@ -55,7 +55,7 @@ class GemNetData:
             "atom_positions": self.atom_positions,
             "intensities": self.intensities,
             "energies": self.energies,
-            "sample_id": self.sample_id,
+            "file_name": self.file_name,
         }
 
     @classmethod
@@ -66,7 +66,7 @@ class GemNetData:
             atom_positions=state["atom_positions"],
             intensities=state["intensities"],
             energies=state["energies"],
-            sample_id=state.get("sample_id", ""),
+            file_name=state.get("file_name", ""),
         )
 
     def save(self, path: str) -> str:
@@ -94,7 +94,7 @@ class GemNetBatch:
     # Per-molecule data (stacked)
     intensities: torch.Tensor  # (nMolecules, spectrum_size)
     energies: torch.Tensor  # (nMolecules, spectrum_size)
-    sample_id: list[str]  # (nMolecules,)
+    file_name: list[str]  # (nMolecules,)
 
     # Edge indices
     id_undir: torch.Tensor  # (nEdges,)
@@ -198,8 +198,6 @@ class GemNetDataset(TorchDataset):
             return True
 
         for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            sample_id = pmg_obj.properties["file_name"]
-
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
             num_atoms = torch.tensor(len(atomic_numbers), dtype=torch.int64)
@@ -218,7 +216,7 @@ class GemNetDataset(TorchDataset):
                 atom_positions=cart_coords,
                 intensities=spectra,
                 energies=energies,
-                sample_id=sample_id,
+                file_name=pmg_obj.properties["file_name"],
             )
 
             save_path = os.path.join(self.processed_dir, f"{idx}.pth")
@@ -247,7 +245,7 @@ class GemNetDataset(TorchDataset):
         # Stack per-molecule arrays
         spectra = torch.stack([s.intensities for s in batch])
         energies = torch.stack([s.energies for s in batch])
-        sample_ids = [s.sample_id for s in batch]
+        file_names = [s.file_name for s in batch]
 
         # Batch segment: which molecule each atom belongs to
         batch_seg = np.repeat(np.arange(n_molecules, dtype=np.int32), num_atoms)
@@ -295,7 +293,7 @@ class GemNetDataset(TorchDataset):
                 batch_seg=torch.tensor(batch_seg, dtype=torch.int64),
                 intensities=spectra,
                 energies=energies,
-                sample_id=sample_ids,
+                file_name=file_names,
                 id_undir=empty,
                 id_swap=empty,
                 id_c=empty,
@@ -389,7 +387,7 @@ class GemNetDataset(TorchDataset):
             batch_seg=torch.tensor(batch_seg, dtype=torch.int64),
             intensities=spectra,
             energies=energies,
-            sample_id=sample_ids,
+            file_name=file_names,
             id_undir=torch.tensor(id_undir, dtype=torch.int64),
             id_swap=torch.tensor(id_swap, dtype=torch.int64),
             id_c=torch.tensor(id_c, dtype=torch.int64),

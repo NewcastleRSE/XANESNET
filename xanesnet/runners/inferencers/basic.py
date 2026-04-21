@@ -101,7 +101,7 @@ class BasicInferencer(Inferencer):
                         "target": targets,
                         # Optional:
                         # "input": inputs # TODO: inputs currently dict
-                        "sample_id": self.batch_processor.sample_id_extraction(batch),
+                        "file_name": self.batch_processor.file_name_extraction(batch),
                         "forward_time": forward_time,
                     }
                 )

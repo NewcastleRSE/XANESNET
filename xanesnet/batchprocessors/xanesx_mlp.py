@@ -36,7 +36,7 @@ class XanesXMLPBatchProcessor(BatchProcessor):
             raise ValueError("Target data 'y' is None!")
         return batch.y
 
-    def sample_id_extraction(self, batch: XanesXData) -> np.ndarray:
+    def file_name_extraction(self, batch: XanesXData) -> np.ndarray:
         if batch.file_name is None:
             raise ValueError("Sample ID 'file_name' is None!")
         return np.array(batch.file_name, dtype=str)

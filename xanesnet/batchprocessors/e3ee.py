@@ -47,5 +47,5 @@ class E3EEBatchProcessor(BatchProcessor):
     def target_preparation(self, batch: E3EEBatch) -> torch.Tensor:
         return batch.intensities
 
-    def sample_id_extraction(self, batch: E3EEBatch) -> np.ndarray:
-        return np.array(batch.sample_id, dtype=str)
+    def file_name_extraction(self, batch: E3EEBatch) -> np.ndarray:
+        return np.array(batch.file_name, dtype=str)

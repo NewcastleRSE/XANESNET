@@ -72,8 +72,8 @@ class BatchProcessor(ABC):
         return self.target_preparation(batch)
 
     @abstractmethod
-    def sample_id_extraction(self, batch: Any) -> np.ndarray:
+    def file_name_extraction(self, batch: Any) -> np.ndarray:
         """
-        Extracts sample IDs from a batch.
+        Extracts file names from a batch.
         """
         ...

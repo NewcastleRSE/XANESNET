@@ -43,7 +43,7 @@ class PredictionBatch(TypedDict):
 
     # Optional:
     input: NotRequired[dict[str, np.ndarray | torch.Tensor]]
-    sample_id: NotRequired[np.ndarray | torch.Tensor]
+    file_name: NotRequired[np.ndarray | torch.Tensor]
     forward_time: NotRequired[np.ndarray | torch.Tensor]
 
 

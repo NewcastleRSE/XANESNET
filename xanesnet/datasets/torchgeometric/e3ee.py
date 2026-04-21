@@ -37,8 +37,7 @@ class E3EEBatch(Protocol):
     mask: torch.Tensor
     energies: torch.Tensor
     intensities: torch.Tensor
-    sample_id: torch.Tensor  # TODO maybe rename to file_name for consistency
-    atomic_symbols: torch.Tensor
+    file_name: torch.Tensor
 
 
 ###############################################################################
@@ -67,9 +66,6 @@ class E3EEDataset(TorchGeometricDataset):
             return True
 
         for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            sample_id = pmg_obj.properties["file_name"]
-            atomic_symbols = pmg_obj.labels
-
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
 
@@ -88,8 +84,7 @@ class E3EEDataset(TorchGeometricDataset):
                 pos=cart_coords,
                 energies=energies,
                 intensities=intensities,
-                sample_id=sample_id,  # TODO maybe rename to file_name for consistency
-                atomic_symbols=atomic_symbols,
+                file_name=pmg_obj.properties["file_name"],  # TODO maybe rename to file_name for consistency
             )
 
             save_path = os.path.join(self.processed_dir, f"{idx}.pth")

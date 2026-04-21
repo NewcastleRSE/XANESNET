@@ -46,7 +46,7 @@ class PredictionSample(TypedDict):
 
     # Optional:
     input: NotRequired[np.ndarray | torch.Tensor]
-    sample_id: NotRequired[str]
+    file_name: NotRequired[str]
     forward_time: NotRequired[float]
 
 
