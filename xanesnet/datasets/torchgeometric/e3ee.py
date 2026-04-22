@@ -92,6 +92,7 @@ class E3EEDataset(TorchGeometricDataset):
         max_num_neighbors: int,
         use_path_terms: bool,
         max_paths_per_structure: int,
+        graph_method: str,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
@@ -99,6 +100,7 @@ class E3EEDataset(TorchGeometricDataset):
         self.max_num_neighbors = max_num_neighbors
         self.use_path_terms = use_path_terms
         self.max_paths_per_structure = max_paths_per_structure
+        self.graph_method = graph_method
 
     def prepare(self) -> bool:
         skip_processing = super().prepare()
@@ -123,11 +125,12 @@ class E3EEDataset(TorchGeometricDataset):
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
 
             # Edges are shared across absorbers within the same structure.
-            edge_index, edge_weight, edge_vec = build_edges(
+            edge_index, edge_weight, edge_vec, _edge_attr = build_edges(
                 pmg_obj,
                 cutoff=self.cutoff,
                 max_num_neighbors=self.max_num_neighbors,
                 compute_vectors=True,
+                method=self.graph_method,
             )
             assert edge_vec is not None
 
@@ -288,6 +291,7 @@ class E3EEDataset(TorchGeometricDataset):
                 "max_num_neighbors": self.max_num_neighbors,
                 "use_path_terms": self.use_path_terms,
                 "max_paths_per_structure": self.max_paths_per_structure,
+                "graph_method": self.graph_method,
             }
         )
         return signature

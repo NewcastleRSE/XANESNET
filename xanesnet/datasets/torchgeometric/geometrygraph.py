@@ -35,7 +35,7 @@ from ..registry import DatasetRegistry
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 
 
-class RadiusGraphData(Data):
+class GeometryGraphData(Data):
     """
     Custom Data subclass that tells PyG's batching how to handle triplet indices.
     idx_kj and idx_ji are edge-level indices that must be offset by the cumulative
@@ -50,7 +50,7 @@ class RadiusGraphData(Data):
 
 
 # for typing
-class RadiusGraphBatch(Protocol):
+class GeometryGraphBatch(Protocol):
     x: torch.Tensor
     pos: torch.Tensor
     edge_index: torch.Tensor
@@ -72,8 +72,20 @@ class RadiusGraphBatch(Protocol):
 ###############################################################################
 
 
-@DatasetRegistry.register("radiusgraph")
-class RadiusGraphDataset(TorchGeometricDataset):
+@DatasetRegistry.register("geometrygraph")
+class GeometryGraphDataset(TorchGeometricDataset):
+    """
+    Geometry-based graph dataset. Supports two edge construction methods:
+
+    - ``graph_method="radius"``: distance-cutoff radius graph.
+    - ``graph_method="voronoi"``: Voronoi-tessellation graph (still bounded
+      by ``cutoff``; Voronoi neighbours with distances above ``cutoff`` are
+      dropped).
+
+    In both cases ``edge_weight`` is the Cartesian edge length, and the
+    returned graph is bidirectional (see ``xanesnet.utils.graph``).
+    """
+
     def __init__(
         self,
         dataset_type: str,
@@ -87,12 +99,14 @@ class RadiusGraphDataset(TorchGeometricDataset):
         cutoff: float,
         max_num_neighbors: int,
         compute_angles: bool,
+        graph_method: str,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
         self.compute_angles = compute_angles
+        self.graph_method = graph_method
 
     def prepare(self) -> bool:
         skip_processing = super().prepare()
@@ -132,9 +146,10 @@ class RadiusGraphDataset(TorchGeometricDataset):
                 self.cutoff,
                 self.max_num_neighbors,
                 self.compute_angles,
+                self.graph_method,
             )
 
-            struct = RadiusGraphData(
+            struct = GeometryGraphData(
                 x=atomic_numbers,
                 pos=cart_coords,
                 edge_index=edge_index,
@@ -168,10 +183,11 @@ class RadiusGraphDataset(TorchGeometricDataset):
         pmg_obj: Structure | Molecule,
         cutoff: float,
         max_num_neighbors: int,
-        compute_angles: bool = False,
+        compute_angles: bool,
+        graph_method: str,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
-        Build edges (and optionally triplet angles) for the molecular/crystal graph.
+        Build edges (and optionally triplet angles) for the molecular/crystal graph using the selected ``graph_method``.
 
         When compute_angles is False, returns:
             (edge_index, edge_weight, None, None, None)
@@ -179,8 +195,12 @@ class RadiusGraphDataset(TorchGeometricDataset):
             (edge_index, edge_weight, angle, idx_kj, idx_ji)
         where angle, idx_kj, idx_ji correspond to triplets (k->j->i) as used by e.g. DimeNet.
         """
-        edge_index, edge_weight, edge_vec = build_edges(
-            pmg_obj, cutoff, max_num_neighbors, compute_vectors=compute_angles
+        edge_index, edge_weight, edge_vec, _edge_attr = build_edges(
+            pmg_obj,
+            cutoff,
+            max_num_neighbors,
+            compute_vectors=compute_angles,
+            method=graph_method,
         )
 
         if not compute_angles:
@@ -198,9 +218,9 @@ class RadiusGraphDataset(TorchGeometricDataset):
         tensor_dict = data.to_dict()
         torch.save(tensor_dict, path)
 
-    def _load_item(self, path: str) -> RadiusGraphData:
+    def _load_item(self, path: str) -> GeometryGraphData:
         tensor_dict = torch.load(path, weights_only=True)
-        return RadiusGraphData(**tensor_dict)
+        return GeometryGraphData(**tensor_dict)
 
     @property
     def signature(self) -> Config:
@@ -208,5 +228,12 @@ class RadiusGraphDataset(TorchGeometricDataset):
         Return dataset signature as a dictionary.
         """
         signature = super().signature
-        signature.update_with_dict({})
+        signature.update_with_dict(
+            {
+                "cutoff": self.cutoff,
+                "max_num_neighbors": self.max_num_neighbors,
+                "compute_angles": self.compute_angles,
+                "graph_method": self.graph_method,
+            }
+        )
         return signature

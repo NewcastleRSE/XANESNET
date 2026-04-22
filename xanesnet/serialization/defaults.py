@@ -59,6 +59,7 @@ DATASET_DEFAULT = {
         "max_num_neighbors": 32,
         "use_path_terms": False,
         "max_paths_per_structure": 128,
+        "graph_method": "radius",
     },
     "envembed": {
         "preload": True,
@@ -77,7 +78,7 @@ DATASET_DEFAULT = {
         "split_ratios": [1.0],
         "split_indexfile": None,
     },
-    "radiusgraph": {
+    "geometrygraph": {
         "preload": True,
         "skip_prepare": False,
         "split_ratios": [1.0],
@@ -85,6 +86,7 @@ DATASET_DEFAULT = {
         "cutoff": 6.0,
         "max_num_neighbors": 32,
         "compute_angles": False,
+        "graph_method": "radius",
     },
 }
 
@@ -264,7 +266,7 @@ DATASET_REQUIRED = {
     "e3ee": ["root"],
     "envembed": ["root"],
     "richgraph": ["root"],
-    "radiusgraph": ["root"],
+    "geometrygraph": ["root"],
 }
 
 MODEL_REQUIRED = {

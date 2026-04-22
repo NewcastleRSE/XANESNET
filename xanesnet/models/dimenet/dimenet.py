@@ -137,7 +137,7 @@ class DimeNet(Model):
     ) -> torch.Tensor:
         """
         Forward pass. Expects precomputed edges, distances, angles, and triplet indices
-        (as provided by RadiusGraphDataset with compute_angles=True).
+        (as provided by GeometryGraphDataset with compute_angles=True).
         """
         j, i = edge_index[0], edge_index[1]  # j->i
 

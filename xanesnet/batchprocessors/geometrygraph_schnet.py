@@ -17,16 +17,16 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import torch
 
-from xanesnet.datasets import RadiusGraphBatch
+from xanesnet.datasets import GeometryGraphBatch
 
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-@BatchProcessorRegistry.register("radiusgraph", "schnet")
-class RadiusGraphSchNetBatchProcessor(BatchProcessor):
+@BatchProcessorRegistry.register("geometrygraph", "schnet")
+class GeometryGraphSchNetBatchProcessor(BatchProcessor):
 
-    def input_preparation(self, batch: RadiusGraphBatch) -> dict[str, torch.Tensor]:
+    def input_preparation(self, batch: GeometryGraphBatch) -> dict[str, torch.Tensor]:
         return {
             "z": batch.x,
             "edge_index": batch.edge_index,
@@ -34,11 +34,11 @@ class RadiusGraphSchNetBatchProcessor(BatchProcessor):
             "batch": batch.batch,
         }
 
-    def prediction_preparation(self, batch: RadiusGraphBatch, predictions: torch.Tensor) -> torch.Tensor:
+    def prediction_preparation(self, batch: GeometryGraphBatch, predictions: torch.Tensor) -> torch.Tensor:
         return predictions[batch.absorber_mask]
 
-    def target_preparation(self, batch: RadiusGraphBatch) -> torch.Tensor:
+    def target_preparation(self, batch: GeometryGraphBatch) -> torch.Tensor:
         return batch.intensities
 
-    def file_name_extraction(self, batch: RadiusGraphBatch) -> np.ndarray:
+    def file_name_extraction(self, batch: GeometryGraphBatch) -> np.ndarray:
         return np.array(batch.file_name, dtype=str)
