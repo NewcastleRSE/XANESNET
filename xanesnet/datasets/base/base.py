@@ -16,6 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 import os
+import shutil
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -78,12 +79,19 @@ class Dataset(TorchDataset, ABC):
             return True
 
         # Check root directory and processed data
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
-            logging.info(f"Created root data directory at: {self.root}")
+        if not os.path.exists(self.processed_dir):
+            os.makedirs(self.processed_dir)
+            logging.info(f"Created processed data directory at: {self.processed_dir}")
             return False
         if os.listdir(self.processed_dir):
-            logging.warning("Processed data directory is not empty! Make sure this is intended.")
+            logging.warning("Processed data directory is not empty! Make sure this is intentional.")
+            response = input("INPUT NEEDED \t- Empty processed data directory? [Y/n]: ").strip().lower()
+            if response in ("y", ""):
+                shutil.rmtree(self.processed_dir)
+                os.makedirs(self.processed_dir)
+                logging.info(f"Cleared processed data directory: {self.processed_dir}")
+            else:
+                raise ConfigError("Processed data directory is not empty. Please clear it before proceeding.")
 
         return False
 
