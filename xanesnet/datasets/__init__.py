@@ -17,13 +17,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .base import Dataset, TorchDataset, TorchGeometricDataset
 from .registry import DatasetRegistry
 from .torch import (
+    DescriptorData,
+    DescriptorDataset,
     EnvEmbedData,
     EnvEmbedDataset,
     GemNetBatch,
     GemNetData,
     GemNetDataset,
-    XanesXData,
-    XanesXDataset,
 )
 from .torchgeometric import (
     E3EEBatch,
@@ -38,9 +38,9 @@ __all__ = [
     "Dataset",
     "TorchDataset",
     "TorchGeometricDataset",
-    "XanesXDataset",
+    "DescriptorDataset",
     "DatasetRegistry",
-    "XanesXData",
+    "DescriptorData",
     "GemNetDataset",
     "GemNetData",
     "GemNetBatch",

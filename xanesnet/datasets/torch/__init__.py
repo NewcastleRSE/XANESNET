@@ -14,9 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from .descriptor import DescriptorData, DescriptorDataset
 from .envembed import EnvEmbedData, EnvEmbedDataset
 from .gemset import GemNetBatch, GemNetData, GemNetDataset
-from .xanesx import XanesXData, XanesXDataset
 
 __all__ = [
     "EnvEmbedData",
@@ -24,6 +24,6 @@ __all__ = [
     "GemNetBatch",
     "GemNetData",
     "GemNetDataset",
-    "XanesXData",
-    "XanesXDataset",
+    "DescriptorData",
+    "DescriptorDataset",
 ]

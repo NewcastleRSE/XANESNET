@@ -15,13 +15,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .base import BatchProcessor
+from .descriptor_mlp import XanesXMLPBatchProcessor
 from .e3ee import E3EEBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
 from .gemset_gemnet import GemsetGemNetBatchProcessor
 from .geometrygraph_dimenet import GeometryGraphDimeNetBatchProcessor
 from .geometrygraph_schnet import GeometryGraphSchNetBatchProcessor
 from .registry import BatchProcessorRegistry
-from .xanesx_mlp import XanesXMLPBatchProcessor
 
 __all__ = [
     "BatchProcessor",

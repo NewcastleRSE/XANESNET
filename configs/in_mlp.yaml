@@ -7,7 +7,7 @@ datasource:
 
 dataset:
   # general:
-  dataset_type: xanesx
+  dataset_type: descriptor
   root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False

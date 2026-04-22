@@ -17,26 +17,26 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import torch
 
-from xanesnet.datasets import XanesXData
+from xanesnet.datasets import DescriptorData
 
 from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-@BatchProcessorRegistry.register("xanesx", "mlp")
+@BatchProcessorRegistry.register("descriptor", "mlp")
 class XanesXMLPBatchProcessor(BatchProcessor):
 
-    def input_preparation(self, batch: XanesXData) -> dict[str, torch.Tensor]:
+    def input_preparation(self, batch: DescriptorData) -> dict[str, torch.Tensor]:
         if batch.x is None:
             raise ValueError("Input data 'x' is None!")
         return {"x": batch.x}
 
-    def target_preparation(self, batch: XanesXData) -> torch.Tensor:
+    def target_preparation(self, batch: DescriptorData) -> torch.Tensor:
         if batch.y is None:
             raise ValueError("Target data 'y' is None!")
         return batch.y
 
-    def file_name_extraction(self, batch: XanesXData) -> np.ndarray:
+    def file_name_extraction(self, batch: DescriptorData) -> np.ndarray:
         if batch.file_name is None:
             raise ValueError("Sample ID 'file_name' is None!")
         return np.array(batch.file_name, dtype=str)

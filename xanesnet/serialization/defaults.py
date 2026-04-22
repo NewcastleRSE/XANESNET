@@ -27,7 +27,7 @@ DATASOURCE_DEFAULT = {
 }
 
 DATASET_DEFAULT = {
-    "xanesx": {
+    "descriptor": {
         "preload": True,
         "skip_prepare": False,
         "mode": "forward",
@@ -265,7 +265,7 @@ DATASOURCE_REQUIRED = {
 }
 
 DATASET_REQUIRED = {
-    "xanesx": ["root"],
+    "descriptor": ["root"],
     "gemset": ["root"],
     "e3ee": ["root"],
     "envembed": ["root"],

@@ -36,7 +36,7 @@ SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more centr
 
 
 @dataclass
-class XanesXData:
+class DescriptorData:
     x: torch.Tensor | None = None
     y: torch.Tensor | None = None
     energies: torch.Tensor | None = None
@@ -44,7 +44,7 @@ class XanesXData:
     c_star: torch.Tensor | None = None
     file_name: str | list[str] | None = None
 
-    def to(self, device: str | torch.device) -> "XanesXData":
+    def to(self, device: str | torch.device) -> "DescriptorData":
         # send batch do device
         for attr in ["x", "y", "fourier", "c_star", "energies"]:
             val = getattr(self, attr)
@@ -63,7 +63,7 @@ class XanesXData:
         }
 
     @classmethod
-    def from_state_dict(cls, state: dict[str, Any]) -> "XanesXData":
+    def from_state_dict(cls, state: dict[str, Any]) -> "DescriptorData":
         return cls(
             x=state.get("x"),
             y=state.get("y"),
@@ -78,7 +78,7 @@ class XanesXData:
         return path
 
     @classmethod
-    def load(cls, path: str) -> "XanesXData":
+    def load(cls, path: str) -> "DescriptorData":
         state = torch.load(path, weights_only=True)
         return cls.from_state_dict(state)
 
@@ -88,8 +88,8 @@ class XanesXData:
 ###############################################################################
 
 
-@DatasetRegistry.register("xanesx")
-class XanesXDataset(TorchDataset):
+@DatasetRegistry.register("descriptor")
+class DescriptorDataset(TorchDataset):
     def __init__(
         self,
         dataset_type: str,
@@ -200,7 +200,7 @@ class XanesXDataset(TorchDataset):
                     raise ConfigError(f"Invalid mode: {self.mode}")
 
                 # Create Data object
-                data = XanesXData(
+                data = DescriptorData(
                     x=x,
                     y=y,
                     energies=energies,
@@ -244,7 +244,7 @@ class XanesXDataset(TorchDataset):
                 stride=self.basis_stride,
             )
 
-    def collate_fn(self, batch: list[XanesXData]) -> XanesXData:
+    def collate_fn(self, batch: list[DescriptorData]) -> DescriptorData:
         """
         Collates a list of Data objects into a single Data object with batched tensors.
         """
@@ -254,7 +254,7 @@ class XanesXDataset(TorchDataset):
                 return None
             return torch.stack(tensors)
 
-        return XanesXData(
+        return DescriptorData(
             x=_stack([b.x for b in batch]),
             y=_stack([b.y for b in batch]),
             energies=_stack([b.energies for b in batch]),
@@ -263,8 +263,8 @@ class XanesXDataset(TorchDataset):
             file_name=[b.file_name for b in batch],  # type: ignore[list-item]
         )
 
-    def _load_item(self, path: str) -> XanesXData:
-        return XanesXData.load(path)
+    def _load_item(self, path: str) -> DescriptorData:
+        return DescriptorData.load(path)
 
     @property
     def signature(self) -> Config:
