@@ -31,11 +31,9 @@ from .branch_equivariant import (
 )
 from .branch_path import AbsorberPathAggregator, PairElementEnergyScattering
 from .interactions import EquivariantInteractionBlock
-from .radiusgraph import BatchedRadiusGraphBuilder
 
 __all__ = [
     "AbsorberPathAggregator",
-    "BatchedRadiusGraphBuilder",
     "CosineCutoff",
     "EnergyConditionedAbsorberBranch",
     "EnergyConditionedAtomAttention",

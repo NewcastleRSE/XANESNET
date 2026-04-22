@@ -20,17 +20,20 @@ import torch
 import torch.nn as nn
 from e3nn import o3
 
-from ..utils import build_absorber_relative_geometry
 from .basic import GaussianRBF, IrrepNorm
 from .interactions import EquivariantInteractionBlock
-from .radiusgraph import BatchedRadiusGraphBuilder
 
 
 class EquivariantAtomEncoder(nn.Module):
     """
     Equivariant atom encoder with spherical harmonics message passing.
 
-    Produces per-atom features in the given irreps representation.
+    Consumes precomputed flat edge indices and displacement vectors referring
+    to the padded ``B * N`` layout, so it can be used uniformly for periodic
+    and non-periodic inputs. The absorber-to-neighbour distance is intentionally
+    NOT part of the scalar node input (absorber-distance is not a meaningful
+    global scalar in periodic structures); only the absorber flag is kept.
+    Distance information remains in the message-passing edge RBF.
     """
 
     def __init__(
@@ -52,11 +55,10 @@ class EquivariantAtomEncoder(nn.Module):
         self.irreps_node = cast(o3.Irreps, o3.Irreps(irreps_node))
         self.irreps_message = cast(o3.Irreps, o3.Irreps(irreps_message))
 
-        self.graph_builder = BatchedRadiusGraphBuilder(cutoff=cutoff)
         self.dist_rbf = GaussianRBF(0.0, cutoff, rbf_dim)
         self.z_emb = nn.Embedding(max_z + 1, node_attr_dim)
 
-        self.input_scalar_dim = node_attr_dim + 1 + rbf_dim
+        self.input_scalar_dim = node_attr_dim + 1
         self.input_lin = o3.Linear(
             irreps_in=o3.Irreps(f"{self.input_scalar_dim}x0e"),
             irreps_out=self.irreps_node,
@@ -84,45 +86,44 @@ class EquivariantAtomEncoder(nn.Module):
     def forward(
         self,
         z: torch.Tensor,
-        pos: torch.Tensor,
         mask: torch.Tensor,
-        absorber_index: int = 0,
-        geom: dict[str, torch.Tensor] | None = None,
+        absorber_index: torch.Tensor,
+        edge_src: torch.Tensor,
+        edge_dst: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_vec: torch.Tensor,
     ) -> torch.Tensor:
         """
         Args:
-            z:    [B, N] atomic numbers
-            pos:  [B, N, 3] positions
-            mask: [B, N] valid-atom mask
-            absorber_index: index of the absorber atom
-            geom: precomputed absorber-relative geometry (optional)
+            z:              [B, N] atomic numbers (int64)
+            mask:           [B, N] valid-atom mask
+            absorber_index: [B] absorber index per sample (0..N-1 in padded layout)
+            edge_src:       [E] source flat indices into B*N
+            edge_dst:       [E] destination flat indices into B*N
+            edge_weight:    [E] edge lengths (already computed, PBC-correct)
+            edge_vec:       [E, 3] edge displacement vectors (PBC-correct)
 
         Returns:
             [B, N, irreps_dim] equivariant atom features
         """
-        device = pos.device
+        device = z.device
         bsz, n_atoms = z.shape
 
-        if geom is None:
-            geom = build_absorber_relative_geometry(pos=pos, mask=mask, absorber_index=absorber_index)
-
-        r_abs = geom["r"]
-
-        abs_flag = torch.zeros_like(z, dtype=pos.dtype)
-        abs_flag[:, absorber_index] = 1.0
+        # Scalar input: element embedding + absorber flag (no distance).
+        abs_flag = torch.zeros(bsz, n_atoms, dtype=torch.float32, device=device)
+        batch_arange = torch.arange(bsz, device=device)
+        abs_flag[batch_arange, absorber_index] = 1.0
 
         zf = self.z_emb(z)
-        rf = self.dist_rbf(r_abs.clamp(max=self.cutoff))
+        scalar_in = torch.cat([zf, abs_flag.unsqueeze(-1)], dim=-1)
 
-        scalar_in = torch.cat([zf, abs_flag.unsqueeze(-1), rf], dim=-1)
         x = self.input_lin(scalar_in.reshape(bsz * n_atoms, self.input_scalar_dim))
         flat_mask = mask.reshape(bsz * n_atoms)
         x = x * flat_mask.unsqueeze(-1).to(x.dtype)
 
-        edge_src, edge_dst, edge_vec = self.graph_builder(pos, mask)
-
-        if edge_vec.numel() > 0:
-            edge_len = torch.linalg.norm(edge_vec, dim=-1)
+        # Edge features.
+        if edge_src.numel() > 0:
+            edge_len = edge_weight
             edge_dir = edge_vec / edge_len.unsqueeze(-1).clamp_min(1e-8)
             edge_rbf = self.dist_rbf(edge_len.clamp(max=self.cutoff))
             edge_sh = o3.spherical_harmonics(
@@ -132,9 +133,9 @@ class EquivariantAtomEncoder(nn.Module):
                 normalization="component",
             )
         else:
-            edge_len = torch.zeros(0, device=device, dtype=pos.dtype)
-            edge_rbf = torch.zeros(0, self.rbf_dim, device=device, dtype=pos.dtype)
-            edge_sh = torch.zeros(0, self.irreps_sh.dim, device=device, dtype=pos.dtype)
+            edge_len = torch.zeros(0, device=device, dtype=torch.float32)
+            edge_rbf = torch.zeros(0, self.rbf_dim, device=device, dtype=torch.float32)
+            edge_sh = torch.zeros(0, self.irreps_sh.dim, device=device, dtype=torch.float32)
 
         for block in self.blocks:
             x = block(
@@ -145,6 +146,7 @@ class EquivariantAtomEncoder(nn.Module):
                 edge_rbf=edge_rbf,
                 edge_len=edge_len,
             )
+            # TODO apply mask after each block?
 
         x = self.out_norm(x)
         x = x * flat_mask.unsqueeze(-1).to(x.dtype)

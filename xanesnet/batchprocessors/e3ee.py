@@ -28,20 +28,28 @@ class E3EEBatchProcessor(BatchProcessor):
     """
     Batch processor for the E3EE dataset + E3EE model combination.
 
-    The E3EE dataset collate_fn stacks tensors into padded batches:
-        x:           [B, N]    atomic numbers
-        pos:         [B, N, 3] Cartesian coordinates
-        mask:        [B, N]    boolean mask indicating valid atoms (True) vs padding (False)
-        energies:    [B, nE]   energy grid
-        intensities: [B, nE]   XANES intensities (targets)
+    Node features are padded to ``[B, N_max, ...]``; edge and absorber-path
+    tensors are flat and carry indices into the padded ``B * N_max`` layout
+    (already offset by the dataset collate_fn).
     """
 
     def input_preparation(self, batch: E3EEBatch) -> dict[str, torch.Tensor]:
         return {
             "x": batch.x,
-            "pos": batch.pos,
             "mask": batch.mask,
+            "absorber_index": batch.absorber_index,
+            "edge_src": batch.edge_src,
+            "edge_dst": batch.edge_dst,
+            "edge_weight": batch.edge_weight,
+            "edge_vec": batch.edge_vec,
             "energies": batch.energies,
+            "path_j": batch.path_j,
+            "path_k": batch.path_k,
+            "path_r0j": batch.path_r0j,
+            "path_r0k": batch.path_r0k,
+            "path_rjk": batch.path_rjk,
+            "path_cosangle": batch.path_cosangle,
+            "path_batch": batch.path_batch,
         }
 
     def target_preparation(self, batch: E3EEBatch) -> torch.Tensor:

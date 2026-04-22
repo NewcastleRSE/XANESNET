@@ -14,11 +14,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .geometry import build_absorber_relative_geometry
 from .invariants import invariant_feature_dim, invariant_features_from_irreps
 
 __all__ = [
-    "build_absorber_relative_geometry",
     "invariant_feature_dim",
     "invariant_features_from_irreps",
 ]

@@ -17,26 +17,27 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 import torch.nn as nn
 
-from ..utils import build_absorber_relative_geometry
-from .basic import MLP, CosineCutoff, GaussianRBF
+from .basic import MLP
 
 
 class EnergyConditionedAtomAttention(nn.Module):
     """
-    Faster energy-conditioned attention over atomwise invariant features.
+    Energy-conditioned global attention over invariant atomwise features.
 
     Queries are energy-dependent; keys/values are atom-dependent but
-    energy-independent.
+    energy-independent. Attention runs over all atoms in the unit cell (mask
+    only; no cutoff), with no geometric information — the encoder already
+    supplies local equivariant geometry through ``h``. This makes the branch
+    complementary: it pools chemical-environment context conditioned on
+    energy, rather than replicating the local graph.
     """
 
     def __init__(
         self,
         atom_dim: int,
         e_dim: int,
-        rbf_dim: int,
         hidden_dim: int,
         latent_dim: int,
-        cutoff: float,
         max_z: int = 100,
         z_emb_dim: int = 32,
         n_heads: int = 4,
@@ -47,15 +48,11 @@ class EnergyConditionedAtomAttention(nn.Module):
 
         self.atom_dim = atom_dim
         self.e_dim = e_dim
-        self.rbf_dim = rbf_dim
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
-        self.cutoff = cutoff
         self.n_heads = n_heads
         self.head_dim = latent_dim // n_heads
 
-        self.rbf_fn = GaussianRBF(0.0, cutoff, rbf_dim)
-        self.cutoff_fn = CosineCutoff(cutoff)
         self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
 
         self.query_mlp = MLP(
@@ -65,7 +62,8 @@ class EnergyConditionedAtomAttention(nn.Module):
             n_layers=3,
         )
 
-        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 3 + 1
+        # atom_static = [h, zr, is_abs] — no positional/distance information.
+        atom_static_dim = atom_dim + z_emb_dim + 1
         self.key_mlp = MLP(
             in_dim=atom_static_dim,
             hidden_dim=hidden_dim,
@@ -96,36 +94,28 @@ class EnergyConditionedAtomAttention(nn.Module):
         self,
         h: torch.Tensor,
         z: torch.Tensor,
-        pos: torch.Tensor,
         mask: torch.Tensor,
         e_feat: torch.Tensor,
-        absorber_index: int = 0,
-        geom: dict[str, torch.Tensor] | None = None,
+        absorber_index: torch.Tensor,
     ) -> torch.Tensor:
         """
         Args:
-            h:      [B, N, H] invariant atom features
-            z:      [B, N] atomic numbers
-            pos:    [B, N, 3] positions
-            mask:   [B, N] valid-atom mask
-            e_feat: [nE, dE] energy feature embedding
-            absorber_index: absorber atom index
-            geom:   precomputed absorber-relative geometry
+            h:              [B, N, H] invariant atom features
+            z:              [B, N] atomic numbers
+            mask:           [B, N] valid-atom mask (attention scope)
+            e_feat:         [nE, dE] energy feature embedding
+            absorber_index: [B] absorber index per sample
 
         Returns:
             [B, nE, latent_dim]
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies, e_dim = e_feat.shape
+        device = h.device
 
-        if geom is None:
-            geom = build_absorber_relative_geometry(pos=pos, mask=mask, absorber_index=absorber_index)
+        batch_arange = torch.arange(bsz, device=device)
+        h_abs = h[batch_arange, absorber_index, :]  # [B, H]
 
-        r = geom["r"]  # [B, N]
-        u = geom["u"]  # [B, N, 3]
-        valid = mask & (r <= self.cutoff)
-
-        h_abs = h[:, absorber_index, :]  # [B, H]
         q_in = torch.cat(
             [
                 h_abs.unsqueeze(1).expand(bsz, n_energies, h_dim),
@@ -136,11 +126,10 @@ class EnergyConditionedAtomAttention(nn.Module):
         q = self.query_mlp(q_in)  # [B, nE, L]
 
         zr = self.z_emb(z)  # [B, N, z_emb_dim]
-        rr = self.rbf_fn(r.clamp(max=self.cutoff))  # [B, N, rbf_dim]
-        is_abs = torch.zeros_like(r)
-        is_abs[:, absorber_index] = 1.0
+        is_abs = torch.zeros(bsz, n_atoms, dtype=h.dtype, device=device)
+        is_abs[batch_arange, absorber_index] = 1.0
 
-        atom_static = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)
+        atom_static = torch.cat([h, zr, is_abs.unsqueeze(-1)], dim=-1)
         k = self.key_mlp(atom_static)  # [B, N, L]
         v = self.value_mlp(atom_static)  # [B, N, L]
 
@@ -150,10 +139,7 @@ class EnergyConditionedAtomAttention(nn.Module):
 
         scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) * self.score_scale
 
-        radial_bias = torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
-        scores = scores + radial_bias
-
-        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
+        attn_mask = mask.unsqueeze(1).unsqueeze(-1)  # [B, 1, N, 1]
         scores = scores.masked_fill(~attn_mask, -1e9)
 
         attn = torch.softmax(scores, dim=2)

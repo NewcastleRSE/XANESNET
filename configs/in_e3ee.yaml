@@ -2,24 +2,28 @@ seed: 2025
 device: cuda
 
 datasource:
-  datasource_type: xyzspec
-  xyz_path: ./data/fe/xyz_train
-  xanes_path: ./data/fe/xanes_train
+  datasource_type: pmgjson
+  json_path: /media/hendrik/ExternalSSD/final_data/omnixas_test/
 
 
 dataset: 
   # general:
   dataset_type: e3ee
-  root: ./data/fe/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
   preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
+  # params:
+  cutoff: 6.0
+  max_num_neighbors: 32
+  use_path_terms: True
+  max_paths_per_structure: 128
 
 model:
   # general:
   model_type: e3ee
   # params:
-  out_size: 226
+  out_size: 173
   max_z: 100
   atom_emb_dim: 64
   atom_hidden_dim: 128
@@ -34,8 +38,7 @@ model:
   e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
   e3nn_lmax: 2
   out_mlp_layers: 3
-  use_path_terms: False
-  max_paths_per_structure: 128
+  use_path_terms: True
   residual_scale_init: 0.1
   attention_heads: 4
 

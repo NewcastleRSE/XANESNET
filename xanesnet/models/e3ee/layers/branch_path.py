@@ -17,12 +17,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import torch
 import torch.nn as nn
 
-from ..utils import build_absorber_relative_geometry
 from .basic import MLP, CosineCutoff, GaussianRBF
 
 
 class PairElementEnergyScattering(nn.Module):
-    """Energy-conditioned element-pair scattering features."""
+    """Energy-conditioned element-pair scattering features.
+
+    Operates on flat per-path tensors ``[P, ...]`` rather than padded
+    ``[B, n_paths, ...]``.
+    """
 
     def __init__(
         self,
@@ -47,20 +50,33 @@ class PairElementEnergyScattering(nn.Module):
         z_k: torch.Tensor,
         e_feat: torch.Tensor,
     ) -> torch.Tensor:
-        bsz, n_paths = z_j.shape
+        """
+        Args:
+            z_j:    [P] atomic numbers of the j leg
+            z_k:    [P] atomic numbers of the k leg
+            e_feat: [nE, e_dim]
+
+        Returns:
+            [P, nE, out_dim]
+        """
+        n_paths = z_j.shape[0]
         n_energies, e_dim = e_feat.shape
 
-        ej = self.z_emb(z_j).unsqueeze(2).expand(bsz, n_paths, n_energies, -1)
-        ek = self.z_emb(z_k).unsqueeze(2).expand(bsz, n_paths, n_energies, -1)
-        ef = e_feat.unsqueeze(0).unsqueeze(0).expand(bsz, n_paths, n_energies, e_dim)
+        ej = self.z_emb(z_j).unsqueeze(1).expand(n_paths, n_energies, -1)
+        ek = self.z_emb(z_k).unsqueeze(1).expand(n_paths, n_energies, -1)
+        ef = e_feat.unsqueeze(0).expand(n_paths, n_energies, e_dim)
 
         return self.mlp(torch.cat([ej, ek, ef], dim=-1))
 
 
 class AbsorberPathAggregator(nn.Module):
     """
-    3-body absorber-centred path aggregator for paths (0, j, k),
-    operating on invariant atomwise features.
+    3-body absorber-centred path aggregator for paths (absorber, j, k).
+
+    Consumes precomputed flat triplet scalars (``r0j``, ``r0k``, ``rjk``,
+    ``cos(angle)``) and per-path flat atom indices into the padded ``B * N``
+    node layout, together with ``path_batch`` for scatter-aggregating into the
+    batch dimension.
     """
 
     def __init__(
@@ -71,14 +87,14 @@ class AbsorberPathAggregator(nn.Module):
         scatter_dim: int,
         out_dim: int,
         cutoff: float,
-        max_paths_per_structure: int = 256,
     ) -> None:
         super().__init__()
         self.cutoff = cutoff
-        self.max_paths_per_structure = max_paths_per_structure
+        self.out_dim = out_dim
         self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
         self.cutoff_fn = CosineCutoff(cutoff)
 
+        # 2 * atom_dim (hj, hk) + 3 * rbf_dim (r0j, r0k, rjk) + 1 (cos angle)
         self.geom_mlp = MLP(
             in_dim=2 * atom_dim + 3 * rbf_dim + 1,
             hidden_dim=geom_hidden_dim,
@@ -93,134 +109,76 @@ class AbsorberPathAggregator(nn.Module):
             n_layers=2,
         )
 
-    def _enumerate_paths(
-        self,
-        z: torch.Tensor,
-        pos: torch.Tensor,
-        mask: torch.Tensor,
-        absorber_index: int,
-        geom: dict[str, torch.Tensor] | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        bsz, _ = z.shape
-        device = z.device
-
-        if geom is None:
-            geom = build_absorber_relative_geometry(pos=pos, mask=mask, absorber_index=absorber_index)
-
-        r = geom["r"]
-        valid = geom["valid_neigh"] & (r <= self.cutoff)
-
-        all_j: list[torch.Tensor] = []
-        all_k: list[torch.Tensor] = []
-        all_m: list[torch.Tensor] = []
-        pmax = self.max_paths_per_structure
-
-        for b in range(bsz):
-            idx = torch.where(valid[b])[0]
-
-            if idx.numel() < 2:
-                j_idx = torch.zeros(pmax, dtype=torch.long, device=device)
-                k_idx = torch.zeros(pmax, dtype=torch.long, device=device)
-                pmask = torch.zeros(pmax, dtype=torch.bool, device=device)
-            else:
-                pairs = torch.combinations(idx, r=2)
-
-                pos0 = pos[b, absorber_index].unsqueeze(0)
-                posj = pos[b, pairs[:, 0]]
-                posk = pos[b, pairs[:, 1]]
-
-                r0j = torch.linalg.norm(posj - pos0, dim=-1)
-                r0k = torch.linalg.norm(posk - pos0, dim=-1)
-                rjk = torch.linalg.norm(posk - posj, dim=-1)
-
-                score = r0j + r0k + 0.5 * rjk
-                order = torch.argsort(score)
-                pairs = pairs[order]
-
-                if pairs.shape[0] > pmax:
-                    pairs = pairs[:pmax]
-
-                n_pairs = pairs.shape[0]
-                j_idx = torch.zeros(pmax, dtype=torch.long, device=device)
-                k_idx = torch.zeros(pmax, dtype=torch.long, device=device)
-                pmask = torch.zeros(pmax, dtype=torch.bool, device=device)
-
-                j_idx[:n_pairs] = pairs[:, 0]
-                k_idx[:n_pairs] = pairs[:, 1]
-                pmask[:n_pairs] = True
-
-            all_j.append(j_idx)
-            all_k.append(k_idx)
-            all_m.append(pmask)
-
-        return (
-            torch.stack(all_j, dim=0),
-            torch.stack(all_k, dim=0),
-            torch.stack(all_m, dim=0),
-        )
-
     def forward(
         self,
-        h: torch.Tensor,
-        z: torch.Tensor,
-        pos: torch.Tensor,
-        mask: torch.Tensor,
+        h_flat: torch.Tensor,
+        z_flat: torch.Tensor,
         pair_elem_energy: PairElementEnergyScattering,
         e_feat: torch.Tensor,
-        absorber_index: int = 0,
-        geom: dict[str, torch.Tensor] | None = None,
+        path_j: torch.Tensor,
+        path_k: torch.Tensor,
+        path_r0j: torch.Tensor,
+        path_r0k: torch.Tensor,
+        path_rjk: torch.Tensor,
+        path_cosangle: torch.Tensor,
+        path_batch: torch.Tensor,
+        bsz: int,
     ) -> torch.Tensor:
-        bsz, _, _ = h.shape
-        device = h.device
+        """
+        Args:
+            h_flat:        [B*N, atom_dim] invariant atom features (flattened)
+            z_flat:        [B*N] atomic numbers (flattened)
+            e_feat:        [nE, e_dim]
+            path_j:        [P] flat atom indices for leg j (into B*N)
+            path_k:        [P] flat atom indices for leg k (into B*N)
+            path_r0j:      [P]
+            path_r0k:      [P]
+            path_rjk:      [P]
+            path_cosangle: [P]
+            path_batch:    [P] batch index per path (0..B-1)
+            bsz:           batch size
 
-        if geom is None:
-            geom = build_absorber_relative_geometry(pos=pos, mask=mask, absorber_index=absorber_index)
+        Returns:
+            [B, nE, out_dim]
+        """
+        device = h_flat.device
+        n_energies = e_feat.shape[0]
+        n_paths = path_j.shape[0]
 
-        j_idx, k_idx, path_mask = self._enumerate_paths(
-            z=z, pos=pos, mask=mask, absorber_index=absorber_index, geom=geom
-        )
-        batch_idx = torch.arange(bsz, device=device)[:, None]
+        if n_paths == 0:
+            return torch.zeros(bsz, n_energies, self.out_dim, device=device, dtype=h_flat.dtype)
 
-        hj = h[batch_idx, j_idx]
-        hk = h[batch_idx, k_idx]
+        hj = h_flat[path_j]
+        hk = h_flat[path_k]
 
-        pos0 = pos[:, absorber_index, :].unsqueeze(1)
-        posj = pos[batch_idx, j_idx]
-        posk = pos[batch_idx, k_idx]
+        f0j = self.rbf(path_r0j.clamp(max=self.cutoff))
+        f0k = self.rbf(path_r0k.clamp(max=self.cutoff))
+        fjk = self.rbf(path_rjk.clamp(max=self.cutoff))
 
-        vj = posj - pos0
-        vk = posk - pos0
-        vjk = posk - posj
+        geom_in = torch.cat([hj, hk, f0j, f0k, fjk, path_cosangle.unsqueeze(-1)], dim=-1)
+        g_geom = self.geom_mlp(geom_in)  # [P, scatter_dim]
 
-        r0j = torch.linalg.norm(vj, dim=-1)
-        r0k = torch.linalg.norm(vk, dim=-1)
-        rjk = torch.linalg.norm(vjk, dim=-1)
+        zj = z_flat[path_j]
+        zk = z_flat[path_k]
+        g_elem = pair_elem_energy(zj, zk, e_feat)  # [P, nE, scatter_dim]
 
-        uj = vj / r0j.unsqueeze(-1).clamp_min(1e-8)
-        uk = vk / r0k.unsqueeze(-1).clamp_min(1e-8)
-        cosang = (uj * uk).sum(dim=-1, keepdim=True).clamp(-1.0, 1.0)
+        cutoff_w = (
+            (self.cutoff_fn(path_r0j) * self.cutoff_fn(path_r0k) * self.cutoff_fn(path_rjk)).unsqueeze(-1).unsqueeze(-1)
+        )  # [P, 1, 1]
 
-        f0j = self.rbf(r0j.clamp(max=self.cutoff))
-        f0k = self.rbf(r0k.clamp(max=self.cutoff))
-        fjk = self.rbf(rjk.clamp(max=self.cutoff))
-
-        geom_in = torch.cat([hj, hk, f0j, f0k, fjk, cosang], dim=-1)
-        g_geom = self.geom_mlp(geom_in)
-
-        zj = z[batch_idx, j_idx]
-        zk = z[batch_idx, k_idx]
-        g_elem = pair_elem_energy(zj, zk, e_feat)
-
-        cutoff_w = (self.cutoff_fn(r0j) * self.cutoff_fn(r0k) * self.cutoff_fn(rjk)).unsqueeze(-1).unsqueeze(-1)
-
-        contrib = g_geom.unsqueeze(2) * g_elem
+        contrib = g_geom.unsqueeze(1) * g_elem  # [P, nE, scatter_dim]
         contrib = contrib * cutoff_w
-        contrib = contrib * path_mask.unsqueeze(-1).unsqueeze(-1).to(contrib.dtype)
 
-        agg = contrib.sum(dim=1)
+        scatter_dim = contrib.shape[-1]
+        agg = torch.zeros(bsz, n_energies, scatter_dim, device=device, dtype=contrib.dtype)
+        norm = torch.zeros(bsz, 1, 1, device=device, dtype=contrib.dtype)
 
-        norm = cutoff_w.squeeze(-1) * path_mask.unsqueeze(-1).to(cutoff_w.dtype)
-        norm = norm.sum(dim=1).clamp_min(1e-8)
-        agg = agg / norm.unsqueeze(1)
+        batch_expand = path_batch.view(-1, 1, 1).expand(-1, n_energies, scatter_dim)
+        agg.scatter_add_(0, batch_expand, contrib)
+
+        norm_expand = path_batch.view(-1, 1, 1)
+        norm.scatter_add_(0, norm_expand, cutoff_w.squeeze(-1).unsqueeze(-1))
+
+        agg = agg / norm.clamp_min(1e-8)
 
         return self.out_proj(agg)
