@@ -15,12 +15,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .e3ee import E3EEBatch, E3EEDataset
+from .e3ee_full import E3EEFullBatch, E3EEFullDataset
 from .geometrygraph import GeometryGraphBatch, GeometryGraphData, GeometryGraphDataset
 from .richgraph import RichGraphDataset
 
 __all__ = [
     "E3EEBatch",
     "E3EEDataset",
+    "E3EEFullBatch",
+    "E3EEFullDataset",
     "RichGraphDataset",
     "GeometryGraphBatch",
     "GeometryGraphData",

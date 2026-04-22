@@ -17,6 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from .base import BatchProcessor
 from .descriptor_mlp import XanesXMLPBatchProcessor
 from .e3ee import E3EEBatchProcessor
+from .e3ee_full import E3EEFullBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
 from .gemset_gemnet import GemsetGemNetBatchProcessor
 from .geometrygraph_dimenet import GeometryGraphDimeNetBatchProcessor
@@ -29,6 +30,7 @@ __all__ = [
     "XanesXMLPBatchProcessor",
     "GemsetGemNetBatchProcessor",
     "E3EEBatchProcessor",
+    "E3EEFullBatchProcessor",
     "EnvEmbedBatchProcessor",
     "GeometryGraphDimeNetBatchProcessor",
     "GeometryGraphSchNetBatchProcessor",

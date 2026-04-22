@@ -8,22 +8,22 @@ datasource:
 
 dataset:
   # general:
-  dataset_type: e3ee
-  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
-  preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
+  dataset_type: e3ee_full
+  root: ./data/omnixas/processed_train/ # Where should the processed data be stored
+  preload: True # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
   # params:
   cutoff: 6.0
   max_num_neighbors: 32
   use_path_terms: True
-  max_paths_per_structure: 128
+  max_paths_per_site: 32
   graph_method: voronoi
   min_facet_area: 5%
 
 model:
   # general:
-  model_type: e3ee
+  model_type: e3ee_full
   # params:
   out_size: 173
   max_z: 100
@@ -40,14 +40,14 @@ model:
   e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
   e3nn_lmax: 2
   out_mlp_layers: 3
-  use_path_terms: False
+  use_path_terms: True
   residual_scale_init: 0.1
   attention_heads: 4
 
 trainer:
   # general:
   trainer_type: basic
-  batch_size: 4
+  batch_size: 1 # use_path_terms heavily increases memory requirements, so we use batch size 1 for now
   shuffle: True
   drop_last: False
   num_workers: 0

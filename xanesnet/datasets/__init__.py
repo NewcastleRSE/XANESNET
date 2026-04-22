@@ -28,6 +28,8 @@ from .torch import (
 from .torchgeometric import (
     E3EEBatch,
     E3EEDataset,
+    E3EEFullBatch,
+    E3EEFullDataset,
     GeometryGraphBatch,
     GeometryGraphData,
     GeometryGraphDataset,
@@ -48,6 +50,8 @@ __all__ = [
     "EnvEmbedData",
     "EnvEmbedDataset",
     "E3EEBatch",
+    "E3EEFullBatch",
+    "E3EEFullDataset",
     "RichGraphDataset",
     "GeometryGraphBatch",
     "GeometryGraphData",
