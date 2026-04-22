@@ -174,12 +174,9 @@ class XanesXDataset(TorchDataset):
                 df = torch.tensor(df, dtype=torch.float32)
 
                 # XANES
-                energies, intensities = (
-                    pmg_obj.site_properties["XANES"][site_idx]["energies"],
-                    pmg_obj.site_properties["XANES"][site_idx]["intensities"],
-                )
-                energies = torch.tensor(energies, dtype=torch.float32)
-                intensities = torch.tensor(intensities, dtype=torch.float32)
+                spectrum = pmg_obj.site_properties[key][site_idx]
+                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
+                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
 
                 # FFT
                 fourier = None
