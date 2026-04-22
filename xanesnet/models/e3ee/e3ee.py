@@ -67,7 +67,10 @@ class E3EE(Model):
         e3nn_irreps_message: str,
         e3nn_lmax: int,
         out_mlp_layers: int,
-        use_path_terms: bool,
+        use_invariant_branch: bool,
+        use_attention_branch: bool,
+        use_equivariant_branch: bool,
+        use_path_branch: bool,
         residual_scale_init: float,
         attention_heads: int,
     ) -> None:
@@ -88,7 +91,10 @@ class E3EE(Model):
         self.e3nn_irreps_message = e3nn_irreps_message
         self.e3nn_lmax = e3nn_lmax
         self.out_mlp_layers = out_mlp_layers
-        self.use_path_terms = use_path_terms
+        self.use_invariant_branch = use_invariant_branch
+        self.use_attention_branch = use_attention_branch
+        self.use_equivariant_branch = use_equivariant_branch
+        self.use_path_branch = use_path_branch
         self.residual_scale_init = residual_scale_init
         self.attention_heads = attention_heads
 
@@ -119,35 +125,38 @@ class E3EE(Model):
             n_rbf=energy_rbf_dim,
         )
 
-        # Branch 1: absorber invariant features + energy
-        self.abs_branch = EnergyConditionedAbsorberBranch(
-            atom_dim=self._inv_dim,
-            e_dim=energy_rbf_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=latent_dim,
-        )
+        # Branch 1 (optional): absorber invariant features + energy
+        if self.use_invariant_branch:
+            self.abs_branch = EnergyConditionedAbsorberBranch(
+                atom_dim=self._inv_dim,
+                e_dim=energy_rbf_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=latent_dim,
+            )
 
-        # Branch 2: energy-conditioned atom attention
-        self.atom_attention = EnergyConditionedAtomAttention(
-            atom_dim=self._inv_dim,
-            e_dim=energy_rbf_dim,
-            hidden_dim=atom_hidden_dim,
-            latent_dim=latent_dim,
-            max_z=max_z,
-            z_emb_dim=32,
-            n_heads=attention_heads,
-        )
+        # Branch 2 (optional): energy-conditioned atom attention
+        if self.use_attention_branch:
+            self.atom_attention = EnergyConditionedAtomAttention(
+                atom_dim=self._inv_dim,
+                e_dim=energy_rbf_dim,
+                hidden_dim=atom_hidden_dim,
+                latent_dim=latent_dim,
+                max_z=max_z,
+                z_emb_dim=32,
+                n_heads=attention_heads,
+            )
 
-        # Branch 3: late equivariant absorber head
-        self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
-            irreps_node=self.atom_encoder.irreps_node,
-            e_dim=energy_rbf_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=latent_dim,
-        )
+        # Branch 3 (optional): late equivariant absorber head
+        if self.use_equivariant_branch:
+            self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
+                irreps_node=self.atom_encoder.irreps_node,
+                e_dim=energy_rbf_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=latent_dim,
+            )
 
         # Branch 4 (optional): 3-body path terms
-        if self.use_path_terms:
+        if self.use_path_branch:
             self.pair_elem_energy = PairElementEnergyScattering(
                 max_z=max_z,
                 z_emb_dim=32,
@@ -165,7 +174,13 @@ class E3EE(Model):
             )
 
         # Final head MLP
-        head_in_dim = 4 * latent_dim if self.use_path_terms else 3 * latent_dim
+        n_active = (
+            int(self.use_invariant_branch)
+            + int(self.use_attention_branch)
+            + int(self.use_equivariant_branch)
+            + int(self.use_path_branch)
+        )
+        head_in_dim = n_active * latent_dim
         self.head = MLP(
             in_dim=head_in_dim,
             hidden_dim=head_hidden_dim,
@@ -238,25 +253,31 @@ class E3EE(Model):
         h_abs = h[batch_arange, absorber_index, :]
         h_abs_full = h_full[batch_arange, absorber_index, :]
 
-        # Branch 1: absorber invariant features + energy
-        abs_lat = self.abs_branch(h_abs, e_feat)  # [B, nE, latent]
+        parts = []
 
-        # Branch 2: energy-conditioned atom attention
-        attn_lat = self.atom_attention(
-            h=h,
-            z=x,
-            mask=mask,
-            e_feat=e_feat,
-            absorber_index=absorber_index,
-        )  # [B, nE, latent]
+        # Branch 1 (optional): absorber invariant features + energy
+        if self.use_invariant_branch:
+            abs_lat = self.abs_branch(h_abs, e_feat)  # [B, nE, latent]
+            parts.append(abs_lat)
 
-        # Branch 3: late equivariant absorber head
-        eq_abs_lat = self.eq_abs_head(h_abs_full, e_feat)  # [B, nE, latent]
+        # Branch 2 (optional): energy-conditioned atom attention
+        if self.use_attention_branch:
+            attn_lat = self.atom_attention(
+                h=h,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                absorber_index=absorber_index,
+            )  # [B, nE, latent]
+            parts.append(attn_lat)
 
-        parts = [abs_lat, attn_lat, eq_abs_lat]
+        # Branch 3 (optional): late equivariant absorber head
+        if self.use_equivariant_branch:
+            eq_abs_lat = self.eq_abs_head(h_abs_full, e_feat)  # [B, nE, latent]
+            parts.append(eq_abs_lat)
 
         # Branch 4 (optional): 3-body path terms
-        if self.use_path_terms:
+        if self.use_path_branch:
             h_flat = h.reshape(bsz * n_atoms, self._inv_dim)
             z_flat = x.reshape(bsz * n_atoms)
             path_lat = self.path_agg(
@@ -314,7 +335,10 @@ class E3EE(Model):
                 "e3nn_irreps_message": self.e3nn_irreps_message,
                 "e3nn_lmax": self.e3nn_lmax,
                 "out_mlp_layers": self.out_mlp_layers,
-                "use_path_terms": self.use_path_terms,
+                "use_invariant_branch": self.use_invariant_branch,
+                "use_attention_branch": self.use_attention_branch,
+                "use_equivariant_branch": self.use_equivariant_branch,
+                "use_path_branch": self.use_path_branch,
                 "residual_scale_init": self.residual_scale_init,
                 "attention_heads": self.attention_heads,
             }

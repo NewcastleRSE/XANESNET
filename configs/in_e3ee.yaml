@@ -16,7 +16,7 @@ dataset:
   # params:
   cutoff: 6.0
   max_num_neighbors: 32
-  use_path_terms: True
+  use_path_branch: False
   max_paths_per_structure: 128
   graph_method: voronoi
   min_facet_area: 5%
@@ -40,7 +40,10 @@ model:
   e3nn_irreps_message: "16x0e + 8x1o + 4x2e"
   e3nn_lmax: 2
   out_mlp_layers: 3
-  use_path_terms: False
+  use_invariant_branch: True
+  use_attention_branch: False
+  use_equivariant_branch: True
+  use_path_branch: False
   residual_scale_init: 0.1
   attention_heads: 4
 

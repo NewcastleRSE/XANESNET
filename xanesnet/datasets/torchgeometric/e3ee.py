@@ -90,7 +90,7 @@ class E3EEDataset(TorchGeometricDataset):
         # params
         cutoff: float,
         max_num_neighbors: int,
-        use_path_terms: bool,
+        use_path_branch: bool,
         max_paths_per_structure: int,
         graph_method: str,
         min_facet_area: float | str | None,
@@ -100,7 +100,7 @@ class E3EEDataset(TorchGeometricDataset):
 
         self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
-        self.use_path_terms = use_path_terms
+        self.use_path_branch = use_path_branch
         self.max_paths_per_structure = max_paths_per_structure
         self.graph_method = graph_method
         self.min_facet_area = min_facet_area
@@ -157,7 +157,7 @@ class E3EEDataset(TorchGeometricDataset):
                     "file_name": f"{pmg_obj.properties['file_name']}::site_{site_idx}",
                 }
 
-                if self.use_path_terms:
+                if self.use_path_branch:
                     paths = build_absorber_paths(
                         pmg_obj,
                         absorber_idx=site_idx,
@@ -295,7 +295,7 @@ class E3EEDataset(TorchGeometricDataset):
             {
                 "cutoff": self.cutoff,
                 "max_num_neighbors": self.max_num_neighbors,
-                "use_path_terms": self.use_path_terms,
+                "use_path_branch": self.use_path_branch,
                 "max_paths_per_structure": self.max_paths_per_structure,
                 "graph_method": self.graph_method,
                 "min_facet_area": self.min_facet_area,

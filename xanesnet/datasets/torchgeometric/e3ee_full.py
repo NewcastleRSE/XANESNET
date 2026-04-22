@@ -95,7 +95,7 @@ class E3EEFullDataset(TorchGeometricDataset):
         # params
         cutoff: float,
         max_num_neighbors: int,
-        use_path_terms: bool,
+        use_path_branch: bool,
         max_paths_per_site: int,
         graph_method: str,
         min_facet_area: float | str | None,
@@ -105,7 +105,7 @@ class E3EEFullDataset(TorchGeometricDataset):
 
         self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
-        self.use_path_terms = use_path_terms
+        self.use_path_branch = use_path_branch
         self.max_paths_per_site = max_paths_per_site
         self.graph_method = graph_method
         self.min_facet_area = min_facet_area
@@ -171,7 +171,7 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "file_name": [f"{pmg_obj.properties['file_name']}::site_{si}" for si in absorber_idxs],
             }
 
-            if self.use_path_terms:
+            if self.use_path_branch:
                 centers: list[torch.Tensor] = []
                 j_list: list[torch.Tensor] = []
                 k_list: list[torch.Tensor] = []
@@ -359,7 +359,7 @@ class E3EEFullDataset(TorchGeometricDataset):
             {
                 "cutoff": self.cutoff,
                 "max_num_neighbors": self.max_num_neighbors,
-                "use_path_terms": self.use_path_terms,
+                "use_path_branch": self.use_path_branch,
                 "max_paths_per_site": self.max_paths_per_site,
                 "graph_method": self.graph_method,
                 "min_facet_area": self.min_facet_area,
