@@ -16,7 +16,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .absorber_paths import build_absorber_paths
 from .edges import GRAPH_METHODS, build_edges
-from .radius import build_edges_radius, edges_from_molecule, edges_from_structure
+from .radius import (
+    build_edges_cov_radius,
+    build_edges_radius,
+    edges_from_molecule,
+    edges_from_structure,
+)
 from .triplets import compute_triplets_and_angles
 from .voronoi import build_edges_voronoi
 
@@ -24,6 +29,7 @@ __all__ = [
     "GRAPH_METHODS",
     "build_absorber_paths",
     "build_edges",
+    "build_edges_cov_radius",
     "build_edges_radius",
     "build_edges_voronoi",
     "compute_triplets_and_angles",

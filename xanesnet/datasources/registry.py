@@ -15,18 +15,21 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections.abc import Callable
+from typing import TypeVar
 
 from .base import DataSource
+
+_T = TypeVar("_T", bound=DataSource)
 
 
 class DataSourceRegistry:
     _registry: dict[str, type[DataSource]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[type[DataSource]], type[DataSource]]:
+    def register(cls, name: str) -> Callable[[type[_T]], type[_T]]:
         name = name.lower()
 
-        def decorator(ds_cls: type[DataSource]) -> type[DataSource]:
+        def decorator(ds_cls: type[_T]) -> type[_T]:
             if name in cls._registry:
                 raise KeyError(f"DataSource '{name}' already registered")
             cls._registry[name] = ds_cls

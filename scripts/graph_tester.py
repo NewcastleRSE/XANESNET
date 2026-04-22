@@ -353,6 +353,19 @@ def main():
         help="Edge construction method (matches xanesnet.utils.graph.build_edges)",
     )
     p.add_argument(
+        "--min-facet-area",
+        type=str,
+        default=None,
+        help="Voronoi only: drop facets below this area. Absolute float in A^2 "
+        "(e.g. 0.25) or a percentage of the max facet area (e.g. '1.0%%').",
+    )
+    p.add_argument(
+        "--cov-radii-scale",
+        type=float,
+        default=1.5,
+        help="cov_radius only: scale factor on (r_cov_i + r_cov_j).",
+    )
+    p.add_argument(
         "--show-voronoi",
         action="store_true",
         help="Overlay Voronoi tessellation facets on the edges panel (any method)",
@@ -376,12 +389,19 @@ def main():
     if not (0 <= args.absorber_idx < n_atoms):
         raise SystemExit(f"--absorber-idx {args.absorber_idx} out of range [0, {n_atoms})")
 
+    # min_facet_area is a float-or-string: coerce string-looking floats to float
+    min_facet_area = args.min_facet_area
+    if min_facet_area is not None and not min_facet_area.endswith("%"):
+        min_facet_area = float(min_facet_area)
+
     edge_index, edge_weight, edge_vec, edge_attr = build_edges(
         pmg_obj,
         cutoff=args.cutoff,
         max_num_neighbors=args.max_neighbors,
         compute_vectors=True,
         method=args.graph_method,
+        min_facet_area=min_facet_area,
+        cov_radii_scale=args.cov_radii_scale,
     )
     assert edge_vec is not None
     edge_src = edge_index[0].numpy()
@@ -567,6 +587,10 @@ def main():
     print(f"absorber:        idx={args.absorber_idx}  ({abs_sym})")
     print(f"cutoff:          {args.cutoff} A   max_neighbors: {args.max_neighbors}")
     print(f"graph method:    {args.graph_method}")
+    if args.graph_method == "voronoi":
+        print(f"min facet area:  {args.min_facet_area}")
+    if args.graph_method == "cov_radius":
+        print(f"cov radii scale: {args.cov_radii_scale}")
     print(f"# edges:         {edge_index.shape[1]}  PBC crossings: {n_pbc}")
     if edge_w_np.size:
         print(f"edge weight:     min={edge_w_np.min():.3f}  " f"mean={edge_w_np.mean():.3f}  max={edge_w_np.max():.3f}")
@@ -617,9 +641,6 @@ def main():
     if not args.no_show:
         plt.show()
 
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()

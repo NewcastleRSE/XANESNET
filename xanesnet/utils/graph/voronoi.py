@@ -17,8 +17,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import torch
 from pymatgen.core import Molecule, Structure
-from scipy.spatial import Voronoi
-from scipy.spatial.qhull import QhullError
+from scipy.spatial import QhullError, Voronoi
 
 from .symmetrize import symmetrize_directed_edges, truncate_per_source
 
@@ -154,10 +153,32 @@ def _voronoi_edges(
     return src, dst, dist, vec, area
 
 
+def _resolve_min_facet_area(
+    min_facet_area: float | str | None,
+    areas: np.ndarray,
+) -> float:
+    """
+    Resolve ``min_facet_area`` into an absolute threshold in Å².
+
+    ``None`` -> no filtering (returned as 0.0).
+    ``float`` -> absolute threshold.
+    ``str`` ending with '%' -> fraction of the maximum facet area in ``areas``.
+    Config validity is assumed.
+    """
+    if min_facet_area is None:
+        return 0.0
+    if isinstance(min_facet_area, str):
+        pct = float(min_facet_area.rstrip("%").strip()) / 100.0
+        amax = float(areas.max()) if areas.size > 0 else 0.0
+        return pct * amax
+    return float(min_facet_area)
+
+
 def build_edges_voronoi(
     pmg_obj: Structure | Molecule,
     cutoff: float,
     max_num_neighbors: int,
+    min_facet_area: float | str | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Voronoi-tessellation edge construction.
@@ -173,6 +194,11 @@ def build_edges_voronoi(
     apart than ``cutoff`` are dropped. ``max_num_neighbors`` keeps the
     shortest edges per source node. After truncation, edges are symmetrised
     so the returned graph is guaranteed to be bidirectional.
+
+    ``min_facet_area`` optionally drops edges whose Voronoi facet area is
+    below a threshold. It may be a ``float`` (absolute threshold in Å²) or
+    a string like ``"1.0%"`` (fraction of the largest facet in this
+    structure). ``None`` disables the filter.
 
     Returns ``(edge_index, edge_weight, edge_vec, edge_attr)`` where
     ``edge_attr`` holds the facet area per edge.
@@ -201,10 +227,21 @@ def build_edges_voronoi(
     edge_vec = torch.tensor(np.stack(vec_l, axis=0), dtype=torch.float32)
     edge_attr = torch.tensor(area_l, dtype=torch.float32)
 
+    # Optional facet-area filter (absolute Å² or "x%" of max facet area).
+    area_threshold = _resolve_min_facet_area(min_facet_area, edge_attr.numpy())
+    if area_threshold > 0.0:
+        keep = edge_attr >= area_threshold
+        edge_index = edge_index[:, keep]
+        edge_weight = edge_weight[keep]
+        edge_vec = edge_vec[keep]
+        edge_attr = edge_attr[keep]
+
     edge_index, edge_weight, edge_vec, edge_attr = truncate_per_source(
         edge_index, edge_weight, edge_vec, edge_attr, max_num_neighbors
     )
     edge_index, edge_weight, edge_vec, edge_attr = symmetrize_directed_edges(
         edge_index, edge_weight, edge_vec, edge_attr
     )
+    # edge_attr is never dropped by the helpers when a Tensor is passed in.
+    assert edge_attr is not None
     return edge_index, edge_weight, edge_vec, edge_attr

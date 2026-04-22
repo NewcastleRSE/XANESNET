@@ -100,6 +100,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
         max_num_neighbors: int,
         compute_angles: bool,
         graph_method: str,
+        min_facet_area: float | str | None,
+        cov_radii_scale: float,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
@@ -107,6 +109,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
         self.max_num_neighbors = max_num_neighbors
         self.compute_angles = compute_angles
         self.graph_method = graph_method
+        self.min_facet_area = min_facet_area
+        self.cov_radii_scale = cov_radii_scale
 
     def prepare(self) -> bool:
         skip_processing = super().prepare()
@@ -147,6 +151,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
                 self.max_num_neighbors,
                 self.compute_angles,
                 self.graph_method,
+                self.min_facet_area,
+                self.cov_radii_scale,
             )
 
             struct = GeometryGraphData(
@@ -185,6 +191,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
         max_num_neighbors: int,
         compute_angles: bool,
         graph_method: str,
+        min_facet_area: float | str | None,
+        cov_radii_scale: float,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         """
         Build edges (and optionally triplet angles) for the molecular/crystal graph using the selected ``graph_method``.
@@ -201,6 +209,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
             max_num_neighbors,
             compute_vectors=compute_angles,
             method=graph_method,
+            min_facet_area=min_facet_area,
+            cov_radii_scale=cov_radii_scale,
         )
 
         if not compute_angles:
@@ -234,6 +244,8 @@ class GeometryGraphDataset(TorchGeometricDataset):
                 "max_num_neighbors": self.max_num_neighbors,
                 "compute_angles": self.compute_angles,
                 "graph_method": self.graph_method,
+                "min_facet_area": self.min_facet_area,
+                "cov_radii_scale": self.cov_radii_scale,
             }
         )
         return signature

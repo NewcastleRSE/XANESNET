@@ -60,6 +60,8 @@ DATASET_DEFAULT = {
         "use_path_terms": False,
         "max_paths_per_structure": 128,
         "graph_method": "radius",
+        "min_facet_area": None,
+        "cov_radii_scale": 1.5,
     },
     "envembed": {
         "preload": True,
@@ -87,6 +89,8 @@ DATASET_DEFAULT = {
         "max_num_neighbors": 32,
         "compute_angles": False,
         "graph_method": "radius",
+        "min_facet_area": None,
+        "cov_radii_scale": 1.5,
     },
 }
 
