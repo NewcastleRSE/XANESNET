@@ -1,8 +1,24 @@
 """
+XANESNET
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either Version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+"""
 Graph construction visual tester.
 
 Standalone diagnostic script to visually confirm that the graph-building logic
-used by RadiusGraphDataset and E3EEDataset behaves correctly for both periodic
+used by GeometryGraphDataset and E3EEDataset behaves correctly for both periodic
 Structures and non-periodic Molecules. Useful when picking sensible values for
 ``cutoff`` and ``max_num_neighbors``.
 
@@ -10,19 +26,17 @@ Input is a ``pmgjson`` datasource directory (same layout as used by the rest
 of XANESNET) - each ``.json`` holds a single pymatgen Structure or Molecule.
 A sample is selected by index or by file stem.
 
-Produces three 3D views of the same structure - edges only, radiusgraph
+Produces three 3D views of the same structure - edges only, geometrygraph
 triplets only, e3ee absorber paths only - plus histograms of edge weights,
 per-atom out-degree, and angle distributions.
 
 Run:
     python scripts/graph_tester.py --json-dir data/fe/json_train --index 0 \
-        --cutoff 6.0 --max-neighbors 32
+        --cutoff 6.0 --max-neighbors 32 --graph-method voronoi --show-voronoi
 
 This script does NOT import any model code; it only exercises the shared
 ``xanesnet.utils.graph`` helpers, matching what the datasets do at prepare().
 """
-
-from __future__ import annotations
 
 import argparse
 import itertools
@@ -39,8 +53,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from xanesnet.datasources.pmgjson import PMGJSONSource  # noqa: E402
-from xanesnet.utils.graph import (  # noqa: E402
+from xanesnet.datasources.pmgjson import PMGJSONSource
+from xanesnet.utils.graph import (
+    GRAPH_METHODS,
     build_absorber_paths,
     build_edges,
     compute_triplets_and_angles,
@@ -69,7 +84,7 @@ def element_colors(atomic_numbers: np.ndarray) -> list[tuple[float, float, float
         try:
             rgb = Element.from_Z(int(z)).color
             colors.append(tuple(float(c) for c in rgb))  # type: ignore[arg-type]
-        except Exception:  # noqa: BLE001
+        except Exception:
             colors.append((0.5, 0.5, 0.5))
     return colors
 
@@ -212,6 +227,113 @@ def setup_axis(ax, pmg_obj, coords, atomic_numbers, absorber_idx, vis_points, is
     equalize_3d_axes(ax, vis_points)
 
 
+def compute_voronoi_facets(pmg_obj, cutoff):
+    """
+    Return a list of (polygon_verts [k,3], area, pair_distance) for Voronoi
+    facets where at least one endpoint is in the central cell (or, for a
+    Molecule, any finite facet). Edges whose midpoint-pair distance exceeds
+    ``cutoff`` are dropped, matching ``build_edges_voronoi``.
+
+    Independent scipy reimplementation so the script does not reach into
+    private helpers of ``xanesnet.utils.graph``.
+    """
+    from scipy.spatial import (  # local import keeps import cost optional
+        QhullError,
+        Voronoi,
+    )
+
+    if isinstance(pmg_obj, Structure):
+        lat = np.array(pmg_obj.lattice.matrix, dtype=np.float64)
+        volume = float(abs(np.linalg.det(lat)))
+        perp = np.array(
+            [
+                volume / float(np.linalg.norm(np.cross(lat[1], lat[2]))),
+                volume / float(np.linalg.norm(np.cross(lat[2], lat[0]))),
+                volume / float(np.linalg.norm(np.cross(lat[0], lat[1]))),
+            ],
+            dtype=np.float64,
+        )
+        n_reps = np.maximum(1, np.ceil(cutoff / perp).astype(int))
+        base = np.array(pmg_obj.cart_coords, dtype=np.float64)
+        pts: list[np.ndarray] = []
+        is_center_list: list[np.ndarray] = []
+        for a in range(-int(n_reps[0]), int(n_reps[0]) + 1):
+            for b in range(-int(n_reps[1]), int(n_reps[1]) + 1):
+                for c in range(-int(n_reps[2]), int(n_reps[2]) + 1):
+                    shift = a * lat[0] + b * lat[1] + c * lat[2]
+                    pts.append(base + shift)
+                    is_center_list.append(np.full(base.shape[0], (a == 0 and b == 0 and c == 0), dtype=bool))
+        points = np.concatenate(pts, axis=0)
+        is_center = np.concatenate(is_center_list, axis=0)
+    else:
+        points = np.array(pmg_obj.cart_coords, dtype=np.float64)
+        is_center = np.ones(points.shape[0], dtype=bool)
+
+    if points.shape[0] < 4:
+        return []
+    try:
+        vor = Voronoi(points)
+    except QhullError:
+        return []
+
+    facets: list[tuple[np.ndarray, float, float]] = []
+    for rp, rv in zip(vor.ridge_points, vor.ridge_vertices):
+        if len(rv) < 3 or -1 in rv:
+            continue
+        p0, p1 = int(rp[0]), int(rp[1])
+        if not (bool(is_center[p0]) or bool(is_center[p1])):
+            continue
+        d = float(np.linalg.norm(points[p1] - points[p0]))
+        if d > cutoff or d < 1e-8:
+            continue
+        verts = vor.vertices[rv]
+        # Defensive: sort vertices around the facet centroid in the facet plane
+        # so the shoelace cross-sum is correct even for non-convex winding.
+        centroid = verts.mean(axis=0)
+        rel = verts - centroid
+        # Estimate facet normal from first non-degenerate triangle
+        normal = np.cross(rel[1], rel[2])
+        nrm = float(np.linalg.norm(normal))
+        if nrm < 1e-12:
+            continue
+        normal = normal / nrm
+        u = rel[0] / (np.linalg.norm(rel[0]) + 1e-18)
+        v = np.cross(normal, u)
+        ang = np.arctan2(rel @ v, rel @ u)
+        order = np.argsort(ang)
+        verts_sorted = verts[order]
+        cross_sum = np.zeros(3, dtype=np.float64)
+        for k in range(verts_sorted.shape[0]):
+            cross_sum += np.cross(verts_sorted[k], verts_sorted[(k + 1) % verts_sorted.shape[0]])
+        area = 0.5 * float(np.linalg.norm(cross_sum))
+        facets.append((verts_sorted, area, d))
+    return facets
+
+
+def plot_voronoi_facets(ax, facets):
+    if not facets:
+        return
+    polys = [f[0] for f in facets]
+    areas = np.array([f[1] for f in facets], dtype=np.float64)
+    if areas.size == 0:
+        return
+    # Color facets by area on a perceptual colormap so small and large facets
+    # are both clearly distinguishable against the white background and atoms.
+    amax = float(areas.max()) if areas.max() > 0 else 1.0
+    amin = float(areas.min())
+    norm = (areas - amin) / max(amax - amin, 1e-12)
+    cmap = plt.get_cmap("viridis")
+    face_colors = [(*cmap(float(n))[:3], 0.30) for n in norm]
+    edge_colors = [(*cmap(float(n))[:3], 0.95) for n in norm]
+    coll = Poly3DCollection(
+        polys,
+        facecolors=face_colors,
+        edgecolors=edge_colors,
+        linewidths=1.0,
+    )
+    ax.add_collection3d(coll)
+
+
 def main():
     p = argparse.ArgumentParser(
         description=__doc__,
@@ -223,6 +345,18 @@ def main():
     g.add_argument("--file", type=str, help="Sample file stem (without .json)")
     p.add_argument("--cutoff", type=float, default=6.0)
     p.add_argument("--max-neighbors", type=int, default=32)
+    p.add_argument(
+        "--graph-method",
+        type=str,
+        default="radius",
+        choices=list(GRAPH_METHODS),
+        help="Edge construction method (matches xanesnet.utils.graph.build_edges)",
+    )
+    p.add_argument(
+        "--show-voronoi",
+        action="store_true",
+        help="Overlay Voronoi tessellation facets on the edges panel (any method)",
+    )
     p.add_argument("--absorber-idx", type=int, default=0)
     p.add_argument("--max-triplets-drawn", type=int, default=60)
     p.add_argument("--max-paths-drawn", type=int, default=60)
@@ -242,11 +376,12 @@ def main():
     if not (0 <= args.absorber_idx < n_atoms):
         raise SystemExit(f"--absorber-idx {args.absorber_idx} out of range [0, {n_atoms})")
 
-    edge_index, edge_weight, edge_vec = build_edges(
+    edge_index, edge_weight, edge_vec, edge_attr = build_edges(
         pmg_obj,
         cutoff=args.cutoff,
         max_num_neighbors=args.max_neighbors,
         compute_vectors=True,
+        method=args.graph_method,
     )
     assert edge_vec is not None
     edge_src = edge_index[0].numpy()
@@ -278,17 +413,17 @@ def main():
     if edge_ends.shape[0] > 0:
         vis_points = np.concatenate([vis_points, edge_ends], axis=0)
 
-    fig = plt.figure(figsize=(20, 13))
+    fig = plt.figure(figsize=(20, 15))
     gs = fig.add_gridspec(
         nrows=2,
         ncols=3,
-        height_ratios=[3.0, 1.0],
-        hspace=0.18,
-        wspace=0.12,
-        left=0.03,
-        right=0.99,
+        height_ratios=[3.0, 1.3],
+        hspace=0.35,
+        wspace=0.28,
+        left=0.05,
+        right=0.97,
         top=0.94,
-        bottom=0.06,
+        bottom=0.08,
     )
     ax_edges = fig.add_subplot(gs[0, 0], projection="3d")
     ax_trip = fig.add_subplot(gs[0, 1], projection="3d")
@@ -309,16 +444,22 @@ def main():
         args.absorber_idx,
         vis_points,
         is_periodic,
-        f"Edges (E={edge_index.shape[1]})",
+        f"Edges ({args.graph_method}, E={edge_index.shape[1]})",
         label_atoms,
     )
     n_pbc = plot_edges(ax_edges, coords, edge_src, edge_dst, edge_vec_np, is_periodic)
     edge_legend = [Patch(color=(0.15, 0.45, 0.75, 0.6), label="intra-cell")]
     if is_periodic:
         edge_legend.append(Patch(color=(0.85, 0.30, 0.10, 0.85), label=f"PBC-crossing ({n_pbc})"))
+    show_voronoi = args.show_voronoi
+    voronoi_facets: list = []
+    if show_voronoi:
+        voronoi_facets = compute_voronoi_facets(pmg_obj, args.cutoff)
+        plot_voronoi_facets(ax_edges, voronoi_facets)
+        edge_legend.append(Patch(color=(0.27, 0.00, 0.33, 0.55), label=f"Voronoi facets ({len(voronoi_facets)})"))
     ax_edges.legend(handles=edge_legend, loc="upper left", fontsize=8)
 
-    # --- Radiusgraph triplets
+    # --- Geometrygraph triplets
     setup_axis(
         ax_trip,
         pmg_obj,
@@ -359,6 +500,13 @@ def main():
     ax_hist_w.set_xlabel("distance")
     ax_hist_w.set_ylabel("count")
     ax_hist_w.axvline(args.cutoff, color="red", ls="--", lw=1.0, label=f"cutoff={args.cutoff}")
+    if edge_attr is not None and edge_attr.numel() > 0:
+        ax_twin = ax_hist_w.twinx()
+        ax_twin.hist(
+            edge_attr.numpy(), bins=30, color="#d98a1d", edgecolor="white", alpha=0.45, label="facet area [A^2]"
+        )
+        ax_twin.set_ylabel("facet area count", color="#d98a1d")
+        ax_twin.tick_params(axis="y", labelcolor="#d98a1d")
     ax_hist_w.legend(fontsize=8)
 
     deg = np.bincount(edge_src, minlength=n_atoms)
@@ -367,7 +515,23 @@ def main():
     ax_hist_deg.set_title(f"per-atom out-degree  (saturated: " f"{int((deg >= args.max_neighbors).sum())}/{n_atoms})")
     ax_hist_deg.set_xlabel("atom index")
     ax_hist_deg.set_ylabel("num edges")
-    ax_hist_deg.legend(fontsize=8)
+    isolated = np.where(deg == 0)[0]
+    if isolated.size > 0:
+        iso_str = ",".join(str(int(i)) for i in isolated[:10])
+        if isolated.size > 10:
+            iso_str += ",..."
+        ax_hist_deg.text(
+            0.5,
+            0.92,
+            f"WARNING: {isolated.size} isolated atom(s): [{iso_str}]",
+            transform=ax_hist_deg.transAxes,
+            ha="center",
+            va="top",
+            fontsize=9,
+            color="white",
+            bbox={"facecolor": "crimson", "alpha": 0.85, "edgecolor": "none", "pad": 3.0},
+        )
+    ax_hist_deg.legend(fontsize=8, loc="upper right")
 
     has_trip = angle_np.size > 0
     has_path = n_paths_total > 0
@@ -402,9 +566,19 @@ def main():
     print(f"# atoms:         {n_atoms}")
     print(f"absorber:        idx={args.absorber_idx}  ({abs_sym})")
     print(f"cutoff:          {args.cutoff} A   max_neighbors: {args.max_neighbors}")
+    print(f"graph method:    {args.graph_method}")
     print(f"# edges:         {edge_index.shape[1]}  PBC crossings: {n_pbc}")
     if edge_w_np.size:
         print(f"edge weight:     min={edge_w_np.min():.3f}  " f"mean={edge_w_np.mean():.3f}  max={edge_w_np.max():.3f}")
+    if edge_attr is not None and edge_attr.numel() > 0:
+        ea = edge_attr.numpy()
+        n_zero = int((ea < 1e-6).sum())
+        print(
+            f"facet area:      min={ea.min():.3g}  mean={ea.mean():.3g}  max={ea.max():.3g}  "
+            f"near-zero(<1e-6): {n_zero}/{ea.size}"
+        )
+    if isolated.size > 0:
+        print(f"!! WARNING: {isolated.size} isolated atom(s) (deg=0): " f"{isolated.tolist()}")
     print(
         f"out-degree:      min={int(deg.min())}  "
         f"mean={deg.mean():.2f}  max={int(deg.max())}  "
@@ -430,6 +604,7 @@ def main():
     fig.suptitle(
         f"{'periodic Structure' if is_periodic else 'Molecule'}  .  {stem}  "
         f".  absorber={abs_sym}{args.absorber_idx}  "
+        f".  method={args.graph_method}  "
         f".  cutoff={args.cutoff}  .  max_nbrs={args.max_neighbors}",
         fontsize=11,
     )
@@ -442,6 +617,9 @@ def main():
     if not args.no_show:
         plt.show()
 
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
