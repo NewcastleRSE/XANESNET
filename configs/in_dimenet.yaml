@@ -13,6 +13,7 @@ dataset:
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
+  # params:
   cutoff: 5.0
   max_num_neighbors: 32
   compute_angles: True
