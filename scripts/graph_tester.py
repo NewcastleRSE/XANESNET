@@ -126,8 +126,9 @@ def plot_atoms(ax, coords, atomic_numbers, absorber_idx, label=True):
 
 
 def plot_edges(ax, coords, edge_src, edge_dst, edge_vec, is_periodic):
-    """Draw intra-cell edges boldly; PBC-crossing edges thinner and more faded
-    so focus stays on the primary graph."""
+    """
+    Draw intra-cell edges boldly; PBC-crossing edges thinner and more faded so focus stays on the primary graph.
+    """
     segments = []
     segment_colors = []
     segment_widths = []
@@ -455,7 +456,7 @@ def main():
     label_atoms = (not args.no_atom_labels) and (n_atoms <= 60)
     abs_sym = Element.from_Z(int(atomic_numbers[args.absorber_idx])).symbol
 
-    # --- Edges only
+    # Edges only
     setup_axis(
         ax_edges,
         pmg_obj,
@@ -479,7 +480,7 @@ def main():
         edge_legend.append(Patch(color=(0.27, 0.00, 0.33, 0.55), label=f"Voronoi facets ({len(voronoi_facets)})"))
     ax_edges.legend(handles=edge_legend, loc="upper left", fontsize=8)
 
-    # --- Geometrygraph triplets
+    # Geometrygraph triplets
     setup_axis(
         ax_trip,
         pmg_obj,
@@ -496,7 +497,7 @@ def main():
         handles=[Patch(color=(0.30, 0.75, 0.35, 0.35), label="triplet (k-j-i)")], loc="upper left", fontsize=8
     )
 
-    # --- E3EE absorber paths
+    # E3EE absorber paths
     n_paths_total = int(paths["path_j"].numel())
     setup_axis(
         ax_paths,
@@ -514,7 +515,7 @@ def main():
         handles=[Patch(color=(0.85, 0.25, 0.55, 0.35), label="(absorber, j, k)")], loc="upper left", fontsize=8
     )
 
-    # --- Histograms
+    # Histograms
     ax_hist_w.hist(edge_w_np, bins=30, color="steelblue", edgecolor="white")
     ax_hist_w.set_title("edge weights [A]")
     ax_hist_w.set_xlabel("distance")
@@ -578,7 +579,7 @@ def main():
         ax_hist_ang.text(0.5, 0.5, "no triplets / paths", ha="center", va="center", transform=ax_hist_ang.transAxes)
         ax_hist_ang.set_axis_off()
 
-    # --- Stdout summary
+    # Stdout summary
     print("=" * 66)
     print(f"datasource:      {args.json_dir}")
     print(f"sample:          {stem}")
