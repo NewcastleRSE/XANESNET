@@ -15,18 +15,21 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections.abc import Callable
+from typing import TypeVar
 
 from .base import Dataset
+
+_DatasetT = TypeVar("_DatasetT", bound=type[Dataset])
 
 
 class DatasetRegistry:
     _registry: dict[str, type[Dataset]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[type[Dataset]], type[Dataset]]:
+    def register(cls, name: str) -> Callable[[_DatasetT], _DatasetT]:
         name = name.lower()
 
-        def decorator(ds_cls: type[Dataset]) -> type[Dataset]:
+        def decorator(ds_cls: _DatasetT) -> _DatasetT:
             if name in cls._registry:
                 raise KeyError(f"Dataset '{name}' already registered")
             cls._registry[name] = ds_cls

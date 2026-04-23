@@ -19,7 +19,8 @@ from .descriptor_mlp import XanesXMLPBatchProcessor
 from .e3ee import E3EEBatchProcessor
 from .e3ee_full import E3EEFullBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
-from .gemset_gemnet import GemsetGemNetBatchProcessor
+from .gemnet import GemNetBatchProcessor
+from .gemnet_oc import GemNetOCBatchProcessor
 from .geometrygraph_dimenet import GeometryGraphDimeNetBatchProcessor
 from .geometrygraph_schnet import GeometryGraphSchNetBatchProcessor
 from .registry import BatchProcessorRegistry
@@ -28,7 +29,8 @@ __all__ = [
     "BatchProcessor",
     "BatchProcessorRegistry",
     "XanesXMLPBatchProcessor",
-    "GemsetGemNetBatchProcessor",
+    "GemNetBatchProcessor",
+    "GemNetOCBatchProcessor",
     "E3EEBatchProcessor",
     "E3EEFullBatchProcessor",
     "EnvEmbedBatchProcessor",

@@ -49,6 +49,7 @@ class EfficientInteractionDownProjection(torch.nn.Module):
             torch.empty((self.num_spherical, self.num_radial, self.emb_size_interm)),
             requires_grad=True,
         )
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         he_orthogonal_init(self.weight)
@@ -94,6 +95,7 @@ class EfficientInteractionHadamard(torch.nn.Module):
         self.emb_size = emb_size
 
         self.weight = torch.nn.Parameter(torch.empty((self.emb_size, 1, self.emb_size_interm), requires_grad=True))
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         he_orthogonal_init(self.weight)
@@ -170,6 +172,7 @@ class EfficientInteractionBilinear(torch.nn.Module):
                 requires_grad=True,
             )
         )
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         he_orthogonal_init(self.weight)

@@ -14,22 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .e3ee import E3EEBatch, E3EEDataset
-from .e3ee_full import E3EEFullBatch, E3EEFullDataset
-from .gemnet import GemNetBatch, GemNetData, GemNetDataset
-from .geometrygraph import GeometryGraphBatch, GeometryGraphData, GeometryGraphDataset
-from .richgraph import RichGraphDataset
+from .gemnet_oc import GemNetOC
 
-__all__ = [
-    "E3EEBatch",
-    "E3EEDataset",
-    "E3EEFullBatch",
-    "E3EEFullDataset",
-    "GemNetBatch",
-    "GemNetData",
-    "GemNetDataset",
-    "RichGraphDataset",
-    "GeometryGraphBatch",
-    "GeometryGraphData",
-    "GeometryGraphDataset",
-]
+__all__ = ["GemNetOC"]

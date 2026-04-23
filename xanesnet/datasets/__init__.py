@@ -16,20 +16,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import Dataset, TorchDataset, TorchGeometricDataset
 from .registry import DatasetRegistry
-from .torch import (
-    DescriptorData,
-    DescriptorDataset,
-    EnvEmbedData,
-    EnvEmbedDataset,
-    GemNetBatch,
-    GemNetData,
-    GemNetDataset,
-)
+from .torch import DescriptorData, DescriptorDataset, EnvEmbedData, EnvEmbedDataset
 from .torchgeometric import (
     E3EEBatch,
     E3EEDataset,
     E3EEFullBatch,
     E3EEFullDataset,
+    GemNetBatch,
+    GemNetData,
+    GemNetDataset,
     GeometryGraphBatch,
     GeometryGraphData,
     GeometryGraphDataset,

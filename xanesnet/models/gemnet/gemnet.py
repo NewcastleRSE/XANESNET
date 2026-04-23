@@ -17,7 +17,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 
 import torch
-from torch_geometric.utils import scatter
 
 from xanesnet.serialization.config import Config
 
@@ -34,13 +33,11 @@ from .layers.scaling import AutomaticFit
 
 @ModelRegistry.register("gemnet")
 class GemNet(Model):
-    """The universal directional graph neural network GemNet:
+    """
+    The universal directional graph neural network GemNet:
     `"GemNet: Universal Directional Graph Neural Networks for Molecules"`;
     Arxiv: `<https://arxiv.org/abs/2106.08903>`;
     Implementation similar to `<https://github.com/TUM-DAML/gemnet_pytorch/tree/master>`
-
-    Notes:
-    - removed forces support
     """
 
     def __init__(
@@ -68,10 +65,10 @@ class GemNet(Model):
         cutoff: float,
         int_cutoff: float,
         envelope_exponent: int,
-        readout: str,  # "add" | "mean"
         output_init: str,
         activation: str,
         scale_file: str | None,
+        num_elements: int,
     ) -> None:
         super().__init__(model_type)
 
@@ -98,10 +95,10 @@ class GemNet(Model):
         self.cutoff = cutoff
         self.int_cutoff = int_cutoff
         self.envelope_exponent = envelope_exponent
-        self.readout = readout
         self.output_init = output_init
         self.activation = activation
         self.scale_file = scale_file
+        self.num_elements = num_elements
 
         # Basis functions
         self.rbf_basis = BesselBasisLayer(num_radial, cutoff=cutoff, envelope_exponent=envelope_exponent)
@@ -168,7 +165,7 @@ class GemNet(Model):
         )
 
         # Embeddings
-        self.atom_emb = AtomEmbedding(emb_size_atom)
+        self.atom_emb = AtomEmbedding(emb_size_atom, num_elements=num_elements)
         self.edge_emb = EdgeEmbedding(emb_size_atom, num_radial, emb_size_edge, activation=activation)
 
         # Interactions
@@ -218,19 +215,6 @@ class GemNet(Model):
         self.out_blocks = torch.nn.ModuleList(out_blocks)
 
     @staticmethod
-    def calculate_interatomic_vectors(
-        R: torch.Tensor,  # (nAtoms,3) Atom positions.
-        id_s: torch.Tensor,  # (nEdges,) Indices of the source atom of the edges.
-        id_t: torch.Tensor,  # (nEdges,) Indices of the target atom of the edges.
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        Rt = R[id_t]
-        Rs = R[id_s]
-        V_st = Rt - Rs  # s -> t
-        D_st = torch.sqrt(torch.sum(V_st**2, dim=1))
-        V_st = V_st / D_st[..., None]
-        return D_st, V_st
-
-    @staticmethod
     def calculate_neighbor_angles(
         R_ac: torch.Tensor,  # (N,3) Vector from atom a to c.
         R_ab: torch.Tensor,  # (N,3) Vector from atom a to b.
@@ -255,95 +239,76 @@ class GemNet(Model):
         return R_ab - (a_x_b / b_x_b)[:, None] * P_n  # (N,3) Projected vector (orthogonal to P_n).
 
     @staticmethod
+    def calculate_angles3(
+        edge_vec: torch.Tensor,  # (nEdges, 3) PBC-aware vector from id_c to id_a for each edge.
+        id3_reduce_ca: torch.Tensor,  # (nTriplets,) edge index of c -> a.
+        id3_expand_ba: torch.Tensor,  # (nTriplets,) edge index of b -> a.
+    ) -> torch.Tensor:
+        # Calculate angles for triplet-based message passing.
+        # Vectors at atom a pointing to c and to b (sign-flipped but invariant under angle).
+        # Using precomputed PBC-correct edge_vec avoids NaN for periodic self-image edges
+        # where pos[id_a] == pos[id_c].
+        R_ac = -edge_vec[id3_reduce_ca]  # a -> c
+        R_ab = -edge_vec[id3_expand_ba]  # a -> b
+        return GemNet.calculate_neighbor_angles(R_ac, R_ab)
+
+    @staticmethod
     def calculate_angles(
-        R: torch.Tensor,  # (nAtoms,3) Atom positions.
-        id_c: torch.Tensor,  # (nEdges,) Indices of atom c (source atom of edge).
-        id_a: torch.Tensor,  # (nEdges,) Indices of atom a (target atom of edge).
-        id4_int_b: torch.Tensor,  # (nInterEdges,) Indices of the atom b of the interaction edge.
-        id4_int_a: torch.Tensor,  # (nInterEdges,) Indices of the atom a of the interaction edge.
-        id4_expand_abd: torch.Tensor,  # (nQuadruplets,) Indices to map from intermediate d->b to quadruplet d->b.
-        id4_reduce_cab: torch.Tensor,  # (nQuadruplets,)  Indices to map from intermediate c->a to quadruplet c->a.
-        id4_expand_intm_db: torch.Tensor,  # (intmTriplets,) Indices to map d->b to intermediate d->b.
-        id4_reduce_intm_ca: torch.Tensor,  # (intmTriplets,) Indices to map c->a to intermediate c->a.
-        id4_expand_intm_ab: torch.Tensor,  # (intmTriplets,) Indices to map b-a to intermediate b-a of the quadruplet's part a-b<-d.
-        id4_reduce_intm_ab: torch.Tensor,  # (intmTriplets,) Indices to map b-a to intermediate b-a of the quadruplet's part c->a-b.
+        edge_vec: torch.Tensor,  # (nEdges, 3) main graph edge vectors (id_c -> id_a).
+        int_edge_vec: torch.Tensor,  # (nIntEdges, 3) interaction graph edge vectors (id4_int_b -> id4_int_a).
+        id4_expand_abd: torch.Tensor,
+        id4_reduce_cab: torch.Tensor,
+        id4_expand_intm_db: torch.Tensor,
+        id4_reduce_intm_ca: torch.Tensor,
+        id4_expand_intm_ab: torch.Tensor,
+        id4_reduce_intm_ab: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # Calculate angles for quadruplet-based message passing.
+        # Calculate angles for quadruplet-based message passing, using PBC-aware
+        # precomputed edge vectors instead of raw positions.
         # ---------------------------------- a - b <- d ---------------------------------- #
-        Ra = R[id4_int_a[id4_expand_intm_ab]]  # a (intmTriplets,3)
-        Rb = R[id4_int_b[id4_expand_intm_ab]]  # b (intmTriplets,3)
-        Rd = R[id_c[id4_expand_intm_db]]  # d (intmTriplets,3)
+        # int_edge_vec (source b -> target a) = Ra - Rb = R_ba.
+        R_ba = int_edge_vec[id4_expand_intm_ab]  # (intmTriplets, 3)
+        # Main edge d->b has id_c=d, id_a=b, edge_vec = Rb - Rd, so R_bd = Rd - Rb = -edge_vec.
+        R_bd = -edge_vec[id4_expand_intm_db]  # (intmTriplets, 3)
+        angle_abd = GemNet.calculate_neighbor_angles(R_ba, R_bd)
 
-        R_ba = Ra - Rb  # (intmTriplets,3)
-        R_bd = Rd - Rb  # (intmTriplets,3)
-        angle_abd = GemNet.calculate_neighbor_angles(R_ba, R_bd)  # (intmTriplets,)
-
-        # project for calculating gamma
-        R_bd_proj = GemNet.vector_rejection(R_bd, R_ba)  # a - b -| d
-        R_bd_proj = R_bd_proj[id4_expand_abd]  # (nQuadruplets,)
+        R_bd_proj = GemNet.vector_rejection(R_bd, R_ba)
+        R_bd_proj = R_bd_proj[id4_expand_abd]
 
         # --------------------------------- c -> a <- b ---------------------------------- #
-        Rc = R[id_c[id4_reduce_intm_ca]]  # c (intmTriplets,3)
-        Ra = R[id_a[id4_reduce_intm_ca]]  # a (intmTriplets,3)
-        Rb = R[id4_int_b[id4_reduce_intm_ab]]  # b (intmTriplets,3)
+        # Main edge c->a has edge_vec = Ra - Rc, so R_ac = Rc - Ra = -edge_vec.
+        R_ac = -edge_vec[id4_reduce_intm_ca]
+        # Interaction edge b->a has int_edge_vec = Ra - Rb, so R_ab = Rb - Ra = -int_edge_vec.
+        R_ab = -int_edge_vec[id4_reduce_intm_ab]
+        angle_cab = GemNet.calculate_neighbor_angles(R_ab, R_ac)
+        angle_cab = angle_cab[id4_reduce_cab]
 
-        R_ac = Rc - Ra  # (intmTriplets,3)
-        R_ab = Rb - Ra  # (intmTriplets,3)
-        angle_cab = GemNet.calculate_neighbor_angles(R_ab, R_ac)  # (intmTriplets,)
-        angle_cab = angle_cab[id4_reduce_cab]  # (nQuadruplets,)
-
-        # project for calculating gamma
-        R_ac_proj = GemNet.vector_rejection(R_ac, R_ab)  # c |- a - b
-        R_ac_proj = R_ac_proj[id4_reduce_cab]  # (nQuadruplets,)
+        R_ac_proj = GemNet.vector_rejection(R_ac, R_ab)
+        R_ac_proj = R_ac_proj[id4_reduce_cab]
 
         # -------------------------------- c -> a - b <- d -------------------------------- #
-        angle_cabd = GemNet.calculate_neighbor_angles(R_ac_proj, R_bd_proj)  # (nQuadruplets,)
-
-        # RETURN
         # angle_cab: Angle between atoms c <- a -> b.
         # angle_abd: Angle between atoms a <- b -> d.
         # angle_cabd: Angle between atoms c <- a-b -> d.
+        angle_cabd = GemNet.calculate_neighbor_angles(R_ac_proj, R_bd_proj)
 
         return angle_cab, angle_abd, angle_cabd
-
-    @staticmethod
-    def calculate_angles3(
-        R: torch.Tensor,  # (nAtoms,3) Atom positions.
-        id_c: torch.Tensor,  # (nEdges,) Indices of atom c (source atom of edge).
-        id_a: torch.Tensor,  # (nEdges,) Indices of atom a (target atom of edge).
-        id3_reduce_ca: torch.Tensor,  # (nTriplets,) Edge indices of edge c -> a of the triplets.
-        id3_expand_ba: torch.Tensor,  #  (nTriplets,) Edge indices of edge b -> a of the triplets.
-    ) -> torch.Tensor:
-        # Calculate angles for triplet-based message passing.
-
-        Rc = R[id_c[id3_reduce_ca]]
-        Ra = R[id_a[id3_reduce_ca]]
-        Rb = R[id_c[id3_expand_ba]]
-
-        # difference vectors
-        R_ac = Rc - Ra  # shape = (nTriplets,3)
-        R_ab = Rb - Ra  # shape = (nTriplets,3)
-
-        # RETURN
-        #  angle_cab: Angle between atoms c <- a -> b.
-        # angle in triplets
-        return GemNet.calculate_neighbor_angles(R_ac, R_ab)  # (nTriplets,)
 
     def forward(
         self,
         z: torch.Tensor,
-        pos: torch.Tensor,
+        edge_vec: torch.Tensor,
+        edge_weight: torch.Tensor,
         id_a: torch.Tensor,
         id_c: torch.Tensor,
         id_swap: torch.Tensor,
         id3_expand_ba: torch.Tensor,
         id3_reduce_ca: torch.Tensor,
-        batch_seg: torch.Tensor,
         Kidx3: torch.Tensor,
         # only if not triplets_only:
+        int_edge_vec: torch.Tensor | None = None,
+        int_edge_weight: torch.Tensor | None = None,
         Kidx4: torch.Tensor | None = None,
-        id4_int_b: torch.Tensor | None = None,
-        id4_int_a: torch.Tensor | None = None,
         id4_reduce_ca: torch.Tensor | None = None,
         id4_reduce_cab: torch.Tensor | None = None,
         id4_expand_abd: torch.Tensor | None = None,
@@ -352,16 +317,15 @@ class GemNet(Model):
         id4_reduce_intm_ab: torch.Tensor | None = None,
         id4_expand_intm_ab: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        # Calculate distances
-        D_ca, _ = self.calculate_interatomic_vectors(pos, id_c, id_a)
+        D_ca = edge_weight
 
         cbf4: torch.Tensor | tuple[torch.Tensor, torch.Tensor] | None = None
         sbf4: torch.Tensor | tuple[torch.Tensor, torch.Tensor] | None = None
 
         if not self.triplets_only:
-            assert id4_int_b is not None
-            assert id4_int_a is not None
-            D_ab, _ = self.calculate_interatomic_vectors(pos, id4_int_b, id4_int_a)
+            assert int_edge_vec is not None
+            assert int_edge_weight is not None
+            D_ab = int_edge_weight
 
             # Calculate angles
             assert id4_expand_abd is not None
@@ -371,11 +335,8 @@ class GemNet(Model):
             assert id4_expand_intm_ab is not None
             assert id4_reduce_intm_ab is not None
             Phi_cab, Phi_abd, Theta_cabd = self.calculate_angles(
-                pos,
-                id_c,
-                id_a,
-                id4_int_b,
-                id4_int_a,
+                edge_vec,
+                int_edge_vec,
                 id4_expand_abd,
                 id4_reduce_cab,
                 id4_expand_intm_db,
@@ -390,8 +351,9 @@ class GemNet(Model):
             sbf4 = self.sbf_basis(D_ca, Phi_cab, Theta_cabd, id4_reduce_ca, Kidx4)
 
         rbf = self.rbf_basis(D_ca)
+
         # Triplet Interaction
-        Angles3_cab = self.calculate_angles3(pos, id_c, id_a, id3_reduce_ca, id3_expand_ba)
+        Angles3_cab = self.calculate_angles3(edge_vec, id3_reduce_ca, id3_expand_ba)
         cbf3 = self.cbf_basis3(D_ca, Angles3_cab, id3_reduce_ca, Kidx3)
 
         # Embedding block
@@ -442,17 +404,7 @@ class GemNet(Model):
             E = self.out_blocks[i + 1](h, m, rbf_out, id_a)  # (nAtoms, num_targets)
             E_a += E
 
-        nMolecules = int(torch.max(batch_seg).item()) + 1
-        if self.readout == "add":
-            E_a = scatter(E_a, batch_seg, dim=0, dim_size=nMolecules, reduce="add")
-            # (nMolecules, num_targets)
-        elif self.readout == "mean":
-            E_a = scatter(E_a, batch_seg, dim=0, dim_size=nMolecules, reduce="mean")
-            # (nMolecules, num_targets)
-        else:
-            raise ValueError(f"Invalid readout: {self.readout}")
-
-        return E_a  # (nMolecules, num_targets)
+        return E_a  # (nAtoms, num_targets)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
         """
@@ -522,10 +474,10 @@ class GemNet(Model):
                 "cutoff": self.cutoff,
                 "int_cutoff": self.int_cutoff,
                 "envelope_exponent": self.envelope_exponent,
-                "readout": self.readout,
                 "output_init": self.output_init,
                 "activation": self.activation,
                 "scale_file": self.scale_file,
+                "num_elements": self.num_elements,
             }
         )
         return signature

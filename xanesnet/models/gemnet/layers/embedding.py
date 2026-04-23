@@ -22,21 +22,22 @@ from .base import Dense
 
 class AtomEmbedding(torch.nn.Module):
     """
-    Initial atom embeddings based on the atom type
+    Initial atom embeddings based on the atom type.
 
     Parameters
     ----------
         emb_size: int
-            Atom embeddings size
+            Atom embeddings size.
+        num_elements: int
+            Size of the element-type embedding table. Default 94 supports
+            atomic numbers 1..94 (up to Pu). Use ``z - 1`` indexing internally.
     """
 
-    def __init__(self, emb_size: int) -> None:
+    def __init__(self, emb_size: int, num_elements: int = 94) -> None:
         super().__init__()
         self.emb_size = emb_size
-
-        # Atom embeddings: We go up to Pu (94). Use 93 dimensions because of 0-based indexing
-        # TODO Check if this is sufficient for all datasets!
-        self.embeddings = torch.nn.Embedding(93, emb_size)
+        self.num_elements = num_elements
+        self.embeddings = torch.nn.Embedding(num_elements, emb_size)
 
     def reset_parameters(self) -> None:
         torch.nn.init.uniform_(self.embeddings.weight, a=-np.sqrt(3), b=np.sqrt(3))

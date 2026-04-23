@@ -23,33 +23,46 @@ from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-@BatchProcessorRegistry.register("gemset", "gemnet")
-class GemsetGemNetBatchProcessor(BatchProcessor):
+@BatchProcessorRegistry.register("gemnet", "gemnet")
+class GemNetBatchProcessor(BatchProcessor):
+    """
+    Batch processor for the PyG-based ``GemNetDataset`` feeding the GemNet
+    model. All graph indices are precomputed in the dataset; this processor
+    just forwards them and applies the ``absorber_mask`` on the model's
+    per-atom predictions.
+    """
 
     def input_preparation(self, batch: GemNetBatch) -> dict[str, torch.Tensor | None]:
-        inputs = {
-            "z": batch.atomic_numbers,
-            "pos": batch.atom_positions,
-            "id_a": batch.id_a,
+        inputs: dict[str, torch.Tensor | None] = {
+            "z": batch.x,
+            "edge_vec": batch.edge_vec,
+            "edge_weight": batch.edge_weight,
             "id_c": batch.id_c,
+            "id_a": batch.id_a,
             "id_swap": batch.id_swap,
             "id3_expand_ba": batch.id3_expand_ba,
             "id3_reduce_ca": batch.id3_reduce_ca,
-            "batch_seg": batch.batch_seg,
             "Kidx3": batch.Kidx3,
-            # only if not triplets_only:
-            "Kidx4": batch.Kidx4,
-            "id4_int_b": batch.id4_int_b,
-            "id4_int_a": batch.id4_int_a,
-            "id4_reduce_ca": batch.id4_reduce_ca,
-            "id4_reduce_cab": batch.id4_reduce_cab,
-            "id4_expand_abd": batch.id4_expand_abd,
-            "id4_reduce_intm_ca": batch.id4_reduce_intm_ca,
-            "id4_expand_intm_db": batch.id4_expand_intm_db,
-            "id4_reduce_intm_ab": batch.id4_reduce_intm_ab,
-            "id4_expand_intm_ab": batch.id4_expand_intm_ab,
         }
+        # Quadruplet inputs (optional; present when dataset.quadruplets=True and model.triplets_only=False)
+        for key in (
+            "int_edge_vec",
+            "int_edge_weight",
+            "Kidx4",
+            "id4_reduce_ca",
+            "id4_reduce_cab",
+            "id4_expand_abd",
+            "id4_reduce_intm_ca",
+            "id4_expand_intm_db",
+            "id4_reduce_intm_ab",
+            "id4_expand_intm_ab",
+        ):
+            inputs[key] = getattr(batch, key, None)
         return inputs
+
+    def prediction_preparation(self, batch: GemNetBatch, predictions: torch.Tensor) -> torch.Tensor:
+        # predictions: [num_atoms_total, num_targets] → restrict to absorbers.
+        return predictions[batch.absorber_mask]
 
     def target_preparation(self, batch: GemNetBatch) -> torch.Tensor:
         return batch.intensities

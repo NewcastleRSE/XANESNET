@@ -34,6 +34,10 @@ from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 
+###############################################################################
+################################ DATA CONTAINER ###############################
+###############################################################################
+
 
 class GeometryGraphData(Data):
     """

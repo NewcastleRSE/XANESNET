@@ -7,53 +7,74 @@ datasource:
 
 dataset:
   # general:
-  dataset_type: gemnet
+  dataset_type: gemnet_oc
   root: ./data/omnixas/processed_train/  # Where should the processed data be stored
-  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  preload: True                   # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
+  split_indexfile: null
   # params:
   cutoff: 5.0
-  max_num_neighbors: 32
+  max_num_neighbors: 50
   graph_method: voronoi
   min_facet_area: 5.0%
   cov_radii_scale: 1.5
-  quadruplets: False
+  quadruplets: True
   int_cutoff: 10.0
-  oc_mode: False
-  oc_cutoff_aeaint: null
-  oc_cutoff_aint: null
-  oc_max_neighbors_aeaint: null
-  oc_max_neighbors_aint: null
+  oc_mode: True
+  oc_cutoff_aeaint: 5.0
+  oc_cutoff_aint: 10.0
+  oc_max_neighbors_aeaint: 50
+  oc_max_neighbors_aint: 50
 
 model:
   # general:
-  model_type: gemnet
+  model_type: gemnet_oc
   # params:
   num_targets: 173
   num_spherical: 7
-  num_radial: 6
+  num_radial: 128
   num_blocks: 4
-  emb_size_atom: 128
-  emb_size_edge: 128
-  emb_size_trip: 64
-  emb_size_quad: 32
+  emb_size_atom: 256
+  emb_size_edge: 512
+  emb_size_trip_in: 64
+  emb_size_trip_out: 64
+  emb_size_quad_in: 32
+  emb_size_quad_out: 32
+  emb_size_aint_in: 64
+  emb_size_aint_out: 64
   emb_size_rbf: 16
   emb_size_cbf: 16
   emb_size_sbf: 32
-  emb_size_bil_quad: 32
-  emb_size_bil_trip: 64
-  num_before_skip: 1
-  num_after_skip: 1
+  num_before_skip: 2
+  num_after_skip: 2
   num_concat: 1
-  num_atom: 2
-  triplets_only: True
-  cutoff: 5.0
-  int_cutoff: 10.0
-  envelope_exponent: 5
+  num_atom: 3
+  num_output_afteratom: 3
+  num_atom_emb_layers: 2
+  num_global_out_layers: 2
+  cutoff: 12.0
+  cutoff_qint: 12.0
+  cutoff_aeaint: 12.0
+  cutoff_aint: 12.0
+  rbf:
+    name: gaussian
+  rbf_spherical:
+    name: gaussian
+  envelope:
+    name: polynomial
+    exponent: 5
+  cbf:
+    name: spherical_harmonics
+  sbf:
+    name: spherical_harmonics
   output_init: HeOrthogonal
-  activation: swish
-  scale_file: null
+  activation: silu
+  quad_interaction: True
+  atom_edge_interaction: True
+  edge_atom_interaction: True
+  atom_interaction: True
+  scale_basis: False
   num_elements: 100
 
 trainer:
@@ -72,6 +93,7 @@ trainer:
     loss_type: mse
   regularizer:
     regularizer_type: none
+    weight: 1.0
   lr_scheduler:
     lr_scheduler_type: linear
     start_factor: 1.0 
@@ -82,7 +104,7 @@ trainer:
     patience: 25
     min_delta: 0.001
     restore_best: True
-  
+
 strategy:
   # general:
   strategy_type: single
@@ -91,3 +113,4 @@ strategy:
   bias_init: zeros
   checkpoint_interval: 25
   # params:
+

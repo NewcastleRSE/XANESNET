@@ -20,6 +20,7 @@ from .e3ee import E3EE
 from .e3ee_full import E3EEFull
 from .envembed import EnvEmbed
 from .gemnet import GemNet
+from .gemnet_oc import GemNetOC
 from .mlp import MLP
 from .pre_trained import ModelInfo, PretrainedModels
 from .registry import ModelRegistry
@@ -35,6 +36,7 @@ __all__ = [
     "DimeNet",
     "DimeNetPlusPlus",
     "GemNet",
+    "GemNetOC",
     "E3EE",
     "E3EEFull",
     "EnvEmbed",

@@ -16,14 +16,10 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .descriptor import DescriptorData, DescriptorDataset
 from .envembed import EnvEmbedData, EnvEmbedDataset
-from .gemset import GemNetBatch, GemNetData, GemNetDataset
 
 __all__ = [
     "EnvEmbedData",
     "EnvEmbedDataset",
-    "GemNetBatch",
-    "GemNetData",
-    "GemNetDataset",
     "DescriptorData",
     "DescriptorDataset",
 ]

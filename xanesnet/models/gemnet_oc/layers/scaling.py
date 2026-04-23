@@ -14,22 +14,13 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .e3ee import E3EEBatch, E3EEDataset
-from .e3ee_full import E3EEFullBatch, E3EEFullDataset
-from .gemnet import GemNetBatch, GemNetData, GemNetDataset
-from .geometrygraph import GeometryGraphBatch, GeometryGraphData, GeometryGraphDataset
-from .richgraph import RichGraphDataset
+import torch
 
-__all__ = [
-    "E3EEBatch",
-    "E3EEDataset",
-    "E3EEFullBatch",
-    "E3EEFullDataset",
-    "GemNetBatch",
-    "GemNetData",
-    "GemNetDataset",
-    "RichGraphDataset",
-    "GeometryGraphBatch",
-    "GeometryGraphData",
-    "GeometryGraphDataset",
-]
+
+class ScaleFactor(torch.nn.Module):
+    def __init__(self, initial: float = 1.0) -> None:
+        super().__init__()
+        self.scale_factor = torch.nn.Parameter(torch.tensor(float(initial)), requires_grad=False)
+
+    def forward(self, x: torch.Tensor, ref: torch.Tensor | None = None) -> torch.Tensor:  # noqa: ARG002
+        return x * self.scale_factor
