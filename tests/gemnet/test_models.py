@@ -42,6 +42,7 @@ from xanesnet.datasets.torchgeometric.gemnet import GemNetDataset
 from xanesnet.datasources.xyzspec import XYZSpecSource
 from xanesnet.models.gemnet import GemNet
 from xanesnet.models.gemnet_oc import GemNetOC
+from xanesnet.serialization.config import Config
 
 # Small fixtures building a tiny batch on-demand.
 
@@ -148,11 +149,11 @@ def _tiny_gemnet_oc(
         cutoff_qint=4.0,
         cutoff_aeaint=3.5,
         cutoff_aint=4.0,
-        rbf={"name": "gaussian"},
-        rbf_spherical={"name": "gaussian"},
-        envelope={"name": "polynomial", "exponent": 5},
-        cbf={"name": "spherical_harmonics"},
-        sbf={"name": "spherical_harmonics"},
+        rbf=Config({"name": "gaussian"}),
+        rbf_spherical=Config({"name": "gaussian"}),
+        envelope=Config({"name": "polynomial", "exponent": 5}),
+        cbf=Config({"name": "spherical_harmonics"}),
+        sbf=Config({"name": "spherical_harmonics"}),
         output_init="HeOrthogonal",
         activation="silu",
         quad_interaction=quad,
@@ -373,7 +374,12 @@ def test_radial_basis_values_gemnet_oc():
     """
     from xanesnet.models.gemnet_oc.layers.radial_basis import RadialBasis
 
-    rb = RadialBasis(num_radial=5, cutoff=6.0, rbf={"name": "gaussian"}, envelope={"name": "polynomial", "exponent": 5})
+    rb = RadialBasis(
+        num_radial=5,
+        cutoff=6.0,
+        rbf=Config({"name": "gaussian"}),
+        envelope=Config({"name": "polynomial", "exponent": 5}),
+    )
     d = torch.tensor([0.1, 1.0, 2.5, 5.0, 5.99])
     out = rb(d)
     assert out.shape == (5, 5)

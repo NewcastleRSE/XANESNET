@@ -24,6 +24,7 @@ import pytest
 import torch
 from pymatgen.core import Lattice, Structure
 
+from xanesnet.serialization.config import Config
 from xanesnet.utils.graph import build_edges
 from xanesnet.utils.graph.gemnet_indices import (
     compute_id_swap,
@@ -430,8 +431,8 @@ def test_radial_basis_matches_fairchem_port():
     xn = XN_RB(
         num_radial=6,
         cutoff=6.0,
-        rbf={"name": "spherical_bessel"},
-        envelope={"name": "polynomial", "exponent": 5},
+        rbf=Config({"name": "spherical_bessel"}),
+        envelope=Config({"name": "polynomial", "exponent": 5}),
     )
     xn.eval()
     d = torch.linspace(0.05, 5.99, steps=20)
