@@ -20,10 +20,10 @@ dataset:
   min_facet_area: 5.0%
   cov_radii_scale: 1.5
   quadruplets: True
-  int_cutoff: 10.0
+  int_cutoff: 5.0
   oc_mode: True
   oc_cutoff_aeaint: 5.0
-  oc_cutoff_aint: 10.0
+  oc_cutoff_aint: 5.0
   oc_max_neighbors_aeaint: 50
   oc_max_neighbors_aint: 50
 
@@ -53,10 +53,10 @@ model:
   num_output_afteratom: 3
   num_atom_emb_layers: 2
   num_global_out_layers: 2
-  cutoff: 12.0
-  cutoff_qint: 12.0
-  cutoff_aeaint: 12.0
-  cutoff_aint: 12.0
+  cutoff: 5.0 # 12.0 # the main graph radius. Controls e2e triplets and is the base for all other cutoffs. Must be ≤ all others.
+  cutoff_qint: 5.0 # 12.0 # radius of the qint graph (interaction graph for quadruplets).
+  cutoff_aeaint: 5.0 # 12.0 # radius of the a2ee2a graph used by atom↔edge interactions.
+  cutoff_aint: 5.0 # 12.0 # radius of the a2a graph for atom-atom interactions.
   rbf:
     name: gaussian
   rbf_spherical:
@@ -70,10 +70,10 @@ model:
     name: spherical_harmonics
   output_init: HeOrthogonal
   activation: silu
-  quad_interaction: True
-  atom_edge_interaction: True
-  edge_atom_interaction: True
-  atom_interaction: True
+  quad_interaction: True # quadruplet interaction: path of 4 atoms via two graphs (main + qint)
+  atom_edge_interaction: True # An atom's embedding directly modulates an incoming edge message (via the a2ee2a graph)
+  edge_atom_interaction: True # Edge messages update atom embeddings directly (reverse of a2e, same a2ee2a graph)
+  atom_interaction: True # Pure atom-to-atom message passing without angular information (cheaper, long-range, a2a graph).
   scale_basis: False
   num_elements: 100
 

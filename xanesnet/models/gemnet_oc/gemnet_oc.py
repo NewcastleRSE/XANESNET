@@ -15,13 +15,13 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import Any
 
 import torch
 from torch import nn
 
 from xanesnet.models.base import Model
 from xanesnet.models.registry import ModelRegistry
+from xanesnet.serialization.config import Config
 
 from .layers.atom_update_block import OutputBlock
 from .layers.base_layers import Dense, ResidualLayer
@@ -38,6 +38,29 @@ class GemNetOC(Model):
     """
     GemNet-OC adapted for per-atom XANES spectrum prediction.
     Ported from the fairchem-core reference (MIT License).
+
+    Periodicity handling
+    --------------------
+    This model is *agnostic* to periodicity. It consumes precomputed,
+    PBC-aware tensors (``edge_vec``, ``edge_weight``, and the optional
+    ``qint_*``/``a2ee2a_*``/``a2a_*`` counterparts) produced by
+    :class:`~xanesnet.datasets.torchgeometric.gemnet.GemNetDataset`. The dataset
+    builds each graph with ``build_edges`` on a ``pymatgen`` object — which
+    handles periodic (``Structure``) and non-periodic (``Molecule``) inputs
+    uniformly and emits lattice-corrected vectors for periodic self-image
+    edges. The model never reads raw ``batch.pos`` and never recomputes
+    distances / vectors, so periodic and non-periodic structures travel the
+    same code path here without any special-casing.
+
+    Basis-function configuration
+    ----------------------------
+    ``rbf``, ``rbf_spherical``, ``envelope``, ``cbf`` and ``sbf`` are
+    :class:`~xanesnet.serialization.config.Config` objects (the form returned
+    by ``Config.as_kwargs`` for nested YAML sub-sections). Each carries a
+    required ``name`` key plus optional hyperparameters, e.g.
+    ``Config({'name': 'polynomial', 'exponent': 5})``. Programmatic callers
+    (tests, notebooks) must wrap raw dicts in ``Config(...)`` before passing
+    them in.
     """
 
     def __init__(
@@ -70,11 +93,11 @@ class GemNetOC(Model):
         cutoff_qint: float | None,
         cutoff_aeaint: float | None,
         cutoff_aint: float | None,
-        rbf: dict[str, Any] | None,
-        rbf_spherical: dict[str, Any] | None,
-        envelope: dict[str, Any] | None,
-        cbf: dict[str, Any] | None,
-        sbf: dict[str, Any] | None,
+        rbf: Config,
+        rbf_spherical: Config,
+        envelope: Config,
+        cbf: Config,
+        sbf: Config,
         output_init: str,
         activation: str,
         quad_interaction: bool,
@@ -107,6 +130,7 @@ class GemNetOC(Model):
         self.num_output_afteratom = num_output_afteratom
         self.num_atom_emb_layers = num_atom_emb_layers
         self.num_global_out_layers = num_global_out_layers
+
         self.rbf_cfg = rbf
         self.rbf_spherical_cfg = rbf_spherical
         self.envelope_cfg = envelope
@@ -123,7 +147,16 @@ class GemNetOC(Model):
 
         self._set_cutoffs(cutoff, cutoff_qint, cutoff_aeaint, cutoff_aint)
 
-        self._init_basis_functions(num_radial, num_spherical, rbf, rbf_spherical, envelope, cbf, sbf, scale_basis)
+        self._init_basis_functions(
+            num_radial,
+            num_spherical,
+            self.rbf_cfg,
+            self.rbf_spherical_cfg,
+            self.envelope_cfg,
+            self.cbf_cfg,
+            self.sbf_cfg,
+            scale_basis,
+        )
         self._init_shared_basis_layers(num_radial, num_spherical, emb_size_rbf, emb_size_cbf, emb_size_sbf)
 
         # Embedding blocks
@@ -315,104 +348,113 @@ class GemNetOC(Model):
         quad_idx,
         num_atoms,
     ):
-        basis_rad_main_raw = self.radial_basis(main_graph["distance"])
+        """
+        Compute all radial / circular / spherical basis tensors used by the
+        interaction and output blocks.
 
+        Structure: one branch per interaction type. Each branch computes the
+        raw basis tensors (radial + angles) and immediately applies the
+        corresponding ``mlp_*`` / ``BasisEmbedding`` layers, returning a small
+        dict of embedded bases. Branches disabled by the interaction flags
+        contribute an empty dict / ``None`` (the downstream ``InteractionBlock``
+        checks those flags consistently).
+        """
+        # Main graph: always required.
+        basis_rad_main_raw = self.radial_basis(main_graph["distance"])
+        basis_atom_update = self.mlp_rbf_h(basis_rad_main_raw)
+        basis_output = self.mlp_rbf_out(basis_rad_main_raw)
+
+        # Edge -> edge (triplet) bases: always required.
         cosφ_cab = inner_product_clamped(
             main_graph["vector"][trip_idx_e2e["out"]],
             main_graph["vector"][trip_idx_e2e["in"]],
         )
-        basis_rad_cir_e2e_raw, basis_cir_e2e_raw = self.cbf_basis_tint(main_graph["distance"], cosφ_cab)
-
-        # Optional-branch locals (pre-declared so type-checkers see them bound regardless of which interactions are enabled).
-        basis_rad_cir_qint_raw = basis_cir_qint_raw = None
-        basis_rad_sph_qint_raw = basis_sph_qint_raw = None
-        basis_rad_a2ee2a_raw = None
-        basis_rad_cir_a2e_raw = basis_cir_a2e_raw = None
-        basis_rad_cir_e2a_raw = basis_cir_e2a_raw = None
-        basis_rad_a2a_raw = None
-
-        if self.quad_interaction:
-            cosφ_cab_q, cosφ_abd, angle_cabd = self._calculate_quad_angles(
-                main_graph["vector"], qint_graph["vector"], quad_idx
-            )
-            basis_rad_cir_qint_raw, basis_cir_qint_raw = self.cbf_basis_qint(qint_graph["distance"], cosφ_abd)
-            basis_rad_sph_qint_raw, basis_sph_qint_raw = self.sbf_basis_qint(
-                main_graph["distance"], cosφ_cab_q[quad_idx["trip_out_to_quad"]], angle_cabd
-            )
-        if self.atom_edge_interaction:
-            basis_rad_a2ee2a_raw = self.radial_basis_aeaint(a2ee2a_graph["distance"])
-            cosφ_cab_a2e = inner_product_clamped(
-                main_graph["vector"][trip_idx_a2e["out"]],
-                a2ee2a_graph["vector"][trip_idx_a2e["in"]],
-            )
-            basis_rad_cir_a2e_raw, basis_cir_a2e_raw = self.cbf_basis_aeint(main_graph["distance"], cosφ_cab_a2e)
-        if self.edge_atom_interaction:
-            cosφ_cab_e2a = inner_product_clamped(
-                a2ee2a_graph["vector"][trip_idx_e2a["out"]],
-                main_graph["vector"][trip_idx_e2a["in"]],
-            )
-            basis_rad_cir_e2a_raw, basis_cir_e2a_raw = self.cbf_basis_eaint(a2ee2a_graph["distance"], cosφ_cab_e2a)
-        if self.atom_interaction:
-            basis_rad_a2a_raw = self.radial_basis_aint(a2a_graph["distance"])
-
-        bases_qint: dict[str, torch.Tensor] = {}
-        if self.quad_interaction:
-            bases_qint["rad"] = self.mlp_rbf_qint(basis_rad_main_raw)
-            bases_qint["cir"] = self.mlp_cbf_qint(
-                rad_basis=basis_rad_cir_qint_raw,
-                sph_basis=basis_cir_qint_raw,
-                idx_sph_outer=quad_idx["triplet_in"]["out"],
-            )
-            bases_qint["sph"] = self.mlp_sbf_qint(
-                rad_basis=basis_rad_sph_qint_raw,
-                sph_basis=basis_sph_qint_raw,
-                idx_sph_outer=quad_idx["out"],
-                idx_sph_inner=quad_idx["out_agg"],
-            )
-
-        bases_a2e: dict[str, torch.Tensor] = {}
-        if self.atom_edge_interaction:
-            bases_a2e["rad"] = self.mlp_rbf_aeint(basis_rad_a2ee2a_raw)
-            bases_a2e["cir"] = self.mlp_cbf_aeint(
-                rad_basis=basis_rad_cir_a2e_raw,
-                sph_basis=basis_cir_a2e_raw,
-                idx_sph_outer=trip_idx_a2e["out"],
-                idx_sph_inner=trip_idx_a2e["out_agg"],
-            )
-        bases_e2a: dict[str, torch.Tensor] = {}
-        if self.edge_atom_interaction:
-            bases_e2a["rad"] = self.mlp_rbf_eaint(basis_rad_main_raw)
-            bases_e2a["cir"] = self.mlp_cbf_eaint(
-                rad_basis=basis_rad_cir_e2a_raw,
-                sph_basis=basis_cir_e2a_raw,
-                idx_rad_outer=a2ee2a_graph["edge_index"][1],
-                idx_rad_inner=a2ee2a_graph["target_neighbor_idx"],
-                idx_sph_outer=trip_idx_e2a["out"],
-                idx_sph_inner=trip_idx_e2a["out_agg"],
-                num_atoms=num_atoms,
-            )
-        if self.atom_interaction:
-            basis_a2a_rad = self.mlp_rbf_aint(
-                rad_basis=basis_rad_a2a_raw,
-                idx_rad_outer=a2a_graph["edge_index"][1],
-                idx_rad_inner=a2a_graph["target_neighbor_idx"],
-                num_atoms=num_atoms,
-            )
-        else:
-            basis_a2a_rad = None
-
+        rad_cir_e2e, cir_e2e = self.cbf_basis_tint(main_graph["distance"], cosφ_cab)
         bases_e2e = {
             "rad": self.mlp_rbf_tint(basis_rad_main_raw),
             "cir": self.mlp_cbf_tint(
-                rad_basis=basis_rad_cir_e2e_raw,
-                sph_basis=basis_cir_e2e_raw,
+                rad_basis=rad_cir_e2e,
+                sph_basis=cir_e2e,
                 idx_sph_outer=trip_idx_e2e["out"],
                 idx_sph_inner=trip_idx_e2e["out_agg"],
             ),
         }
 
-        basis_atom_update = self.mlp_rbf_h(basis_rad_main_raw)
-        basis_output = self.mlp_rbf_out(basis_rad_main_raw)
+        # Quadruplet interaction (optional).
+        bases_qint: dict[str, torch.Tensor] = {}
+        if self.quad_interaction:
+            cosφ_cab_q, cosφ_abd, angle_cabd = self._calculate_quad_angles(
+                main_graph["vector"], qint_graph["vector"], quad_idx
+            )
+            rad_cir_q, cir_q = self.cbf_basis_qint(qint_graph["distance"], cosφ_abd)
+            rad_sph_q, sph_q = self.sbf_basis_qint(
+                main_graph["distance"], cosφ_cab_q[quad_idx["trip_out_to_quad"]], angle_cabd
+            )
+            bases_qint = {
+                "rad": self.mlp_rbf_qint(basis_rad_main_raw),
+                "cir": self.mlp_cbf_qint(
+                    rad_basis=rad_cir_q,
+                    sph_basis=cir_q,
+                    idx_sph_outer=quad_idx["triplet_in"]["out"],
+                ),
+                "sph": self.mlp_sbf_qint(
+                    rad_basis=rad_sph_q,
+                    sph_basis=sph_q,
+                    idx_sph_outer=quad_idx["out"],
+                    idx_sph_inner=quad_idx["out_agg"],
+                ),
+            }
+
+        # Atom -> edge (mixed triplet) interaction (optional).
+        bases_a2e: dict[str, torch.Tensor] = {}
+        if self.atom_edge_interaction:
+            rad_a2ee2a = self.radial_basis_aeaint(a2ee2a_graph["distance"])
+            cosφ_cab_a2e = inner_product_clamped(
+                main_graph["vector"][trip_idx_a2e["out"]],
+                a2ee2a_graph["vector"][trip_idx_a2e["in"]],
+            )
+            rad_cir_a2e, cir_a2e = self.cbf_basis_aeint(main_graph["distance"], cosφ_cab_a2e)
+            bases_a2e = {
+                "rad": self.mlp_rbf_aeint(rad_a2ee2a),
+                "cir": self.mlp_cbf_aeint(
+                    rad_basis=rad_cir_a2e,
+                    sph_basis=cir_a2e,
+                    idx_sph_outer=trip_idx_a2e["out"],
+                    idx_sph_inner=trip_idx_a2e["out_agg"],
+                ),
+            }
+
+        # Edge -> atom (mixed triplet) interaction (optional).
+        bases_e2a: dict[str, torch.Tensor] = {}
+        if self.edge_atom_interaction:
+            cosφ_cab_e2a = inner_product_clamped(
+                a2ee2a_graph["vector"][trip_idx_e2a["out"]],
+                main_graph["vector"][trip_idx_e2a["in"]],
+            )
+            rad_cir_e2a, cir_e2a = self.cbf_basis_eaint(a2ee2a_graph["distance"], cosφ_cab_e2a)
+            bases_e2a = {
+                "rad": self.mlp_rbf_eaint(basis_rad_main_raw),
+                "cir": self.mlp_cbf_eaint(
+                    rad_basis=rad_cir_e2a,
+                    sph_basis=cir_e2a,
+                    idx_rad_outer=a2ee2a_graph["edge_index"][1],
+                    idx_rad_inner=a2ee2a_graph["target_neighbor_idx"],
+                    idx_sph_outer=trip_idx_e2a["out"],
+                    idx_sph_inner=trip_idx_e2a["out_agg"],
+                    num_atoms=num_atoms,
+                ),
+            }
+
+        # Atom -> atom interaction (optional).
+        basis_a2a_rad = None
+        if self.atom_interaction:
+            rad_a2a = self.radial_basis_aint(a2a_graph["distance"])
+            basis_a2a_rad = self.mlp_rbf_aint(
+                rad_basis=rad_a2a,
+                idx_rad_outer=a2a_graph["edge_index"][1],
+                idx_rad_inner=a2a_graph["target_neighbor_idx"],
+                num_atoms=num_atoms,
+            )
 
         return (
             basis_rad_main_raw,
@@ -425,106 +467,116 @@ class GemNetOC(Model):
             basis_a2a_rad,
         )
 
-    def _build_graph_dicts(self, batch) -> tuple[dict, dict, dict, dict, torch.Tensor, dict, dict, dict, dict]:
-        num_atoms = batch.x.size(0)
+    def forward(
+        self,
+        z: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_vec: torch.Tensor,
+        id_swap: torch.Tensor,
+        id3_expand_ba: torch.Tensor,
+        id3_reduce_ca: torch.Tensor,
+        Kidx3: torch.Tensor,
+        # Quadruplet (only when quad_interaction=True):
+        qint_edge_index: torch.Tensor | None = None,
+        qint_edge_weight: torch.Tensor | None = None,
+        qint_edge_vec: torch.Tensor | None = None,
+        id4_expand_intm_db: torch.Tensor | None = None,
+        id4_expand_intm_ab: torch.Tensor | None = None,
+        id4_reduce_intm_ab: torch.Tensor | None = None,
+        id4_reduce_intm_ca: torch.Tensor | None = None,
+        id4_reduce_ca: torch.Tensor | None = None,
+        id4_expand_abd: torch.Tensor | None = None,
+        id4_reduce_cab: torch.Tensor | None = None,
+        Kidx4: torch.Tensor | None = None,
+        # a2ee2a graph (needed when atom_edge_interaction or edge_atom_interaction):
+        a2ee2a_edge_index: torch.Tensor | None = None,
+        a2ee2a_edge_weight: torch.Tensor | None = None,
+        a2ee2a_edge_vec: torch.Tensor | None = None,
+        # Mixed-triplet a2e (atom_edge_interaction=True):
+        trip_a2e_in: torch.Tensor | None = None,
+        trip_a2e_out: torch.Tensor | None = None,
+        trip_a2e_out_agg: torch.Tensor | None = None,
+        # Mixed-triplet e2a (edge_atom_interaction=True):
+        trip_e2a_in: torch.Tensor | None = None,
+        trip_e2a_out: torch.Tensor | None = None,
+        trip_e2a_out_agg: torch.Tensor | None = None,
+        # a2a graph (atom_interaction=True):
+        a2a_edge_index: torch.Tensor | None = None,
+        a2a_edge_weight: torch.Tensor | None = None,
+        a2a_edge_vec: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        z = z.long()
+        num_atoms = z.size(0)
 
-        main_graph = {
-            "edge_index": batch.edge_index,
-            "distance": batch.edge_weight,
-            "vector": batch.edge_vec,
-        }
-        id_swap = batch.id_swap
+        # Group the flat forward-arg tensors into the nested dicts consumed by
+        # ``_get_bases`` and the interaction blocks. The only non-trivial work
+        # is ``target_neighbor_idx`` (per-edge index into the destination
+        # atom's neighbor list), required by basis-embedding scatters inside
+        # ``_get_bases``.
+        main_graph = {"edge_index": edge_index, "distance": edge_weight, "vector": edge_vec}
+        trip_idx_e2e = {"in": id3_expand_ba, "out": id3_reduce_ca, "out_agg": Kidx3}
 
-        trip_idx_e2e = {
-            "in": batch.id3_expand_ba,
-            "out": batch.id3_reduce_ca,
-            "out_agg": batch.Kidx3,
-        }
-
-        quad_idx: dict[str, Any] = {}
         qint_graph: dict[str, torch.Tensor] = {}
+        quad_idx: dict = {}
         if self.quad_interaction:
-            qint_graph = {
-                "edge_index": batch.qint_edge_index,
-                "distance": batch.qint_edge_weight,
-                "vector": batch.qint_edge_vec,
-            }
+            assert qint_edge_index is not None
+            assert qint_edge_weight is not None
+            assert qint_edge_vec is not None
+            assert id4_expand_intm_db is not None
+            assert id4_expand_intm_ab is not None
+            assert id4_reduce_intm_ab is not None
+            assert id4_reduce_intm_ca is not None
+            assert id4_reduce_ca is not None
+            assert id4_expand_abd is not None
+            assert id4_reduce_cab is not None
+            assert Kidx4 is not None
+            qint_graph = {"edge_index": qint_edge_index, "distance": qint_edge_weight, "vector": qint_edge_vec}
             quad_idx = {
-                "triplet_in": {
-                    "in": batch.id4_expand_intm_db,
-                    "out": batch.id4_expand_intm_ab,
-                },
-                "triplet_out": {
-                    "in": batch.id4_reduce_intm_ab,
-                    "out": batch.id4_reduce_intm_ca,
-                },
-                "out": batch.id4_reduce_ca,
-                "trip_in_to_quad": batch.id4_expand_abd,
-                "trip_out_to_quad": batch.id4_reduce_cab,
-                "out_agg": batch.Kidx4,
+                "triplet_in": {"in": id4_expand_intm_db, "out": id4_expand_intm_ab},
+                "triplet_out": {"in": id4_reduce_intm_ab, "out": id4_reduce_intm_ca},
+                "out": id4_reduce_ca,
+                "trip_in_to_quad": id4_expand_abd,
+                "trip_out_to_quad": id4_reduce_cab,
+                "out_agg": Kidx4,
             }
 
         a2ee2a_graph: dict[str, torch.Tensor] = {}
         trip_idx_a2e: dict[str, torch.Tensor] = {}
         trip_idx_e2a: dict[str, torch.Tensor] = {}
         if self.atom_edge_interaction or self.edge_atom_interaction:
-            a2ee2a_edge_index = batch.a2ee2a_edge_index
+            assert a2ee2a_edge_index is not None
+            assert a2ee2a_edge_weight is not None
+            assert a2ee2a_edge_vec is not None
             a2ee2a_graph = {
                 "edge_index": a2ee2a_edge_index,
-                "distance": batch.a2ee2a_edge_weight,
-                "vector": batch.a2ee2a_edge_vec,
+                "distance": a2ee2a_edge_weight,
+                "vector": a2ee2a_edge_vec,
                 "target_neighbor_idx": get_inner_idx(a2ee2a_edge_index[1], dim_size=num_atoms),
             }
         if self.atom_edge_interaction:
-            trip_idx_a2e = {
-                "in": batch.trip_a2e_in,
-                "out": batch.trip_a2e_out,
-                "out_agg": batch.trip_a2e_out_agg,
-            }
+            assert trip_a2e_in is not None
+            assert trip_a2e_out is not None
+            assert trip_a2e_out_agg is not None
+            trip_idx_a2e = {"in": trip_a2e_in, "out": trip_a2e_out, "out_agg": trip_a2e_out_agg}
         if self.edge_atom_interaction:
-            trip_idx_e2a = {
-                "in": batch.trip_e2a_in,
-                "out": batch.trip_e2a_out,
-                "out_agg": batch.trip_e2a_out_agg,
-            }
+            assert trip_e2a_in is not None
+            assert trip_e2a_out is not None
+            assert trip_e2a_out_agg is not None
+            trip_idx_e2a = {"in": trip_e2a_in, "out": trip_e2a_out, "out_agg": trip_e2a_out_agg}
 
         a2a_graph: dict[str, torch.Tensor] = {}
         if self.atom_interaction:
-            a2a_edge_index = batch.a2a_edge_index
+            assert a2a_edge_index is not None
+            assert a2a_edge_weight is not None
+            assert a2a_edge_vec is not None
             a2a_graph = {
                 "edge_index": a2a_edge_index,
-                "distance": batch.a2a_edge_weight,
-                "vector": batch.a2a_edge_vec,
+                "distance": a2a_edge_weight,
+                "vector": a2a_edge_vec,
                 "target_neighbor_idx": get_inner_idx(a2a_edge_index[1], dim_size=num_atoms),
             }
 
-        return (
-            main_graph,
-            a2a_graph,
-            a2ee2a_graph,
-            qint_graph,
-            id_swap,
-            trip_idx_e2e,
-            trip_idx_a2e,
-            trip_idx_e2a,
-            quad_idx,
-        )
-
-    def forward(self, batch) -> torch.Tensor:
-        z = batch.x.long()
-        num_atoms = z.size(0)
-
-        (
-            main_graph,
-            a2a_graph,
-            a2ee2a_graph,
-            qint_graph,
-            id_swap,
-            trip_idx_e2e,
-            trip_idx_a2e,
-            trip_idx_e2a,
-            quad_idx,
-        ) = self._build_graph_dicts(batch)
         _, idx_t = main_graph["edge_index"]
 
         (
@@ -626,11 +678,11 @@ class GemNetOC(Model):
                 "cutoff_qint": self.cutoff_qint,
                 "cutoff_aeaint": self.cutoff_aeaint,
                 "cutoff_aint": self.cutoff_aint,
-                "rbf": self.rbf_cfg,
-                "rbf_spherical": self.rbf_spherical_cfg,
-                "envelope": self.envelope_cfg,
-                "cbf": self.cbf_cfg,
-                "sbf": self.sbf_cfg,
+                "rbf": self.rbf_cfg.as_dict(),
+                "rbf_spherical": self.rbf_spherical_cfg.as_dict(),
+                "envelope": self.envelope_cfg.as_dict(),
+                "cbf": self.cbf_cfg.as_dict(),
+                "sbf": self.sbf_cfg.as_dict(),
                 "output_init": self.output_init,
                 "activation": self.activation,
                 "quad_interaction": self.quad_interaction,

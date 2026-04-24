@@ -23,19 +23,63 @@ from .base import BatchProcessor
 from .registry import BatchProcessorRegistry
 
 
-@BatchProcessorRegistry.register("gemnet", "gemnet_oc")
+@BatchProcessorRegistry.register("gemnet_oc", "gemnet_oc")
 class GemNetOCBatchProcessor(BatchProcessor):
     """
     Batch processor for the PyG-based ``GemNetDataset`` feeding GemNet-OC.
 
-    The GemNet-OC model forwards a single ``batch`` kwarg and reads all
-    pre-computed indices (main graph, a2ee2a/a2a/qint graphs, triplet and
-    quadruplet indices) directly from the batch attributes. The absorber
-    mask is applied to the per-atom predictions downstream.
+    GemNet-OC reads a large set of precomputed tensors (main/qint/a2ee2a/a2a
+    graphs plus triplet, mixed-triplet and quadruplet indices). All are
+    produced offline by ``GemNetDataset.prepare()`` and forwarded here as
+    individual ``torch.Tensor`` kwargs (consistent with the GemNet processor).
+    Optional fields are looked up with ``getattr(batch, name, None)`` so that
+    downstream toggles on the model side can gate their use.
     """
 
-    def input_preparation(self, batch: GemNetBatch) -> dict[str, object]:
-        return {"batch": batch}
+    _OPTIONAL_KEYS: tuple[str, ...] = (
+        # Quadruplet graph / indices
+        "qint_edge_index",
+        "qint_edge_weight",
+        "qint_edge_vec",
+        "id4_expand_intm_db",
+        "id4_expand_intm_ab",
+        "id4_reduce_intm_ab",
+        "id4_reduce_intm_ca",
+        "id4_reduce_ca",
+        "id4_expand_abd",
+        "id4_reduce_cab",
+        "Kidx4",
+        # a2ee2a graph
+        "a2ee2a_edge_index",
+        "a2ee2a_edge_weight",
+        "a2ee2a_edge_vec",
+        # Mixed triplets
+        "trip_a2e_in",
+        "trip_a2e_out",
+        "trip_a2e_out_agg",
+        "trip_e2a_in",
+        "trip_e2a_out",
+        "trip_e2a_out_agg",
+        # a2a graph
+        "a2a_edge_index",
+        "a2a_edge_weight",
+        "a2a_edge_vec",
+    )
+
+    def input_preparation(self, batch: GemNetBatch) -> dict[str, torch.Tensor | None]:
+        inputs: dict[str, torch.Tensor | None] = {
+            "z": batch.x,
+            "edge_index": batch.edge_index,
+            "edge_weight": batch.edge_weight,
+            "edge_vec": batch.edge_vec,
+            "id_swap": batch.id_swap,
+            "id3_expand_ba": batch.id3_expand_ba,
+            "id3_reduce_ca": batch.id3_reduce_ca,
+            "Kidx3": batch.Kidx3,
+        }
+        for key in self._OPTIONAL_KEYS:
+            inputs[key] = getattr(batch, key, None)
+        return inputs
 
     def prediction_preparation(self, batch: GemNetBatch, predictions: torch.Tensor) -> torch.Tensor:
         return predictions[batch.absorber_mask]

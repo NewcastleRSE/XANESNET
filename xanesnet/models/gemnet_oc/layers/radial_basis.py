@@ -20,6 +20,8 @@ import numpy as np
 import torch
 from scipy.special import binom
 
+from xanesnet.serialization.config import Config
+
 from .scaling import ScaleFactor
 
 
@@ -100,23 +102,19 @@ class RadialBasis(torch.nn.Module):
         self,
         num_radial: int,
         cutoff: float,
-        rbf: dict | None = None,
-        envelope: dict | None = None,
+        rbf: Config,
+        envelope: Config,
         scale_basis: bool = False,
     ) -> None:
         super().__init__()
-        if envelope is None:
-            envelope = {"name": "polynomial", "exponent": 5}
-        if rbf is None:
-            rbf = {"name": "gaussian"}
         self.inv_cutoff = 1 / cutoff
 
         self.scale_basis = scale_basis
         if self.scale_basis:
             self.scale_rbf = ScaleFactor()
 
-        env_name = envelope["name"].lower()
-        env_hparams = {k: v for k, v in envelope.items() if k != "name"}
+        env_name = envelope.get_str("name").lower()
+        env_hparams = {k: v for k, v in envelope.as_dict().items() if k != "name"}
         if env_name == "polynomial":
             self.envelope = PolynomialEnvelope(**env_hparams)
         elif env_name == "exponential":
@@ -124,8 +122,8 @@ class RadialBasis(torch.nn.Module):
         else:
             raise ValueError(f"Unknown envelope function '{env_name}'.")
 
-        rbf_name = rbf["name"].lower()
-        rbf_hparams = {k: v for k, v in rbf.items() if k != "name"}
+        rbf_name = rbf.get_str("name").lower()
+        rbf_hparams = {k: v for k, v in rbf.as_dict().items() if k != "name"}
         if rbf_name == "gaussian":
             self.rbf = GaussianBasis(start=0, stop=1, num_gaussians=num_radial, **rbf_hparams)
         elif rbf_name == "spherical_bessel":

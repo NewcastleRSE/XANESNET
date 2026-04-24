@@ -16,6 +16,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import torch
 
+from xanesnet.serialization.config import Config
+
 from .basis_utils import get_sph_harm_basis
 from .radial_basis import GaussianBasis, RadialBasis
 from .scaling import ScaleFactor
@@ -26,7 +28,7 @@ class CircularBasisLayer(torch.nn.Module):
         self,
         num_spherical: int,
         radial_basis: RadialBasis,
-        cbf: dict,
+        cbf: Config,
         scale_basis: bool = False,
     ) -> None:
         super().__init__()
@@ -36,8 +38,8 @@ class CircularBasisLayer(torch.nn.Module):
         if self.scale_basis:
             self.scale_cbf = ScaleFactor()
 
-        cbf_name = cbf["name"].lower()
-        cbf_hparams = {k: v for k, v in cbf.items() if k != "name"}
+        cbf_name = cbf.get_str("name").lower()
+        cbf_hparams = {k: v for k, v in cbf.as_dict().items() if k != "name"}
         if cbf_name == "gaussian":
             self.cosφ_basis = GaussianBasis(start=-1, stop=1, num_gaussians=num_spherical, **cbf_hparams)
         elif cbf_name == "spherical_harmonics":
@@ -58,7 +60,7 @@ class SphericalBasisLayer(torch.nn.Module):
         self,
         num_spherical: int,
         radial_basis: RadialBasis,
-        sbf: dict,
+        sbf: Config,
         scale_basis: bool = False,
     ) -> None:
         super().__init__()
@@ -69,8 +71,8 @@ class SphericalBasisLayer(torch.nn.Module):
         if self.scale_basis:
             self.scale_sbf = ScaleFactor()
 
-        sbf_name = sbf["name"].lower()
-        sbf_hparams = {k: v for k, v in sbf.items() if k != "name"}
+        sbf_name = sbf.get_str("name").lower()
+        sbf_hparams = {k: v for k, v in sbf.as_dict().items() if k != "name"}
 
         if sbf_name == "spherical_harmonics":
             self.spherical_basis = get_sph_harm_basis(num_spherical, zero_m_only=False)

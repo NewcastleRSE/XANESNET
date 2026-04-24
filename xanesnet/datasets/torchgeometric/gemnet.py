@@ -351,26 +351,47 @@ class GemNetDataset(TorchGeometricDataset):
 
             # GemNet-OC extra graphs and mixed triplets
             if self.oc_mode:
-                # a2ee2a graph (used by atom-edge / edge-atom interactions)
-                a2ee2a_edge_index, a2ee2a_edge_weight, a2ee2a_edge_vec, _ = build_edges(
-                    pmg_obj,
-                    self.oc_cutoff_aeaint,
-                    self.oc_max_neighbors_aeaint,
-                    compute_vectors=True,
-                    method=self.graph_method,
-                    min_facet_area=self.min_facet_area,
-                    cov_radii_scale=self.cov_radii_scale,
-                )
-                # a2a graph (used by atom-atom interactions)
-                a2a_edge_index, a2a_edge_weight, a2a_edge_vec, _ = build_edges(
-                    pmg_obj,
-                    self.oc_cutoff_aint,
-                    self.oc_max_neighbors_aint,
-                    compute_vectors=True,
-                    method=self.graph_method,
-                    min_facet_area=self.min_facet_area,
-                    cov_radii_scale=self.cov_radii_scale,
-                )
+                # a2ee2a graph (used by atom-edge / edge-atom interactions).
+                # Reuse the main graph if the cutoff/max_neighbors match exactly
+                # (common default): avoids a full re-run of build_edges.
+                if self.oc_cutoff_aeaint == self.cutoff and self.oc_max_neighbors_aeaint == self.max_num_neighbors:
+                    a2ee2a_edge_index = edge_index
+                    a2ee2a_edge_weight = edge_weight
+                    a2ee2a_edge_vec = edge_vec
+                else:
+                    a2ee2a_edge_index, a2ee2a_edge_weight, a2ee2a_edge_vec, _ = build_edges(
+                        pmg_obj,
+                        self.oc_cutoff_aeaint,
+                        self.oc_max_neighbors_aeaint,
+                        compute_vectors=True,
+                        method=self.graph_method,
+                        min_facet_area=self.min_facet_area,
+                        cov_radii_scale=self.cov_radii_scale,
+                    )
+                # a2a graph (used by atom-atom interactions). Reuse int graph or
+                # main graph when their configuration matches.
+                if (
+                    self.quadruplets
+                    and self.oc_cutoff_aint == self.int_cutoff
+                    and self.oc_max_neighbors_aint == self.max_num_neighbors
+                ):
+                    a2a_edge_index = int_edge_index
+                    a2a_edge_weight = int_edge_weight
+                    a2a_edge_vec = int_edge_vec
+                elif self.oc_cutoff_aint == self.cutoff and self.oc_max_neighbors_aint == self.max_num_neighbors:
+                    a2a_edge_index = edge_index
+                    a2a_edge_weight = edge_weight
+                    a2a_edge_vec = edge_vec
+                else:
+                    a2a_edge_index, a2a_edge_weight, a2a_edge_vec, _ = build_edges(
+                        pmg_obj,
+                        self.oc_cutoff_aint,
+                        self.oc_max_neighbors_aint,
+                        compute_vectors=True,
+                        method=self.graph_method,
+                        min_facet_area=self.min_facet_area,
+                        cov_radii_scale=self.cov_radii_scale,
+                    )
                 assert a2ee2a_edge_vec is not None and a2a_edge_vec is not None
 
                 data_fields.update(
@@ -384,14 +405,13 @@ class GemNetDataset(TorchGeometricDataset):
                     }
                 )
 
-                # qint graph: subset/same as int_edge_index when quadruplets=True.
-                # GemNet-OC uses it independently; we clone the int_edge_* tensors
-                # to decouple storage so in-place mutations on one set of fields
-                # do not accidentally affect the other.
+                # qint graph: identical to the interaction graph when quadruplets=True.
+                # Share storage with ``int_edge_*`` (no clone) since both sets of keys
+                # are read-only after ``prepare`` and tensors are never mutated in place.
                 if self.quadruplets:
-                    data_fields["qint_edge_index"] = data_fields["int_edge_index"].clone()
-                    data_fields["qint_edge_weight"] = data_fields["int_edge_weight"].clone()
-                    data_fields["qint_edge_vec"] = data_fields["int_edge_vec"].clone()
+                    data_fields["qint_edge_index"] = data_fields["int_edge_index"]
+                    data_fields["qint_edge_weight"] = data_fields["int_edge_weight"]
+                    data_fields["qint_edge_vec"] = data_fields["int_edge_vec"]
                 else:
                     qint_edge_index, qint_edge_weight, qint_edge_vec, _ = build_edges(
                         pmg_obj,
