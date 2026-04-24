@@ -499,239 +499,232 @@ def main() -> None:
     label_atoms = (not args.no_atom_labels) and (n_atoms <= 60)
     abs_sym = Element.from_Z(int(atomic_numbers[args.absorber_idx])).symbol
 
-    n_3d_rows = 2 if args.oc else 1
-    fig = plt.figure(figsize=(22, 7 + 7 * n_3d_rows))
+    # Build list of "edge graphs" to plot (always main, plus int / a2ee2a / a2a
+    # when active). Each entry: (title, edge_index_np, edge_vec_np, color_intra).
+    edge_panels: list[tuple[str, np.ndarray, np.ndarray, np.ndarray, tuple[float, float, float]]] = [
+        (
+            f"Main edges ({args.graph_method}, E={edge_index.shape[1]})",
+            edge_src,
+            edge_dst,
+            edge_vec_np,
+            (0.15, 0.45, 0.75),
+        )
+    ]
+    if args.quadruplets and int_edge_index.size(1) > 0:
+        edge_panels.append(
+            (
+                f"Int edges (qint, cutoff={int_cutoff}, E={int_edge_index.shape[1]})",
+                int_edge_index[0].numpy(),
+                int_edge_index[1].numpy(),
+                int_edge_vec.numpy(),
+                (0.95, 0.55, 0.10),
+            )
+        )
+    if args.oc:
+        edge_panels.append(
+            (
+                f"a2ee2a edges (cutoff={oc_cutoff_aeaint}, E={a2ee2a_edge_index.shape[1]})",
+                a2ee2a_edge_index[0].numpy(),
+                a2ee2a_edge_index[1].numpy(),
+                a2ee2a_edge_vec.numpy(),
+                (0.50, 0.10, 0.65),
+            )
+        )
+        edge_panels.append(
+            (
+                f"a2a edges (cutoff={oc_cutoff_aint}, E={a2a_edge_index.shape[1]})",
+                a2a_edge_index[0].numpy(),
+                a2a_edge_index[1].numpy(),
+                a2a_edge_vec.numpy(),
+                (0.10, 0.55, 0.55),
+            )
+        )
+
+    # Build list of "index graphs" (triplets, quads, mixed a2e/e2a).
+    n_a2e = a2e_mixed.get("in_", torch.empty(0)).numel() if a2e_mixed else 0
+    n_e2a = e2a_mixed.get("in_", torch.empty(0)).numel() if e2a_mixed else 0
+    index_panels: list[str] = ["triplets"]
+    if args.quadruplets:
+        index_panels.append("quads")
+    if args.oc:
+        index_panels.append("a2e")
+        index_panels.append("e2a")
+
+    n_graph_cols = max(len(edge_panels), len(index_panels))
+    fig = plt.figure(figsize=(5.5 * n_graph_cols + 1.0, 20.0))
     gs = fig.add_gridspec(
-        nrows=n_3d_rows + 1,
-        ncols=3,
-        height_ratios=[3.2] * n_3d_rows + [1.3],
+        nrows=3,
+        ncols=n_graph_cols,
+        height_ratios=[3.2, 3.2, 1.4],
         hspace=0.32,
         wspace=0.26,
         left=0.04,
         right=0.98,
-        top=0.94,
-        bottom=0.06,
+        top=0.93,
+        bottom=0.05,
     )
 
-    # Row 0: main edges, triplets, quadruplets (or mixed a2e fallback)
-    ax_edges = fig.add_subplot(gs[0, 0], projection="3d")
-    ax_trip = fig.add_subplot(gs[0, 1], projection="3d")
-    ax_quad = fig.add_subplot(gs[0, 2], projection="3d")
+    # ---- Row 0: edge graphs ----
+    n_pbc_main = 0
+    for i, (title, es, ed, evec, col) in enumerate(edge_panels):
+        ax = fig.add_subplot(gs[0, i], projection="3d")
+        setup_axis(ax, pmg_obj, coords, atomic_numbers, args.absorber_idx, vis_points, is_periodic, title, label_atoms)
+        if es.size == 0:
+            ax.text2D(0.5, 0.5, "empty graph", ha="center", va="center", transform=ax.transAxes, color="gray")
+            continue
+        if i == 0:
+            n_pbc_main = plot_edges(ax, coords, es, ed, evec, is_periodic)
+            leg = [Patch(color=(*col, 0.8), label="intra-cell")]
+            if is_periodic:
+                leg.append(Patch(color=(0.85, 0.30, 0.10, 0.85), label=f"PBC-crossing ({n_pbc_main})"))
+            if args.show_voronoi:
+                facets = compute_voronoi_facets(pmg_obj, args.cutoff)
+                plot_voronoi_facets(ax, facets)
+                leg.append(Patch(color=(0.27, 0.0, 0.33, 0.55), label=f"Voronoi facets ({len(facets)})"))
+            ax.legend(handles=leg, loc="upper left", fontsize=8)
+        else:
+            _draw_generic_edges(ax, coords, es, ed, evec, is_periodic, color_intra=col, color_pbc=(0.85, 0.30, 0.10))
+            ax.legend(handles=[Patch(color=(*col, 0.8), label=title.split(" ")[0])], loc="upper left", fontsize=8)
 
-    setup_axis(
-        ax_edges,
-        pmg_obj,
-        coords,
-        atomic_numbers,
-        args.absorber_idx,
-        vis_points,
-        is_periodic,
-        f"Main edges ({args.graph_method}, E={edge_index.shape[1]})",
-        label_atoms,
-    )
-    n_pbc_main = plot_edges(ax_edges, coords, edge_src, edge_dst, edge_vec_np, is_periodic)
-    leg = [Patch(color=(0.15, 0.45, 0.75, 0.8), label="intra-cell")]
-    if is_periodic:
-        leg.append(Patch(color=(0.85, 0.30, 0.10, 0.85), label=f"PBC-crossing ({n_pbc_main})"))
-    if args.show_voronoi:
-        facets = compute_voronoi_facets(pmg_obj, args.cutoff)
-        plot_voronoi_facets(ax_edges, facets)
-        leg.append(Patch(color=(0.27, 0.0, 0.33, 0.55), label=f"Voronoi facets ({len(facets)})"))
-    ax_edges.legend(handles=leg, loc="upper left", fontsize=8)
-
-    setup_axis(
-        ax_trip,
-        pmg_obj,
-        coords,
-        atomic_numbers,
-        args.absorber_idx,
-        vis_points,
-        is_periodic,
-        f"Triplets c-a-b  (T={id3_reduce_ca.numel()}, <={args.max_triplets_drawn} drawn)",
-        label_atoms,
-    )
-    plot_triplets(
-        ax_trip,
-        coords,
-        edge_src,
-        edge_dst,
-        edge_vec_np,
-        id3_reduce_ca.numpy(),
-        id3_expand_ba.numpy(),
-        args.max_triplets_drawn,
-    )
-    ax_trip.legend(handles=[Patch(color=(0.30, 0.75, 0.35, 0.35), label="(c, a, b)")], loc="upper left", fontsize=8)
-
-    if args.quadruplets and quad and quad["id4_reduce_ca"].numel() > 0:
-        setup_axis(
-            ax_quad,
-            pmg_obj,
-            coords,
-            atomic_numbers,
-            args.absorber_idx,
-            vis_points,
-            is_periodic,
-            f"Quadruplets c-a-b-d  (Q={quad['id4_reduce_ca'].numel()}, <={args.max_quads_drawn} drawn)",
-            label_atoms,
-        )
-        n_drawn = plot_quadruplets(
-            ax_quad,
-            coords,
-            edge_src,
-            edge_dst,
-            edge_vec_np,
-            int_edge_index[0].numpy(),
-            int_edge_index[1].numpy(),
-            int_edge_vec.numpy(),
-            quad["id4_reduce_ca"].numpy(),
-            quad["id4_expand_db"].numpy(),
-            quad["id4_int_edge_diag"].numpy(),
-            args.max_quads_drawn,
-        )
-        ax_quad.legend(
-            handles=[
-                Patch(color=(0.10, 0.55, 0.15), label="c-a (main)"),
-                Patch(color=(0.95, 0.50, 0.10), label="a-b (int)"),
-                Patch(color=(0.20, 0.40, 0.80), label="b-d (main)"),
-            ],
-            loc="upper left",
-            fontsize=8,
-        )
-    else:
-        setup_axis(
-            ax_quad,
-            pmg_obj,
-            coords,
-            atomic_numbers,
-            args.absorber_idx,
-            vis_points,
-            is_periodic,
-            "Quadruplets (not computed)",
-            label_atoms,
-        )
-        ax_quad.text2D(
-            0.5,
-            0.5,
-            "--quadruplets not set\nor no quadruplets",
-            ha="center",
-            va="center",
-            transform=ax_quad.transAxes,
-            fontsize=11,
-            color="gray",
-        )
-
-    # Row 1 (OC only): a2ee2a, a2a, mixed triplets a2e+e2a
-    if args.oc:
-        ax_aea = fig.add_subplot(gs[1, 0], projection="3d")
-        ax_aa = fig.add_subplot(gs[1, 1], projection="3d")
-        ax_mix = fig.add_subplot(gs[1, 2], projection="3d")
-
-        # a2ee2a
-        setup_axis(
-            ax_aea,
-            pmg_obj,
-            coords,
-            atomic_numbers,
-            args.absorber_idx,
-            vis_points,
-            is_periodic,
-            f"a2ee2a edges (cutoff={oc_cutoff_aeaint}, E={a2ee2a_edge_index.shape[1]})",
-            label_atoms,
-        )
-        if a2ee2a_edge_index.size(1) > 0:
-            _draw_generic_edges(
-                ax_aea,
+    # ---- Row 1: index graphs (triplets / quads / mixed) ----
+    for i, kind in enumerate(index_panels):
+        ax = fig.add_subplot(gs[1, i], projection="3d")
+        if kind == "triplets":
+            setup_axis(
+                ax,
+                pmg_obj,
                 coords,
-                a2ee2a_edge_index[0].numpy(),
-                a2ee2a_edge_index[1].numpy(),
-                a2ee2a_edge_vec.numpy(),
+                atomic_numbers,
+                args.absorber_idx,
+                vis_points,
                 is_periodic,
-                color_intra=(0.50, 0.10, 0.65),
-                color_pbc=(0.85, 0.30, 0.10),
+                f"Triplets c-a-b  (T={id3_reduce_ca.numel()}, <={args.max_triplets_drawn} drawn)",
+                label_atoms,
             )
-        ax_aea.legend(handles=[Patch(color=(0.50, 0.10, 0.65, 0.8), label="a2ee2a")], loc="upper left", fontsize=8)
-
-        # a2a
-        setup_axis(
-            ax_aa,
-            pmg_obj,
-            coords,
-            atomic_numbers,
-            args.absorber_idx,
-            vis_points,
-            is_periodic,
-            f"a2a edges (cutoff={oc_cutoff_aint}, E={a2a_edge_index.shape[1]})",
-            label_atoms,
-        )
-        if a2a_edge_index.size(1) > 0:
-            _draw_generic_edges(
-                ax_aa,
-                coords,
-                a2a_edge_index[0].numpy(),
-                a2a_edge_index[1].numpy(),
-                a2a_edge_vec.numpy(),
-                is_periodic,
-                color_intra=(0.10, 0.55, 0.55),
-                color_pbc=(0.85, 0.30, 0.10),
-            )
-        ax_aa.legend(handles=[Patch(color=(0.10, 0.55, 0.55, 0.8), label="a2a")], loc="upper left", fontsize=8)
-
-        # Mixed triplets a2e (pink) + e2a (teal)
-        n_a2e = a2e_mixed.get("in_", torch.empty(0)).numel() if a2e_mixed else 0
-        n_e2a = e2a_mixed.get("in_", torch.empty(0)).numel() if e2a_mixed else 0
-        setup_axis(
-            ax_mix,
-            pmg_obj,
-            coords,
-            atomic_numbers,
-            args.absorber_idx,
-            vis_points,
-            is_periodic,
-            f"Mixed triplets (a2e={n_a2e}, e2a={n_e2a}, <={args.max_mixed_drawn} each)",
-            label_atoms,
-        )
-        if n_a2e > 0:
-            plot_mixed_triplets(
-                ax_mix,
+            plot_triplets(
+                ax,
                 coords,
                 edge_src,
                 edge_dst,
                 edge_vec_np,
-                a2ee2a_edge_index[0].numpy(),
-                a2ee2a_edge_vec.numpy(),
-                a2e_mixed["out"].numpy(),
-                a2e_mixed["in_"].numpy(),
-                args.max_mixed_drawn,
-                color=(0.85, 0.25, 0.55),
+                id3_reduce_ca.numpy(),
+                id3_expand_ba.numpy(),
+                args.max_triplets_drawn,
             )
-        if n_e2a > 0:
-            plot_mixed_triplets(
-                ax_mix,
+            ax.legend(handles=[Patch(color=(0.30, 0.75, 0.35, 0.35), label="(c, a, b)")], loc="upper left", fontsize=8)
+        elif kind == "quads":
+            if quad and quad["id4_reduce_ca"].numel() > 0:
+                setup_axis(
+                    ax,
+                    pmg_obj,
+                    coords,
+                    atomic_numbers,
+                    args.absorber_idx,
+                    vis_points,
+                    is_periodic,
+                    f"Quadruplets c-a-b-d  (Q={quad['id4_reduce_ca'].numel()}, <={args.max_quads_drawn} drawn)",
+                    label_atoms,
+                )
+                plot_quadruplets(
+                    ax,
+                    coords,
+                    edge_src,
+                    edge_dst,
+                    edge_vec_np,
+                    int_edge_index[0].numpy(),
+                    int_edge_index[1].numpy(),
+                    int_edge_vec.numpy(),
+                    quad["id4_reduce_ca"].numpy(),
+                    quad["id4_expand_db"].numpy(),
+                    quad["id4_int_edge_diag"].numpy(),
+                    args.max_quads_drawn,
+                )
+                ax.legend(
+                    handles=[
+                        Patch(color=(0.10, 0.55, 0.15), label="c-a (main)"),
+                        Patch(color=(0.95, 0.50, 0.10), label="a-b (int)"),
+                        Patch(color=(0.20, 0.40, 0.80), label="b-d (main)"),
+                    ],
+                    loc="upper left",
+                    fontsize=8,
+                )
+            else:
+                setup_axis(
+                    ax,
+                    pmg_obj,
+                    coords,
+                    atomic_numbers,
+                    args.absorber_idx,
+                    vis_points,
+                    is_periodic,
+                    "Quadruplets (none)",
+                    label_atoms,
+                )
+                ax.text2D(0.5, 0.5, "no quadruplets", ha="center", va="center", transform=ax.transAxes, color="gray")
+        elif kind == "a2e":
+            setup_axis(
+                ax,
+                pmg_obj,
                 coords,
-                a2ee2a_edge_index[0].numpy(),
-                a2ee2a_edge_index[1].numpy(),
-                a2ee2a_edge_vec.numpy(),
-                edge_index[0].numpy(),
-                edge_vec_np,
-                e2a_mixed["out"].numpy(),
-                e2a_mixed["in_"].numpy(),
-                args.max_mixed_drawn,
-                color=(0.15, 0.55, 0.55),
-                seed=1,
+                atomic_numbers,
+                args.absorber_idx,
+                vis_points,
+                is_periodic,
+                f"Mixed triplets a2e  (T={n_a2e}, <={args.max_mixed_drawn} drawn)",
+                label_atoms,
             )
-        ax_mix.legend(
-            handles=[
-                Patch(color=(0.85, 0.25, 0.55, 0.4), label="a2e"),
-                Patch(color=(0.15, 0.55, 0.55, 0.4), label="e2a"),
-            ],
-            loc="upper left",
-            fontsize=8,
-        )
+            if n_a2e > 0:
+                plot_mixed_triplets(
+                    ax,
+                    coords,
+                    edge_src,
+                    edge_dst,
+                    edge_vec_np,
+                    a2ee2a_edge_index[0].numpy(),
+                    a2ee2a_edge_vec.numpy(),
+                    a2e_mixed["out"].numpy(),
+                    a2e_mixed["in_"].numpy(),
+                    args.max_mixed_drawn,
+                    color=(0.85, 0.25, 0.55),
+                )
+            ax.legend(handles=[Patch(color=(0.85, 0.25, 0.55, 0.4), label="a2e")], loc="upper left", fontsize=8)
+        elif kind == "e2a":
+            setup_axis(
+                ax,
+                pmg_obj,
+                coords,
+                atomic_numbers,
+                args.absorber_idx,
+                vis_points,
+                is_periodic,
+                f"Mixed triplets e2a  (T={n_e2a}, <={args.max_mixed_drawn} drawn)",
+                label_atoms,
+            )
+            if n_e2a > 0:
+                plot_mixed_triplets(
+                    ax,
+                    coords,
+                    a2ee2a_edge_index[0].numpy(),
+                    a2ee2a_edge_index[1].numpy(),
+                    a2ee2a_edge_vec.numpy(),
+                    edge_index[0].numpy(),
+                    edge_vec_np,
+                    e2a_mixed["out"].numpy(),
+                    e2a_mixed["in_"].numpy(),
+                    args.max_mixed_drawn,
+                    color=(0.15, 0.55, 0.55),
+                    seed=1,
+                )
+            ax.legend(handles=[Patch(color=(0.15, 0.55, 0.55, 0.4), label="e2a")], loc="upper left", fontsize=8)
 
     # ---------- Histograms ----------
-    ax_hw = fig.add_subplot(gs[n_3d_rows, 0])
-    ax_hd = fig.add_subplot(gs[n_3d_rows, 1])
-    ax_ha = fig.add_subplot(gs[n_3d_rows, 2])
+    # Split the bottom row into exactly 3 equal-width panels regardless of
+    # how many columns the 3D grid uses.
+    _third = max(1, n_graph_cols // 3)
+    _rem = n_graph_cols - 2 * _third
+    ax_hw = fig.add_subplot(gs[2, 0:_third])
+    ax_hd = fig.add_subplot(gs[2, _third : 2 * _third])
+    ax_ha = fig.add_subplot(gs[2, 2 * _third : 2 * _third + _rem])
 
     # Edge-weight hist (main, int, a2ee2a, a2a)
     bins = 30
@@ -926,6 +919,41 @@ def main() -> None:
 
     print(line)
 
+    # ---------- Input-size impact ----------
+    # Per-sample tensor-element counts that flow into the model. These dominate
+    # runtime/memory scaling: edge-indexed features scale with E, triplet-
+    # indexed with T, quadruplet-indexed with Q, and basis-embedding scatters
+    # scale with the corresponding dst-atom neighbor lists.
+    print("Input-size impact (per-sample tensor counts):")
+    print(f"  atoms                              N = {n_atoms}")
+    print(f"  main edges                         E_main   = {edge_index.shape[1]}")
+    print(f"  triplets (c-a-b)                   T_main   = {id3_reduce_ca.numel()}")
+    if args.quadruplets:
+        n_int = int_edge_index.size(1)
+        n_quad = quad.get("id4_reduce_ca", torch.empty(0)).numel()
+        n_intm_ab = quad.get("id4_reduce_intm_ab", torch.empty(0)).numel()
+        print(f"  int edges (qint)                   E_int    = {n_int}")
+        print(f"  intm quadruplet-triplets (a-b)     T_intm   = {n_intm_ab}")
+        print(f"  quadruplets (c-a-b-d)              Q        = {n_quad}")
+        ratio_qe = (n_quad / n_int) if n_int else 0.0
+        ratio_qt = (n_quad / id3_reduce_ca.numel()) if id3_reduce_ca.numel() else 0.0
+        print(f"  ratios                             Q/E_int={ratio_qe:.2f}   Q/T_main={ratio_qt:.2f}")
+    if args.oc:
+        n_aea = a2ee2a_edge_index.shape[1]
+        n_aa = a2a_edge_index.shape[1]
+        print(f"  a2ee2a edges                       E_aea    = {n_aea}")
+        print(f"  a2a edges                          E_aa     = {n_aa}")
+        print(f"  mixed triplets atom->edge          T_a2e    = {n_a2e}")
+        print(f"  mixed triplets edge->atom          T_e2a    = {n_e2a}")
+        total_edges = edge_index.shape[1] + int_edge_index.size(1) + n_aea + n_aa
+        total_triplets = id3_reduce_ca.numel() + n_a2e + n_e2a
+        total_quads = quad.get("id4_reduce_ca", torch.empty(0)).numel() if args.quadruplets else 0
+        print(f"  TOTAL edges across all graphs      sum(E)   = {total_edges}")
+        print(f"  TOTAL triplet-like indices         sum(T)   = {total_triplets}")
+        if args.quadruplets:
+            print(f"  TOTAL quadruplet-like indices      sum(Q)   = {total_quads}")
+    print(line)
+
     fig.suptitle(
         f"{'periodic Structure' if is_periodic else 'Molecule'}  .  {stem}  "
         f".  absorber={abs_sym}{args.absorber_idx}  .  method={args.graph_method}  "
@@ -944,5 +972,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
     main()
