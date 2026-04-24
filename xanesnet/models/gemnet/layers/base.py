@@ -58,6 +58,8 @@ class Dense(torch.nn.Module):
         else:
             raise ValueError(f"Unknown activation function '{activation}' specified for Dense layer.")
 
+        self.reset_parameters()
+
     def reset_parameters(self) -> None:
         he_orthogonal_init(self.linear.weight)
         if self.linear.bias is not None:
@@ -104,6 +106,8 @@ class ResidualLayer(torch.nn.Module):
             *[Dense(units, units, activation=activation, bias=False) for _ in range(nLayers)]
         )
         self.inv_sqrt_2 = 1 / (2.0**0.5)
+
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         for layer in self.dense_mlp:

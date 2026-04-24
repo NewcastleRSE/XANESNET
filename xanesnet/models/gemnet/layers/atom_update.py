@@ -115,9 +115,10 @@ class OutputBlock(AtomUpdateBlock):
         self.output_init = output_init
 
         self.seq_energy = self.layers  # inherited from parent class
-        # do not add bias to final layer to enforce that prediction for an atom
-        # without any edge embeddings is zero
+        # do not add bias to final layer to enforce that prediction for an atom without any edge embeddings is zero
         self.out_energy = Dense(emb_size_atom, num_targets, bias=False, activation=None)
+
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         super().reset_parameters()

@@ -385,12 +385,13 @@ class GemNetDataset(TorchGeometricDataset):
                 )
 
                 # qint graph: subset/same as int_edge_index when quadruplets=True.
-                # GemNet-OC uses it independently; for simplicity we alias it to
-                # int_edge_index when quadruplets is enabled, otherwise build.
+                # GemNet-OC uses it independently; we clone the int_edge_* tensors
+                # to decouple storage so in-place mutations on one set of fields
+                # do not accidentally affect the other.
                 if self.quadruplets:
-                    data_fields["qint_edge_index"] = data_fields["int_edge_index"]
-                    data_fields["qint_edge_weight"] = data_fields["int_edge_weight"]
-                    data_fields["qint_edge_vec"] = data_fields["int_edge_vec"]
+                    data_fields["qint_edge_index"] = data_fields["int_edge_index"].clone()
+                    data_fields["qint_edge_weight"] = data_fields["int_edge_weight"].clone()
+                    data_fields["qint_edge_vec"] = data_fields["int_edge_vec"].clone()
                 else:
                     qint_edge_index, qint_edge_weight, qint_edge_vec, _ = build_edges(
                         pmg_obj,
