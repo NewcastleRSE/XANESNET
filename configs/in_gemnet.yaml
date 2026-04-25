@@ -18,13 +18,25 @@ dataset:
   graph_method: voronoi
   min_facet_area: 5.0%
   cov_radii_scale: 1.5
-  quadruplets: False
+  # Quadruplets:
+  quadruplets: True
   int_cutoff: 10.0
+  int_max_neighbors: 50
+  int_graph_method: radius
+  int_min_facet_area: null
+  int_cov_radii_scale: null
+  # OC-specific params (ignored for non-OC gemnet):
   oc_mode: False
   oc_cutoff_aeaint: null
-  oc_cutoff_aint: null
   oc_max_neighbors_aeaint: null
+  oc_graph_method_aeaint: null
+  oc_min_facet_area_aeaint: null
+  oc_cov_radii_scale_aeaint: null
+  oc_cutoff_aint: null
   oc_max_neighbors_aint: null
+  oc_graph_method_aint: null
+  oc_min_facet_area_aint: null
+  oc_cov_radii_scale_aint: null
 
 model:
   # general:

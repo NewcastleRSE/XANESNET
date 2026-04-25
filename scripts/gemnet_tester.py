@@ -342,6 +342,31 @@ def main() -> None:
     # Quadruplet / interaction graph params
     p.add_argument("--quadruplets", action="store_true", help="Compute quadruplet indices")
     p.add_argument("--int-cutoff", type=float, default=None, help="Interaction cutoff; defaults to --cutoff")
+    p.add_argument(
+        "--int-max-neighbors",
+        type=int,
+        default=None,
+        help="Interaction graph: per-source neighbour cap; defaults to --max-neighbors",
+    )
+    p.add_argument(
+        "--int-graph-method",
+        type=str,
+        default=None,
+        choices=list(GRAPH_METHODS),
+        help="Method for the interaction graph; defaults to --graph-method",
+    )
+    p.add_argument(
+        "--int-min-facet-area",
+        type=str,
+        default=None,
+        help="Interaction graph: Voronoi min facet area; defaults to --min-facet-area",
+    )
+    p.add_argument(
+        "--int-cov-radii-scale",
+        type=float,
+        default=None,
+        help="Interaction graph: covalent-radii scale; defaults to --cov-radii-scale",
+    )
 
     # GemNet-OC params
     p.add_argument("--oc", action="store_true", help="Enable GemNet-OC mode (extra graphs + mixed triplets)")
@@ -349,6 +374,24 @@ def main() -> None:
     p.add_argument("--oc-cutoff-aint", type=float, default=None)
     p.add_argument("--oc-max-neighbors-aeaint", type=int, default=None)
     p.add_argument("--oc-max-neighbors-aint", type=int, default=None)
+    p.add_argument(
+        "--oc-graph-method-aeaint",
+        type=str,
+        default=None,
+        choices=list(GRAPH_METHODS),
+        help="Method for the a2ee2a graph; defaults to --graph-method",
+    )
+    p.add_argument("--oc-min-facet-area-aeaint", type=str, default=None)
+    p.add_argument("--oc-cov-radii-scale-aeaint", type=float, default=None)
+    p.add_argument(
+        "--oc-graph-method-aint",
+        type=str,
+        default=None,
+        choices=list(GRAPH_METHODS),
+        help="Method for the a2a graph; defaults to --graph-method",
+    )
+    p.add_argument("--oc-min-facet-area-aint", type=str, default=None)
+    p.add_argument("--oc-cov-radii-scale-aint", type=float, default=None)
 
     # Drawing params
     p.add_argument("--absorber-idx", type=int, default=0)
@@ -374,7 +417,17 @@ def main() -> None:
     if min_facet_area is not None and not min_facet_area.endswith("%"):
         min_facet_area = float(min_facet_area)
 
+    def _coerce_mfa(val: str | None, fallback):
+        if val is None:
+            return fallback
+        return val if val.endswith("%") else float(val)
+
     int_cutoff = args.int_cutoff if args.int_cutoff is not None else args.cutoff
+    int_max_nbrs = args.int_max_neighbors if args.int_max_neighbors is not None else args.max_neighbors
+    int_method = args.int_graph_method if args.int_graph_method is not None else args.graph_method
+    int_mfa = _coerce_mfa(args.int_min_facet_area, min_facet_area)
+    int_covs = args.int_cov_radii_scale if args.int_cov_radii_scale is not None else args.cov_radii_scale
+
     oc_cutoff_aeaint = args.oc_cutoff_aeaint if args.oc_cutoff_aeaint is not None else args.cutoff
     oc_cutoff_aint = (
         args.oc_cutoff_aint if args.oc_cutoff_aint is not None else max(args.cutoff, oc_cutoff_aeaint, int_cutoff)
@@ -383,6 +436,14 @@ def main() -> None:
         args.oc_max_neighbors_aeaint if args.oc_max_neighbors_aeaint is not None else args.max_neighbors
     )
     oc_max_nbrs_aint = args.oc_max_neighbors_aint if args.oc_max_neighbors_aint is not None else args.max_neighbors
+    oc_method_aeaint = args.oc_graph_method_aeaint if args.oc_graph_method_aeaint is not None else args.graph_method
+    oc_mfa_aeaint = _coerce_mfa(args.oc_min_facet_area_aeaint, min_facet_area)
+    oc_covs_aeaint = (
+        args.oc_cov_radii_scale_aeaint if args.oc_cov_radii_scale_aeaint is not None else args.cov_radii_scale
+    )
+    oc_method_aint = args.oc_graph_method_aint if args.oc_graph_method_aint is not None else args.graph_method
+    oc_mfa_aint = _coerce_mfa(args.oc_min_facet_area_aint, min_facet_area)
+    oc_covs_aint = args.oc_cov_radii_scale_aint if args.oc_cov_radii_scale_aint is not None else args.cov_radii_scale
 
     # ---------- Build graphs ----------
     edge_index, edge_weight, edge_vec, edge_attr = build_main_edges(
@@ -423,7 +484,7 @@ def main() -> None:
     dihedrals = np.zeros(0, dtype=np.float64)
     if args.quadruplets:
         int_edge_index, int_edge_weight, int_edge_vec, _ = build_main_edges(
-            pmg_obj, int_cutoff, args.max_neighbors, args.graph_method, min_facet_area, args.cov_radii_scale
+            pmg_obj, int_cutoff, int_max_nbrs, int_method, int_mfa, int_covs
         )
         int_edge_w_np = int_edge_weight.numpy()
         if int_edge_index.size(1) > 0 and edge_index.size(1) > 0:
@@ -453,11 +514,11 @@ def main() -> None:
     e2a_angles = np.zeros(0, dtype=np.float64)
     if args.oc:
         a2ee2a_edge_index, a2ee2a_edge_weight, a2ee2a_edge_vec, _ = build_main_edges(
-            pmg_obj, oc_cutoff_aeaint, oc_max_nbrs_aeaint, args.graph_method, min_facet_area, args.cov_radii_scale
+            pmg_obj, oc_cutoff_aeaint, oc_max_nbrs_aeaint, oc_method_aeaint, oc_mfa_aeaint, oc_covs_aeaint
         )
         a2ee2a_edge_w_np = a2ee2a_edge_weight.numpy()
         a2a_edge_index, a2a_edge_weight, a2a_edge_vec, _ = build_main_edges(
-            pmg_obj, oc_cutoff_aint, oc_max_nbrs_aint, args.graph_method, min_facet_area, args.cov_radii_scale
+            pmg_obj, oc_cutoff_aint, oc_max_nbrs_aint, oc_method_aint, oc_mfa_aint, oc_covs_aint
         )
         a2a_edge_w_np = a2a_edge_weight.numpy()
         if edge_index.size(1) > 0 and a2ee2a_edge_index.size(1) > 0:
@@ -513,7 +574,7 @@ def main() -> None:
     if args.quadruplets and int_edge_index.size(1) > 0:
         edge_panels.append(
             (
-                f"Int edges (qint, cutoff={int_cutoff}, E={int_edge_index.shape[1]})",
+                f"Int edges ({int_method}, cutoff={int_cutoff}, E={int_edge_index.shape[1]})",
                 int_edge_index[0].numpy(),
                 int_edge_index[1].numpy(),
                 int_edge_vec.numpy(),
@@ -523,7 +584,7 @@ def main() -> None:
     if args.oc:
         edge_panels.append(
             (
-                f"a2ee2a edges (cutoff={oc_cutoff_aeaint}, E={a2ee2a_edge_index.shape[1]})",
+                f"a2ee2a edges ({oc_method_aeaint}, cutoff={oc_cutoff_aeaint}, E={a2ee2a_edge_index.shape[1]})",
                 a2ee2a_edge_index[0].numpy(),
                 a2ee2a_edge_index[1].numpy(),
                 a2ee2a_edge_vec.numpy(),
@@ -532,7 +593,7 @@ def main() -> None:
         )
         edge_panels.append(
             (
-                f"a2a edges (cutoff={oc_cutoff_aint}, E={a2a_edge_index.shape[1]})",
+                f"a2a edges ({oc_method_aint}, cutoff={oc_cutoff_aint}, E={a2a_edge_index.shape[1]})",
                 a2a_edge_index[0].numpy(),
                 a2a_edge_index[1].numpy(),
                 a2a_edge_vec.numpy(),
@@ -843,10 +904,10 @@ def main() -> None:
     print(f"graph method:    {args.graph_method}")
     print(f"main cutoff:     {args.cutoff} A   max_neighbors: {args.max_neighbors}")
     if args.quadruplets:
-        print(f"int  cutoff:     {int_cutoff} A")
+        print(f"int  cutoff:     {int_cutoff} A   max_neighbors: {int_max_nbrs}   method: {int_method}")
     if args.oc:
-        print(f"oc_cutoff_aeaint:{oc_cutoff_aeaint} A   max_nbrs: {oc_max_nbrs_aeaint}")
-        print(f"oc_cutoff_aint:  {oc_cutoff_aint} A   max_nbrs: {oc_max_nbrs_aint}")
+        print(f"oc_cutoff_aeaint:{oc_cutoff_aeaint} A   max_nbrs: {oc_max_nbrs_aeaint}   method: {oc_method_aeaint}")
+        print(f"oc_cutoff_aint:  {oc_cutoff_aint} A   max_nbrs: {oc_max_nbrs_aint}   method: {oc_method_aint}")
     print(line)
 
     print(

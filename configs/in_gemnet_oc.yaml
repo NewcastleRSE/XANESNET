@@ -19,13 +19,25 @@ dataset:
   graph_method: voronoi
   min_facet_area: 5.0%
   cov_radii_scale: 1.5
+  # Quadruplets:
   quadruplets: True
-  int_cutoff: 5.0
+  int_cutoff: 10.0
+  int_max_neighbors: 50
+  int_graph_method: radius
+  int_min_facet_area: null
+  int_cov_radii_scale: null
+  # OC-specific params:
   oc_mode: True
   oc_cutoff_aeaint: 5.0
-  oc_cutoff_aint: 5.0
   oc_max_neighbors_aeaint: 50
+  oc_graph_method_aeaint: voronoi
+  oc_min_facet_area_aeaint: 5.0%
+  oc_cov_radii_scale_aeaint: null
+  oc_cutoff_aint: 10.0
   oc_max_neighbors_aint: 50
+  oc_graph_method_aint: radius
+  oc_min_facet_area_aint: null
+  oc_cov_radii_scale_aint: null
 
 model:
   # general:
@@ -54,9 +66,9 @@ model:
   num_atom_emb_layers: 2
   num_global_out_layers: 2
   cutoff: 5.0 # 12.0 # the main graph radius. Controls e2e triplets and is the base for all other cutoffs. Must be ≤ all others.
-  cutoff_qint: 5.0 # 12.0 # radius of the qint graph (interaction graph for quadruplets).
+  cutoff_qint: 10.0 # 12.0 # radius of the qint graph (interaction graph for quadruplets).
   cutoff_aeaint: 5.0 # 12.0 # radius of the a2ee2a graph used by atom↔edge interactions.
-  cutoff_aint: 5.0 # 12.0 # radius of the a2a graph for atom-atom interactions.
+  cutoff_aint: 10.0 # 12.0 # radius of the a2a graph for atom-atom interactions.
   rbf:
     name: gaussian
   rbf_spherical:
@@ -80,13 +92,13 @@ model:
 trainer:
   # general:
   trainer_type: basic
-  batch_size: 1
+  batch_size: 10
   shuffle: True
   drop_last: False
   num_workers: 0
   # params:
   epochs: 500
-  learning_rate: 0.001
+  learning_rate: 0.0001
   optimizer: Adam
   validation_interval: 10
   loss:

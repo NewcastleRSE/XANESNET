@@ -167,7 +167,7 @@ class GemNetDataset(TorchGeometricDataset):
     max_num_neighbors:
         Maximum outgoing neighbours per source in the main graph.
     graph_method / min_facet_area / cov_radii_scale:
-        Passed to ``build_edges`` (same semantics as
+        Passed to ``build_edges`` for the **main** graph (same semantics as
         ``GeometryGraphDataset``).
     oc_mode:
         If True, additionally precompute all graphs and indices required by
@@ -176,16 +176,37 @@ class GemNetDataset(TorchGeometricDataset):
     int_cutoff:
         Interaction cutoff used by GemNet quadruplets and by GemNet-OC's
         ``qint`` graph. Must be ``>= cutoff`` for GemNet-OC quadruplets.
+    int_max_neighbors:
+        Per-source neighbour cap for the interaction graph. Defaults to
+        ``None`` meaning "fall back to ``max_num_neighbors``".
+    int_graph_method / int_min_facet_area / int_cov_radii_scale:
+        Per-graph overrides for the interaction graph. Each defaults to
+        ``None`` meaning "fall back to the corresponding main-graph value",
+        so a plain ``int_cutoff`` override changes only the cutoff while
+        keeping the same construction method.
     oc_cutoff_aeaint / oc_cutoff_aint:
         Only used when ``oc_mode=True``. Cutoffs for the atom-edge-atom and
         atom-atom graphs respectively. Default to ``cutoff`` (= disables the
         feature at the dataset level; the model's toggles still control use).
     oc_max_neighbors_aeaint / oc_max_neighbors_aint:
         Per-source neighbour caps for the OC auxiliary graphs.
+    oc_graph_method_aeaint / oc_min_facet_area_aeaint /
+    oc_cov_radii_scale_aeaint:
+        Per-graph overrides for the OC ``a2ee2a`` graph. Each defaults to
+        ``None`` meaning "fall back to the main-graph value".
+    oc_graph_method_aint / oc_min_facet_area_aint / oc_cov_radii_scale_aint:
+        Per-graph overrides for the OC ``a2a`` graph. Each defaults to
+        ``None`` meaning "fall back to the main-graph value".
     quadruplets:
         If True, compute quadruplet indices (required for GemNet-Q and
         GemNet-OC when ``quad_interaction=True``). Must be True when
         ``oc_mode=True`` and the model uses quad interactions.
+
+    Mixing graph methods is supported (e.g. ``graph_method="voronoi"`` for a
+    compact main graph paired with ``int_graph_method="radius"`` for a larger
+    interaction graph). A derived graph is reused from a previously-built one
+    only when *all* of ``(cutoff, max_num_neighbors, method, min_facet_area,
+    cov_radii_scale)`` match; otherwise it is built from scratch.
     """
 
     def __init__(
@@ -205,11 +226,21 @@ class GemNetDataset(TorchGeometricDataset):
         cov_radii_scale: float,
         quadruplets: bool,
         int_cutoff: float | None,
-        oc_mode: bool,
-        oc_cutoff_aeaint: float | None,
-        oc_cutoff_aint: float | None,
-        oc_max_neighbors_aeaint: int | None,
-        oc_max_neighbors_aint: int | None,
+        int_max_neighbors: int | None = None,
+        int_graph_method: str | None = None,
+        int_min_facet_area: float | str | None = None,
+        int_cov_radii_scale: float | None = None,
+        oc_mode: bool = False,
+        oc_cutoff_aeaint: float | None = None,
+        oc_cutoff_aint: float | None = None,
+        oc_max_neighbors_aeaint: int | None = None,
+        oc_max_neighbors_aint: int | None = None,
+        oc_graph_method_aeaint: str | None = None,
+        oc_min_facet_area_aeaint: float | str | None = None,
+        oc_cov_radii_scale_aeaint: float | None = None,
+        oc_graph_method_aint: str | None = None,
+        oc_min_facet_area_aint: float | str | None = None,
+        oc_cov_radii_scale_aint: float | None = None,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
@@ -220,6 +251,10 @@ class GemNetDataset(TorchGeometricDataset):
         self.cov_radii_scale = cov_radii_scale
         self.quadruplets = quadruplets
         self.int_cutoff = int_cutoff if int_cutoff is not None else cutoff
+        self.int_max_neighbors = int_max_neighbors if int_max_neighbors is not None else max_num_neighbors
+        self.int_graph_method = int_graph_method if int_graph_method is not None else graph_method
+        self.int_min_facet_area = int_min_facet_area if int_min_facet_area is not None else min_facet_area
+        self.int_cov_radii_scale = int_cov_radii_scale if int_cov_radii_scale is not None else cov_radii_scale
         self.oc_mode = oc_mode
         self.oc_cutoff_aeaint = oc_cutoff_aeaint if oc_cutoff_aeaint is not None else cutoff
         self.oc_cutoff_aint = (
@@ -229,6 +264,18 @@ class GemNetDataset(TorchGeometricDataset):
             oc_max_neighbors_aeaint if oc_max_neighbors_aeaint is not None else max_num_neighbors
         )
         self.oc_max_neighbors_aint = oc_max_neighbors_aint if oc_max_neighbors_aint is not None else max_num_neighbors
+        self.oc_graph_method_aeaint = oc_graph_method_aeaint if oc_graph_method_aeaint is not None else graph_method
+        self.oc_min_facet_area_aeaint = (
+            oc_min_facet_area_aeaint if oc_min_facet_area_aeaint is not None else min_facet_area
+        )
+        self.oc_cov_radii_scale_aeaint = (
+            oc_cov_radii_scale_aeaint if oc_cov_radii_scale_aeaint is not None else cov_radii_scale
+        )
+        self.oc_graph_method_aint = oc_graph_method_aint if oc_graph_method_aint is not None else graph_method
+        self.oc_min_facet_area_aint = oc_min_facet_area_aint if oc_min_facet_area_aint is not None else min_facet_area
+        self.oc_cov_radii_scale_aint = (
+            oc_cov_radii_scale_aint if oc_cov_radii_scale_aint is not None else cov_radii_scale
+        )
 
         if oc_mode and not quadruplets:
             # GemNet-OC always needs quadruplet indices for its standard config;
@@ -272,6 +319,13 @@ class GemNetDataset(TorchGeometricDataset):
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
 
             # Main graph (cutoff, embedding)
+            main_params = (
+                self.cutoff,
+                self.max_num_neighbors,
+                self.graph_method,
+                self.min_facet_area,
+                self.cov_radii_scale,
+            )
             edge_index, edge_weight, edge_vec, _ = build_edges(
                 pmg_obj,
                 self.cutoff,
@@ -312,16 +366,28 @@ class GemNetDataset(TorchGeometricDataset):
             }
 
             # Quadruplets / interaction edges (GemNet-Q and GemNet-OC)
+            int_params = (
+                self.int_cutoff,
+                self.int_max_neighbors,
+                self.int_graph_method,
+                self.int_min_facet_area,
+                self.int_cov_radii_scale,
+            )
             if self.quadruplets:
-                int_edge_index, int_edge_weight, int_edge_vec, _ = build_edges(
-                    pmg_obj,
-                    self.int_cutoff,
-                    self.max_num_neighbors,
-                    compute_vectors=True,
-                    method=self.graph_method,
-                    min_facet_area=self.min_facet_area,
-                    cov_radii_scale=self.cov_radii_scale,
-                )
+                if int_params == main_params:
+                    int_edge_index = edge_index
+                    int_edge_weight = edge_weight
+                    int_edge_vec = edge_vec
+                else:
+                    int_edge_index, int_edge_weight, int_edge_vec, _ = build_edges(
+                        pmg_obj,
+                        self.int_cutoff,
+                        self.int_max_neighbors,
+                        compute_vectors=True,
+                        method=self.int_graph_method,
+                        min_facet_area=self.int_min_facet_area,
+                        cov_radii_scale=self.int_cov_radii_scale,
+                    )
                 assert int_edge_vec is not None
                 data_fields.update(
                     {
@@ -352,9 +418,17 @@ class GemNetDataset(TorchGeometricDataset):
             # GemNet-OC extra graphs and mixed triplets
             if self.oc_mode:
                 # a2ee2a graph (used by atom-edge / edge-atom interactions).
-                # Reuse the main graph if the cutoff/max_neighbors match exactly
-                # (common default): avoids a full re-run of build_edges.
-                if self.oc_cutoff_aeaint == self.cutoff and self.oc_max_neighbors_aeaint == self.max_num_neighbors:
+                # Reuse the main graph when every graph-building parameter
+                # matches (cutoff, max_neighbors, method, and method-specific
+                # extras); otherwise build from scratch.
+                aeaint_params = (
+                    self.oc_cutoff_aeaint,
+                    self.oc_max_neighbors_aeaint,
+                    self.oc_graph_method_aeaint,
+                    self.oc_min_facet_area_aeaint,
+                    self.oc_cov_radii_scale_aeaint,
+                )
+                if aeaint_params == main_params:
                     a2ee2a_edge_index = edge_index
                     a2ee2a_edge_weight = edge_weight
                     a2ee2a_edge_vec = edge_vec
@@ -364,21 +438,24 @@ class GemNetDataset(TorchGeometricDataset):
                         self.oc_cutoff_aeaint,
                         self.oc_max_neighbors_aeaint,
                         compute_vectors=True,
-                        method=self.graph_method,
-                        min_facet_area=self.min_facet_area,
-                        cov_radii_scale=self.cov_radii_scale,
+                        method=self.oc_graph_method_aeaint,
+                        min_facet_area=self.oc_min_facet_area_aeaint,
+                        cov_radii_scale=self.oc_cov_radii_scale_aeaint,
                     )
                 # a2a graph (used by atom-atom interactions). Reuse int graph or
-                # main graph when their configuration matches.
-                if (
-                    self.quadruplets
-                    and self.oc_cutoff_aint == self.int_cutoff
-                    and self.oc_max_neighbors_aint == self.max_num_neighbors
-                ):
+                # main graph when their full configuration matches.
+                aint_params = (
+                    self.oc_cutoff_aint,
+                    self.oc_max_neighbors_aint,
+                    self.oc_graph_method_aint,
+                    self.oc_min_facet_area_aint,
+                    self.oc_cov_radii_scale_aint,
+                )
+                if self.quadruplets and aint_params == int_params:
                     a2a_edge_index = int_edge_index
                     a2a_edge_weight = int_edge_weight
                     a2a_edge_vec = int_edge_vec
-                elif self.oc_cutoff_aint == self.cutoff and self.oc_max_neighbors_aint == self.max_num_neighbors:
+                elif aint_params == main_params:
                     a2a_edge_index = edge_index
                     a2a_edge_weight = edge_weight
                     a2a_edge_vec = edge_vec
@@ -388,9 +465,9 @@ class GemNetDataset(TorchGeometricDataset):
                         self.oc_cutoff_aint,
                         self.oc_max_neighbors_aint,
                         compute_vectors=True,
-                        method=self.graph_method,
-                        min_facet_area=self.min_facet_area,
-                        cov_radii_scale=self.cov_radii_scale,
+                        method=self.oc_graph_method_aint,
+                        min_facet_area=self.oc_min_facet_area_aint,
+                        cov_radii_scale=self.oc_cov_radii_scale_aint,
                     )
                 assert a2ee2a_edge_vec is not None and a2a_edge_vec is not None
 
@@ -416,11 +493,11 @@ class GemNetDataset(TorchGeometricDataset):
                     qint_edge_index, qint_edge_weight, qint_edge_vec, _ = build_edges(
                         pmg_obj,
                         self.int_cutoff,
-                        self.max_num_neighbors,
+                        self.int_max_neighbors,
                         compute_vectors=True,
-                        method=self.graph_method,
-                        min_facet_area=self.min_facet_area,
-                        cov_radii_scale=self.cov_radii_scale,
+                        method=self.int_graph_method,
+                        min_facet_area=self.int_min_facet_area,
+                        cov_radii_scale=self.int_cov_radii_scale,
                     )
                     assert qint_edge_vec is not None
                     data_fields["qint_edge_index"] = qint_edge_index
@@ -500,11 +577,21 @@ class GemNetDataset(TorchGeometricDataset):
                 "cov_radii_scale": self.cov_radii_scale,
                 "quadruplets": self.quadruplets,
                 "int_cutoff": self.int_cutoff,
+                "int_max_neighbors": self.int_max_neighbors,
+                "int_graph_method": self.int_graph_method,
+                "int_min_facet_area": self.int_min_facet_area,
+                "int_cov_radii_scale": self.int_cov_radii_scale,
                 "oc_mode": self.oc_mode,
                 "oc_cutoff_aeaint": self.oc_cutoff_aeaint,
                 "oc_cutoff_aint": self.oc_cutoff_aint,
                 "oc_max_neighbors_aeaint": self.oc_max_neighbors_aeaint,
                 "oc_max_neighbors_aint": self.oc_max_neighbors_aint,
+                "oc_graph_method_aeaint": self.oc_graph_method_aeaint,
+                "oc_min_facet_area_aeaint": self.oc_min_facet_area_aeaint,
+                "oc_cov_radii_scale_aeaint": self.oc_cov_radii_scale_aeaint,
+                "oc_graph_method_aint": self.oc_graph_method_aint,
+                "oc_min_facet_area_aint": self.oc_min_facet_area_aint,
+                "oc_cov_radii_scale_aint": self.oc_cov_radii_scale_aint,
             }
         )
         return signature
