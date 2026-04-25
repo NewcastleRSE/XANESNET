@@ -23,12 +23,12 @@ from xanesnet.serialization.config import Config
 from ..base import Model
 from ..registry import ModelRegistry
 from .layers.atom_update import OutputBlock
+from .layers.scaling import load_scales_json
 from .layers.base import Dense
 from .layers.basis import BesselBasisLayer, SphericalBasisLayer, TensorBasisLayer
 from .layers.efficient import EfficientInteractionDownProjection
 from .layers.embedding import AtomEmbedding, EdgeEmbedding
 from .layers.interaction import InteractionBlock, InteractionBlockTripletsOnly
-from .layers.scaling import AutomaticFit
 
 
 @ModelRegistry.register("gemnet")
@@ -72,8 +72,6 @@ class GemNet(Model):
     ) -> None:
         super().__init__(model_type)
 
-        AutomaticFit.reset()
-
         self.num_spherical = num_spherical
         self.num_radial = num_radial
         self.num_blocks = num_blocks
@@ -97,7 +95,6 @@ class GemNet(Model):
         self.envelope_exponent = envelope_exponent
         self.output_init = output_init
         self.activation = activation
-        self.scale_file = scale_file
         self.num_elements = num_elements
 
         # Basis functions
@@ -213,6 +210,11 @@ class GemNet(Model):
                 )
             )
         self.out_blocks = torch.nn.ModuleList(out_blocks)
+
+        # Variance-preserving scale factors
+        self.scale_file = scale_file
+        if scale_file is not None:
+            load_scales_json(self, scale_file)
 
     @staticmethod
     def calculate_neighbor_angles(
@@ -476,7 +478,11 @@ class GemNet(Model):
                 "envelope_exponent": self.envelope_exponent,
                 "output_init": self.output_init,
                 "activation": self.activation,
-                "scale_file": self.scale_file,
+                # ``scale_file`` is intentionally None in the signature: the
+                # actual fitted values are carried by ``state_dict``
+                # (ScaleFactor parameters), making the saved model fully
+                # self-contained and portable across machines.
+                "scale_file": None,
                 "num_elements": self.num_elements,
             }
         )

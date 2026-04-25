@@ -15,7 +15,9 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+import shutil
 from argparse import ArgumentParser, Namespace
+from pathlib import Path
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.core_train import train
@@ -121,6 +123,18 @@ def main(args: list[str]) -> None:
     config: Config = validate_config_train(config_raw)
     validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
     logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+
+    # Scale file copying (if configured)
+    scale_file = config.section("model").as_kwargs().get("scale_file")
+    if scale_file:
+        src = Path(scale_file)
+        if src.exists():
+            dst = save_dir / "models" / "scale_factors.json"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            logging.info(f"Copied model.scale_file {src} -> {dst}")
+        else:
+            logging.warning(f"Configured model.scale_file does not exist on disk: {src}")
 
     # Setting global seed for reproducibility
     seed = config.get_optional_int("seed")

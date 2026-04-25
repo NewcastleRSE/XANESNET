@@ -8,11 +8,11 @@ datasource:
 dataset:
   # general:
   dataset_type: gemnet_oc
-  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train_gemnet_oc/  # Where should the processed data be stored
   preload: True                   # Preload dataset into RAM if True; otherwise load on-the-fly
-  skip_prepare: False
-  split_ratios: [0.8, 0.2]
-  split_indexfile: null
+  skip_prepare: True
+  split_ratios: null
+  split_indexfile: ./data/scales/split_indices_gemnet_oc.json
   # params:
   cutoff: 5.0
   max_num_neighbors: 50
@@ -87,6 +87,7 @@ model:
   edge_atom_interaction: True # Edge messages update atom embeddings directly (reverse of a2e, same a2ee2a graph)
   atom_interaction: True # Pure atom-to-atom message passing without angular information (cheaper, long-range, a2a graph).
   scale_basis: False
+  scale_file: ./data/scales/scales_gemnet_oc.json
   num_elements: 100
 
 trainer:
@@ -100,6 +101,7 @@ trainer:
   epochs: 500
   learning_rate: 0.0001
   optimizer: Adam
+  max_norm: 5.0 # Tries to prevent unstable gemnet_oc training
   validation_interval: 10
   loss:
     loss_type: mse

@@ -14,30 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-"""
-Graph construction visual tester.
-
-Standalone diagnostic script to visually confirm that the graph-building logic
-used by GeometryGraphDataset and E3EEDataset behaves correctly for both periodic
-Structures and non-periodic Molecules. Useful when picking sensible values for
-``cutoff`` and ``max_num_neighbors``.
-
-Input is a ``pmgjson`` datasource directory (same layout as used by the rest
-of XANESNET) - each ``.json`` holds a single pymatgen Structure or Molecule.
-A sample is selected by index or by file stem.
-
-Produces three 3D views of the same structure - edges only, geometrygraph
-triplets only, e3ee absorber paths only - plus histograms of edge weights,
-per-atom out-degree, and angle distributions.
-
-Run:
-    python scripts/graph_tester.py --json-dir data/fe/json_train --index 0 \
-        --cutoff 6.0 --max-neighbors 32 --graph-method voronoi --show-voronoi
-
-This script does NOT import any model code; it only exercises the shared
-``xanesnet.utils.graph`` helpers, matching what the datasets do at prepare().
-"""
-
 import argparse
 import itertools
 import sys

@@ -29,6 +29,7 @@ from .layers.efficient import BasisEmbedding
 from .layers.embedding_block import AtomEmbedding, EdgeEmbedding
 from .layers.interaction_block import InteractionBlock
 from .layers.radial_basis import RadialBasis
+from .layers.scaling import load_scales_json
 from .layers.spherical_basis import CircularBasisLayer, SphericalBasisLayer
 from .utils import get_angle, get_initializer, get_inner_idx, inner_product_clamped
 
@@ -106,6 +107,7 @@ class GemNetOC(Model):
         atom_interaction: bool,
         scale_basis: bool,
         num_elements: int,
+        scale_file: str | None = None,
     ) -> None:
         super().__init__(model_type)
         self.num_blocks = num_blocks
@@ -217,6 +219,11 @@ class GemNetOC(Model):
 
         out_initializer = get_initializer(output_init)
         self.out_energy.reset_parameters(out_initializer)
+
+        # Variance-preserving scale factors
+        self.scale_file = scale_file
+        if scale_file is not None:
+            load_scales_json(self, scale_file)
 
     def _set_cutoffs(self, cutoff, cutoff_qint, cutoff_aeaint, cutoff_aint) -> None:
         self.cutoff = cutoff
@@ -691,6 +698,11 @@ class GemNetOC(Model):
                 "atom_interaction": self.atom_interaction,
                 "scale_basis": self.scale_basis,
                 "num_elements": self.num_elements,
+                # ``scale_file`` is intentionally None in the signature: the
+                # actual fitted values are carried by ``state_dict``
+                # (ScaleFactor parameters), making the saved model fully
+                # self-contained and portable across machines.
+                "scale_file": None,
             }
         )
         return signature

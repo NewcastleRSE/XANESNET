@@ -275,6 +275,7 @@ MODEL_DEFAULTS = {
         "atom_interaction": True,
         "scale_basis": False,
         "num_elements": 100,
+        "scale_file": None,
     },
     "e3ee": {
         "max_z": 100,
@@ -334,6 +335,7 @@ TRAINER_DEFAULTS = {
         "epochs": 10,
         "learning_rate": 0.001,
         "optimizer": "Adam",
+        "max_norm": None,
         "validation_interval": 1,
         "lr_scheduler.lr_scheduler_type": "none",
         "early_stopper.early_stopper_type": "none",

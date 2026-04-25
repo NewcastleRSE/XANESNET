@@ -52,6 +52,7 @@ class Trainer(Runner):
         epochs: int,
         learning_rate: float,
         optimizer: str,
+        max_norm: float | None,
         lr_scheduler: Config,
         early_stopper: Config,
         validation_interval: int,
@@ -64,6 +65,7 @@ class Trainer(Runner):
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.optimizer_type = optimizer
+        self.max_norm = max_norm
         self.lr_scheduler_config = lr_scheduler
         self.early_stopper_config = early_stopper
         self.validation_interval = validation_interval
@@ -107,7 +109,6 @@ class Trainer(Runner):
         self.model.to(self.device)
 
         # Log model graph (once, using first training batch as example input)
-        # TODO maybe remove this?
         sample_batch = next(iter(self.dataloader))
         sample_batch.to(self.device)
         sample_inputs = self.batchprocessor.input_preparation(sample_batch)

@@ -8,10 +8,11 @@ datasource:
 dataset:
   # general:
   dataset_type: gemnet
-  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train_gemnet/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
-  skip_prepare: False
-  split_ratios: [0.8, 0.2]
+  skip_prepare: True
+  split_ratios: null
+  split_indexfile: ./data/scales/split_indices_gemnet.json
   # params:
   cutoff: 5.0
   max_num_neighbors: 32
@@ -65,13 +66,13 @@ model:
   envelope_exponent: 5
   output_init: HeOrthogonal
   activation: swish
-  scale_file: null
+  scale_file: ./data/scales/scales_gemnet.json
   num_elements: 100
 
 trainer:
   # general:
   trainer_type: basic
-  batch_size: 1
+  batch_size: 16
   shuffle: True
   drop_last: False
   num_workers: 0
@@ -79,6 +80,7 @@ trainer:
   epochs: 500
   learning_rate: 0.001
   optimizer: Adam
+  max_norm: null
   validation_interval: 10
   loss:
     loss_type: mse

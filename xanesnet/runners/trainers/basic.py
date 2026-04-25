@@ -45,6 +45,7 @@ class BasicTrainer(Trainer):
         epochs: int,
         learning_rate: float,
         optimizer: str,
+        max_norm: float | None,
         lr_scheduler: Config,
         early_stopper: Config,
         validation_interval: int,
@@ -64,6 +65,7 @@ class BasicTrainer(Trainer):
             epochs,
             learning_rate,
             optimizer,
+            max_norm,
             lr_scheduler,
             early_stopper,
             validation_interval,
@@ -101,6 +103,8 @@ class BasicTrainer(Trainer):
             # Gradient computation
             total = loss + regularization
             total.backward()
+            if self.max_norm is not None:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm)
             self.optimizer.step()
 
             epoch_loss += loss.item()

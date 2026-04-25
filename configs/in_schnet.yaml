@@ -41,6 +41,7 @@ trainer:
   epochs: 500
   learning_rate: 0.001
   optimizer: Adam
+  max_norm: null
   validation_interval: 10
   loss:
     loss_type: mse

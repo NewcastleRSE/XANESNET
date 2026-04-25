@@ -14,52 +14,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-"""
-GemNet / GemNet-OC graph construction visual tester.
-
-Standalone diagnostic script that mirrors ``scripts/graph_tester.py`` but
-exercises every graph / index tensor that ``GemNetDataset`` produces for a
-single sample: the main embedding graph, triplets, quadruplets (with their
-interaction edges), and - when ``--oc`` is set - the GemNet-OC auxiliary
-graphs (``a2ee2a``, ``a2a``, ``qint``) plus the mixed (a2e / e2a) triplets.
-
-Input is a ``pmgjson`` datasource directory - one pymatgen Structure or
-Molecule per ``.json``. A sample is picked by index or file stem, exactly
-like ``graph_tester.py``.
-
-3D views (top row):
-    1. Main edges      (+ optional Voronoi facet overlay)
-    2. Triplets        (k-j-i on the main graph)
-    3. Quadruplets     (c-a-b-d along the interaction graph) OR absorber
-                        mixed triplets if ``--oc`` and quadruplets disabled.
-
-If ``--oc`` is set, a second 3D row is drawn:
-    4. a2ee2a edges
-    5. a2a edges
-    6. qint edges (main+int overlap)
-
-Histograms (bottom row):
-    - edge weight distributions for each active graph (stacked)
-    - per-atom out-degree for each active graph
-    - triplet angles + quadruplet dihedrals + (OC) mixed triplet angles
-
-Stdout prints a full per-graph summary plus id_swap involution / index-
-range sanity checks.
-
-Run examples:
-    python scripts/gemnet_tester.py --json-dir data/fe/xanes_train \\
-        --index 0 --cutoff 6.0 --max-neighbors 32 --int-cutoff 10.0 \\
-        --quadruplets
-
-    python scripts/gemnet_tester.py --json-dir data/omnixas/... \\
-        --index 3 --cutoff 5.0 --max-neighbors 50 --int-cutoff 10.0 \\
-        --oc --oc-cutoff-aeaint 5.0 --oc-cutoff-aint 10.0 \\
-        --graph-method voronoi --show-voronoi --quadruplets
-
-This script does not import any model code, only the shared
-``xanesnet.utils.graph`` helpers.
-"""
-
 import argparse
 import sys
 from pathlib import Path
@@ -78,20 +32,17 @@ if str(REPO_ROOT) not in sys.path:
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-# Re-use the visual helpers from graph_tester. These are safe to import: the
-# argparse-driven main() is guarded by __name__ == "__main__".
-from graph_tester import (  # type: ignore  # noqa: E402
+from graph_tester import (
     _cell_corner_coords,
     compute_voronoi_facets,
-    equalize_3d_axes,
     load_sample,
     plot_edges,
     plot_voronoi_facets,
     setup_axis,
 )
 
-from xanesnet.utils.graph import GRAPH_METHODS, build_edges  # noqa: E402
-from xanesnet.utils.graph.gemnet_indices import (  # noqa: E402
+from xanesnet.utils.graph import GRAPH_METHODS, build_edges
+from xanesnet.utils.graph.gemnet_indices import (
     compute_id_swap,
     compute_mixed_triplets,
     compute_quadruplets,
