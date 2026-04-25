@@ -18,6 +18,12 @@ from .e3ee import E3EEBatch, E3EEDataset
 from .e3ee_full import E3EEFullBatch, E3EEFullDataset
 from .gemnet import GemNetBatch, GemNetData, GemNetDataset
 from .geometrygraph import GeometryGraphBatch, GeometryGraphData, GeometryGraphDataset
+from .mp import (
+    E3EEDatasetMp,
+    E3EEFullDatasetMp,
+    GemNetDatasetMp,
+    GeometryGraphDatasetMp,
+)
 from .richgraph import RichGraphDataset
 
 __all__ = [
@@ -32,4 +38,8 @@ __all__ = [
     "GeometryGraphBatch",
     "GeometryGraphData",
     "GeometryGraphDataset",
+    "E3EEDatasetMp",
+    "E3EEFullDatasetMp",
+    "GemNetDatasetMp",
+    "GeometryGraphDatasetMp",
 ]

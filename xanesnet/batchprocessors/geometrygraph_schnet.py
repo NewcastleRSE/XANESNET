@@ -24,6 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("geometrygraph", "schnet")
+@BatchProcessorRegistry.register("geometrygraph_mp", "schnet")
 class GeometryGraphSchNetBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: GeometryGraphBatch) -> dict[str, torch.Tensor]:

@@ -25,6 +25,8 @@ from .registry import BatchProcessorRegistry
 
 @BatchProcessorRegistry.register("geometrygraph", "dimenet")
 @BatchProcessorRegistry.register("geometrygraph", "dimenet++")
+@BatchProcessorRegistry.register("geometrygraph_mp", "dimenet")
+@BatchProcessorRegistry.register("geometrygraph_mp", "dimenet++")
 class GeometryGraphDimeNetBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: GeometryGraphBatch) -> dict[str, torch.Tensor]:

@@ -24,6 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("e3ee", "e3ee")
+@BatchProcessorRegistry.register("e3ee_mp", "e3ee")
 class E3EEBatchProcessor(BatchProcessor):
     """
     Batch processor for the E3EE dataset + E3EE model combination.

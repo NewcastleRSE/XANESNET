@@ -25,6 +25,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("envembed", "envembed")
+@BatchProcessorRegistry.register("envembed_mp", "envembed")
 class EnvEmbedBatchProcessor(BatchProcessor):
     """
     Batch processor for the EnvEmbed dataset + EnvEmbed model combination.

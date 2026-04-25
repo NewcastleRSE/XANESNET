@@ -14,15 +14,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .descriptor import DescriptorData, DescriptorDataset
-from .envembed import EnvEmbedData, EnvEmbedDataset
-from .mp import DescriptorDatasetMp, EnvEmbedDatasetMp
+from .descriptor import DescriptorDatasetMp
+from .envembed import EnvEmbedDatasetMp
 
 __all__ = [
-    "EnvEmbedData",
-    "EnvEmbedDataset",
-    "DescriptorData",
-    "DescriptorDataset",
     "DescriptorDatasetMp",
     "EnvEmbedDatasetMp",
 ]

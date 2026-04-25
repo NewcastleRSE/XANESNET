@@ -16,7 +16,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import Dataset, TorchDataset, TorchGeometricDataset
 from .registry import DatasetRegistry
-from .torch import DescriptorData, DescriptorDataset, EnvEmbedData, EnvEmbedDataset
+from .torch import (
+    DescriptorData,
+    DescriptorDataset,
+    EnvEmbedData,
+    EnvEmbedDataset,
+    DescriptorDatasetMp,
+    EnvEmbedDatasetMp,
+)
 from .torchgeometric import (
     E3EEBatch,
     E3EEDataset,
@@ -28,6 +35,10 @@ from .torchgeometric import (
     GeometryGraphBatch,
     GeometryGraphData,
     GeometryGraphDataset,
+    E3EEDatasetMp,
+    E3EEFullDatasetMp,
+    GemNetDatasetMp,
+    GeometryGraphDatasetMp,
     RichGraphDataset,
 )
 
@@ -51,4 +62,10 @@ __all__ = [
     "GeometryGraphBatch",
     "GeometryGraphData",
     "GeometryGraphDataset",
+    "DescriptorDatasetMp",
+    "EnvEmbedDatasetMp",
+    "E3EEDatasetMp",
+    "E3EEFullDatasetMp",
+    "GemNetDatasetMp",
+    "GeometryGraphDatasetMp",
 ]

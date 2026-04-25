@@ -56,23 +56,27 @@ class XYZSpecSource(DataSource):
         self.file_names: list[str] = self._get_file_list()
 
     def __iter__(self) -> Iterator[Molecule]:
-        for file in self.file_names:
-            xyz_file = Path(self.xyz_path) / f"{file}.xyz"
-            xanes_file = Path(self.xanes_path) / f"{file}.txt"
-
-            molecule = self.load_xyz(xyz_file)
-            energies, intensities = self.load_xanes(xanes_file)
-            spectra_list: list[dict[str, np.ndarray] | None] = [None for _ in molecule.sites]
-            spectra_list[0] = {
-                "energies": energies,
-                "intensities": intensities,
-            }
-            molecule.add_site_property("XANES", spectra_list)
-            molecule.properties["file_name"] = file
-            yield molecule
+        for i in range(len(self.file_names)):
+            yield self[i]
 
     def __len__(self) -> int:
         return len(self.file_names)
+
+    def __getitem__(self, idx: int) -> Molecule:
+        file = self.file_names[idx]
+        xyz_file = Path(self.xyz_path) / f"{file}.xyz"
+        xanes_file = Path(self.xanes_path) / f"{file}.txt"
+
+        molecule = self.load_xyz(xyz_file)
+        energies, intensities = self.load_xanes(xanes_file)
+        spectra_list: list[dict[str, np.ndarray] | None] = [None for _ in molecule.sites]
+        spectra_list[0] = {
+            "energies": energies,
+            "intensities": intensities,
+        }
+        molecule.add_site_property("XANES", spectra_list)
+        molecule.properties["file_name"] = file
+        return molecule
 
     def _get_file_list(self) -> list[str]:
         """

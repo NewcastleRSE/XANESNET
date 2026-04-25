@@ -51,14 +51,18 @@ class PMGJSONSource(DataSource):
         self.file_names: list[str] = self._get_file_list()
 
     def __iter__(self) -> Iterator[Molecule | Structure]:
-        for file in self.file_names:
-            json_file = Path(self.json_path) / f"{file}.json"
-            structure = self.load_json(json_file)
-            structure.properties["file_name"] = file
-            yield structure
+        for i in range(len(self.file_names)):
+            yield self[i]
 
     def __len__(self) -> int:
         return len(self.file_names)
+
+    def __getitem__(self, idx: int) -> Molecule | Structure:
+        file = self.file_names[idx]
+        json_file = Path(self.json_path) / f"{file}.json"
+        structure = self.load_json(json_file)
+        structure.properties["file_name"] = file
+        return structure
 
     def _get_file_list(self) -> list[str]:
         """

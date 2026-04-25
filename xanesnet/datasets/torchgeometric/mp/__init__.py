@@ -14,15 +14,14 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .descriptor import DescriptorData, DescriptorDataset
-from .envembed import EnvEmbedData, EnvEmbedDataset
-from .mp import DescriptorDatasetMp, EnvEmbedDatasetMp
+from .e3ee import E3EEDatasetMp
+from .e3ee_full import E3EEFullDatasetMp
+from .gemnet import GemNetDatasetMp
+from .geometrygraph import GeometryGraphDatasetMp
 
 __all__ = [
-    "EnvEmbedData",
-    "EnvEmbedDataset",
-    "DescriptorData",
-    "DescriptorDataset",
-    "DescriptorDatasetMp",
-    "EnvEmbedDatasetMp",
+    "E3EEDatasetMp",
+    "E3EEFullDatasetMp",
+    "GemNetDatasetMp",
+    "GeometryGraphDatasetMp",
 ]

@@ -50,26 +50,32 @@ class MultiXYZSpecSource(DataSource):
         self.root_path = root_path
 
         self.file_names: dict[str, list[str]] = self._get_file_dictionary()
+        self._flat_index: list[tuple[str, str]] = [
+            (subdir, file) for subdir, files in self.file_names.items() for file in files
+        ]
 
     def __iter__(self) -> Iterator[Molecule]:
-        for subdir, files in self.file_names.items():
-            for file in files:
-                xyz_file = Path(self.root_path) / subdir / "xyz" / f"{file}.xyz"
-                spectra_file = Path(self.root_path) / subdir / "spectra" / f"{file}.txt"
-
-                molecule = self.load_xyz(xyz_file)
-                energies, intensities = self.load_xanes(spectra_file)
-                spectra_list: list[dict[str, np.ndarray] | None] = [None for _ in molecule.sites]
-                spectra_list[0] = {
-                    "energies": energies,
-                    "intensities": intensities,
-                }
-                molecule.add_site_property("XANES", spectra_list)
-                molecule.properties["file_name"] = file
-                yield molecule
+        for i in range(len(self._flat_index)):
+            yield self[i]
 
     def __len__(self) -> int:
-        return sum(len(files) for files in self.file_names.values())
+        return len(self._flat_index)
+
+    def __getitem__(self, idx: int) -> Molecule:
+        subdir, file = self._flat_index[idx]
+        xyz_file = Path(self.root_path) / subdir / "xyz" / f"{file}.xyz"
+        spectra_file = Path(self.root_path) / subdir / "spectra" / f"{file}.txt"
+
+        molecule = self.load_xyz(xyz_file)
+        energies, intensities = self.load_xanes(spectra_file)
+        spectra_list: list[dict[str, np.ndarray] | None] = [None for _ in molecule.sites]
+        spectra_list[0] = {
+            "energies": energies,
+            "intensities": intensities,
+        }
+        molecule.add_site_property("XANES", spectra_list)
+        molecule.properties["file_name"] = file
+        return molecule
 
     def _get_file_dictionary(self) -> dict[str, list[str]]:
         """

@@ -24,6 +24,7 @@ from .registry import BatchProcessorRegistry
 
 
 @BatchProcessorRegistry.register("descriptor", "mlp")
+@BatchProcessorRegistry.register("descriptor_mp", "mlp")
 class XanesXMLPBatchProcessor(BatchProcessor):
 
     def input_preparation(self, batch: DescriptorData) -> dict[str, torch.Tensor]:

@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Any
+
 ###############################################################################
 ################################## DEFAULTS ###################################
 ###############################################################################
@@ -26,7 +28,7 @@ DATASOURCE_DEFAULT = {
     "pmgjson": {},
 }
 
-DATASET_DEFAULT = {
+DATASET_DEFAULT: dict[str, dict[str, Any]] = {
     "descriptor": {
         "preload": True,
         "skip_prepare": False,
@@ -153,6 +155,20 @@ DATASET_DEFAULT = {
         "oc_cov_radii_scale_aint": None,
     },
 }
+
+# Multiprocessing dataset variants.
+# adds ``num_workers`` knob (None / non-positive means "use os.cpu_count()").
+_MP_DATASET_NAMES = {
+    "descriptor",
+    "e3ee",
+    "e3ee_full",
+    "envembed",
+    "geometrygraph",
+    "gemnet",
+    "gemnet_oc",
+}
+for _name in _MP_DATASET_NAMES:
+    DATASET_DEFAULT[f"{_name}_mp"] = {**DATASET_DEFAULT[_name], "num_workers": None}
 
 MODEL_DEFAULTS = {
     "mlp": {
@@ -393,12 +409,19 @@ DATASOURCE_REQUIRED = {
 
 DATASET_REQUIRED = {
     "descriptor": ["root"],
+    "descriptor_mp": ["root"],
     "envembed": ["root"],
+    "envembed_mp": ["root"],
     "geometrygraph": ["root"],
+    "geometrygraph_mp": ["root"],
     "gemnet": ["root"],
+    "gemnet_mp": ["root"],
     "gemnet_oc": ["root"],
+    "gemnet_oc_mp": ["root"],
     "e3ee": ["root"],
+    "e3ee_mp": ["root"],
     "e3ee_full": ["root"],
+    "e3ee_full_mp": ["root"],
     "richgraph": ["root"],  # TODO Not fully implemented yet.
 }
 
