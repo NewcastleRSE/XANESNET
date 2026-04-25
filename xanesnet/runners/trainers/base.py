@@ -56,6 +56,8 @@ class Trainer(Runner):
         lr_scheduler: Config,
         early_stopper: Config,
         validation_interval: int,
+        lr_warmup: bool,
+        warmup_steps: int,
     ) -> None:
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
 
@@ -69,6 +71,8 @@ class Trainer(Runner):
         self.lr_scheduler_config = lr_scheduler
         self.early_stopper_config = early_stopper
         self.validation_interval = validation_interval
+        self.lr_warmup = lr_warmup
+        self.warmup_steps = warmup_steps
         self.loss_config = loss
         self.regularizer_config = regularizer
 
@@ -77,7 +81,10 @@ class Trainer(Runner):
         self.dataloader = self._setup_train_dataloader()
         self.valid_dataloader = self._setup_valid_dataloader()
         self.optimizer = self._setup_optimizer()
-        self.lr_scheduler = self._setup_lr_scheduler()
+        self.epoch_lr_scheduler = self._setup_epoch_lr_scheduler()  # per-epoch scheduler captures base lr
+        self.warmup_lr_scheduler = self._setup_warmup_lr_scheduler()  # per-step warmup scheduler
+        self._global_step = 0
+        self._warmup_complete = self.warmup_lr_scheduler is None
         self.early_stopper = self._setup_early_stopper()
         self.loss = self._setup_loss()
         self.regularizer = self._setup_regularizer()
@@ -156,8 +163,9 @@ class Trainer(Runner):
             tb_logger.log_learning_rate(epoch, self.optimizer.param_groups[0]["lr"])
             tb_logger.log_model_weights(epoch, self.model)
 
-            # Learning rate scheduler
-            self.lr_scheduler.step()
+            # Per-epoch learning-rate scheduler.
+            if self._warmup_complete:
+                self.epoch_lr_scheduler.step()
 
             # Early stopping check
             stopped = False
@@ -261,7 +269,10 @@ class Trainer(Runner):
 
         return optimizer
 
-    def _setup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
+    def _setup_epoch_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
+        """
+        Build the main per-epoch learning-rate scheduler.
+        """
         lr_scheduler_type = self.lr_scheduler_config.get_str("lr_scheduler_type")
 
         # We have to remove 'lr_scheduler_type'!
@@ -273,6 +284,34 @@ class Trainer(Runner):
         lr_scheduler = lr_scheduler_cls(self.optimizer, **config_wo_type)
 
         return lr_scheduler
+
+    def _setup_warmup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler | None:
+        """
+        Build the per-step warmup scheduler (or ``None`` if disabled).
+        """
+        if not self.lr_warmup or self.warmup_steps <= 0:
+            return None
+
+        return torch.optim.lr_scheduler.LinearLR(
+            self.optimizer,
+            start_factor=1e-7,
+            end_factor=1.0,
+            total_iters=self.warmup_steps,
+        )
+
+    def step_warmup_scheduler(self) -> None:
+        """
+        Advance the per-step warmup scheduler by one optimizer step.
+
+        Should be called by subclasses from inside the training batch loop, after ``optimizer.step()``.
+        """
+        if self.warmup_lr_scheduler is None or self._warmup_complete:
+            return
+
+        self._global_step += 1
+        self.warmup_lr_scheduler.step()
+        if self._global_step >= self.warmup_steps:
+            self._warmup_complete = True
 
     def _setup_early_stopper(self) -> EarlyStopper:
         early_stopper_type = self.early_stopper_config.get_str("early_stopper_type")

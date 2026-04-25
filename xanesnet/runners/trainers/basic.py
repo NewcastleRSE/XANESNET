@@ -49,6 +49,8 @@ class BasicTrainer(Trainer):
         lr_scheduler: Config,
         early_stopper: Config,
         validation_interval: int,
+        lr_warmup: bool,
+        warmup_steps: int,
     ) -> None:
         super().__init__(
             dataset,
@@ -69,6 +71,8 @@ class BasicTrainer(Trainer):
             lr_scheduler,
             early_stopper,
             validation_interval,
+            lr_warmup,
+            warmup_steps,
         )
 
     def _train_one_epoch(self) -> tuple[float, float, float]:
@@ -106,6 +110,9 @@ class BasicTrainer(Trainer):
             if self.max_norm is not None:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm)
             self.optimizer.step()
+
+            # Per-step learning-rate warmup (no-op once warmup phase is over).
+            self.step_warmup_scheduler()
 
             epoch_loss += loss.item()
             epoch_regularization += regularization.item()

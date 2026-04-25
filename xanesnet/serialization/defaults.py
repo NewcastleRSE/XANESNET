@@ -354,6 +354,8 @@ TRAINER_DEFAULTS = {
         "max_norm": None,
         "validation_interval": 1,
         "lr_scheduler.lr_scheduler_type": "none",
+        "lr_warmup": True,
+        "warmup_steps": 500,
         "early_stopper.early_stopper_type": "none",
         "early_stopper.restore_best": True,
     },

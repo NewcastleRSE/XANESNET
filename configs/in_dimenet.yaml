@@ -51,6 +51,8 @@ trainer:
   optimizer: Adam
   max_norm: null
   validation_interval: 10
+  lr_warmup: True
+  warmup_steps: 500
   loss:
     loss_type: mse
   regularizer:
