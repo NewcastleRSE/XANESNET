@@ -28,6 +28,7 @@ from .layers import (
     EnergyConditionedAbsorberBranch,
     EnergyConditionedAtomAttention,
     EnergyConditionedEquivariantAbsorberHead,
+    EnergyConditionedEquivariantAtomAttention,
     EnergyRBFEmbedding,
     EquivariantAtomEncoder,
     PairElementEnergyScattering,
@@ -70,9 +71,14 @@ class E3EE(Model):
         use_invariant_branch: bool,
         use_attention_branch: bool,
         use_equivariant_branch: bool,
+        use_eq_attention_branch: bool,
         use_path_branch: bool,
         residual_scale_init: float,
         attention_heads: int,
+        attention_rbf_dim: int,
+        attention_lmax: int,
+        attention_irreps: str,
+        att_cutoff: float,
     ) -> None:
         super().__init__(model_type)
 
@@ -94,9 +100,14 @@ class E3EE(Model):
         self.use_invariant_branch = use_invariant_branch
         self.use_attention_branch = use_attention_branch
         self.use_equivariant_branch = use_equivariant_branch
+        self.use_eq_attention_branch = use_eq_attention_branch
         self.use_path_branch = use_path_branch
         self.residual_scale_init = residual_scale_init
         self.attention_heads = attention_heads
+        self.attention_rbf_dim = attention_rbf_dim
+        self.attention_lmax = attention_lmax
+        self.attention_irreps = attention_irreps
+        self.att_cutoff = att_cutoff
 
         # Energy index range for RBF embedding (uses grid indices 0..out_size-1)
         self._energy_min = 0.0
@@ -141,6 +152,25 @@ class E3EE(Model):
                 e_dim=energy_rbf_dim,
                 hidden_dim=atom_hidden_dim,
                 latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                rbf_dim=attention_rbf_dim,
+                max_z=max_z,
+                z_emb_dim=32,
+                n_heads=attention_heads,
+            )
+
+        # Branch 2b (optional): equivariant counterpart of the attention branch
+        if self.use_eq_attention_branch:
+            self.eq_atom_attention = EnergyConditionedEquivariantAtomAttention(
+                atom_dim=self._inv_dim,
+                irreps_node=self.atom_encoder.irreps_node,
+                e_dim=energy_rbf_dim,
+                hidden_dim=atom_hidden_dim,
+                latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                attention_lmax=attention_lmax,
+                attention_irreps=attention_irreps,
+                rbf_dim=attention_rbf_dim,
                 max_z=max_z,
                 z_emb_dim=32,
                 n_heads=attention_heads,
@@ -178,6 +208,7 @@ class E3EE(Model):
             int(self.use_invariant_branch)
             + int(self.use_attention_branch)
             + int(self.use_equivariant_branch)
+            + int(self.use_eq_attention_branch)
             + int(self.use_path_branch)
         )
         head_in_dim = n_active * latent_dim
@@ -197,6 +228,9 @@ class E3EE(Model):
         edge_dst: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_vec: torch.Tensor,
+        att_dst: torch.Tensor,
+        att_dist: torch.Tensor,
+        att_vec: torch.Tensor,
         energies: torch.Tensor,
         path_j: torch.Tensor,
         path_k: torch.Tensor,
@@ -268,8 +302,25 @@ class E3EE(Model):
                 mask=mask,
                 e_feat=e_feat,
                 absorber_index=absorber_index,
+                att_dst=att_dst,
+                att_dist=att_dist,
             )  # [B, nE, latent]
             parts.append(attn_lat)
+
+        # Branch 2b (optional): equivariant atom attention
+        if self.use_eq_attention_branch:
+            eq_attn_lat = self.eq_atom_attention(
+                h=h,
+                h_full=h_full,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                absorber_index=absorber_index,
+                att_dst=att_dst,
+                att_dist=att_dist,
+                att_vec=att_vec,
+            )  # [B, nE, latent]
+            parts.append(eq_attn_lat)
 
         # Branch 3 (optional): late equivariant absorber head
         if self.use_equivariant_branch:
@@ -338,9 +389,14 @@ class E3EE(Model):
                 "use_invariant_branch": self.use_invariant_branch,
                 "use_attention_branch": self.use_attention_branch,
                 "use_equivariant_branch": self.use_equivariant_branch,
+                "use_eq_attention_branch": self.use_eq_attention_branch,
                 "use_path_branch": self.use_path_branch,
                 "residual_scale_init": self.residual_scale_init,
                 "attention_heads": self.attention_heads,
+                "attention_rbf_dim": self.attention_rbf_dim,
+                "attention_lmax": self.attention_lmax,
+                "attention_irreps": self.attention_irreps,
+                "att_cutoff": self.att_cutoff,
             }
         )
         return signature

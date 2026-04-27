@@ -47,6 +47,10 @@ class E3EEFullBatch(Protocol):
     edge_dst: torch.Tensor
     edge_weight: torch.Tensor
     edge_vec: torch.Tensor
+    att_src: torch.Tensor
+    att_dst: torch.Tensor
+    att_dist: torch.Tensor
+    att_vec: torch.Tensor
     # Flat per-site triplet scalars. ``path_center`` is the flat atom index of
     # the site a path belongs to (into the padded B*N_max layout).
     path_center: torch.Tensor
@@ -100,6 +104,12 @@ class E3EEFullDataset(TorchGeometricDataset):
         graph_method: str,
         min_facet_area: float | str | None,
         cov_radii_scale: float,
+        att_cutoff: float,
+        att_max_num_neighbors: int,
+        att_graph_method: str,
+        att_min_facet_area: float | str | None,
+        att_cov_radii_scale: float,
+        use_absorber_mask: bool,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
@@ -110,6 +120,12 @@ class E3EEFullDataset(TorchGeometricDataset):
         self.graph_method = graph_method
         self.min_facet_area = min_facet_area
         self.cov_radii_scale = cov_radii_scale
+        self.att_cutoff = att_cutoff
+        self.att_max_num_neighbors = att_max_num_neighbors
+        self.att_graph_method = att_graph_method
+        self.att_min_facet_area = att_min_facet_area
+        self.att_cov_radii_scale = att_cov_radii_scale
+        self.use_absorber_mask = use_absorber_mask
 
     def prepare(self) -> bool:
         skip_processing = super().prepare()
@@ -158,6 +174,55 @@ class E3EEFullDataset(TorchGeometricDataset):
             )
             assert edge_vec is not None
 
+            # Attention graph (full): every site to every neighbour
+            # Self-loops at distance 0 are added explicitly so each site attends to itself.
+            att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
+                pmg_obj,
+                cutoff=self.att_cutoff,
+                max_num_neighbors=self.att_max_num_neighbors,
+                compute_vectors=True,
+                method=self.att_graph_method,
+                min_facet_area=self.att_min_facet_area,
+                cov_radii_scale=self.att_cov_radii_scale,
+            )
+            assert att_edge_vec is not None
+            if self.use_absorber_mask:
+                # Self-loops + neighbour edges only for absorber sites.
+                abs_self_idx = torch.tensor(absorber_idxs, dtype=torch.int64)
+                src_full = att_edge_index[0].to(dtype=torch.int64)
+                keep = absorber_mask[src_full]
+                att_src = torch.cat([abs_self_idx, src_full[keep]], dim=0)
+                att_dst = torch.cat(
+                    [abs_self_idx, att_edge_index[1].to(dtype=torch.int64)[keep]],
+                    dim=0,
+                )
+                att_dist = torch.cat(
+                    [
+                        torch.zeros(abs_self_idx.shape[0], dtype=torch.float32),
+                        att_edge_weight.to(dtype=torch.float32)[keep],
+                    ],
+                    dim=0,
+                )
+                att_vec = torch.cat(
+                    [
+                        torch.zeros(abs_self_idx.shape[0], 3, dtype=torch.float32),
+                        att_edge_vec.to(dtype=torch.float32)[keep],
+                    ],
+                    dim=0,
+                )
+            else:
+                self_idx = torch.arange(n_atoms_total, dtype=torch.int64)
+                att_src = torch.cat([self_idx, att_edge_index[0].to(dtype=torch.int64)], dim=0)
+                att_dst = torch.cat([self_idx, att_edge_index[1].to(dtype=torch.int64)], dim=0)
+                att_dist = torch.cat(
+                    [torch.zeros(n_atoms_total, dtype=torch.float32), att_edge_weight.to(dtype=torch.float32)],
+                    dim=0,
+                )
+                att_vec = torch.cat(
+                    [torch.zeros(n_atoms_total, 3, dtype=torch.float32), att_edge_vec.to(dtype=torch.float32)],
+                    dim=0,
+                )
+
             data_kwargs: dict = {
                 "x": atomic_numbers,
                 "absorber_mask": absorber_mask,
@@ -165,6 +230,10 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "edge_dst": edge_index[1],
                 "edge_weight": edge_weight,
                 "edge_vec": edge_vec,
+                "att_src": att_src,
+                "att_dst": att_dst,
+                "att_dist": att_dist,
+                "att_vec": att_vec,
                 "energies": energies_stack,
                 "intensities": intensities_stack,
                 "file_name": pmg_obj.properties["file_name"],
@@ -178,10 +247,9 @@ class E3EEFullDataset(TorchGeometricDataset):
                 r0k_list: list[torch.Tensor] = []
                 rjk_list: list[torch.Tensor] = []
                 cos_list: list[torch.Tensor] = []
-                # Paths are computed for EVERY absorber site (not just the ones
-                # with ground truth) so that inference emits physically
-                # meaningful spectra for all atoms.
-                for site_idx in range(n_atoms_total):
+
+                site_iter = absorber_idxs if self.use_absorber_mask else range(n_atoms_total)
+                for site_idx in site_iter:
                     paths = build_absorber_paths(
                         pmg_obj,
                         absorber_idx=site_idx,
@@ -265,6 +333,21 @@ class E3EEFullDataset(TorchGeometricDataset):
         edge_weight = torch.cat(edge_weight_list, dim=0) if edge_weight_list else torch.zeros(0, dtype=torch.float32)
         edge_vec = torch.cat(edge_vec_list, dim=0) if edge_vec_list else torch.zeros(0, 3, dtype=torch.float32)
 
+        att_src_list: list[torch.Tensor] = []
+        att_dst_list: list[torch.Tensor] = []
+        att_dist_list: list[torch.Tensor] = []
+        att_vec_list: list[torch.Tensor] = []
+        for b, sample in enumerate(batch):
+            offset = b * n_max
+            att_src_list.append(sample.att_src + offset)
+            att_dst_list.append(sample.att_dst + offset)
+            att_dist_list.append(sample.att_dist)
+            att_vec_list.append(sample.att_vec)
+        att_src = torch.cat(att_src_list, dim=0) if att_src_list else torch.zeros(0, dtype=torch.int64)
+        att_dst = torch.cat(att_dst_list, dim=0) if att_dst_list else torch.zeros(0, dtype=torch.int64)
+        att_dist = torch.cat(att_dist_list, dim=0) if att_dist_list else torch.zeros(0, dtype=torch.float32)
+        att_vec = torch.cat(att_vec_list, dim=0) if att_vec_list else torch.zeros(0, 3, dtype=torch.float32)
+
         has_paths = all(hasattr(s, "path_j") for s in batch)
         path_center = torch.zeros(0, dtype=torch.int64)
         path_j = torch.zeros(0, dtype=torch.int64)
@@ -305,6 +388,10 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "edge_dst",
                 "edge_weight",
                 "edge_vec",
+                "att_src",
+                "att_dst",
+                "att_dist",
+                "att_vec",
                 "path_center",
                 "path_j",
                 "path_k",
@@ -323,6 +410,10 @@ class E3EEFullDataset(TorchGeometricDataset):
         setattr(batched, "edge_dst", edge_dst)
         setattr(batched, "edge_weight", edge_weight)
         setattr(batched, "edge_vec", edge_vec)
+        setattr(batched, "att_src", att_src)
+        setattr(batched, "att_dst", att_dst)
+        setattr(batched, "att_dist", att_dist)
+        setattr(batched, "att_vec", att_vec)
         setattr(batched, "path_center", path_center)
         setattr(batched, "path_j", path_j)
         setattr(batched, "path_k", path_k)
@@ -357,6 +448,12 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "graph_method": self.graph_method,
                 "min_facet_area": self.min_facet_area,
                 "cov_radii_scale": self.cov_radii_scale,
+                "att_cutoff": self.att_cutoff,
+                "att_max_num_neighbors": self.att_max_num_neighbors,
+                "att_graph_method": self.att_graph_method,
+                "att_min_facet_area": self.att_min_facet_area,
+                "att_cov_radii_scale": self.att_cov_radii_scale,
+                "use_absorber_mask": self.use_absorber_mask,
             }
         )
         return signature

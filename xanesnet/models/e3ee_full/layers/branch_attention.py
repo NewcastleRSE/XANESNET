@@ -16,21 +16,63 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from .basic import MLP
+from .basic import MLP, CosineCutoff, GaussianRBF
+
+
+def _scatter_softmax(scores: torch.Tensor, index: torch.Tensor, dim_size: int) -> torch.Tensor:
+    """
+    Numerically stable softmax over groups defined by ``index`` along dim 0.
+
+    Args:
+        scores: [E, ...] floating-point scores.
+        index:  [E] long tensor of group ids in [0, dim_size).
+        dim_size: number of groups (typically B * N_max).
+
+    Returns:
+        [E, ...] softmax weights normalized within each group.
+    """
+    if scores.numel() == 0:
+        return scores
+
+    extra = scores.shape[1:]
+    flat_extra = int(torch.tensor(extra).prod().item()) if len(extra) > 0 else 1
+    s = scores.reshape(scores.shape[0], flat_extra)
+
+    src_max = torch.full((dim_size, flat_extra), float("-inf"), device=s.device, dtype=s.dtype)
+    src_max.scatter_reduce_(
+        0,
+        index.view(-1, 1).expand_as(s),
+        s,
+        reduce="amax",
+        include_self=True,
+    )
+    # Replace -inf (groups with no edges) with 0 to avoid NaN when subtracted.
+    src_max = torch.where(torch.isinf(src_max), torch.zeros_like(src_max), src_max)
+
+    s_shift = s - src_max[index]
+    exp_s = torch.exp(s_shift)
+
+    denom = torch.zeros(dim_size, flat_extra, device=s.device, dtype=s.dtype)
+    denom.scatter_add_(0, index.view(-1, 1).expand_as(exp_s), exp_s)
+    attn = exp_s / denom[index].clamp_min(1e-30)
+
+    return attn.view(scores.shape[0], *extra)
 
 
 class AllAtomAtomAttention(nn.Module):
     """
-    Energy-conditioned global attention over invariant atomwise features with
-    one query per (atom, energy) pair.
+    Sparse energy-conditioned global attention with one query per atom and
+    one key/value per attention-graph edge. The attention scope (which atoms
+    each query may attend to) is supplied externally as the
+    ``att_src``/``att_dst`` edge list — typically a radius graph that is
+    larger than the local encoder graph. RBF-encoded distances enter the
+    keys/values; no soft cutoff or log-radial bias is applied. Softmax over
+    each query's edge set provides the renormalization automatically.
 
-    Queries depend on the querying atom's own invariant features and the
-    energy; keys and values depend only on the atom (element embedding +
-    invariant features) and are shared across all query atoms. Uses
-    ``F.scaled_dot_product_attention`` so CUDA FlashAttention can be used when
-    available.
+    The optional ``absorber_mask`` lets the caller restrict the queries to
+    just the absorber atoms when ``use_absorber_mask`` is enabled in the
+    parent model. Other rows of the output are zeros.
     """
 
     def __init__(
@@ -39,6 +81,8 @@ class AllAtomAtomAttention(nn.Module):
         e_dim: int,
         hidden_dim: int,
         latent_dim: int,
+        att_cutoff: float,
+        rbf_dim: int = 16,
         max_z: int = 100,
         z_emb_dim: int = 32,
         n_heads: int = 4,
@@ -51,10 +95,14 @@ class AllAtomAtomAttention(nn.Module):
         self.e_dim = e_dim
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
+        self.rbf_dim = rbf_dim
+        self.att_cutoff = float(att_cutoff)
         self.n_heads = n_heads
         self.head_dim = latent_dim // n_heads
 
         self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
+        self.dist_rbf = GaussianRBF(0.0, self.att_cutoff, rbf_dim)
+        self.value_envelope = CosineCutoff(self.att_cutoff)
 
         self.query_mlp = MLP(
             in_dim=atom_dim + e_dim,
@@ -63,16 +111,17 @@ class AllAtomAtomAttention(nn.Module):
             n_layers=3,
         )
 
-        # atom_static = [h, zr] — no absorber flag.
-        atom_static_dim = atom_dim + z_emb_dim
+        # Pair static features used for keys/values: dst atom features, dst
+        # element embedding, RBF(distance) and a self-edge flag.
+        pair_static_dim = atom_dim + z_emb_dim + 1 + rbf_dim
         self.key_mlp = MLP(
-            in_dim=atom_static_dim,
+            in_dim=pair_static_dim,
             hidden_dim=hidden_dim,
             out_dim=latent_dim,
             n_layers=3,
         )
         self.value_mlp = MLP(
-            in_dim=atom_static_dim,
+            in_dim=pair_static_dim,
             hidden_dim=hidden_dim,
             out_dim=latent_dim,
             n_layers=3,
@@ -85,46 +134,99 @@ class AllAtomAtomAttention(nn.Module):
             n_layers=2,
         )
 
+        self.score_scale = self.head_dim**-0.5
+
     def forward(
         self,
         h: torch.Tensor,
         z: torch.Tensor,
         mask: torch.Tensor,
         e_feat: torch.Tensor,
+        att_src: torch.Tensor,
+        att_dst: torch.Tensor,
+        att_dist: torch.Tensor,
+        absorber_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
-            h:      [B, N, H] invariant atom features
-            z:      [B, N]    atomic numbers
-            mask:   [B, N]    valid-atom mask (attention scope for keys)
-            e_feat: [nE, dE]  energy feature embedding
+            h:            [B, N, H] invariant atom features
+            z:            [B, N] atomic numbers
+            mask:         [B, N] valid-atom mask (encoder scope)
+            e_feat:       [nE, dE] energy feature embedding
+            att_src:      [E_att] flat src indices (queries) into B*N
+            att_dst:      [E_att] flat dst indices (keys/values) into B*N
+            att_dist:     [E_att] pair distances
+            absorber_mask: optional [B, N] bool. When given, queries are
+                restricted to atoms with True; other rows are returned zero.
 
         Returns:
             [B, N, nE, latent_dim]
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies, e_dim = e_feat.shape
+        device = h.device
+        dtype = h.dtype
+        flat = bsz * n_atoms
 
-        # Query input: [B, N, nE, H+dE]
-        h_q = h.unsqueeze(2).expand(bsz, n_atoms, n_energies, h_dim)
-        e_q = e_feat.view(1, 1, n_energies, e_dim).expand(bsz, n_atoms, n_energies, e_dim)
-        q = self.query_mlp(torch.cat([h_q, e_q], dim=-1))  # [B, N, nE, L]
+        h_flat = h.reshape(flat, h_dim)
+        z_flat = z.reshape(flat)
+        mask_flat = mask.reshape(flat)
 
-        zr = self.z_emb(z)  # [B, N, z_emb_dim]
-        atom_static = torch.cat([h, zr], dim=-1)  # [B, N, H+z_emb_dim]
-        k = self.key_mlp(atom_static)  # [B, N, L]
-        v = self.value_mlp(atom_static)  # [B, N, L]
+        # Active queries.
+        src_active = mask_flat.clone()
+        if absorber_mask is not None:
+            src_active = src_active & absorber_mask.reshape(flat)
 
-        # Reshape for SDPA: [B, nH, Lq, dH] / [B, nH, Lk, dH]
-        q = q.reshape(bsz, n_atoms * n_energies, self.n_heads, self.head_dim).transpose(1, 2)
-        k = k.reshape(bsz, n_atoms, self.n_heads, self.head_dim).transpose(1, 2)
-        v = v.reshape(bsz, n_atoms, self.n_heads, self.head_dim).transpose(1, 2)
+        # Restrict to edges with active src and valid dst.
+        edge_active = src_active[att_src] & mask_flat[att_dst]
+        ea_src = att_src[edge_active]
+        ea_dst = att_dst[edge_active]
+        ea_dist = att_dist[edge_active].to(dtype=dtype)
+        n_edges = ea_src.shape[0]
 
-        # Key mask: broadcast [B, 1, 1, N]. True = keep.
-        attn_mask = mask.view(bsz, 1, 1, n_atoms)
+        out_flat = torch.zeros(flat, n_energies, self.latent_dim, device=device, dtype=dtype)
 
-        out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
-        # [B, nH, N*nE, dH] -> [B, N, nE, L]
-        out = out.transpose(1, 2).contiguous().view(bsz, n_atoms, n_energies, self.latent_dim)
+        if n_edges == 0:
+            return self.out_proj(out_flat.view(bsz, n_atoms, n_energies, self.latent_dim))
 
+        rbf = self.dist_rbf(ea_dist)  # [E, rbf]
+        zr_d = self.z_emb(z_flat[ea_dst])  # [E, z_emb]
+        is_self = (ea_src == ea_dst).to(dtype=dtype).unsqueeze(-1)  # [E, 1]
+        h_dst = h_flat[ea_dst]  # [E, H]
+        h_src = h_flat[ea_src]  # [E, H]
+
+        pair_static = torch.cat([h_dst, zr_d, is_self, rbf], dim=-1)
+        k_e = self.key_mlp(pair_static)  # [E, L]
+        v_e = self.value_mlp(pair_static)  # [E, L]
+        env_e = self.value_envelope(ea_dist).unsqueeze(-1)  # [E, 1]
+        v_e = v_e * env_e
+
+        # Per-edge query: depends on src and energy. Materialize [E, nE, L].
+        q_in = torch.cat(
+            [
+                h_src.unsqueeze(1).expand(n_edges, n_energies, h_dim),
+                e_feat.unsqueeze(0).expand(n_edges, n_energies, e_dim),
+            ],
+            dim=-1,
+        )
+        q_e = self.query_mlp(q_in)  # [E, nE, L]
+
+        # Multi-head split.
+        q_eh = q_e.view(n_edges, n_energies, self.n_heads, self.head_dim)
+        k_eh = k_e.view(n_edges, self.n_heads, self.head_dim)
+        v_eh = v_e.view(n_edges, self.n_heads, self.head_dim)
+
+        # Scores per (edge, energy, head).
+        scores = (q_eh * k_eh.unsqueeze(1)).sum(dim=-1) * self.score_scale  # [E, nE, nH]
+
+        # Softmax over edges sharing the same src, per (energy, head).
+        attn = _scatter_softmax(scores, ea_src, flat)  # [E, nE, nH]
+
+        # Aggregate values per src.
+        contrib = attn.unsqueeze(-1) * v_eh.unsqueeze(1)  # [E, nE, nH, dH]
+        contrib_flat = contrib.reshape(n_edges, n_energies, self.latent_dim)
+
+        out_flat.index_add_(0, ea_src, contrib_flat)
+
+        out = out_flat.view(bsz, n_atoms, n_energies, self.latent_dim)
         return self.out_proj(out)

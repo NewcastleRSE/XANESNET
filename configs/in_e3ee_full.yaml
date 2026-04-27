@@ -8,10 +8,10 @@ datasource:
 
 dataset:
   # general:
-  dataset_type: e3ee_full
-  root: ./data/omnixas/processed_train/ # Where should the processed data be stored
+  dataset_type: e3ee_full_mp
+  root: ./data/omnixas/processed_train_e3ee_full/ # Where should the processed data be stored
   preload: True # Preload dataset into RAM if True; otherwise load on-the-fly
-  skip_prepare: False
+  skip_prepare: True
   split_ratios: [0.8, 0.2]
   # params:
   cutoff: 6.0
@@ -20,6 +20,15 @@ dataset:
   max_paths_per_site: 32
   graph_method: voronoi
   min_facet_area: 5%
+  # attention graph (used by attention branches):
+  att_cutoff: 10.0
+  att_max_num_neighbors: 128
+  att_graph_method: radius
+  att_min_facet_area: null
+  att_cov_radii_scale: 1.5
+  use_absorber_mask: True
+  # mp
+  num_workers: 4
 
 model:
   # general:
@@ -43,14 +52,20 @@ model:
   use_invariant_branch: True
   use_attention_branch: False
   use_equivariant_branch: True
+  use_eq_attention_branch: True
   use_path_branch: False
+  use_absorber_mask: True
   residual_scale_init: 0.1
   attention_heads: 4
+  attention_rbf_dim: 16
+  attention_lmax: 2
+  attention_irreps: "32x0e + 16x1o + 8x2e"
+  att_cutoff: 10.0
 
 trainer:
   # general:
   trainer_type: basic
-  batch_size: 4
+  batch_size: 1
   shuffle: True
   drop_last: False
   num_workers: 0

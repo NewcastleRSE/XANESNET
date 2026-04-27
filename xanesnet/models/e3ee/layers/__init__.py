@@ -25,6 +25,7 @@ from .basic import (
 )
 from .branch_absorber import EnergyConditionedAbsorberBranch
 from .branch_attention import EnergyConditionedAtomAttention
+from .branch_eq_attention import EnergyConditionedEquivariantAtomAttention
 from .branch_equivariant import (
     EnergyConditionedEquivariantAbsorberHead,
     EnergyIrrepModulation,
@@ -38,6 +39,7 @@ __all__ = [
     "EnergyConditionedAbsorberBranch",
     "EnergyConditionedAtomAttention",
     "EnergyConditionedEquivariantAbsorberHead",
+    "EnergyConditionedEquivariantAtomAttention",
     "EnergyIrrepModulation",
     "EnergyRBFEmbedding",
     "EquivariantAtomEncoder",

@@ -51,6 +51,12 @@ class E3EEFullDatasetMp(E3EEFullDataset):
         graph_method: str,
         min_facet_area: float | str | None,
         cov_radii_scale: float,
+        att_cutoff: float,
+        att_max_num_neighbors: int,
+        att_graph_method: str,
+        att_min_facet_area: float | str | None,
+        att_cov_radii_scale: float,
+        use_absorber_mask: bool,
         num_workers: int | None,
     ) -> None:
         super().__init__(
@@ -68,6 +74,12 @@ class E3EEFullDatasetMp(E3EEFullDataset):
             graph_method=graph_method,
             min_facet_area=min_facet_area,
             cov_radii_scale=cov_radii_scale,
+            att_cutoff=att_cutoff,
+            att_max_num_neighbors=att_max_num_neighbors,
+            att_graph_method=att_graph_method,
+            att_min_facet_area=att_min_facet_area,
+            att_cov_radii_scale=att_cov_radii_scale,
+            use_absorber_mask=use_absorber_mask,
         )
         self.num_workers = num_workers
 
@@ -121,6 +133,54 @@ class E3EEFullDatasetMp(E3EEFullDataset):
             )
             assert edge_vec is not None
 
+            # Attention graph (full): every site to every neighbour within
+            # att_cutoff. Self-loops at distance 0 added explicitly.
+            att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
+                pmg_obj,
+                cutoff=self.att_cutoff,
+                max_num_neighbors=self.att_max_num_neighbors,
+                compute_vectors=True,
+                method=self.att_graph_method,
+                min_facet_area=self.att_min_facet_area,
+                cov_radii_scale=self.att_cov_radii_scale,
+            )
+            assert att_edge_vec is not None
+            if self.use_absorber_mask:
+                abs_self_idx = torch.tensor(absorber_idxs, dtype=torch.int64)
+                src_full = att_edge_index[0].to(dtype=torch.int64)
+                keep = absorber_mask[src_full]
+                att_src = torch.cat([abs_self_idx, src_full[keep]], dim=0)
+                att_dst = torch.cat(
+                    [abs_self_idx, att_edge_index[1].to(dtype=torch.int64)[keep]],
+                    dim=0,
+                )
+                att_dist = torch.cat(
+                    [
+                        torch.zeros(abs_self_idx.shape[0], dtype=torch.float32),
+                        att_edge_weight.to(dtype=torch.float32)[keep],
+                    ],
+                    dim=0,
+                )
+                att_vec = torch.cat(
+                    [
+                        torch.zeros(abs_self_idx.shape[0], 3, dtype=torch.float32),
+                        att_edge_vec.to(dtype=torch.float32)[keep],
+                    ],
+                    dim=0,
+                )
+            else:
+                self_idx = torch.arange(n_atoms_total, dtype=torch.int64)
+                att_src = torch.cat([self_idx, att_edge_index[0].to(dtype=torch.int64)], dim=0)
+                att_dst = torch.cat([self_idx, att_edge_index[1].to(dtype=torch.int64)], dim=0)
+                att_dist = torch.cat(
+                    [torch.zeros(n_atoms_total, dtype=torch.float32), att_edge_weight.to(dtype=torch.float32)],
+                    dim=0,
+                )
+                att_vec = torch.cat(
+                    [torch.zeros(n_atoms_total, 3, dtype=torch.float32), att_edge_vec.to(dtype=torch.float32)],
+                    dim=0,
+                )
+
             data_kwargs: dict = {
                 "x": atomic_numbers,
                 "absorber_mask": absorber_mask,
@@ -128,6 +188,10 @@ class E3EEFullDatasetMp(E3EEFullDataset):
                 "edge_dst": edge_index[1],
                 "edge_weight": edge_weight,
                 "edge_vec": edge_vec,
+                "att_src": att_src,
+                "att_dst": att_dst,
+                "att_dist": att_dist,
+                "att_vec": att_vec,
                 "energies": energies_stack,
                 "intensities": intensities_stack,
                 "file_name": pmg_obj.properties["file_name"],
@@ -141,7 +205,8 @@ class E3EEFullDatasetMp(E3EEFullDataset):
                 r0k_list: list[torch.Tensor] = []
                 rjk_list: list[torch.Tensor] = []
                 cos_list: list[torch.Tensor] = []
-                for site_idx in range(n_atoms_total):
+                site_iter = absorber_idxs if self.use_absorber_mask else range(n_atoms_total)
+                for site_idx in site_iter:
                     paths = build_absorber_paths(
                         pmg_obj,
                         absorber_idx=site_idx,

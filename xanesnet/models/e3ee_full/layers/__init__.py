@@ -25,6 +25,7 @@ from .basic import (
 )
 from .branch_absorber import AllAtomEnergyBranch
 from .branch_attention import AllAtomAtomAttention
+from .branch_eq_attention import AllAtomEquivariantAtomAttention
 from .branch_equivariant import AllAtomEquivariantHead, EnergyIrrepModulation
 from .branch_path import AllAtomPathAggregator, PairElementEnergyScattering
 from .interactions import EquivariantInteractionBlock
@@ -32,6 +33,7 @@ from .interactions import EquivariantInteractionBlock
 __all__ = [
     "AllAtomAtomAttention",
     "AllAtomEnergyBranch",
+    "AllAtomEquivariantAtomAttention",
     "AllAtomEquivariantHead",
     "AllAtomPathAggregator",
     "CosineCutoff",

@@ -47,6 +47,9 @@ class E3EEBatch(Protocol):
     edge_dst: torch.Tensor
     edge_weight: torch.Tensor
     edge_vec: torch.Tensor
+    att_dst: torch.Tensor
+    att_dist: torch.Tensor
+    att_vec: torch.Tensor
     # Flat absorber-centred triplet scalars, indices into padded layout
     path_j: torch.Tensor
     path_k: torch.Tensor
@@ -95,6 +98,11 @@ class E3EEDataset(TorchGeometricDataset):
         graph_method: str,
         min_facet_area: float | str | None,
         cov_radii_scale: float,
+        att_cutoff: float,
+        att_max_num_neighbors: int,
+        att_graph_method: str,
+        att_min_facet_area: float | str | None,
+        att_cov_radii_scale: float,
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
@@ -105,6 +113,11 @@ class E3EEDataset(TorchGeometricDataset):
         self.graph_method = graph_method
         self.min_facet_area = min_facet_area
         self.cov_radii_scale = cov_radii_scale
+        self.att_cutoff = att_cutoff
+        self.att_max_num_neighbors = att_max_num_neighbors
+        self.att_graph_method = att_graph_method
+        self.att_min_facet_area = att_min_facet_area
+        self.att_cov_radii_scale = att_cov_radii_scale
 
     def prepare(self) -> bool:
         skip_processing = super().prepare()
@@ -129,7 +142,7 @@ class E3EEDataset(TorchGeometricDataset):
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
 
             # Edges are shared across absorbers within the same structure.
-            edge_index, edge_weight, edge_vec, _edge_attr = build_edges(
+            edge_index, edge_weight, edge_vec, _ = build_edges(
                 pmg_obj,
                 cutoff=self.cutoff,
                 max_num_neighbors=self.max_num_neighbors,
@@ -140,10 +153,48 @@ class E3EEDataset(TorchGeometricDataset):
             )
             assert edge_vec is not None
 
+            # Attention-graph edges (absorber → neighbours).
+            att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
+                pmg_obj,
+                cutoff=self.att_cutoff,
+                max_num_neighbors=self.att_max_num_neighbors,
+                compute_vectors=True,
+                method=self.att_graph_method,
+                min_facet_area=self.att_min_facet_area,
+                cov_radii_scale=self.att_cov_radii_scale,
+            )
+            assert att_edge_vec is not None
+            att_src_all = att_edge_index[0]
+            att_dst_all = att_edge_index[1]
+
             for site_idx in absorber_idxs:
                 spectrum = pmg_obj.site_properties[key][site_idx]
                 energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
                 intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
+
+                # Filter att-edges rooted at this absorber, prepend self-loop.
+                sel = att_src_all == site_idx
+                att_dst_site = torch.cat(
+                    [
+                        torch.tensor([site_idx], dtype=torch.int64),
+                        att_dst_all[sel].to(dtype=torch.int64),
+                    ],
+                    dim=0,
+                )
+                att_dist_site = torch.cat(
+                    [
+                        torch.zeros(1, dtype=torch.float32),
+                        att_edge_weight[sel].to(dtype=torch.float32),
+                    ],
+                    dim=0,
+                )
+                att_vec_site = torch.cat(
+                    [
+                        torch.zeros(1, 3, dtype=torch.float32),
+                        att_edge_vec[sel].to(dtype=torch.float32),
+                    ],
+                    dim=0,
+                )
 
                 data_kwargs: dict = {
                     "x": atomic_numbers,
@@ -152,6 +203,9 @@ class E3EEDataset(TorchGeometricDataset):
                     "edge_dst": edge_index[1],
                     "edge_weight": edge_weight,
                     "edge_vec": edge_vec,
+                    "att_dst": att_dst_site,
+                    "att_dist": att_dist_site,
+                    "att_vec": att_vec_site,
                     "energies": energies,
                     "intensities": intensities,
                     "file_name": pmg_obj.properties["file_name"],
@@ -300,6 +354,11 @@ class E3EEDataset(TorchGeometricDataset):
                 "graph_method": self.graph_method,
                 "min_facet_area": self.min_facet_area,
                 "cov_radii_scale": self.cov_radii_scale,
+                "att_cutoff": self.att_cutoff,
+                "att_max_num_neighbors": self.att_max_num_neighbors,
+                "att_graph_method": self.att_graph_method,
+                "att_min_facet_area": self.att_min_facet_area,
+                "att_cov_radii_scale": self.att_cov_radii_scale,
             }
         )
         return signature

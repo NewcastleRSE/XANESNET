@@ -26,6 +26,7 @@ from .layers import (
     MLP,
     AllAtomAtomAttention,
     AllAtomEnergyBranch,
+    AllAtomEquivariantAtomAttention,
     AllAtomEquivariantHead,
     AllAtomPathAggregator,
     EnergyRBFEmbedding,
@@ -69,9 +70,15 @@ class E3EEFull(Model):
         use_invariant_branch: bool,
         use_attention_branch: bool,
         use_equivariant_branch: bool,
+        use_eq_attention_branch: bool,
         use_path_branch: bool,
+        use_absorber_mask: bool,
         residual_scale_init: float,
         attention_heads: int,
+        attention_rbf_dim: int,
+        attention_lmax: int,
+        attention_irreps: str,
+        att_cutoff: float,
     ) -> None:
         super().__init__(model_type)
 
@@ -93,9 +100,15 @@ class E3EEFull(Model):
         self.use_invariant_branch = use_invariant_branch
         self.use_attention_branch = use_attention_branch
         self.use_equivariant_branch = use_equivariant_branch
+        self.use_eq_attention_branch = use_eq_attention_branch
         self.use_path_branch = use_path_branch
+        self.use_absorber_mask = use_absorber_mask
         self.residual_scale_init = residual_scale_init
         self.attention_heads = attention_heads
+        self.attention_rbf_dim = attention_rbf_dim
+        self.attention_lmax = attention_lmax
+        self.attention_irreps = attention_irreps
+        self.att_cutoff = att_cutoff
 
         # Energy index range for RBF embedding (uses grid indices 0..out_size-1)
         self._energy_min = 0.0
@@ -133,13 +146,32 @@ class E3EEFull(Model):
                 out_dim=latent_dim,
             )
 
-        # Branch 2 (optional): energy-conditioned atom attention (per-atom query, SDPA)
+        # Branch 2 (optional): energy-conditioned atom attention (per-atom query, sparse).
         if self.use_attention_branch:
             self.atom_attention = AllAtomAtomAttention(
                 atom_dim=self._inv_dim,
                 e_dim=energy_rbf_dim,
                 hidden_dim=atom_hidden_dim,
                 latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                rbf_dim=attention_rbf_dim,
+                max_z=max_z,
+                z_emb_dim=32,
+                n_heads=attention_heads,
+            )
+
+        # Branch 2b (optional): equivariant per-atom attention
+        if self.use_eq_attention_branch:
+            self.eq_atom_attention = AllAtomEquivariantAtomAttention(
+                atom_dim=self._inv_dim,
+                irreps_node=self.atom_encoder.irreps_node,
+                e_dim=energy_rbf_dim,
+                hidden_dim=atom_hidden_dim,
+                latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                attention_lmax=attention_lmax,
+                attention_irreps=attention_irreps,
+                rbf_dim=attention_rbf_dim,
                 max_z=max_z,
                 z_emb_dim=32,
                 n_heads=attention_heads,
@@ -177,6 +209,7 @@ class E3EEFull(Model):
             int(self.use_invariant_branch)
             + int(self.use_attention_branch)
             + int(self.use_equivariant_branch)
+            + int(self.use_eq_attention_branch)
             + int(self.use_path_branch)
         )
         head_in_dim = n_active * latent_dim
@@ -191,10 +224,15 @@ class E3EEFull(Model):
         self,
         x: torch.Tensor,
         mask: torch.Tensor,
+        absorber_mask: torch.Tensor,
         edge_src: torch.Tensor,
         edge_dst: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_vec: torch.Tensor,
+        att_src: torch.Tensor,
+        att_dst: torch.Tensor,
+        att_dist: torch.Tensor,
+        att_vec: torch.Tensor,
         energies: torch.Tensor,
         path_center: torch.Tensor,
         path_j: torch.Tensor,
@@ -246,6 +284,12 @@ class E3EEFull(Model):
 
         h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)  # [B, N, inv_dim]
 
+        # When ``use_absorber_mask`` is enabled, all branches are restricted
+        # to the absorber sites: branches that natively support filtering
+        # receive the mask, the path branch drops paths whose center is not
+        # an absorber, and other branches' outputs are zeroed out at the end.
+        active_mask = absorber_mask if self.use_absorber_mask else None
+
         parts = []
 
         if self.use_invariant_branch:
@@ -253,8 +297,32 @@ class E3EEFull(Model):
             parts.append(abs_lat)
 
         if self.use_attention_branch:
-            attn_lat = self.atom_attention(h=h, z=x, mask=mask, e_feat=e_feat)  # [B, N, nE, latent]
+            attn_lat = self.atom_attention(
+                h=h,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                att_src=att_src,
+                att_dst=att_dst,
+                att_dist=att_dist,
+                absorber_mask=active_mask,
+            )  # [B, N, nE, latent]
             parts.append(attn_lat)
+
+        if self.use_eq_attention_branch:
+            eq_attn_lat = self.eq_atom_attention(
+                h=h,
+                h_full=h_full,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                att_src=att_src,
+                att_dst=att_dst,
+                att_dist=att_dist,
+                att_vec=att_vec,
+                absorber_mask=active_mask,
+            )  # [B, N, nE, latent]
+            parts.append(eq_attn_lat)
 
         if self.use_equivariant_branch:
             eq_lat = self.eq_head(h_full, e_feat)  # [B, N, nE, latent]
@@ -263,18 +331,34 @@ class E3EEFull(Model):
         if self.use_path_branch:
             h_flat = h.reshape(bsz * n_atoms, self._inv_dim)
             z_flat = x.reshape(bsz * n_atoms)
+
+            if active_mask is not None:
+                abs_flat = active_mask.reshape(bsz * n_atoms)
+                keep = abs_flat[path_center]
+                p_center = path_center[keep]
+                p_j = path_j[keep]
+                p_k = path_k[keep]
+                p_r0j = path_r0j[keep]
+                p_r0k = path_r0k[keep]
+                p_rjk = path_rjk[keep]
+                p_cos = path_cosangle[keep]
+            else:
+                p_center, p_j, p_k = path_center, path_j, path_k
+                p_r0j, p_r0k = path_r0j, path_r0k
+                p_rjk, p_cos = path_rjk, path_cosangle
+
             path_lat = self.path_agg(
                 h_flat=h_flat,
                 z_flat=z_flat,
                 pair_elem_energy=self.pair_elem_energy,
                 e_feat=e_feat,
-                path_center=path_center,
-                path_j=path_j,
-                path_k=path_k,
-                path_r0j=path_r0j,
-                path_r0k=path_r0k,
-                path_rjk=path_rjk,
-                path_cosangle=path_cosangle,
+                path_center=p_center,
+                path_j=p_j,
+                path_k=p_k,
+                path_r0j=p_r0j,
+                path_r0k=p_r0k,
+                path_rjk=p_rjk,
+                path_cosangle=p_cos,
                 bsz=bsz,
                 n_atoms=n_atoms,
             )  # [B, N, nE, latent]
@@ -282,6 +366,10 @@ class E3EEFull(Model):
 
         combined = torch.cat(parts, dim=-1)  # [B, N, nE, head_in_dim]
         out = self.head(combined).squeeze(-1)  # [B, N, nE]
+
+        if self.use_absorber_mask:
+            out = out * absorber_mask.unsqueeze(-1).to(dtype=out.dtype)
+
         return out
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
@@ -322,9 +410,15 @@ class E3EEFull(Model):
                 "use_invariant_branch": self.use_invariant_branch,
                 "use_attention_branch": self.use_attention_branch,
                 "use_equivariant_branch": self.use_equivariant_branch,
+                "use_eq_attention_branch": self.use_eq_attention_branch,
                 "use_path_branch": self.use_path_branch,
+                "use_absorber_mask": self.use_absorber_mask,
                 "residual_scale_init": self.residual_scale_init,
                 "attention_heads": self.attention_heads,
+                "attention_rbf_dim": self.attention_rbf_dim,
+                "attention_lmax": self.attention_lmax,
+                "attention_irreps": self.attention_irreps,
+                "att_cutoff": self.att_cutoff,
             }
         )
         return signature
