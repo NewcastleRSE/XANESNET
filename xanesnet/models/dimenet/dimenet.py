@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""DimeNet building blocks and spherical Bessel utilities shared with DimeNet++."""
 
 import functools
 import logging
@@ -38,11 +39,28 @@ from ..registry import ModelRegistry
 
 @ModelRegistry.register("dimenet")
 class DimeNet(Model):
-    """
-    The directional message passing neural network DimeNet:
-    `"Directional Message Passing for Molecular Graphs"`;
-    Arxiv: `<https://arxiv.org/abs/2003.03123>`;
-    Implementation similar to `<https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/dimenet.html>`
+    """Directional message passing neural network (DimeNet).
+
+    Reference: `"Directional Message Passing for Molecular Graphs" <https://arxiv.org/abs/2003.03123>`_.
+
+    Implementation based on the PyTorch Geometric reference:
+    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/dimenet.html
+
+    Args:
+        model_type: Model type string (passed to base class).
+        hidden_channels: Hidden feature dimension.
+        out_channels: Output feature dimension per atom.
+        num_blocks: Number of interaction blocks.
+        num_bilinear: Bilinear layer size in the interaction block.
+        num_spherical: Number of spherical basis functions; must be >= 2.
+        num_radial: Number of radial basis functions.
+        cutoff: Radial cutoff in **A**.
+        envelope_exponent: Exponent controlling cutoff envelope smoothness.
+        num_before_skip: Number of residual layers before the skip connection.
+        num_after_skip: Number of residual layers after the skip connection.
+        num_output_layers: Number of hidden layers in the output block.
+        act: Activation function name (resolved via ``activation_resolver``).
+        output_initializer: Weight init for the final layer; one of ``"zeros"`` or ``"glorot_orthogonal"``.
     """
 
     def __init__(
@@ -68,7 +86,6 @@ class DimeNet(Model):
         if num_spherical < 2:
             raise ValueError("'num_spherical' should be greater than 1")
 
-        # Get activation function from string
         self.act = activation_resolver(act)
 
         # params
@@ -127,21 +144,34 @@ class DimeNet(Model):
 
     def forward(
         self,
-        z: torch.Tensor,  # Atomic number of each atom with shape [num_atoms].
-        edge_index: torch.Tensor,  # Edge indices [2, num_edges] (j→i convention: row=source, col=target).
-        edge_weight: torch.Tensor,  # Edge distances [num_edges].
-        angle: torch.Tensor,  # Triplet angles [num_triplets].
-        idx_kj: torch.Tensor,  # Edge index of k→j for each triplet [num_triplets].
-        idx_ji: torch.Tensor,  # Edge index of j→i for each triplet [num_triplets].
-        batch: OptTensor = None,  # Batch indices assigning each atom to a separate molecule with shape [num_atoms].
+        z: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        angle: torch.Tensor,
+        idx_kj: torch.Tensor,
+        idx_ji: torch.Tensor,
+        batch: OptTensor = None,  # TODO can we remove ?!?
     ) -> torch.Tensor:
-        """
-        Forward pass. Expects precomputed edges, distances, angles, and triplet indices
-        (as provided by GeometryGraphDataset with compute_angles=True).
-        """
-        j, i = edge_index[0], edge_index[1]  # j->i
+        """Compute per-atom output predictions.
 
-        # Encoding
+        Expects precomputed edges, distances, angles, and triplet indices
+        as provided by ``GeometryGraphDataset`` with ``compute_angles=True``.
+
+        Args:
+            z: Atomic numbers, shape ``(num_atoms,)``.
+            edge_index: Edge indices using j->i convention, shape ``(2, num_edges)``.
+            edge_weight: Edge distances in **A**, shape ``(num_edges,)``.
+            angle: Triplet angles in **rad**, shape ``(num_triplets,)``.
+            idx_kj: Index of the k->j edge for each triplet, shape ``(num_triplets,)``.
+            idx_ji: Index of the j->i edge for each triplet, shape ``(num_triplets,)``.
+            batch: Atom-to-sample assignments, shape ``(num_atoms,)``. Not used
+                internally; accepted for interface compatibility.
+
+        Returns:
+            Per-atom predictions of shape ``(num_atoms, out_channels)``.
+        """
+        j, i = edge_index[0], edge_index[1]  # j->i convention
+
         rbf = self.rbf(edge_weight)
         sbf = self.sbf(edge_weight, angle, idx_kj)
 
@@ -158,6 +188,16 @@ class DimeNet(Model):
         return P
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        """Initialise model weights using DimeNet's custom ``reset_parameters`` scheme.
+
+        The ``weights_init`` and ``bias_init`` arguments are ignored; DimeNet
+        uses Glorot-orthogonal initialisation internally via ``reset_parameters``.
+
+        Args:
+            weights_init: Ignored.
+            bias_init: Ignored.
+            **kwargs: Ignored.
+        """
         logging.warning(
             "DimeNet uses custom weight initialization, so 'weights_init' and 'bias_init' arguments are ignored."
         )
@@ -170,9 +210,7 @@ class DimeNet(Model):
 
     @property
     def signature(self) -> Config:
-        """
-        Return model signature as a dictionary.
-        """
+        """Return the model signature as a :class:`~xanesnet.serialization.config.Config`."""
         signature = super().signature
         signature.update_with_dict(
             {
@@ -195,8 +233,18 @@ class DimeNet(Model):
 
 
 class EmbeddingBlock(torch.nn.Module):
-    # Atomic numbers are represented by learnable, randomly initialized
-    # atom type embeddings that are shared across molecules
+    """Initial atom embedding block.
+
+    Maps atomic numbers to hidden representations and conditions them on
+    the radial basis features of the incident edges. Atom-type embeddings
+    are learnable and shared across all molecules.
+
+    Args:
+        num_radial: Number of radial basis functions.
+        hidden_channels: Embedding and hidden dimension.
+        act: Element-wise activation function.
+    """
+
     def __init__(
         self,
         num_radial: int,
@@ -211,6 +259,7 @@ class EmbeddingBlock(torch.nn.Module):
         self.lin = torch.nn.Linear(3 * hidden_channels, hidden_channels)
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         self.emb.weight.data.uniform_(-math.sqrt(3), math.sqrt(3))
         self.lin_rbf.reset_parameters()
         self.lin.reset_parameters()
@@ -222,12 +271,37 @@ class EmbeddingBlock(torch.nn.Module):
         i: torch.Tensor,
         j: torch.Tensor,
     ) -> torch.Tensor:
+        """Embed atomic numbers and condition on RBF edge features.
+
+        Args:
+            x: Atomic numbers, shape ``(num_atoms,)``.
+            rbf: Radial basis features for each edge, shape ``(num_edges, num_radial)``.
+            i: Destination atom index for each edge, shape ``(num_edges,)``.
+            j: Source atom index for each edge, shape ``(num_edges,)``.
+
+        Returns:
+            Edge-conditioned atom embeddings of shape ``(num_edges, hidden_channels)``.
+        """
         x = self.emb(x)
         rbf = self.act(self.lin_rbf(rbf))
         return self.act(self.lin(torch.cat([x[i], x[j], rbf], dim=-1)))
 
 
 class InteractionBlock(torch.nn.Module):
+    """DimeNet bilinear interaction block.
+
+    Aggregates directional messages using bilinear mixing of RBF and spherical
+    basis features, followed by residual layers and a skip connection.
+
+    Args:
+        hidden_channels: Hidden feature dimension.
+        num_bilinear: Bilinear weight tensor size.
+        num_spherical: Number of spherical basis functions.
+        num_radial: Number of radial basis functions.
+        num_before_skip: Number of residual layers before the skip connection.
+        num_after_skip: Number of residual layers after the skip connection.
+        act: Element-wise activation function.
+    """
 
     def __init__(
         self,
@@ -260,6 +334,7 @@ class InteractionBlock(torch.nn.Module):
         )
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin_rbf.weight, scale=2.0)
         glorot_orthogonal(self.lin_sbf.weight, scale=2.0)
         glorot_orthogonal(self.lin_kj.weight, scale=2.0)
@@ -282,6 +357,19 @@ class InteractionBlock(torch.nn.Module):
         idx_kj: torch.Tensor,
         idx_ji: torch.Tensor,
     ) -> torch.Tensor:
+        """Compute updated message embeddings.
+
+        Args:
+            x: Message embeddings, shape ``(num_edges, hidden_channels)``.
+            rbf: Radial basis features, shape ``(num_edges, num_radial)``.
+            sbf: Spherical basis features,
+                shape ``(num_triplets, num_spherical * num_radial)``.
+            idx_kj: Index of the k->j edge for each triplet, shape ``(num_triplets,)``.
+            idx_ji: Index of the j->i edge for each triplet, shape ``(num_triplets,)``.
+
+        Returns:
+            Updated message embeddings of shape ``(num_edges, hidden_channels)``.
+        """
         rbf = self.lin_rbf(rbf)
         sbf = self.lin_sbf(sbf)
 
@@ -302,6 +390,12 @@ class InteractionBlock(torch.nn.Module):
 
 
 class ResidualLayer(torch.nn.Module):
+    """Two-layer residual block with element-wise activation.
+
+    Args:
+        hidden_channels: Input and output feature dimension.
+        act: Element-wise activation function.
+    """
 
     def __init__(
         self,
@@ -314,16 +408,36 @@ class ResidualLayer(torch.nn.Module):
         self.lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin1.weight, scale=2.0)
         self.lin1.bias.data.fill_(0)
         glorot_orthogonal(self.lin2.weight, scale=2.0)
         self.lin2.bias.data.fill_(0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply residual transformation.
+
+        Args:
+            x: Input features of shape ``(*, hidden_channels)``.
+
+        Returns:
+            Output features of shape ``(*, hidden_channels)``.
+        """
         return x + self.act(self.lin2(self.act(self.lin1(x))))
 
 
 class OutputBlock(torch.nn.Module):
+    """Output block aggregating edge-level features into per-atom predictions.
+
+    Args:
+        num_radial: Number of radial basis functions.
+        hidden_channels: Hidden feature dimension.
+        out_channels: Output dimension per atom.
+        num_layers: Number of hidden linear layers.
+        act: Element-wise activation function.
+        output_initializer: Weight init for the final layer; one of
+            ``"zeros"`` or ``"glorot_orthogonal"``.
+    """
 
     def __init__(
         self,
@@ -348,6 +462,7 @@ class OutputBlock(torch.nn.Module):
         self.lin = torch.nn.Linear(hidden_channels, out_channels, bias=False)
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin_rbf.weight, scale=2.0)
         for lin in self.lins:
             glorot_orthogonal(lin.weight, scale=2.0)
@@ -364,6 +479,17 @@ class OutputBlock(torch.nn.Module):
         i: torch.Tensor,
         num_nodes: int | None = None,
     ) -> torch.Tensor:
+        """Aggregate edge features and project to per-atom predictions.
+
+        Args:
+            x: Edge message embeddings, shape ``(num_edges, hidden_channels)``.
+            rbf: Radial basis features, shape ``(num_edges, num_radial)``.
+            i: Destination atom index for each edge, shape ``(num_edges,)``.
+            num_nodes: Total number of atoms (used for scatter output size).
+
+        Returns:
+            Per-atom predictions of shape ``(num_nodes, out_channels)``.
+        """
         x = self.lin_rbf(rbf) * x
         x = scatter(x, i, dim=0, dim_size=num_nodes, reduce="sum")
         for lin in self.lins:
@@ -372,6 +498,18 @@ class OutputBlock(torch.nn.Module):
 
 
 class SphericalBasisLayer(torch.nn.Module):
+    """Combined radial-spherical basis encoding for bond-angle triplets.
+
+    Encodes triplet interactions using a joint Bessel-spherical basis (CBF):
+    the radial part uses enveloped Bessel functions and the angular part uses
+    real spherical harmonics. ``num_radial`` must be <= 64.
+
+    Args:
+        num_spherical: Number of spherical harmonics (max degree l). Must be >= 2.
+        num_radial: Number of radial Bessel basis functions. Must be <= 64.
+        cutoff: Radial cutoff distance in **A**.
+        envelope_exponent: Exponent controlling cutoff envelope smoothness.
+    """
 
     def __init__(
         self,
@@ -407,7 +545,8 @@ class SphericalBasisLayer(torch.nn.Module):
                 self.bessel_funcs.append(bessel)
 
     @staticmethod
-    def _sph_to_tensor(sph, x: torch.Tensor) -> torch.Tensor:
+    def _sph_to_tensor(sph: float, x: torch.Tensor) -> torch.Tensor:
+        """Return a constant-valued tensor matching the shape of ``x``."""
         return torch.zeros_like(x) + sph
 
     def forward(
@@ -416,6 +555,17 @@ class SphericalBasisLayer(torch.nn.Module):
         angle: torch.Tensor,
         idx_kj: torch.Tensor,
     ) -> torch.Tensor:
+        """Compute combined Bessel-spherical basis features.
+
+        Args:
+            dist: Edge distances in **A**, shape ``(num_edges,)``.
+            angle: Triplet angles in **rad**, shape ``(num_triplets,)``.
+            idx_kj: Index of the k->j edge for each triplet, shape ``(num_triplets,)``.
+
+        Returns:
+            Combined basis features of shape
+            ``(num_triplets, num_spherical * num_radial)``.
+        """
         dist = dist / self.cutoff
         rbf = torch.stack([f(dist) for f in self.bessel_funcs], dim=1)
         rbf = self.envelope(dist).unsqueeze(-1) * rbf
@@ -428,6 +578,18 @@ class SphericalBasisLayer(torch.nn.Module):
 
 
 class BesselBasisLayer(torch.nn.Module):
+    """Learnable Bessel radial basis function layer with smooth cutoff envelope.
+
+    Encodes interatomic distances as ``num_radial`` enveloped Bessel basis
+    values. The frequencies are learnable parameters initialised as
+    ``pi * [1, 2, ..., num_radial]`` and smoothly decayed to zero at the
+    cutoff by a polynomial envelope.
+
+    Args:
+        num_radial: Number of radial basis functions.
+        cutoff: Cutoff distance in **A**.
+        envelope_exponent: Exponent controlling envelope smoothness.
+    """
 
     def __init__(
         self,
@@ -445,18 +607,38 @@ class BesselBasisLayer(torch.nn.Module):
         self.freq = torch.nn.Parameter(torch.empty(num_radial))
 
     def reset_parameters(self) -> None:
+        """Initialise learnable frequencies to ``pi * [1, 2, ..., num_radial]``."""
         with torch.no_grad():
             torch.arange(1, self.freq.numel() + 1, out=self.freq).mul_(math.pi)
         self.freq.requires_grad_()
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
+        """Encode distances as enveloped Bessel basis features.
+
+        Args:
+            dist: Interatomic distances in **A**, shape ``(num_edges,)``.
+
+        Returns:
+            Basis features of shape ``(num_edges, num_radial)``.
+        """
         dist = dist.unsqueeze(-1) / self.cutoff
         return self.envelope(dist) * (self.freq * dist).sin()
 
 
 class Envelope(torch.nn.Module):
-    # The function smoothly transitions to zero at x = 1.0 (i.e., dist = cutoff).
-    # Controlled decay using a polynomial function.
+    """Smooth polynomial envelope decaying to zero at ``x = 1``.
+
+    Ensures Bessel basis functions and their derivatives are continuous and
+    decay smoothly to zero at the cutoff boundary
+    (``x = dist / cutoff = 1``). The polynomial degree is
+    ``p = exponent + 1``; coefficients ``a``, ``b``, ``c`` are derived from
+    the smoothness conditions at the boundary.
+
+    Args:
+        exponent: Controls smoothness; the effective polynomial degree is
+            ``p = exponent + 1``.
+    """
+
     def __init__(self, exponent: int) -> None:
         super().__init__()
 
@@ -469,6 +651,14 @@ class Envelope(torch.nn.Module):
         self.c = -self.p * (self.p + 1) / 2
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Evaluate the envelope at normalised distances ``x = dist / cutoff``.
+
+        Args:
+            x: Normalised distances in ``[0, 1)``, any shape ``(...)``.
+
+        Returns:
+            Envelope values of shape ``(...)``; zero for ``x >= 1``.
+        """
         p, a, b, c = self.p, self.a, self.b, self.c
         x_pow_p0 = x.pow(p - 1)
         x_pow_p1 = x_pow_p0 * x
@@ -482,10 +672,17 @@ class Envelope(torch.nn.Module):
 
 
 def Jn(r: float, n: int) -> np.floating[Any]:
+    """Evaluate the n-th order spherical Bessel function at r."""
     return np.sqrt(np.pi / (2 * r)) * scipy.special.jv(n + 0.5, r)
 
 
 def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
+    """Compute the first k zeros of each of the n lowest-order spherical Bessel functions.
+
+    Returns:
+        Array of shape ``(n, k)`` where ``[i, j]`` is the j-th zero of the
+        i-th order spherical Bessel function.
+    """
     zerosj = np.zeros((n, k), dtype="float32")
     zerosj[0] = np.arange(1, k + 1) * np.pi
     points = np.arange(1, k + n) * np.pi
@@ -501,6 +698,11 @@ def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
 
 
 def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
+    """Return symbolic spherical Bessel function formulas for orders 0 to n-1.
+
+    Returns:
+        List of n SymPy expressions in the symbol ``x``.
+    """
     x = sp.symbols("x")
 
     f = [sp.sin(x) / x]
@@ -513,6 +715,12 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
 
 
 def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
+    """Construct normalised Bessel basis function expressions.
+
+    Returns:
+        Nested list of shape ``(n, k)`` of SymPy expressions, where
+        ``[i][j]`` is the j-th normalised Bessel basis function of order i.
+    """
     zeros = Jn_zeros(n, k)
     normalizer = []
     for order in range(n):
@@ -534,11 +742,24 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
 
 
 def sph_harm_prefactor(k: int, m: int) -> float:
+    """Compute the real spherical harmonic prefactor for degree k and order m."""
     return ((2 * k + 1) * math.factorial(k - abs(m)) / (4 * np.pi * math.factorial(k + abs(m)))) ** 0.5
 
 
 def associated_legendre_polynomials(k: int, zero_m_only: bool = True) -> list[list[Any]]:
-    # Helper function to calculate Y_l^m.
+    """Compute associated Legendre polynomial expressions up to degree k-1.
+
+    Uses the recurrence relations from:
+    https://mathworld.wolfram.com/AssociatedLegendrePolynomial.html
+
+    Args:
+        k: Maximum degree (exclusive); computes P_l^m for l in [0, k-1].
+        zero_m_only: If True, only compute m=0 polynomials.
+
+    Returns:
+        Nested list ``P_l_m`` where ``P_l_m[l][m]`` is a SymPy expression
+        in the symbol ``z`` for the associated Legendre polynomial P_l^m.
+    """
     z = sp.symbols("z")
     P_l_m: list[list[Any]] = [[0] * (j + 1) for j in range(k)]
 
@@ -568,6 +789,18 @@ def associated_legendre_polynomials(k: int, zero_m_only: bool = True) -> list[li
 
 
 def real_sph_harm(k: int, zero_m_only: bool = True, spherical_coordinates: bool = True) -> list[list[Any]]:
+    """Construct real spherical harmonic expressions up to degree k-1.
+
+    Args:
+        k: Maximum degree (exclusive); computes Y_l^m for l in [0, k-1].
+        zero_m_only: If True, only compute m=0 harmonics.
+        spherical_coordinates: If True, express in spherical coordinates
+            (theta, phi); otherwise use Cartesian (x, y, z).
+
+    Returns:
+        Nested list ``Y_func_l_m`` where ``Y_func_l_m[l][m]`` is a SymPy
+        expression for the real spherical harmonic Y_l^m.
+    """
     x = sp.symbols("x")
     y = sp.symbols("y")
 

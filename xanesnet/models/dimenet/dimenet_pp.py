@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""DimeNet++: fast directional message passing with reduced complexity."""
 
 from collections.abc import Callable
 
@@ -26,10 +27,37 @@ from .dimenet import DimeNet
 
 @ModelRegistry.register("dimenet++")
 class DimeNetPlusPlus(DimeNet):
-    """The DimeNet++ improvement of the original DimeNet:
-    `"Fast and Uncertainty-Aware Directional Message Passing for Non-Equilibrium Molecules"`;
-    Arxiv: `<https://arxiv.org/abs/2011.14115>`;
-    Implementation similar to `<https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/dimenet.html>`
+    """DimeNet++ improvement over the original DimeNet.
+
+    Reference: `"Fast and Uncertainty-Aware Directional Message Passing for
+    Non-Equilibrium Molecules" <https://arxiv.org/abs/2011.14115>`_.
+
+    Implementation based on the PyTorch Geometric reference:
+    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/dimenet.html
+
+    Overrides the :class:`DimeNet` output and interaction blocks with the
+    DimeNet++ variants. The interaction block replaces the bilinear tensor
+    product with separate basis projections, and the output block adds an
+    up-projection before the final per-atom head.
+
+    Args:
+        model_type: Model type string (passed to base class).
+        hidden_channels: Hidden feature dimension.
+        out_channels: Output feature dimension per atom.
+        num_blocks: Number of interaction blocks.
+        int_emb_size: Intermediate embedding size in the interaction block.
+        basis_emb_size: Basis embedding size for RBF/SBF projection.
+        out_emb_channels: Output embedding size before the final projection.
+        num_spherical: Number of spherical basis functions; must be >= 2.
+        num_radial: Number of radial basis functions.
+        cutoff: Radial cutoff in **A**.
+        envelope_exponent: Exponent controlling envelope smoothness.
+        num_before_skip: Number of residual layers before the skip connection.
+        num_after_skip: Number of residual layers after the skip connection.
+        num_output_layers: Number of hidden layers in the output block.
+        act: Activation function name.
+        output_initializer: Weight init for the final layer; one of
+            ``"zeros"`` or ``"glorot_orthogonal"``.
     """
 
     def __init__(
@@ -73,11 +101,11 @@ class DimeNetPlusPlus(DimeNet):
         self.basis_emb_size = basis_emb_size
         self.out_emb_channels = out_emb_channels
 
-        # We are re-using the RBF, SBF and embedding layers of `DimeNet` and
-        # redefine output_block and interaction_block in DimeNet++.
-        # Hence, it is to be noted that in the above initalization, the
-        # variable `num_bilinear` does not have any purpose as it is used
-        # solely in the `OutputBlock` of DimeNet:
+        # Reuse the RBF, SBF, and embedding layers from DimeNet, then replace
+        # the output and interaction blocks with their DimeNet++ variants.
+        # The placeholder ``num_bilinear`` passed to ``super().__init__`` has
+        # no effect here because it is only used by DimeNet's interaction
+        # block, which we replace below.
 
         self.output_blocks = torch.nn.ModuleList(
             [
@@ -112,6 +140,21 @@ class DimeNetPlusPlus(DimeNet):
 
 
 class InteractionBlock(torch.nn.Module):
+    """DimeNet++ interaction block.
+
+    Replaces the bilinear weight tensor from DimeNet with two separate linear
+    projections for RBF and SBF features, reducing memory and computation.
+
+    Args:
+        hidden_channels: Hidden feature dimension.
+        int_emb_size: Intermediate triplet embedding size.
+        basis_emb_size: Projection size for RBF and SBF basis features.
+        num_spherical: Number of spherical basis functions.
+        num_radial: Number of radial basis functions.
+        num_before_skip: Number of residual layers before the skip connection.
+        num_after_skip: Number of residual layers after the skip connection.
+        act: Element-wise activation function.
+    """
 
     def __init__(
         self,
@@ -152,6 +195,7 @@ class InteractionBlock(torch.nn.Module):
         )
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin_rbf1.weight, scale=2.0)
         glorot_orthogonal(self.lin_rbf2.weight, scale=2.0)
         glorot_orthogonal(self.lin_sbf1.weight, scale=2.0)
@@ -180,6 +224,19 @@ class InteractionBlock(torch.nn.Module):
         idx_kj: torch.Tensor,
         idx_ji: torch.Tensor,
     ) -> torch.Tensor:
+        """Compute updated message embeddings.
+
+        Args:
+            x: Message embeddings, shape ``(num_edges, hidden_channels)``.
+            rbf: Radial basis features, shape ``(num_edges, num_radial)``.
+            sbf: Spherical basis features,
+                shape ``(num_triplets, num_spherical * num_radial)``.
+            idx_kj: Index of the k->j edge for each triplet, shape ``(num_triplets,)``.
+            idx_ji: Index of the j->i edge for each triplet, shape ``(num_triplets,)``.
+
+        Returns:
+            Updated message embeddings of shape ``(num_edges, hidden_channels)``.
+        """
         # Initial transformation:
         x_ji = self.act(self.lin_ji(x))
         x_kj = self.act(self.lin_kj(x))
@@ -212,6 +269,12 @@ class InteractionBlock(torch.nn.Module):
 
 
 class ResidualLayer(torch.nn.Module):
+    """Two-layer residual block with element-wise activation.
+
+    Args:
+        hidden_channels: Input and output feature dimension.
+        act: Element-wise activation function.
+    """
 
     def __init__(self, hidden_channels: int, act: Callable) -> None:
         super().__init__()
@@ -220,16 +283,40 @@ class ResidualLayer(torch.nn.Module):
         self.lin2 = torch.nn.Linear(hidden_channels, hidden_channels)
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin1.weight, scale=2.0)
         self.lin1.bias.data.fill_(0)
         glorot_orthogonal(self.lin2.weight, scale=2.0)
         self.lin2.bias.data.fill_(0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply residual transformation.
+
+        Args:
+            x: Input features of shape ``(*, hidden_channels)``.
+
+        Returns:
+            Output features of shape ``(*, hidden_channels)``.
+        """
         return x + self.act(self.lin2(self.act(self.lin1(x))))
 
 
 class OutputBlock(torch.nn.Module):
+    """DimeNet++ output block with an additional up-projection layer.
+
+    Extends the DimeNet output block with an up-projection from
+    ``hidden_channels`` to ``out_emb_channels`` before the final linear layers.
+
+    Args:
+        num_radial: Number of radial basis functions.
+        hidden_channels: Hidden feature dimension.
+        out_emb_channels: Output embedding dimension (up-projection target).
+        out_channels: Output dimension per atom.
+        num_layers: Number of hidden linear layers.
+        act: Element-wise activation function.
+        output_initializer: Weight init for the final layer; one of
+            ``"zeros"`` or ``"glorot_orthogonal"``.
+    """
 
     def __init__(
         self,
@@ -258,8 +345,10 @@ class OutputBlock(torch.nn.Module):
         self.lin = torch.nn.Linear(out_emb_channels, out_channels, bias=False)
 
     def reset_parameters(self) -> None:
+        """Reset all learnable parameters to their initial distributions."""
         glorot_orthogonal(self.lin_rbf.weight, scale=2.0)
         glorot_orthogonal(self.lin_up.weight, scale=2.0)
+        self.lin_up.bias.data.fill_(0)
         for lin in self.lins:
             glorot_orthogonal(lin.weight, scale=2.0)
             lin.bias.data.fill_(0)
@@ -275,6 +364,17 @@ class OutputBlock(torch.nn.Module):
         i: torch.Tensor,
         num_nodes: int | None = None,
     ) -> torch.Tensor:
+        """Aggregate edge features and project to per-atom predictions.
+
+        Args:
+            x: Edge message embeddings, shape ``(num_edges, hidden_channels)``.
+            rbf: Radial basis features, shape ``(num_edges, num_radial)``.
+            i: Destination atom index for each edge, shape ``(num_edges,)``.
+            num_nodes: Total number of atoms (used for scatter output size).
+
+        Returns:
+            Per-atom predictions of shape ``(num_nodes, out_channels)``.
+        """
         x = self.lin_rbf(rbf) * x
         x = scatter(x, i, dim=0, dim_size=num_nodes, reduce="sum")
         x = self.lin_up(x)
