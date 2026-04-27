@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Multi-layer perceptron (MLP) model for spectroscopy prediction."""
 
 import torch
 from torch import nn
@@ -26,15 +27,24 @@ from ..registry import ModelRegistry
 
 @ModelRegistry.register("mlp")
 class MLP(Model):
-    """
-    A class for constructing a customisable MLP (Multi-Layer Perceptron) model.
-    The model consists of a set of hidden layers. All the layers expect the final
-    layer, are comprised of a linear layer, a dropout layer, and an activation function.
-    The final (output) layer is a linear layer.
+    """A customisable multi-layer perceptron (MLP) for spectroscopy prediction.
 
-    The size of each hidden linear layer is determined by the initial dimension
-    (hidden_size) and a reduction factor (shrink_rate) that reduces the layer
-    dimension multiplicatively.
+    Consists of a sequence of hidden layers followed by a linear output layer. Each hidden
+    layer contains a linear transformation, dropout, and an activation function. The final
+    layer is a plain linear layer with no activation.
+
+    The hidden layer width starts at ``hidden_size`` and shrinks multiplicatively by
+    ``shrink_rate`` at each successive depth step.
+
+    Args:
+        model_type: Model type identifier string.
+        in_size: Number of input features.
+        out_size: Number of output features.
+        hidden_size: Width of the first hidden layer.
+        dropout: Dropout probability applied after each hidden linear layer. Range ``[0, 1)``.
+        num_hidden_layers: Number of hidden layers (excluding the output layer).
+        shrink_rate: Multiplicative factor applied to the layer width at each depth step.
+        activation: Name of the activation function for hidden layers.
     """
 
     def __init__(
@@ -49,17 +59,6 @@ class MLP(Model):
         shrink_rate: float,
         activation: str,
     ) -> None:
-        """
-        Args:
-            model_type (str): Model type identifier
-            in_size (integer): Size of input data
-            out_size (integer): Size of output data
-            hidden_size (integer): Size of the initial hidden layer.
-            dropout (float): Dropout probability for hidden layers.
-            num_hidden_layers (int): Number of hidden layers, excluding input and output layers
-            shrink_rate (float): Rate to reduce the hidden layer size multiplicatively.
-            activation (str): Name of activation function for hidden layers.
-        """
         super().__init__(model_type)
 
         self.in_size = in_size
@@ -91,10 +90,26 @@ class MLP(Model):
         self.dense_layers = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.dense_layers(x)
-        return out
+        """Run a forward pass through the MLP.
+
+        Args:
+            x: Input tensor. ``(batch_size, in_size)``
+
+        Returns:
+            Output tensor. ``(batch_size, out_size)``
+        """
+        return self.dense_layers(x)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        """Initialise all linear layer weights and biases.
+
+        Args:
+            weights_init: Name of the weight initialisation scheme (looked up via
+                ``WeightInitRegistry``).
+            bias_init: Name of the bias initialisation scheme (looked up via
+                ``BiasInitRegistry``).
+            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+        """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
 
@@ -109,9 +124,7 @@ class MLP(Model):
 
     @property
     def signature(self) -> Config:
-        """
-        Return model signature as a dictionary.
-        """
+        """Return the model signature as a :class:`~xanesnet.serialization.config.Config`."""
         signature = super().signature
         signature.update_with_dict(
             {
