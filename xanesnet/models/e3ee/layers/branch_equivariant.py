@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Equivariant absorber head and energy-irrep modulation for E3EE."""
 
 from typing import cast
 
@@ -30,6 +31,12 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
 
     Applies energy-conditioned irrep-wise modulation to the absorber
     equivariant feature, converts to invariants, then projects.
+
+    Args:
+        irreps_node: Irreps of the absorber equivariant features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension used in the modulation and output MLPs.
+        out_dim: Output (latent) dimension.
     """
 
     def __init__(
@@ -52,13 +59,14 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
         )
 
     def forward(self, h_abs_full: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        """
+        """Extract invariants from absorber equivariant features and project to latent.
+
         Args:
-            h_abs_full: [B, D] equivariant absorber features
-            e_feat:     [nE, e_dim] energy features
+            h_abs_full: Equivariant absorber features, shape ``(B, D)``.
+            e_feat: Energy RBF features, shape ``(nE, e_dim)``.
 
         Returns:
-            [B, nE, out_dim]
+            Latent tensor of shape ``(B, nE, out_dim)``.
         """
         h_mod = self.mod(h_abs_full, e_feat)  # [B, nE, D]
         inv = invariant_features_from_irreps(h_mod, self.irreps_node)  # [B, nE, inv_dim]
@@ -66,9 +74,17 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
 
 
 class EnergyIrrepModulation(nn.Module):
-    """
-    Energy-conditioned scalar modulation of each irrep copy,
-    preserving equivariance.
+    """Energy-conditioned scalar modulation of each irrep copy, preserving equivariance.
+
+    A scalar gate per irrep copy is predicted from the energy embedding and
+    applied multiplicatively to all ``dim``-dimensional components of that
+    copy.  Because a scalar multiplier commutes with rotations, equivariance
+    is preserved.
+
+    Args:
+        irreps: The irreps layout of the features to be modulated.
+        e_dim: Dimension of the energy RBF embedding (MLP input).
+        hidden_dim: Hidden dimension of the gate MLP.
     """
 
     def __init__(self, irreps: o3.Irreps, e_dim: int, hidden_dim: int) -> None:
@@ -84,13 +100,14 @@ class EnergyIrrepModulation(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        """
+        """Apply per-copy scalar energy modulation to equivariant features.
+
         Args:
-            x:      [B, D] equivariant features
-            e_feat: [nE, e_dim] energy features
+            x: Equivariant features, shape ``(B, D)``.
+            e_feat: Energy RBF features, shape ``(nE, e_dim)``.
 
         Returns:
-            [B, nE, D]
+            Modulated equivariant features of shape ``(B, nE, D)``.
         """
         bsz, _ = x.shape
 

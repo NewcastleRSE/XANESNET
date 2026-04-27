@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Absorber-centred E3-equivariant model (E3EE)."""
 
 import torch
 import torch.nn as nn
@@ -41,14 +42,51 @@ from .utils import invariant_feature_dim, invariant_features_from_irreps
 @ModelRegistry.register("e3ee")
 class E3EE(Model):
     """
-    Absorber-centred energy-embedded E3-equivariant XANES model.
-
+    Absorber-centred E3-equivariant model.
     Architecture:
     - Equivariant atom encoder (e3nn spherical harmonics message passing)
-    - Invariant atomwise summaries from all irreps
-    - Energy-conditioned attention over atoms
-    - Late equivariant absorber head
-    - Optional 3-body path branch
+    - Branch 1 (optional): invariant absorber features + energy
+    - Branch 2a (optional): energy-conditioned atom attention
+    - Branch 2b (optional): energy-conditioned equivariant atom attention
+    - Branch 2c (optional): energy-conditioned invariant convolution (SchNet/PaiNN-style)
+    - Branch 2d (optional): energy-conditioned equivariant convolution (NequIP/MACE-style)
+    - Branch 3 (optional): late equivariant absorber head
+    - Branch 4 (optional): 3-body path scattering
+
+    Each optional branch produces a ``(B, nE, latent_dim)`` tensor which is
+    concatenated and fed into a final MLP head to produce ``(B, nE)`` outputs.
+
+    Args:
+        model_type: String identifier stored on the base :class:`Model`.
+        out_size: Number of energy-grid points (output length).
+        max_z: Maximum atomic number (inclusive).
+        atom_emb_dim: Element embedding dimension.
+        atom_hidden_dim: Hidden dimension in the equivariant encoder.
+        atom_layers: Number of equivariant interaction blocks.
+        local_cutoff: Message-passing cutoff radius in Ångström.
+        rbf_dim: Number of Gaussian RBF bases for local edge distances.
+        energy_rbf_dim: Number of Gaussian RBF bases for energy embedding.
+        scatter_dim: Intermediate scatter feature dimension for the path branch.
+        latent_dim: Output dimension produced by each active branch.
+        head_hidden_dim: Hidden dimension of the final head MLP.
+        e3nn_irreps: Node irreps for the equivariant encoder (e.g. ``"32x0e+16x1o+8x2e"``).
+        e3nn_irreps_message: Message irreps inside each interaction block.
+        e3nn_lmax: Maximum ``l`` for spherical harmonics in the encoder.
+        out_mlp_layers: Number of layers in the final head MLP.
+        use_invariant_branch: Enable the invariant absorber branch.
+        use_attention_branch: Enable the invariant atom-attention branch.
+        use_equivariant_branch: Enable the late equivariant absorber head.
+        use_eq_attention_branch: Enable the equivariant atom-attention branch.
+        use_conv_branch: Enable the invariant SchNet/PaiNN convolution branch.
+        use_eq_conv_branch: Enable the equivariant NequIP/MACE convolution branch.
+        use_path_branch: Enable the 3-body path-scattering branch.
+        residual_scale_init: Initial value of learnable residual scales.
+        attention_heads: Number of attention heads in attention branches.
+        attention_rbf_dim: Number of RBF bases for attention-graph distances.
+        attention_lmax: Maximum ``l`` for spherical harmonics in attention/conv branches.
+        attention_irreps: Output irreps of equivariant attention/conv branches.
+        att_cutoff: Attention-graph cutoff radius in Ångström.
+        conv_use_gate: If ``True``, use a PaiNN-style scalar gate in conv branches.
     """
 
     def __init__(
@@ -153,7 +191,7 @@ class E3EE(Model):
                 out_dim=latent_dim,
             )
 
-        # Branch 2 (optional): energy-conditioned atom attention
+        # Branch 2a (optional): energy-conditioned atom attention
         if self.use_attention_branch:
             self.atom_attention = EnergyConditionedAtomAttention(
                 atom_dim=self._inv_dim,
@@ -182,15 +220,6 @@ class E3EE(Model):
                 max_z=max_z,
                 z_emb_dim=32,
                 n_heads=attention_heads,
-            )
-
-        # Branch 3 (optional): late equivariant absorber head
-        if self.use_equivariant_branch:
-            self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
-                irreps_node=self.atom_encoder.irreps_node,
-                e_dim=energy_rbf_dim,
-                hidden_dim=head_hidden_dim,
-                out_dim=latent_dim,
             )
 
         # Branch 2c (optional): SchNet/PaiNN-style invariant convolution.
@@ -222,6 +251,15 @@ class E3EE(Model):
                 max_z=max_z,
                 z_emb_dim=32,
                 use_gate=conv_use_gate,
+            )
+
+        # Branch 3 (optional): late equivariant absorber head
+        if self.use_equivariant_branch:
+            self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
+                irreps_node=self.atom_encoder.irreps_node,
+                e_dim=energy_rbf_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=latent_dim,
             )
 
         # Branch 4 (optional): 3-body path terms
@@ -285,24 +323,27 @@ class E3EE(Model):
         Forward pass.
 
         Args:
-            x:              [B, N]    atomic numbers (int64, padded)
-            mask:           [B, N]    valid-atom mask
-            absorber_index: [B]       absorber atom index per sample (padded layout)
-            edge_src:       [E]       flat source indices into B*N
-            edge_dst:       [E]       flat destination indices into B*N
-            edge_weight:    [E]       edge lengths
-            edge_vec:       [E, 3]    edge displacement vectors
-            energies:       [B, nE]   energy grid (unused directly; nE drives RBF)
-            path_j:         [P]       flat j index into B*N
-            path_k:         [P]       flat k index into B*N
-            path_r0j:       [P]
-            path_r0k:       [P]
-            path_rjk:       [P]
-            path_cosangle:  [P]
-            path_batch:     [P]       batch index per path
+            x: Atomic numbers (int64, padded), shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            absorber_index: Absorber atom index per sample, shape ``(B,)``.
+            edge_src: Flat source indices into ``B*N``, shape ``(E,)``.
+            edge_dst: Flat destination indices into ``B*N``, shape ``(E,)``.
+            edge_weight: Edge lengths in **Å**, shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **Å**, shape ``(E, 3)``.
+            att_dst: Flat destination indices into ``B*N`` (attention graph), shape ``(E_att,)``.
+            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
+            att_vec: Absorber→atom displacement vectors in **Å**, shape ``(E_att, 3)``.
+            energies: Energy grid, shape ``(B, nE)`` (nE drives RBF embedding).
+            path_j: Flat j index into ``B*N``, shape ``(P,)``.
+            path_k: Flat k index into ``B*N``, shape ``(P,)``.
+            path_r0j: Absorber→j distance in **Å**, shape ``(P,)``.
+            path_r0k: Absorber→k distance in **Å**, shape ``(P,)``.
+            path_rjk: j→k distance in **Å**, shape ``(P,)``.
+            path_cosangle: Cosine of the j-absorber-k angle, shape ``(P,)``.
+            path_batch: Batch index per path, shape ``(P,)``.
 
         Returns:
-            [B, nE] predicted XANES intensities
+            Predicted XANES intensities of shape ``(B, nE)``.
         """
         bsz, n_atoms = x.shape
         device = x.device
@@ -335,7 +376,7 @@ class E3EE(Model):
             abs_lat = self.abs_branch(h_abs, e_feat)  # [B, nE, latent]
             parts.append(abs_lat)
 
-        # Branch 2 (optional): energy-conditioned atom attention
+        # Branch 2a (optional): energy-conditioned atom attention
         if self.use_attention_branch:
             attn_lat = self.atom_attention(
                 h=h,
@@ -362,11 +403,6 @@ class E3EE(Model):
                 att_vec=att_vec,
             )  # [B, nE, latent]
             parts.append(eq_attn_lat)
-
-        # Branch 3 (optional): late equivariant absorber head
-        if self.use_equivariant_branch:
-            eq_abs_lat = self.eq_abs_head(h_abs_full, e_feat)  # [B, nE, latent]
-            parts.append(eq_abs_lat)
 
         # Branch 2c (optional): invariant convolution.
         if self.use_conv_branch:
@@ -395,6 +431,11 @@ class E3EE(Model):
                 att_vec=att_vec,
             )  # [B, nE, latent]
             parts.append(eq_conv_lat)
+
+        # Branch 3 (optional): late equivariant absorber head
+        if self.use_equivariant_branch:
+            eq_abs_lat = self.eq_abs_head(h_abs_full, e_feat)  # [B, nE, latent]
+            parts.append(eq_abs_lat)
 
         # Branch 4 (optional): 3-body path terms
         if self.use_path_branch:

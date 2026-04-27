@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""3-body path aggregation branch for E3EE."""
 
 import torch
 import torch.nn as nn
@@ -23,8 +24,14 @@ from .basic import MLP, CosineCutoff, GaussianRBF
 class PairElementEnergyScattering(nn.Module):
     """Energy-conditioned element-pair scattering features.
 
-    Operates on flat per-path tensors ``[P, ...]`` rather than padded
-    ``[B, n_paths, ...]``.
+    Operates on flat per-path tensors ``(P, ...)`` rather than padded ``(B, n_paths, ...)``.
+
+    Args:
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of the output MLP.
+        out_dim: Output feature dimension per path.
     """
 
     def __init__(
@@ -50,14 +57,15 @@ class PairElementEnergyScattering(nn.Module):
         z_k: torch.Tensor,
         e_feat: torch.Tensor,
     ) -> torch.Tensor:
-        """
+        """Compute per-path element-pair energy features.
+
         Args:
-            z_j:    [P] atomic numbers of the j leg
-            z_k:    [P] atomic numbers of the k leg
-            e_feat: [nE, e_dim]
+            z_j: Atomic numbers of the j leg, shape ``(P,)``.
+            z_k: Atomic numbers of the k leg, shape ``(P,)``.
+            e_feat: Energy RBF features, shape ``(nE, e_dim)``.
 
         Returns:
-            [P, nE, out_dim]
+            Per-path energy features of shape ``(P, nE, out_dim)``.
         """
         n_paths = z_j.shape[0]
         n_energies, e_dim = e_feat.shape
@@ -77,6 +85,14 @@ class AbsorberPathAggregator(nn.Module):
     ``cos(angle)``) and per-path flat atom indices into the padded ``B * N``
     node layout, together with ``path_batch`` for scatter-aggregating into the
     batch dimension.
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        geom_hidden_dim: Hidden dimension of the geometry MLP.
+        scatter_dim: Intermediate scatter feature dimension.
+        out_dim: Output (latent) dimension.
+        cutoff: Radial cutoff used for the cosine envelope weights.
     """
 
     def __init__(
@@ -124,22 +140,24 @@ class AbsorberPathAggregator(nn.Module):
         path_batch: torch.Tensor,
         bsz: int,
     ) -> torch.Tensor:
-        """
+        """Aggregate path contributions into per-(sample, energy) latent vectors.
+
         Args:
-            h_flat:        [B*N, atom_dim] invariant atom features (flattened)
-            z_flat:        [B*N] atomic numbers (flattened)
-            e_feat:        [nE, e_dim]
-            path_j:        [P] flat atom indices for leg j (into B*N)
-            path_k:        [P] flat atom indices for leg k (into B*N)
-            path_r0j:      [P]
-            path_r0k:      [P]
-            path_rjk:      [P]
-            path_cosangle: [P]
-            path_batch:    [P] batch index per path (0..B-1)
-            bsz:           batch size
+            h_flat: Invariant atom features (flattened), shape ``(B*N, atom_dim)``.
+            z_flat: Atomic numbers (flattened), shape ``(B*N,)``.
+            pair_elem_energy: Pre-built element-pair energy module.
+            e_feat: Energy RBF features, shape ``(nE, e_dim)``.
+            path_j: Flat atom indices for leg j (into B*N), shape ``(P,)``.
+            path_k: Flat atom indices for leg k (into B*N), shape ``(P,)``.
+            path_r0j: Absorber→j distance in **Å**, shape ``(P,)``.
+            path_r0k: Absorber→k distance in **Å**, shape ``(P,)``.
+            path_rjk: j→k distance in **Å**, shape ``(P,)``.
+            path_cosangle: Cosine of the j-absorber-k angle, shape ``(P,)``.
+            path_batch: Batch index per path (0..B-1), shape ``(P,)``.
+            bsz: Batch size.
 
         Returns:
-            [B, nE, out_dim]
+            Latent tensor of shape ``(B, nE, out_dim)``.
         """
         device = h_flat.device
         n_energies = e_feat.shape[0]

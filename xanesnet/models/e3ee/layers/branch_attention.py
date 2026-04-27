@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Energy-conditioned invariant atom-attention branch for E3EE."""
 
 import torch
 import torch.nn as nn
@@ -22,14 +23,18 @@ from .basic import MLP, CosineCutoff, GaussianRBF
 
 class EnergyConditionedAtomAttention(nn.Module):
     """
-    Energy-conditioned global attention over invariant atomwise features.
+    Energy-conditioned attention over invariant atomwise features.
 
-    Queries are energy-dependent; keys/values are atom-dependent (with RBF-
-    encoded distance from the absorber appended). The set of atoms that
-    participate is defined by an external attention graph (``att_dst`` /
-    ``att_dist``) — a hard scope only, no soft cutoff or log-radial bias is
-    applied. After softmax + masking the attention weights are renormalized
-    so they sum to one over the active atoms.
+    Args:
+        atom_dim: Dimension of the invariant per-atom features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
+        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
+        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        n_heads: Number of attention heads.
     """
 
     def __init__(
@@ -93,6 +98,14 @@ class EnergyConditionedAtomAttention(nn.Module):
         self.score_scale = self.head_dim**-0.5
 
     def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        """Reshape the last dimension into ``(n_heads, head_dim)``.
+
+        Args:
+            x: Tensor of shape ``(..., latent_dim)``.
+
+        Returns:
+            Tensor of shape ``(..., n_heads, head_dim)``.
+        """
         new_shape = x.shape[:-1] + (self.n_heads, self.head_dim)
         return x.view(*new_shape)
 
@@ -106,18 +119,19 @@ class EnergyConditionedAtomAttention(nn.Module):
         att_dst: torch.Tensor,
         att_dist: torch.Tensor,
     ) -> torch.Tensor:
-        """
+        """Compute energy-conditioned attention over atoms and return latent.
+
         Args:
-            h:              [B, N, H] invariant atom features
-            z:              [B, N] atomic numbers
-            mask:           [B, N] valid-atom mask (encoder scope)
-            e_feat:         [nE, dE] energy feature embedding
-            absorber_index: [B] absorber index per sample
-            att_dst:        [E_att] flat dst indices into B*N (attention scope)
-            att_dist:       [E_att] absorber\u2192atom distances
+            h: Invariant atom features, shape ``(B, N, H)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask (encoder scope), shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            absorber_index: Absorber index per sample, shape ``(B,)``.
+            att_dst: Flat destination indices into ``B*N`` (attention scope), shape ``(E_att,)``.
+            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
 
         Returns:
-            [B, nE, latent_dim]
+            Latent tensor of shape ``(B, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies, e_dim = e_feat.shape

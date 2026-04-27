@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Equivariant message-passing interaction block for E3EE."""
 
 from typing import cast
 
@@ -27,8 +28,16 @@ from .basic import CosineCutoff, IrrepNorm, RadialMLP
 
 class EquivariantInteractionBlock(nn.Module):
     """
-    Single equivariant message-passing interaction block using
-    e3nn tensor products with gating.
+    Single equivariant message-passing interaction block using e3nn tensor products with gating.
+
+    Args:
+        irreps_node: Irreps of the per-atom node features (input and output).
+        irreps_sh: Irreps of the spherical harmonics on each edge.
+        irreps_message: Intermediate irreps of the message before gating.
+        rbf_dim: Number of Gaussian RBF features encoding edge lengths.
+        radial_hidden_dim: Hidden dimension of the radial weight MLP.
+        cutoff: Smooth cutoff radius; edges beyond this have zero weight.
+        residual_scale_init: Initial value for the learnable residual scale.
     """
 
     def __init__(
@@ -95,6 +104,19 @@ class EquivariantInteractionBlock(nn.Module):
         edge_rbf: torch.Tensor,
         edge_len: torch.Tensor,
     ) -> torch.Tensor:
+        """Apply one equivariant message-passing step.
+
+        Args:
+            x: Node features of shape ``(B*N, irreps_node.dim)``.
+            edge_src: Source flat indices into ``B*N``, shape ``(E,)``.
+            edge_dst: Destination flat indices into ``B*N``, shape ``(E,)``.
+            edge_sh: Spherical harmonics on each edge, shape ``(E, irreps_sh.dim)``.
+            edge_rbf: RBF-encoded edge lengths, shape ``(E, rbf_dim)``.
+            edge_len: Raw edge lengths in **Å**, shape ``(E,)``.
+
+        Returns:
+            Updated node features of shape ``(B*N, irreps_node.dim)``.
+        """
         if edge_src.numel() == 0:
             return x
 

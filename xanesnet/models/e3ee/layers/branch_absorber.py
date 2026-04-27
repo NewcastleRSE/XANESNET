@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Invariant absorber branch for E3EE."""
 
 import torch
 import torch.nn as nn
@@ -21,7 +22,14 @@ from .basic import MLP
 
 
 class EnergyConditionedAbsorberBranch(nn.Module):
-    """Energy-dependent absorber branch based on invariant absorber features."""
+    """Energy-dependent absorber branch based on invariant absorber features.
+
+    Args:
+        atom_dim: Dimension of the invariant absorber feature vector.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of the MLP.
+        out_dim: Output (latent) dimension.
+    """
 
     def __init__(
         self,
@@ -39,13 +47,14 @@ class EnergyConditionedAbsorberBranch(nn.Module):
         )
 
     def forward(self, h_abs: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        """
+        """Compute absorber branch latent from absorber features and energy embedding.
+
         Args:
-            h_abs:  [B, H] absorber invariant features
-            e_feat: [nE, dE] energy features
+            h_abs: Absorber invariant features, shape ``(B, H)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
 
         Returns:
-            [B, nE, out_dim]
+            Latent tensor of shape ``(B, nE, latent_dim)``.
         """
         bsz, h_dim = h_abs.shape
         n_energies, e_dim = e_feat.shape

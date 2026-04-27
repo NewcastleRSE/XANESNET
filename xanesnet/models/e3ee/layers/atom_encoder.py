@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Equivariant atom encoder with spherical-harmonics message passing for E3EE."""
 
 from typing import cast
 
@@ -28,12 +29,20 @@ class EquivariantAtomEncoder(nn.Module):
     """
     Equivariant atom encoder with spherical harmonics message passing.
 
-    Consumes precomputed flat edge indices and displacement vectors referring
-    to the padded ``B * N`` layout, so it can be used uniformly for periodic
-    and non-periodic inputs. The absorber-to-neighbour distance is intentionally
-    NOT part of the scalar node input (absorber-distance is not a meaningful
-    global scalar in periodic structures); only the absorber flag is kept.
-    Distance information remains in the message-passing edge RBF.
+    Args:
+        max_z: Maximum atomic number (inclusive).
+        cutoff: Message-passing cutoff radius in Ångström.
+        num_interactions: Number of equivariant interaction blocks.
+        rbf_dim: Number of Gaussian RBF basis functions for edge distances.
+        lmax: Maximum spherical-harmonics order.
+        node_attr_dim: Embedding dimension for atomic-number embeddings.
+        hidden_dim: Hidden dimension of radial weight MLPs.
+        irreps_node: Output irreps of each interaction block,
+            given as an e3nn irreps string (e.g. ``"32x0e+16x1o+8x2e"``).
+        irreps_message: Intermediate irreps used for the tensor-product
+            message before the gated non-linearity.
+        residual_scale_init: Initial value of the learnable residual scale
+            parameter in each interaction block.
     """
 
     def __init__(
@@ -93,18 +102,19 @@ class EquivariantAtomEncoder(nn.Module):
         edge_weight: torch.Tensor,
         edge_vec: torch.Tensor,
     ) -> torch.Tensor:
-        """
+        """Encode atoms into equivariant features via multi-layer message passing.
+
         Args:
-            z:              [B, N] atomic numbers (int64)
-            mask:           [B, N] valid-atom mask
-            absorber_index: [B] absorber index per sample (0..N-1 in padded layout)
-            edge_src:       [E] source flat indices into B*N
-            edge_dst:       [E] destination flat indices into B*N
-            edge_weight:    [E] edge lengths (already computed, PBC-correct)
-            edge_vec:       [E, 3] edge displacement vectors (PBC-correct)
+            z: Atomic numbers (int64), shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            absorber_index: Absorber atom index per sample (0..N-1), shape ``(B,)``.
+            edge_src: Source flat indices into ``B*N``, shape ``(E,)``.
+            edge_dst: Destination flat indices into ``B*N``, shape ``(E,)``.
+            edge_weight: Edge lengths in **Å** (PBC-correct), shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **Å** (PBC-correct), shape ``(E, 3)``.
 
         Returns:
-            [B, N, irreps_dim] equivariant atom features
+            Equivariant atom features of shape ``(B, N, irreps_dim)``.
         """
         device = z.device
         bsz, n_atoms = z.shape

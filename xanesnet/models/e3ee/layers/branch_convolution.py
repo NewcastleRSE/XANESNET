@@ -1,18 +1,27 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
+
+"""Invariant and equivariant convolution branches for the E3EE model.
+
+Provides SchNet/PaiNN-style invariant convolution
+(:class:`EnergyConditionedAtomConvolution`) and a NequIP/MACE-style equivariant
+counterpart (:class:`EnergyConditionedEquivariantAtomConvolution`). Energy
+conditioning is applied *after* aggregation to avoid materialising a per-edge
+energy axis, which significantly reduces activation memory.
 """
-XANESNET
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
 
 from typing import cast
 
@@ -25,35 +34,8 @@ from ..utils import invariant_feature_dim, invariant_features_from_irreps
 from .basic import MLP, CosineCutoff, GaussianRBF, RadialMLP
 from .branch_equivariant import EnergyIrrepModulation
 
-# --------------------------------------------------------------------------- #
-# Convolution branches for E3EE.
-#
-# These are the absorber-centred analogues of the convolution branches in
-# ``e3ee_full``. They follow the same SchNet/PaiNN/NequIP/MACE message-
-# passing recipe described there:
-#
-#   * SchNet (Schuett et al., 2017) -- continuous-filter convolutions with a
-#     scalar (RBF-conditioned) edge weight and a sum aggregation.
-#   * PaiNN (Schuett et al., 2021) -- adds a learned scalar gate per edge,
-#     exposed here as ``use_gate=True``.
-#   * NequIP (Batzner et al., 2022) -- equivariant edge values built as a
-#     FullyConnectedTensorProduct of the destination atom's irrep features
-#     with the spherical harmonics of the bond direction, with TP weights
-#     produced by a radial MLP. Pure sum aggregation.
-#   * MACE (Batatia et al., 2022) -- same equivariant message construction
-#     plus a higher-body-order body expansion; we keep just the two-body
-#     equivariant message which is the (l=1) backbone of MACE.
-#
-# Energy conditioning is moved AFTER aggregation -- the messages are
-# energy-independent, so per-edge tensors have shape ``[N, ...]`` with
-# no ``nE`` axis. Only the per-absorber aggregated feature ever carries
-# the energy axis, giving very large activation-memory savings compared
-# to the attention branches that materialize ``[E, nE, ...]``.
-#
-# In E3EE there is one receiver per sample (the absorber), so the
-# aggregation collapses to a masked sum over the dense ``[B, N, ...]``
-# layout (rather than scatter-add over flat edges as in E3EEFull).
-# --------------------------------------------------------------------------- #
+# Reference: SchNet (Schuett et al., 2017), PaiNN (Schuett et al., 2021),
+# NequIP (Batzner et al., 2022), MACE (Batatia et al., 2022).
 
 
 class EnergyConditionedAtomConvolution(nn.Module):
@@ -63,13 +45,25 @@ class EnergyConditionedAtomConvolution(nn.Module):
 
     For each sample's absorber:
 
-        m_{abs<-j} = MLP(h_j, z_j, RBF(dist), is_abs)        # SchNet message
+        m_{abs<-j} = MLP(h_j, z_j, RBF(dist), is_abs)         # SchNet message
         m_{abs<-j} *= cos_envelope(dist)
         [optional] m_{abs<-j} *= sigmoid(MLP(h_abs, h_j, RBF))  # PaiNN gate
-        m_abs = sum_j  (j in att-graph)                       # sum aggregation
-        out_abs[e] = MLP(EnergyMod_scalar(m_abs, e_feat))     # energy mod
+        m_abs = sum_j  (j in att-graph)                        # sum aggregation
+        out_abs[e] = MLP(EnergyMod_scalar(m_abs, e_feat))      # energy mod
 
-    Memory: per-edge tensors are ``[N, L]`` -- no ``nE`` on edges.
+    Energy conditioning runs after aggregation, so per-edge tensors carry no
+    ``nE`` axis (large activation-memory saving).
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension.
+        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
+        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        use_gate: If ``True``, apply a PaiNN-style learned scalar edge gate.
     """
 
     def __init__(
@@ -138,18 +132,19 @@ class EnergyConditionedAtomConvolution(nn.Module):
         att_dst: torch.Tensor,
         att_dist: torch.Tensor,
     ) -> torch.Tensor:
-        """
+        """Compute invariant convolution branch latent.
+
         Args:
-            h:              [B, N, H] invariant atom features
-            z:              [B, N] atomic numbers
-            mask:           [B, N] valid-atom mask
-            e_feat:         [nE, dE] energy embedding
-            absorber_index: [B] absorber index per sample
-            att_dst:        [E_att] flat dst indices into B*N (absorber's neighbours)
-            att_dist:       [E_att] absorber->atom distances
+            h: Invariant atom features, shape ``(B, N, H)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            absorber_index: Absorber index per sample, shape ``(B,)``.
+            att_dst: Flat destination indices into ``B*N`` (absorber's neighbours), shape ``(E_att,)``.
+            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
 
         Returns:
-            [B, nE, latent_dim]
+            Latent tensor of shape ``(B, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies = e_feat.shape[0]
@@ -210,9 +205,23 @@ class EnergyConditionedEquivariantAtomConvolution(nn.Module):
         v_{abs<-j} = TP(h_full[j], sh_j; W(z_j, RBF, is_abs))   # NequIP message
         v_{abs<-j} *= cos_envelope(dist)
         [optional] v_{abs<-j} *= sigmoid(MLP(h_abs, h_j, RBF))   # PaiNN gate
-        v_abs = sum_j v_{abs<-j}                                # sum agg
-        v_{abs,e} = EnergyIrrepModulation(v_abs, e_feat)        # energy mod
+        v_abs = sum_j v_{abs<-j}                                 # sum agg
+        v_{abs,e} = EnergyIrrepModulation(v_abs, e_feat)         # energy mod
         out = MLP(invariants(v_{abs,e}))
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        irreps_node: Irreps of the full equivariant atom features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension.
+        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
+        attention_lmax: Maximum spherical-harmonics order for bond directions.
+        attention_irreps: Target irreps of the equivariant message (e.g. ``"32x0e+16x1o"``).
+        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        use_gate: If ``True``, apply a PaiNN-style learned scalar edge gate.
     """
 
     def __init__(
@@ -288,7 +297,22 @@ class EnergyConditionedEquivariantAtomConvolution(nn.Module):
         att_dist: torch.Tensor,
         att_vec: torch.Tensor,
     ) -> torch.Tensor:
-        """Returns ``[B, nE, latent_dim]``."""
+        """Apply equivariant convolution and return per-(absorber, energy) latent.
+
+        Args:
+            h: Invariant atom features ``(B, N, H)``.
+            h_full: Full equivariant atom features ``(B, N, irreps_node.dim)``.
+            z: Atomic numbers ``(B, N)``.
+            mask: Valid-atom mask ``(B, N)``.
+            e_feat: Energy RBF embedding ``(nE, e_dim)``.
+            absorber_index: Absorber index per sample ``(B,)``.
+            att_dst: Flat destination indices into ``B*N`` for the attention neighbourhood ``(E_att,)``.
+            att_dist: Absorber→atom distances ``(E_att,)``.
+            att_vec: Absorber→atom displacement vectors ``(E_att, 3)``.
+
+        Returns:
+            Latent tensor of shape ``(B, nE, latent_dim)``.
+        """
         bsz, n_atoms, h_dim = h.shape
         device = h.device
         dtype = h.dtype
