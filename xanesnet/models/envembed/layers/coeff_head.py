@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Spectral coefficient prediction head for EnvEmbed."""
 
 import torch
 import torch.nn as nn
@@ -21,7 +22,16 @@ from .encoder import init_mlp_weights
 
 
 class ResidualPreLNBlock(nn.Module):
-    """Pre-LayerNorm residual block: LN -> Linear -> GELU -> Dropout -> Linear -> Dropout + skip."""
+    """Pre-LayerNorm residual feed-forward block.
+
+    Applies the transformation ``x + dropout(fc2(dropout(act(fc1(LN(x))))))``,
+    i.e. layer-norm before the projection, residual connection after.
+
+    Args:
+        dim: Input and output feature dimension.
+        hidden: Inner hidden dimension of the two-layer MLP.
+        dropout: Dropout probability applied after each activation.
+    """
 
     def __init__(self, dim: int, hidden: int, dropout: float = 0.1) -> None:
         super().__init__()
@@ -34,6 +44,14 @@ class ResidualPreLNBlock(nn.Module):
         init_mlp_weights(self.fc2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the Pre-LN residual transformation.
+
+        Args:
+            x: Input features of shape ``(*, dim)``.
+
+        Returns:
+            Output features of shape ``(*, dim)``.
+        """
         h = self.ln(x)
         h = self.fc1(h)
         h = self.act(h)
@@ -44,13 +62,20 @@ class ResidualPreLNBlock(nn.Module):
 
 
 class CoeffHeadGroupedResidualPreLN(nn.Module):
-    """
-    Shared residual Pre-LN trunk over latent; per-width grouped linear heads.
+    """Shared residual Pre-LN trunk with per-width grouped linear output heads.
 
-    The trunk consists of ``depth`` ``ResidualPreLNBlock`` layers followed by a
-    final LayerNorm.  Each group head is an independent ``nn.Linear`` mapping from
-    the trunk output to ``k`` coefficients.  The outputs of all heads are
+    The trunk consists of ``depth`` :class:`ResidualPreLNBlock` layers followed
+    by a final :class:`~torch.nn.LayerNorm`. Each group head is an independent
+    ``nn.Linear`` mapping from the trunk output to ``k`` coefficients; group
+    head weights and biases are zero-initialised. The outputs of all heads are
     concatenated to produce the final coefficient vector.
+
+    Args:
+        latent_dim: Input latent dimension (trunk input and output dimension).
+        k_groups: Number of spectral basis coefficients per width group.
+        hidden: Hidden dimension of each :class:`ResidualPreLNBlock`.
+        depth: Number of residual blocks in the trunk.
+        dropout: Dropout probability applied inside each residual block.
     """
 
     def __init__(
@@ -68,18 +93,19 @@ class CoeffHeadGroupedResidualPreLN(nn.Module):
         self.trunk_out_ln = nn.LayerNorm(latent_dim)
         self.group_heads = nn.ModuleList([nn.Linear(latent_dim, k) for k in self.k_groups])
 
-        # Zero-init the group heads so initial predictions are near zero
+        # Zero-init the group heads so initial predictions are near zero.
         for head in self.group_heads:
             nn.init.zeros_(head.weight)
             nn.init.zeros_(head.bias)
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
-        """
+        """Predict spectral basis coefficients from a latent vector.
+
         Args:
-            z: (B, latent_dim) latent representation from the encoder.
+            z: Latent representation of shape ``(B, latent_dim)``.
 
         Returns:
-            (B, sum(k_groups)) concatenated coefficient predictions.
+            Concatenated coefficient predictions of shape ``(B, sum(k_groups))``.
         """
         h = self.trunk(z)
         h = self.trunk_out_ln(h)

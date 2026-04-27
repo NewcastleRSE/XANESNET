@@ -1,25 +1,30 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Soft radial shell encoder for absorber-centric environment embedding."""
 
 import torch
 import torch.nn as nn
 
 
 def init_mlp_weights(module: nn.Module) -> None:
-    """Kaiming-normal initialisation for Linear layers."""
+    """Apply Kaiming-normal initialisation to a ``Linear`` layer.
+
+    Args:
+        module: Module to initialise; only ``nn.Linear`` instances are affected.
+    """
     if isinstance(module, nn.Linear):
         nn.init.kaiming_normal_(module.weight, mode="fan_in", nonlinearity="relu")
         if module.bias is not None:
@@ -27,24 +32,26 @@ def init_mlp_weights(module: nn.Module) -> None:
 
 
 class SoftRadialShellsEncoder(nn.Module):
-    """
-    Absorber-centric soft-binning over distance with learnable shell centres/widths.
+    """Absorber-centric soft-binning over distance with learnable shell centres and widths.
 
-    Assigns each neighbour atom a soft weight to one of ``n_shells`` radial shells
-    via a Gaussian kernel centred on learnable positions. The weighted descriptor
-    features are averaged per shell, concatenated, and fused with the absorber's
-    own descriptor to produce a fixed-size latent vector.
+    For each learnable radial shell, computes Gaussian weights over neighbour
+    atoms from the absorber-centric distance distribution. These shell-wise
+    neighbour weights are used to form a weighted average descriptor per shell;
+    the shell summaries are then concatenated and fused with the absorber's own
+    descriptor to produce a fixed-size latent vector.
 
     An optional gating mechanism modulates the fused representation using Fourier
     features of the distance distribution, giving the model flexibility to scale
     contributions depending on the local coordination environment.
 
-    Inputs:
-        x:       (B, N, H) descriptor features, absorber at index 0
-        dists:   (B, N) distances from absorber
-        lengths: (B,) number of real atoms per sample (optional)
-    Output:
-        (B, latent_dim)
+    Args:
+        d_input: Descriptor feature dimension ``H``.
+        n_shells: Number of learnable radial shells.
+        latent_dim: Output latent dimension.
+        max_radius_angs: Radial cutoff in **A**; neighbours beyond this distance are masked out.
+        init_width: Initial Gaussian shell width in **A**.
+        use_gating: If ``True``, modulate the shell summary with Fourier features
+            of the distance distribution.
     """
 
     def __init__(
@@ -92,7 +99,15 @@ class SoftRadialShellsEncoder(nn.Module):
         self.apply(init_mlp_weights)
 
     def _soft_assign(self, r: torch.Tensor) -> torch.Tensor:
-        """Gaussian soft assignment of distances to shells. Returns (B, N_ctx, n_shells)."""
+        """Gaussian soft assignment of distances to shells.
+
+        Args:
+            r: Context distances, shape ``(B, N_ctx)``.
+
+        Returns:
+            Per-shell soft weights of shape ``(B, N_ctx, n_shells)``.
+            Weights are normalised to sum to 1 along the neighbour dimension.
+        """
         centers = self.shell_centers.view(1, 1, -1)
         widths = self.shell_widths.view(1, 1, -1)
         z = (r.unsqueeze(-1) - centers) / (widths + 1e-6)
@@ -100,12 +115,27 @@ class SoftRadialShellsEncoder(nn.Module):
         w = w / (w.sum(dim=1, keepdim=True) + 1e-9)
         return w
 
-    def _fourier_feats(self, r: torch.Tensor) -> torch.Tensor:
-        """Mean Fourier features over neighbours. Returns (B, 2*n_fourier)."""
+    def _fourier_feats(self, r: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+        """Compute mean Fourier features over neighbours.
+
+        Args:
+            r: Context distances, shape ``(B, N_ctx)``.
+            mask: Optional valid-neighbour mask of shape ``(B, N_ctx)``.
+                When given, only masked-in neighbours contribute to the mean.
+
+        Returns:
+            Mean Fourier features of shape ``(B, 2 * n_fourier)``.
+        """
         f = self.freqs.view(1, 1, -1)
         fsin = torch.sin(r.unsqueeze(-1) * f)
         fcos = torch.cos(r.unsqueeze(-1) * f)
-        return torch.cat([fsin, fcos], dim=-1).mean(dim=1)
+        feats = torch.cat([fsin, fcos], dim=-1)
+        if mask is None:
+            return feats.mean(dim=1)
+
+        weights = mask.unsqueeze(-1).to(feats.dtype)
+        denom = weights.sum(dim=1).clamp_min(1e-6)
+        return (feats * weights).sum(dim=1) / denom
 
     def forward(
         self,
@@ -113,19 +143,22 @@ class SoftRadialShellsEncoder(nn.Module):
         dists: torch.Tensor,
         lengths: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """
+        """Encode the local chemical environment into a fixed-size latent vector.
+
         Args:
-            x:       (B, N, H) descriptor features; absorber at index 0.
-            dists:   (B, N) distances from absorber atom.
-            lengths: (B,) number of real atoms per sample (before padding).
+            x: Descriptor features with absorber at index 0, shape ``(B, N, H)``.
+            dists: Distances from the absorber atom in **A**, shape ``(B, N)``.
+            lengths: Number of real atoms per sample before padding, shape ``(B,)``.
+                If ``None``, all positions are treated as real.
 
         Returns:
-            (B, latent_dim) fused latent representation.
+            Fused latent representation of shape ``(B, latent_dim)``.
         """
         B, N, H = x.shape
         absorbing = x[:, 0, :]  # (B, H)
         context = x[:, 1:, :]  # (B, N-1, H)
-        r = dists[:, 1:].clamp_max(self.max_radius)  # (B, N-1)
+        raw_r = dists[:, 1:]  # (B, N-1)
+        r = raw_r.clamp_max(self.max_radius)  # (B, N-1)
 
         # Build mask for valid context atoms
         if lengths is not None:
@@ -135,9 +168,9 @@ class SoftRadialShellsEncoder(nn.Module):
             mask = (idxs < real_ctx[:, None]).float()
         else:
             mask = torch.ones(context.shape[:2], device=x.device)
-        mask = mask * (r <= self.max_radius).float()
+        mask = mask * (raw_r <= self.max_radius).float()
 
-        # Soft-assign neighbours to shells and compute weighted means
+        # Build shell-wise neighbour weights and compute weighted means.
         w = self._soft_assign(r)  # (B, N-1, n_shells)
         w = w * mask.unsqueeze(-1)
         wsum = w.sum(dim=1, keepdim=True).clamp(min=1e-6)
@@ -149,7 +182,7 @@ class SoftRadialShellsEncoder(nn.Module):
 
         # Optional gating
         if self.use_gating:
-            crowd = self._fourier_feats(r)  # (B, 2*n_fourier)
+            crowd = self._fourier_feats(r, mask=mask)  # (B, 2*n_fourier)
             gate_in = torch.cat([absorbing, crowd], dim=-1)
             g = self.gate(gate_in)
             shell_summary = shell_summary * g
