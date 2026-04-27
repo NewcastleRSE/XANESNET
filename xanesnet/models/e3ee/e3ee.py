@@ -462,6 +462,16 @@ class E3EE(Model):
         return out
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        """Initialise all ``Linear`` and ``Embedding`` weights.
+
+        Args:
+            weights_init: Name of the weight initialiser registered in
+                :class:`~xanesnet.components.WeightInitRegistry`.
+            bias_init: Name of the bias initialiser registered in
+                :class:`~xanesnet.components.BiasInitRegistry`.
+            **kwargs: Additional keyword arguments forwarded to the weight
+                initialiser factory.
+        """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
 
@@ -475,9 +485,7 @@ class E3EE(Model):
 
     @property
     def signature(self) -> Config:
-        """
-        Return model signature as a configuration dictionary.
-        """
+        """Return model signature as a :class:`~xanesnet.serialization.config.Config`."""
         signature = super().signature
         signature.update_with_dict(
             {
