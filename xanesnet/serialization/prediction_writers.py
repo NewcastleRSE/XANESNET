@@ -34,7 +34,9 @@ class PredictionBatch(TypedDict):
     PredictionBatch to be saved by PredictionWriter.
 
     Everything is provided as numpy arrays or torch tensors.
-    First dimension is batch dimension. All array-likes must have the same leading batch size.
+    First dimension is the absorber dimension: every field carries one row per
+    absorber site (not per dataset sample / structure). All array-likes must
+    have the same leading absorber size.
     """
 
     # Required:
@@ -42,9 +44,9 @@ class PredictionBatch(TypedDict):
     target: np.ndarray | torch.Tensor
 
     # Optional:
-    input: NotRequired[dict[str, np.ndarray | torch.Tensor]]
-    file_name: NotRequired[np.ndarray | torch.Tensor]
+    file_name: NotRequired[np.ndarray]
     forward_time: NotRequired[np.ndarray | torch.Tensor]
+    forward_time_pass: NotRequired[np.ndarray | torch.Tensor]
 
 
 ###############################################################################
@@ -55,6 +57,9 @@ class PredictionBatch(TypedDict):
 class PredictionWriter(ABC):
     """
     Abstract base class for writers.
+
+    All buffers and storage are indexed along the absorber dimension: every
+    field stored carries one row per absorber site.
     """
 
     def __init__(self, path: str | Path, buffer_size: int):
@@ -69,34 +74,37 @@ class PredictionWriter(ABC):
 
     def add(self, batch: PredictionBatch) -> None:
         """
-        Add a PredictionBatch to the buffer.
+        Add a PredictionBatch (one row per absorber) to the buffer.
         """
-        batch_size: int | None = None
+        n_absorbers: int | None = None
 
         for key, value in batch.items():
             array = self._to_numpy(value)
 
             if array.ndim == 0:
-                raise ValueError(f"Value for key '{key}' is scalar; expected batch dimension")
+                raise ValueError(f"Value for key '{key}' is scalar; expected leading absorber dimension")
 
-            # Bool and string are only supported as per-sample scalars (1D in batch)
+            # Bool and string are only supported as per-absorber scalars
+            # (1-D along the absorber dimension).
             if array.dtype.kind in ("U", "S", "b") and array.ndim > 1:
                 raise TypeError(
                     f"Key '{key}': {array.dtype} arrays are not supported, "
-                    f"only per-sample scalars (got shape {array.shape})"
+                    f"only per-absorber scalars (got shape {array.shape})"
                 )
 
-            if batch_size is None:
-                batch_size = array.shape[0]
-            elif array.shape[0] != batch_size:
-                raise ValueError(f"Batch size mismatch for key '{key}': expected {batch_size}, got {array.shape[0]}")
+            if n_absorbers is None:
+                n_absorbers = array.shape[0]
+            elif array.shape[0] != n_absorbers:
+                raise ValueError(
+                    f"Absorber-dimension mismatch for key '{key}': expected {n_absorbers}, got {array.shape[0]}"
+                )
 
             self._buffers.setdefault(key, []).append(array)
 
-        if batch_size is None:
+        if n_absorbers is None:
             raise ValueError("Empty PredictionBatch provided")
 
-        self._buffer_count += batch_size
+        self._buffer_count += n_absorbers
 
         if self._buffer_count >= self.buffer_size:
             self.flush()
@@ -109,9 +117,9 @@ class PredictionWriter(ABC):
             logging.debug("No data to flush.")
             return
 
-        batch = {key: np.concatenate(chunks, axis=0) for key, chunks in self._buffers.items()}
+        flushed = {key: np.concatenate(chunks, axis=0) for key, chunks in self._buffers.items()}
 
-        self._write_batch(batch)
+        self._write_batch(flushed)
 
         self._total_written += self._buffer_count
         self._buffers.clear()
@@ -145,8 +153,8 @@ class PredictionWriter(ABC):
                     "You can configure the writer type by changing the code in the inferencer.\n"
                     "Available writers:\n"
                     "  - HDF5Writer (default): Stores all predictions in a single HDF5 file.\n"
-                    "  - NumpyWriter: Stores one .npz file per sample (good for debugging).\n"
-                    "  - JSONWriter: Stores one .json file per sample (human readable).\n"
+                    "  - NumpyWriter: Stores one .npz file per absorber (good for debugging).\n"
+                    "  - JSONWriter: Stores one .json file per absorber (human readable).\n"
                 )
 
     def _close_storage(self) -> None:
@@ -165,11 +173,12 @@ class HDF5Writer(PredictionWriter):
     """
     HDF5-backed inference writer.
 
-    Supported per-sample data:
+    Each dataset is appended along the absorber dimension. Supported per-absorber
+    payloads:
         - float / int arrays of any shape
         - scalar float, int, bool, or string values
 
-    Bool and string *arrays* (ndim > 0 per sample) are not supported.
+    Bool and string *arrays* (ndim > 0 per absorber) are not supported.
     """
 
     def __init__(
@@ -195,7 +204,7 @@ class HDF5Writer(PredictionWriter):
         maxshape = (None,) + data.shape[1:]
 
         dtype = data.dtype
-        compression = self.compression
+        compression: str | None = self.compression
 
         if dtype.kind == "U":
             dtype = h5py.string_dtype(encoding="utf-8", length=None)
@@ -230,15 +239,15 @@ class HDF5Writer(PredictionWriter):
 
 class NumpyWriter(PredictionWriter):
     """
-    Writes one .npz file per sample containing all arrays.
+    Writes one .npz file per absorber containing all arrays.
 
     Mostly useful for debugging or small datasets.
     """
 
     def _write_batch(self, batch: dict[str, np.ndarray]) -> None:
-        batch_size = next(iter(batch.values())).shape[0]
+        n_absorbers = next(iter(batch.values())).shape[0]
 
-        for i in range(batch_size):
+        for i in range(n_absorbers):
             sample_file = self.path / f"sample_{self._total_written + i:06d}.npz"
             sample_data = {key: data[i] for key, data in batch.items()}
             np.savez(sample_file, **sample_data)
@@ -246,15 +255,15 @@ class NumpyWriter(PredictionWriter):
 
 class JSONWriter(PredictionWriter):
     """
-    Writes one JSON file per sample.
+    Writes one JSON file per absorber.
 
     Mostly useful for debugging or small datasets.
     """
 
     def _write_batch(self, batch: dict[str, np.ndarray]) -> None:
-        batch_size = next(iter(batch.values())).shape[0]
+        n_absorbers = next(iter(batch.values())).shape[0]
 
-        for i in range(batch_size):
+        for i in range(n_absorbers):
             sample_data = {key: data[i].tolist() for key, data in batch.items()}
             sample_file = self.path / f"sample_{self._total_written + i:06d}.json"
 

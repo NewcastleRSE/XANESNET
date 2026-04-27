@@ -154,7 +154,7 @@ class SpectraPlotter(Plotter):
         # Scalar annotation
         scalars: dict[str, float] = {}
         for key, value in sample.items():
-            if key not in ("prediction", "target", "input", "sample_id") and is_scalar(value):
+            if key not in ("prediction", "target", "sample_id") and is_scalar(value):
                 scalars[key] = cast(float, value)
         for key, value in col_scalars.items():
             if key != "sample_id" and is_scalar(value):

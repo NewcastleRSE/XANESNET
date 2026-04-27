@@ -79,12 +79,32 @@ class BasicInferencer(Inferencer):
                 torch.cuda.synchronize()  # Needed to block CPU until all GPU ops are done
             end_time = time.perf_counter()
 
-            # Create per-sample time tensor
-            # averaged if batch size > 1
-            per_sample_time = (end_time - start_time) / predictions.shape[0]
+            predictions = self.batch_processor.prediction_preparation(batch, predictions)
+
+            # Two timing fields, both broadcast to ``[n_absorbers]`` so they
+            # follow the writer's per-absorber leading-dim contract:
+            #   * ``forward_time``       – amortized per-absorber cost: the
+            #     wall-clock duration of this forward pass divided by the
+            #     number of absorbers with ground truth produced by it.
+            #     Useful as the time budget attributable to a single spectrum.
+            #   * ``forward_time_pass``  – raw wall-clock duration of the
+            #     forward pass, repeated for every absorber it produced.
+            #     Independent of batch size / multi-absorber count.
+            # ``predictions`` after ``prediction_preparation`` already contains
+            # exactly the absorbers with ground truth (selected via
+            # ``absorber_mask`` for masking models, all rows for per-absorber
+            # datasets).
+            n_absorbers = predictions.shape[0]
+            wall_time = end_time - start_time
             forward_time = torch.full(
-                (predictions.shape[0],),
-                per_sample_time,
+                (n_absorbers,),
+                wall_time / n_absorbers if n_absorbers > 0 else 0.0,
+                dtype=torch.float32,
+                device=self.device,
+            )
+            forward_time_pass = torch.full(
+                (n_absorbers,),
+                wall_time,
                 dtype=torch.float32,
                 device=self.device,
             )
@@ -100,8 +120,8 @@ class BasicInferencer(Inferencer):
                         "prediction": predictions,
                         "target": targets,
                         # Optional:
-                        # "input": inputs # TODO: inputs currently dict
                         "file_name": self.batch_processor.file_name_extraction(batch),
                         "forward_time": forward_time,
+                        "forward_time_pass": forward_time_pass,
                     }
                 )

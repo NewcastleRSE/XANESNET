@@ -36,8 +36,9 @@ class PredictionSample(TypedDict):
     """
     PredictionSample to be returned by PredictionReader.
 
-    All values are numpy arrays or torch tensors.
-    No batch dimension, i.e. shape is the same as what was passed to PredictionWriter for a single sample.
+    Represents a single absorber site. All values are numpy arrays or torch
+    tensors with no leading absorber dimension (the shape matches a single row
+    of the corresponding ``PredictionBatch`` field).
     """
 
     # Required:
@@ -45,9 +46,9 @@ class PredictionSample(TypedDict):
     target: np.ndarray | torch.Tensor
 
     # Optional:
-    input: NotRequired[np.ndarray | torch.Tensor]
     file_name: NotRequired[str]
     forward_time: NotRequired[float]
+    forward_time_pass: NotRequired[float]
 
 
 ###############################################################################
@@ -59,7 +60,8 @@ class PredictionReader(ABC):
     """
     Abstract base class for prediction readers.
 
-    Implements the Iterator protocol for iterating over saved predictions.
+    Implements the Iterator protocol for iterating over saved predictions, one
+    absorber at a time.
     """
 
     def __init__(self, path: str | Path):
@@ -79,27 +81,27 @@ class PredictionReader(ABC):
     @abstractmethod
     def __len__(self) -> int:
         """
-        Return the total number of samples.
+        Return the total number of absorbers.
         """
         ...
 
     @abstractmethod
     def __getitem__(self, index: int) -> PredictionSample:
         """
-        Get a single sample by index.
+        Get a single absorber by index.
         """
         ...
 
     def __iter__(self) -> Iterator[PredictionSample]:
         """
-        Return iterator over all samples.
+        Return iterator over all absorbers.
         """
         self._current_index = 0
         return self
 
     def __next__(self) -> PredictionSample:
         """
-        Get the next sample.
+        Get the next absorber.
         """
         if self._current_index >= len(self):
             raise StopIteration
@@ -112,7 +114,8 @@ class PredictionReader(ABC):
         """
         Load all predictions at once.
 
-        Returns a PredictionBatch with all samples stacked along the batch dimension.
+        Returns a PredictionBatch with all absorbers stacked along the leading
+        absorber dimension.
         """
 
         # TODO not tested !
@@ -142,7 +145,7 @@ class PredictionReader(ABC):
 
     @staticmethod
     def _normalize_sample_value(value: Any) -> Any:
-        """Normalize a single per-sample value to a Python primitive or ndarray.
+        """Normalize a single per-absorber value to a Python primitive or ndarray.
 
         - bytes → str
         - np.generic (e.g. np.float64, np.bool_) → Python primitive via .item()
