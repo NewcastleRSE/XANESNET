@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Energy-conditioned invariant and equivariant convolution branches for E3EEFull."""
 
 from typing import cast
 
@@ -27,8 +28,22 @@ from .branch_equivariant import EnergyIrrepModulation
 
 
 class AllAtomAtomConvolution(nn.Module):
-    """
-    Invariant SchNet/PaiNN-style continuous-filter convolution branch.
+    """Invariant SchNet/PaiNN-style continuous-filter convolution branch.
+
+    For every active receiver atom, computes a SchNet-style continuous-filter
+    message from each neighbour, aggregates by sum, then multiplies with an
+    energy-dependent gate to produce per-(atom, energy) latent vectors.
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension.
+        att_cutoff: Attention neighbourhood radius in **A**.
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        use_gate: If ``True``, apply a PaiNN-style scalar gate per edge.
     """
 
     def __init__(
@@ -102,20 +117,21 @@ class AllAtomAtomConvolution(nn.Module):
         att_dist: torch.Tensor,
         absorber_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """
+        """Compute invariant convolution branch latent.
+
         Args:
-            h:             [B, N, H] invariant atom features
-            z:             [B, N] atomic numbers
-            mask:          [B, N] valid-atom mask
-            e_feat:        [nE, dE] energy feature embedding
-            att_src:       [E_att] flat src indices (receivers) into B*N
-            att_dst:       [E_att] flat dst indices (senders) into B*N
-            att_dist:      [E_att] pair distances
-            absorber_mask: optional [B, N]; if given, restrict receivers
-                           to absorber sites.
+            h: Invariant atom features, shape ``(B, N, H)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            att_src: Flat source indices (receivers) into ``B*N``, shape ``(E_att,)``.
+            att_dst: Flat destination indices (senders) into ``B*N``, shape ``(E_att,)``.
+            att_dist: Pair distances in **A**, shape ``(E_att,)``.
+            absorber_mask: Optional ``(B, N)`` bool mask; if given, restrict receivers
+                to absorber sites.
 
         Returns:
-            [B, N, nE, latent_dim]
+            Latent tensor of shape ``(B, N, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies = e_feat.shape[0]
@@ -174,26 +190,37 @@ class AllAtomAtomConvolution(nn.Module):
 
 
 class AllAtomEquivariantAtomConvolution(nn.Module):
-    """
-    NequIP/MACE-style equivariant convolution branch.
+    """NequIP/MACE-style equivariant convolution branch.
 
-    For every active receiver atom (or absorber when ``use_absorber_mask``
-    is enabled by the parent model):
+    For every active receiver atom (or absorber when ``use_absorber_mask`` is enabled):
 
-        sh_{aj} = Y(u_{aj})              # spherical harmonics of bond dir
-        v_{a<-j} = TP(h_full[j], sh_{aj}; W(z_j, RBF, is_self))
-                                          # NequIP-style equivariant message
-        v_{a<-j} *= cos_envelope(dist)   # smooth radial cutoff
-        [optional] v_{a<-j} *= sigmoid(MLP(h_src, h_dst, RBF))  # PaiNN-style gate
-        v_a = sum_j v_{a<-j}             # sum aggregation (NequIP/MACE)
-        v_{a,e} = EnergyIrrepModulation(v_a, e_feat)  # per-receiver energy mod
-        out = MLP(invariants(v_{a,e}))
+    - ``sh_{a<-j} = Y(u_{a<-j})`` -- spherical harmonics of bond direction.
+    - ``v_{a<-j} = TP(h_full[j], sh_{a<-j}; W(z_j, RBF, is_self))``
+      -- NequIP-style equivariant message.
+    - ``v_{a<-j} *= cos_envelope(dist)`` -- smooth radial cutoff.
+    - (Optional) ``v_{a<-j} *= sigmoid(MLP(h_src, h_dst, RBF))``
+      -- PaiNN-style scalar gate.
+    - ``v_a = sum_j v_{a<-j}`` -- sum aggregation.
+    - ``v_{a,e} = EnergyIrrepModulation(v_a, e_feat)`` -- per-receiver energy mod.
+    - ``out = MLP(invariants(v_{a,e}))``
 
-    Self-edges (dist=0) are gated to ``Y_l = delta_{l,0}`` so they only
-    contribute through the l=0 channel (cf. how the encoder handles
-    self-loops). Memory: per-edge tensors are ``[E, D_irrep]`` -- no
-    ``nE`` axis on edges. The only ``nE``-bearing tensor is the
-    aggregated, per-receiver ``[N_recv, nE, D_irrep]``.
+    Self-edges (``dist = 0``) are gated to ``Y_l = delta_{l,0}`` so they only
+    contribute through the l=0 channel. Memory: per-edge tensors are
+    ``(E, D_irrep)`` -- the energy axis only appears after aggregation.
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        irreps_node: Irreps of the full equivariant atom features (TP input).
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension.
+        att_cutoff: Attention neighbourhood radius in **A**.
+        attention_lmax: Maximum spherical-harmonics order for bond directions.
+        attention_irreps: Target irreps of the equivariant messages (e.g. ``"32x0e+16x1o"``).
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        use_gate: If ``True``, apply a PaiNN-style scalar gate per edge.
     """
 
     def __init__(
@@ -275,9 +302,23 @@ class AllAtomEquivariantAtomConvolution(nn.Module):
         att_vec: torch.Tensor,
         absorber_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """
-        Args mirror ``AllAtomEquivariantAtomAttention.forward``. Returns
-        ``[B, N, nE, latent_dim]``.
+        """Compute equivariant convolution branch latent.
+
+        Args:
+            h: Invariant atom features, shape ``(B, N, H)``.
+            h_full: Full equivariant atom features, shape ``(B, N, irreps_node.dim)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            att_src: Flat source indices (receivers) into ``B*N``, shape ``(E_att,)``.
+            att_dst: Flat destination indices (senders) into ``B*N``, shape ``(E_att,)``.
+            att_dist: Pair distances in **A**, shape ``(E_att,)``.
+            att_vec: Pair displacement vectors in **A**, shape ``(E_att, 3)``.
+            absorber_mask: Optional ``(B, N)`` bool mask; if given, restrict receivers
+                to absorber sites.
+
+        Returns:
+            Latent tensor of shape ``(B, N, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies = e_feat.shape[0]
@@ -358,5 +399,4 @@ class AllAtomEquivariantAtomConvolution(nn.Module):
             if ir.l > 0:
                 out[mask_self, offset : offset + dim] = 0.0
             offset += dim
-        return out
         return out

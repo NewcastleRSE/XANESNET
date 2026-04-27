@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Absorber-agnostic equivariant atom encoder with spherical-harmonics message passing."""
 
 from typing import cast
 
@@ -25,13 +26,24 @@ from .interactions import EquivariantInteractionBlock
 
 
 class EquivariantAtomEncoder(nn.Module):
-    """
-    Equivariant atom encoder with spherical harmonics message passing.
+    """Absorber-agnostic equivariant atom encoder with spherical-harmonics message passing.
 
     Unlike the single-absorber E3EE encoder, this variant is absorber-agnostic:
-    the scalar node input contains only the element embedding — no absorber
+    the scalar node input contains only the element embedding -- no absorber
     flag is used. The encoder produces a per-atom equivariant feature for every
-    atom in the padded layout, suitable for dense absorber prediction.
+    atom in the padded layout, suitable for dense (all-absorber) prediction.
+
+    Args:
+        max_z: Maximum atomic number supported by the element embedding.
+        cutoff: Radial cutoff for the message-passing graph in **A**.
+        num_interactions: Number of equivariant interaction blocks.
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        lmax: Maximum spherical-harmonics order.
+        node_attr_dim: Dimension of the initial element embedding.
+        hidden_dim: Hidden dimension used in the radial MLP.
+        irreps_node: Target irreps of the node features (e.g. ``"64x0e+32x1o"``).
+        irreps_message: Irreps of the intermediate message tensors.
+        residual_scale_init: Initial scale of the learnable residual.
     """
 
     def __init__(
@@ -90,17 +102,18 @@ class EquivariantAtomEncoder(nn.Module):
         edge_weight: torch.Tensor,
         edge_vec: torch.Tensor,
     ) -> torch.Tensor:
-        """
+        """Encode all atoms into equivariant features via multi-layer message passing.
+
         Args:
-            z:           [B, N] atomic numbers (int64)
-            mask:        [B, N] valid-atom mask
-            edge_src:    [E] source flat indices into B*N
-            edge_dst:    [E] destination flat indices into B*N
-            edge_weight: [E] edge lengths
-            edge_vec:    [E, 3] edge displacement vectors
+            z: Atomic numbers (int64), shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            edge_src: Source flat indices into ``B*N``, shape ``(E,)``.
+            edge_dst: Destination flat indices into ``B*N``, shape ``(E,)``.
+            edge_weight: Edge lengths in **A** (PBC-correct), shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **A** (PBC-correct), shape ``(E, 3)``.
 
         Returns:
-            [B, N, irreps_dim] equivariant atom features
+            Equivariant atom features of shape ``(B, N, irreps_dim)``.
         """
         device = z.device
         bsz, n_atoms = z.shape

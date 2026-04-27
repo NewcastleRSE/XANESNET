@@ -1,41 +1,52 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Utilities for extracting rotation-invariant features from e3nn irreps tensors."""
 
 import torch
 from e3nn import o3
 
 
 def invariant_feature_dim(irreps: o3.Irreps) -> int:
-    """Number of invariant scalar channels extractable from irreps."""
+    """Count the total number of invariant scalar channels in an irreps specification.
+
+    For every ``(mul, ir)`` pair the multiplicity ``mul`` contributes one invariant
+    per irrep copy (the l=0 scalar channel directly, or the RMS norm for l>0).
+
+    Args:
+        irreps: e3nn irreps specification to inspect.
+
+    Returns:
+        Total number of invariant scalar dimensions.
+    """
     return sum(mul for mul, _ in irreps)
 
 
 def invariant_features_from_irreps(x: torch.Tensor, irreps: o3.Irreps) -> torch.Tensor:
-    """
-    Convert flattened irreps features to invariant features.
+    """Convert flattened irreps features to rotation-invariant scalars.
 
-    For l = 0: keep scalar channels directly.
-    For l > 0: take RMS norm of each irrep copy.
+    For ``l = 0`` blocks the scalar channels are returned directly.
+    For ``l > 0`` blocks the RMS norm of each irrep copy is returned.
 
     Args:
-        x: [..., D] tensor of concatenated irreps features
-        irreps: the irreps specification matching the last dimension of x
+        x: Concatenated irreps features of shape ``(..., D)`` where ``D == irreps.dim``.
+        irreps: e3nn irreps specification matching the last dimension of ``x``.
 
     Returns:
-        [..., inv_dim] tensor of invariant features
+        Invariant features of shape ``(..., inv_dim)``
+        where ``inv_dim == invariant_feature_dim(irreps)``.
     """
     orig_shape = x.shape[:-1]
     d = x.shape[-1]

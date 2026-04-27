@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Multi-absorber E3-equivariant model (E3EEFull)."""
 
 import torch
 import torch.nn as nn
@@ -40,8 +41,54 @@ from .utils import invariant_feature_dim, invariant_features_from_irreps
 
 @ModelRegistry.register("e3ee_full")
 class E3EEFull(Model):
-    """
-    Multi-Absorber E3-equivariant XANES model.
+    """Multi-absorber E3-equivariant model.
+
+    Predicts a XANES spectrum for every atom in the batch simultaneously,
+    suitable for training across multiple absorber sites per structure.
+    The equivariant atom encoder is absorber-agnostic; absorber selectivity
+    can optionally be applied via ``use_absorber_mask``.
+
+    Seven optional prediction branches are supported (at least one must be
+    enabled): invariant energy branch, invariant attention, equivariant
+    attention, invariant convolution, equivariant convolution, late
+    equivariant head, and 3-body path aggregator. Their latent outputs are
+    concatenated along the last dimension and projected by a final MLP.
+
+    Args:
+        model_type: Model type string (passed to base class).
+        out_size: Number of energy-grid points (``nE``).
+        max_z: Maximum atomic number supported by element embeddings.
+        atom_emb_dim: Dimension of the element embedding.
+        atom_hidden_dim: Hidden dimension of the equivariant encoder MLPs.
+        atom_layers: Number of equivariant interaction blocks in the encoder.
+        local_cutoff: Radial cutoff for the encoder graph in **A**.
+        rbf_dim: Number of Gaussian RBF bases for local-graph distances.
+        energy_rbf_dim: Number of Gaussian RBF bases for energy encoding.
+        scatter_dim: Intermediate scatter feature dimension (path branch).
+        latent_dim: Output dimension of each prediction branch.
+        head_hidden_dim: Hidden dimension of branch-specific MLPs and final head.
+        e3nn_irreps: Irreps of encoder node features.
+        e3nn_irreps_message: Irreps of encoder intermediate messages.
+        e3nn_lmax: Maximum spherical-harmonics order in the encoder.
+        out_mlp_layers: Number of layers in the final head MLP.
+        use_invariant_branch: Enable the invariant energy branch.
+        use_attention_branch: Enable the invariant attention branch.
+        use_equivariant_branch: Enable the late equivariant head branch.
+        use_eq_attention_branch: Enable the equivariant attention branch.
+        use_conv_branch: Enable the invariant convolution branch.
+        use_eq_conv_branch: Enable the equivariant convolution branch.
+        use_path_branch: Enable the 3-body path aggregator branch.
+        use_absorber_mask: If ``True``, restrict query/receiver/center-site
+            selection in the attention, convolution, and path branches to
+            absorber atoms, and zero final predictions on non-absorber atoms
+            via ``absorber_mask``.
+        residual_scale_init: Initial scale of the encoder residual connections.
+        attention_heads: Number of attention heads.
+        attention_rbf_dim: Number of Gaussian RBF bases for attention distances.
+        attention_lmax: Maximum spherical-harmonics order for attention branches.
+        attention_irreps: Irreps of equivariant values in attention/convolution branches.
+        att_cutoff: Radial cutoff for the attention/convolution graph in **A**.
+        conv_use_gate: If ``True``, apply a PaiNN-style scalar gate in convolution branches.
     """
 
     def __init__(
@@ -148,7 +195,7 @@ class E3EEFull(Model):
                 out_dim=latent_dim,
             )
 
-        # Branch 2 (optional): energy-conditioned atom attention (per-atom query, sparse).
+        # Branch 2a (optional): energy-conditioned atom attention (per-atom query, sparse).
         if self.use_attention_branch:
             self.atom_attention = AllAtomAtomAttention(
                 atom_dim=self._inv_dim,
@@ -277,27 +324,31 @@ class E3EEFull(Model):
         path_rjk: torch.Tensor,
         path_cosangle: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Forward pass producing a spectrum for every atom.
+        """Forward pass producing a spectrum for every atom.
 
         Args:
-            x:             [B, N]   atomic numbers (int64, padded)
-            mask:          [B, N]   valid-atom mask
-            edge_src:      [E]      flat source indices into B*N
-            edge_dst:      [E]      flat destination indices into B*N
-            edge_weight:   [E]      edge lengths
-            edge_vec:      [E, 3]   edge displacement vectors
-            energies:      [n_abs, nE] energy grid (only ``nE`` is used here)
-            path_center:   [P]      flat site index per path (into B*N)
-            path_j:        [P]      flat j atom index (into B*N)
-            path_k:        [P]      flat k atom index (into B*N)
-            path_r0j:      [P]
-            path_r0k:      [P]
-            path_rjk:      [P]
-            path_cosangle: [P]
+            x: Atomic numbers (int64, padded), shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            absorber_mask: Per-atom absorber indicator, shape ``(B, N)``.
+            edge_src: Flat source indices into ``B*N``, shape ``(E,)``.
+            edge_dst: Flat destination indices into ``B*N``, shape ``(E,)``.
+            edge_weight: Edge lengths in **A**, shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **A**, shape ``(E, 3)``.
+            att_src: Attention-graph source indices, shape ``(E_att,)``.
+            att_dst: Attention-graph destination indices, shape ``(E_att,)``.
+            att_dist: Attention-graph distances in **A**, shape ``(E_att,)``.
+            att_vec: Attention-graph displacement vectors in **A**, shape ``(E_att, 3)``.
+            energies: Energy grid, shape ``(n_abs, nE)`` (only ``nE`` is used).
+            path_center: Flat site index per path into ``B*N``, shape ``(P,)``.
+            path_j: Flat j atom index into ``B*N``, shape ``(P,)``.
+            path_k: Flat k atom index into ``B*N``, shape ``(P,)``.
+            path_r0j: Absorber-to-j distance in **A**, shape ``(P,)``.
+            path_r0k: Absorber-to-k distance in **A**, shape ``(P,)``.
+            path_rjk: j-to-k distance in **A**, shape ``(P,)``.
+            path_cosangle: Cosine of the j-absorber-k angle, shape ``(P,)``.
 
         Returns:
-            [B, N, nE] predicted XANES intensities for every atom (padded).
+            Predicted XANES intensities for every atom, shape ``(B, N, nE)`` (padded).
             The caller is expected to mask out atoms without ground truth.
         """
         bsz, n_atoms = x.shape
@@ -439,6 +490,16 @@ class E3EEFull(Model):
         return out
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
+        """Initialise all ``Linear`` and ``Embedding`` weights.
+
+        Args:
+            weights_init: Name of the weight initialiser registered in
+                :class:`~xanesnet.components.WeightInitRegistry`.
+            bias_init: Name of the bias initialiser registered in
+                :class:`~xanesnet.components.BiasInitRegistry`.
+            **kwargs: Additional keyword arguments forwarded to the weight
+                initialiser factory.
+        """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
 
@@ -452,9 +513,7 @@ class E3EEFull(Model):
 
     @property
     def signature(self) -> Config:
-        """
-        Return model signature as a configuration dictionary.
-        """
+        """Return model signature as a :class:`~xanesnet.serialization.config.Config`."""
         signature = super().signature
         signature.update_with_dict(
             {

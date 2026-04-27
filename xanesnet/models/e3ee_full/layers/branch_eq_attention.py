@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Energy-conditioned equivariant atom-attention branch for E3EEFull."""
 
 from typing import cast
 
@@ -28,16 +29,29 @@ from .branch_equivariant import EnergyIrrepModulation
 
 
 class AllAtomEquivariantAtomAttention(nn.Module):
-    """
-    All-atom equivariant counterpart of :class:`AllAtomAtomAttention`.
+    """All-atom equivariant counterpart of :class:`AllAtomAtomAttention`.
 
     Each atom (or just the absorber atoms when ``use_absorber_mask`` is set)
-    queries its attention-graph neighbours. The value carried along each
-    edge is an E(3)-equivariant feature built from spherical harmonics of
-    the src\u2192dst unit vector mixed with the dst atom's invariant features
-    via a FullyConnectedTensorProduct, then modulated per-energy with
+    queries its attention-graph neighbours. The value carried along each edge is
+    an E(3)-equivariant feature built from spherical harmonics of the
+    src->dst unit vector mixed with the dst atom's full equivariant features via
+    a FullyConnectedTensorProduct, then modulated per-energy with
     :class:`EnergyIrrepModulation`. Aggregated equivariant features are
     converted to invariants and projected to ``latent_dim``.
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features (used for scoring).
+        irreps_node: Irreps of the full equivariant atom features (TP input).
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
+        att_cutoff: Attention neighbourhood radius in **A**.
+        attention_lmax: Maximum spherical-harmonics order for bond directions.
+        attention_irreps: Target irreps of the equivariant values (e.g. ``"32x0e+16x1o"``).
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        n_heads: Number of attention heads used for invariant scoring.
     """
 
     def __init__(
@@ -129,23 +143,23 @@ class AllAtomEquivariantAtomAttention(nn.Module):
         att_vec: torch.Tensor,
         absorber_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """
+        """Compute equivariant energy-conditioned attention over atoms and return latent.
+
         Args:
-            h:        [B, N, H] invariant atom features (used for scoring)
-            h_full:   [B, N, irreps_node.dim] full equivariant atom features
-                      (used as the TP input for the value)
-            z:        [B, N] atomic numbers
-            mask:     [B, N] valid-atom mask
-            e_feat:   [nE, dE] energy feature embedding
-            att_src:  [E_att] flat src indices (queries)
-            att_dst:  [E_att] flat dst indices (keys/values)
-            att_dist: [E_att] pair distances
-            att_vec:  [E_att, 3] pair displacement vectors (src \u2192 dst)
-            absorber_mask: optional [B, N] bool. When given, queries are
-                restricted to atoms with True; other rows are returned zero.
+            h: Invariant atom features (used for scoring), shape ``(B, N, H)``.
+            h_full: Full equivariant atom features (TP input for values), shape ``(B, N, irreps_node.dim)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask, shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            att_src: Flat source indices (queries) into ``B*N``, shape ``(E_att,)``.
+            att_dst: Flat destination indices (keys/values) into ``B*N``, shape ``(E_att,)``.
+            att_dist: Pair distances in **A**, shape ``(E_att,)``.
+            att_vec: Pair displacement vectors (src->dst) in **A**, shape ``(E_att, 3)``.
+            absorber_mask: Optional ``(B, N)`` bool mask. When given, queries are
+                restricted to atoms with ``True``; other rows are returned as zeros.
 
         Returns:
-            [B, N, nE, latent_dim]
+            Latent tensor of shape ``(B, N, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies, e_dim = e_feat.shape

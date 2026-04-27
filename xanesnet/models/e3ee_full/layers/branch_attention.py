@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Energy-conditioned sparse atom-attention branch for E3EEFull."""
 
 import torch
 import torch.nn as nn
@@ -21,16 +22,15 @@ from .basic import MLP, CosineCutoff, GaussianRBF
 
 
 def _scatter_softmax(scores: torch.Tensor, index: torch.Tensor, dim_size: int) -> torch.Tensor:
-    """
-    Numerically stable softmax over groups defined by ``index`` along dim 0.
+    """Numerically stable softmax over groups defined by ``index`` along dim 0.
 
     Args:
-        scores: [E, ...] floating-point scores.
-        index:  [E] long tensor of group ids in [0, dim_size).
-        dim_size: number of groups (typically B * N_max).
+        scores: Floating-point scores of shape ``(E, ...)``.
+        index: Long tensor of group ids in ``[0, dim_size)``, shape ``(E,)``.
+        dim_size: Number of groups (typically ``B * N_max``).
 
     Returns:
-        [E, ...] softmax weights normalized within each group.
+        Softmax weights of shape ``(E, ...)`` normalized within each group.
     """
     if scores.numel() == 0:
         return scores
@@ -61,18 +61,26 @@ def _scatter_softmax(scores: torch.Tensor, index: torch.Tensor, dim_size: int) -
 
 
 class AllAtomAtomAttention(nn.Module):
-    """
-    Sparse energy-conditioned global attention with one query per atom and
-    one key/value per attention-graph edge. The attention scope (which atoms
-    each query may attend to) is supplied externally as the
-    ``att_src``/``att_dst`` edge list — typically a radius graph that is
-    larger than the local encoder graph. RBF-encoded distances enter the
-    keys/values; no soft cutoff or log-radial bias is applied. Softmax over
-    each query's edge set provides the renormalization automatically.
+    """Sparse energy-conditioned attention with one query per atom and one key/value per edge.
 
-    The optional ``absorber_mask`` lets the caller restrict the queries to
-    just the absorber atoms when ``use_absorber_mask`` is enabled in the
-    parent model. Other rows of the output are zeros.
+    The attention scope (which atoms each query may attend to) is supplied externally
+    as the ``att_src``/``att_dst`` edge list -- typically a radius graph larger than the
+    local encoder graph. RBF-encoded distances enter the keys/values, and values receive
+    an additional cosine cutoff envelope. Softmax over each query's edge set provides renormalization.
+
+    The optional ``absorber_mask`` lets the caller restrict queries to absorber atoms when
+    ``use_absorber_mask`` is enabled in the parent model; other rows of the output are zeros.
+
+    Args:
+        atom_dim: Dimension of invariant per-atom features.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of all internal MLPs.
+        latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
+        att_cutoff: Attention neighbourhood radius in **A**.
+        rbf_dim: Number of Gaussian RBF bases for distance encoding.
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        n_heads: Number of attention heads.
     """
 
     def __init__(
@@ -147,20 +155,21 @@ class AllAtomAtomAttention(nn.Module):
         att_dist: torch.Tensor,
         absorber_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """
+        """Compute energy-conditioned attention over atoms and return latent.
+
         Args:
-            h:            [B, N, H] invariant atom features
-            z:            [B, N] atomic numbers
-            mask:         [B, N] valid-atom mask (encoder scope)
-            e_feat:       [nE, dE] energy feature embedding
-            att_src:      [E_att] flat src indices (queries) into B*N
-            att_dst:      [E_att] flat dst indices (keys/values) into B*N
-            att_dist:     [E_att] pair distances
-            absorber_mask: optional [B, N] bool. When given, queries are
-                restricted to atoms with True; other rows are returned zero.
+            h: Invariant atom features, shape ``(B, N, H)``.
+            z: Atomic numbers, shape ``(B, N)``.
+            mask: Valid-atom mask (encoder scope), shape ``(B, N)``.
+            e_feat: Energy RBF features, shape ``(nE, dE)``.
+            att_src: Flat source indices (queries) into ``B*N``, shape ``(E_att,)``.
+            att_dst: Flat destination indices (keys/values) into ``B*N``, shape ``(E_att,)``.
+            att_dist: Pair distances in **A**, shape ``(E_att,)``.
+            absorber_mask: Optional ``(B, N)`` bool mask. When given, queries are
+                restricted to atoms with ``True``; other rows are returned as zeros.
 
         Returns:
-            [B, N, nE, latent_dim]
+            Latent tensor of shape ``(B, N, nE, latent_dim)``.
         """
         bsz, n_atoms, h_dim = h.shape
         n_energies, e_dim = e_feat.shape
