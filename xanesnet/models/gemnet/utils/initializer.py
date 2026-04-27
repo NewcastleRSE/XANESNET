@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""He-orthogonal weight initialisation for GemNet layers."""
 
 import math
 
@@ -20,8 +21,18 @@ import torch
 
 
 def _standardize(kernel: torch.Tensor) -> torch.Tensor:
-    """
-    Makes sure that Var(W) = 1 and E[W] = 0
+    """Standardise a weight tensor to zero mean and unit variance.
+
+    For 3-D tensors (e.g. the weight in
+    :class:`~xanesnet.models.gemnet.layers.efficient.EfficientInteractionDownProjection`),
+    statistics are computed over the first two axes; for 2-D tensors over axis 1.
+
+    Args:
+        kernel: Weight tensor of shape ``(*, out_features)`` or
+            ``(in_a, in_b, out_features)``.
+
+    Returns:
+        Standardised tensor with the same shape as ``kernel``.
     """
     eps = 1e-6
 
@@ -37,13 +48,20 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
 
 
 def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
-    """
-    Generate a weight matrix with variance according to He initialization.
-    Based on a random (semi-)orthogonal matrix neural networks
-    are expected to learn better when features are decorrelated
-    (stated by eg. "Reducing overfitting in deep networks by decorrelating representations",
-    "Dropout: a simple way to prevent neural networks from overfitting",
-    "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks")
+    """Initialise a weight tensor with He-variance using a random orthogonal matrix.
+
+    Applies orthogonal initialisation and then rescales to achieve variance
+    ``1 / fan_in``, following He et al. ("Delving deep into rectifiers").
+    Using a (semi-)orthogonal initialisation decorrelates features, which has
+    been found to improve training.
+
+    Args:
+        tensor: Weight tensor to initialise in-place. Supported shapes:
+            ``(out_features, in_features)`` or
+            ``(dim_a, dim_b, out_features)`` for the efficient-interaction weights.
+
+    Returns:
+        The initialised ``tensor`` (same object, modified in-place).
     """
     tensor = torch.nn.init.orthogonal_(tensor)
 

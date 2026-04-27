@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Bessel, spherical, and tensor basis layers with associated mathematical utilities."""
 
 import math
 from typing import Any
@@ -28,17 +29,12 @@ from .envelope import Envelope
 
 
 class BesselBasisLayer(torch.nn.Module):
-    """
-    1D Bessel Basis
+    """1D Bessel radial basis functions with smooth cutoff envelope.
 
-    Parameters
-    ----------
-    num_radial: int
-        Controls maximum frequency.
-    cutoff: float
-        Cutoff distance in Angstrom.
-    envelope_exponent: int
-        Exponent of the envelope function.
+    Args:
+        num_radial: Number of basis functions (controls maximum frequency).
+        cutoff: Radial cutoff distance in **A**.
+        envelope_exponent: Exponent ``p`` of the polynomial cutoff envelope.
     """
 
     def __init__(
@@ -61,12 +57,19 @@ class BesselBasisLayer(torch.nn.Module):
         )
 
     def reset_parameters(self) -> None:
+        """Re-initialise frequencies to their canonical values ``pi * [1, ..., num_radial]``."""
         with torch.no_grad():
-            self.frequencies.copy_(
-                torch.tensor(np.pi * np.arange(1, self.num_radial + 1, dtype=np.float32))
-            )
+            self.frequencies.copy_(torch.tensor(np.pi * np.arange(1, self.num_radial + 1, dtype=np.float32)))
 
     def forward(self, d: torch.Tensor) -> torch.Tensor:
+        """Evaluate the Bessel basis on a set of edge distances.
+
+        Args:
+            d: Edge distances in **A**, shape ``(nEdges,)``.
+
+        Returns:
+            Basis features of shape ``(nEdges, num_radial)``.
+        """
         d = d[:, None]  # (nEdges,1)
         d_scaled = d * self.inv_cutoff
         env = self.envelope(d_scaled)
@@ -74,21 +77,15 @@ class BesselBasisLayer(torch.nn.Module):
 
 
 class SphericalBasisLayer(torch.nn.Module):
-    """
-    2D Fourier Bessel Basis
+    """2D Fourier-Bessel basis (radial x spherical harmonic, single angle).
 
-    Parameters
-    ----------
-    num_spherical: int
-        Controls maximum frequency.
-    num_radial: int
-        Controls maximum frequency.
-    cutoff: float
-        Cutoff distance in Angstrom.
-    envelope_exponent: int
-        Exponent of the envelope function.
-    efficient: bool
-        Whether to use the (memory) efficient implementation or not.
+    Args:
+        num_spherical: Number of spherical harmonics (controls angular frequency).
+        num_radial: Number of radial basis functions per spherical harmonic.
+        cutoff: Radial cutoff distance in **A**.
+        envelope_exponent: Exponent ``p`` of the polynomial cutoff envelope.
+        efficient: If ``True``, use the memory-efficient sparse-dense formulation
+            (returns a tuple); otherwise returns a dense tensor.
     """
 
     def __init__(
@@ -138,12 +135,29 @@ class SphericalBasisLayer(torch.nn.Module):
         id3_reduce_ca: torch.Tensor,
         Kidx: torch.Tensor,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate the 2D spherical basis on triplet geometry.
 
+        Args:
+            D_ca: Edge distances c -> a in **A**, shape ``(nEdges,)``.
+            Angle_cab: Triplet angles at atom a (c-a-b), shape ``(nTriplets,)``.
+            id3_reduce_ca: Edge index c -> a for each triplet, shape ``(nTriplets,)``.
+            Kidx: Neighbour index within the sparse dense matrix, shape ``(nTriplets,)``.
+
+        Returns:
+            If ``efficient=False``: dense basis of shape
+            ``(nTriplets, num_spherical * num_radial)``.
+
+            If ``efficient=True``: tuple ``(rbf_env, sph2)`` where
+            ``rbf_env`` has shape ``(num_spherical, nEdges, num_radial)``
+            and ``sph2`` has shape ``(nEdges, Kmax, num_spherical)``.
+        """
         d_scaled = D_ca * self.inv_cutoff  # (nEdges,)
         u_d = self.envelope(d_scaled)
         # s: 0 0 0 0 1 1 1 1 ...
         # r: 0 1 2 3 0 1 2 3 ...
-        rbf: torch.Tensor = torch.stack([f(d_scaled) for f in self.bessel_funcs], dim=1)  # (nEdges, num_spherical * num_radial)
+        rbf: torch.Tensor = torch.stack(
+            [f(d_scaled) for f in self.bessel_funcs], dim=1
+        )  # (nEdges, num_spherical * num_radial)
         rbf = rbf * self.norm_const
         rbf_env = u_d[:, None] * rbf  # (nEdges, num_spherical * num_radial)
 
@@ -166,8 +180,8 @@ class SphericalBasisLayer(torch.nn.Module):
             rbf_env = torch.transpose(rbf_env, 0, 1)  # (num_spherical, nEdges, num_radial)
 
             # Zero padded dense matrix
-            # maximum number of neighbors, catch empty id_reduce_ji with maximum
-            Kmax = 0 if sph.shape[0] == 0 else int(torch.max(torch.max(Kidx + 1), torch.tensor(0)).item())
+            # Maximum number of neighbors; keep this device-safe for CUDA tensors.
+            Kmax = int(Kidx.max().item()) + 1 if Kidx.numel() > 0 else 0
             nEdges = d_scaled.shape[0]
 
             sph2 = torch.zeros(nEdges, Kmax, self.num_spherical, device=self.device_buffer.device, dtype=sph.dtype)
@@ -178,21 +192,15 @@ class SphericalBasisLayer(torch.nn.Module):
 
 
 class TensorBasisLayer(torch.nn.Module):
-    """
-    3D Fourier Bessel Basis
+    """3D Fourier-Bessel basis (radial x two spherical harmonics, two angles).
 
-    Parameters
-    ----------
-    num_spherical: int
-        Controls maximum frequency.
-    num_radial: int
-        Controls maximum frequency.
-    cutoff: float
-        Cutoff distance in Angstrom.
-    envelope_exponent: int
-        Exponent of the envelope function.
-    efficient: bool
-        Whether to use the (memory) efficient implementation or not.
+    Args:
+        num_spherical: Number of spherical harmonics (controls angular frequency).
+        num_radial: Number of radial basis functions per spherical harmonic.
+        cutoff: Radial cutoff distance in **A**.
+        envelope_exponent: Exponent ``p`` of the polynomial cutoff envelope.
+        efficient: If ``True``, use the memory-efficient sparse-dense formulation
+            (returns a tuple); otherwise returns a dense tensor.
     """
 
     def __init__(
@@ -201,7 +209,7 @@ class TensorBasisLayer(torch.nn.Module):
         num_radial: int,
         cutoff: float,
         envelope_exponent: int,
-        efficient=False,
+        efficient: bool = False,
     ) -> None:
         super().__init__()
 
@@ -245,13 +253,35 @@ class TensorBasisLayer(torch.nn.Module):
         id4_reduce_ca: torch.Tensor,
         Kidx: torch.Tensor,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate the 3D spherical basis on quadruplet geometry.
 
+        Args:
+            D_ca: Edge distances c -> a in **A**, shape ``(nEdges,)``.
+            Alpha_cab: First angle (c-a-b) for each quadruplet, shape
+                ``(nQuadruplets,)``.
+            Theta_cabd: Second angle (dihedral-like c-a-b-d), shape
+                ``(nQuadruplets,)``.
+            id4_reduce_ca: Quadruplet reduce index c -> a, shape
+                ``(nQuadruplets,)``.
+            Kidx: Neighbour index within the sparse dense matrix, shape
+                ``(nQuadruplets,)``.
+
+        Returns:
+            If ``efficient=False``: dense basis of shape
+            ``(nQuadruplets, num_spherical**2 * num_radial)``.
+
+            If ``efficient=True``: tuple ``(rbf_env, sph2)`` where
+            ``rbf_env`` has shape ``(num_spherical**2, nEdges, num_radial)``
+            and ``sph2`` has shape ``(nEdges, Kmax, num_spherical**2)``.
+        """
         d_scaled = D_ca * self.inv_cutoff
         u_d = self.envelope(d_scaled)
 
         # s: 0 0 0 0 1 1 1 1 ...
         # r: 0 1 2 3 0 1 2 3 ...
-        rbf: torch.Tensor = torch.stack([f(d_scaled) for f in self.bessel_funcs], dim=1)  # (nEdges, num_spherical * num_radial)
+        rbf: torch.Tensor = torch.stack(
+            [f(d_scaled) for f in self.bessel_funcs], dim=1
+        )  # (nEdges, num_spherical * num_radial)
         rbf = rbf * self.norm_const
 
         rbf_env = u_d[:, None] * rbf  # (nEdges, num_spherical * num_radial)
@@ -267,7 +297,9 @@ class TensorBasisLayer(torch.nn.Module):
             # j_ln: l: 0  0    1  1  1  1  1  1    2  2  2  2  2  2  2  2  2  2
             #       n: 0  1    0  1  0  1  0  1    0  1  0  1  0  1  0  1  0  1
 
-        sph: torch.Tensor = torch.stack([f(Alpha_cab, Theta_cabd) for f in self.sph_funcs], dim=1)  # (nQuadruplets, num_spherical**2)
+        sph: torch.Tensor = torch.stack(
+            [f(Alpha_cab, Theta_cabd) for f in self.sph_funcs], dim=1
+        )  # (nQuadruplets, num_spherical**2)
 
         if not self.efficient:
             sph = torch.repeat_interleave(sph, self.num_radial, dim=1)  # (nQuadruplets, num_spherical**2 * num_radial)
@@ -280,8 +312,8 @@ class TensorBasisLayer(torch.nn.Module):
             rbf_env = torch.transpose(rbf_env, 0, 1)  # (num_spherical**2, nEdges, num_radial)
 
             # Zero padded dense matrix
-            # maximum number of neighbors, catch empty id_reduce_ji with maximum
-            Kmax = 0 if sph.shape[0] == 0 else int(torch.max(torch.max(Kidx + 1), torch.tensor(0)).item())
+            # Maximum number of neighbors; keep this device-safe for CUDA tensors.
+            Kmax = int(Kidx.max().item()) + 1 if Kidx.numel() > 0 else 0
             nEdges = d_scaled.shape[0]
 
             sph2 = torch.zeros(nEdges, Kmax, self.num_spherical**2, device=self.degreeInOrder.device, dtype=sph.dtype)
@@ -297,15 +329,27 @@ class TensorBasisLayer(torch.nn.Module):
 
 
 def Jn(r: float, n: int) -> np.floating[Any]:
-    """
-    numerical spherical bessel functions of order n
+    """Evaluate the spherical Bessel function of order ``n`` at ``r``.
+
+    Args:
+        r: Evaluation point.
+        n: Order of the spherical Bessel function. Non-negative integer.
+
+    Returns:
+        Value of ``j_n(r)``.
     """
     return special.spherical_jn(n, r)
 
 
 def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
-    """
-    Compute the first k zeros of the spherical bessel functions up to order n (excluded)
+    """Compute the first ``k`` zeros of the spherical Bessel functions up to order ``n``.
+
+    Args:
+        n: Maximum order (exclusive). Zeros for orders 0, 1, ..., n-1 are computed.
+        k: Number of zeros to compute per order.
+
+    Returns:
+        Array of shape ``(n, k)`` containing the zeros.
     """
     zerosj = np.zeros((n, k), dtype="float32")
     zerosj[0] = np.arange(1, k + 1) * np.pi
@@ -322,8 +366,13 @@ def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
 
 
 def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
-    """
-    Computes the sympy formulas for the spherical bessel functions up to order n (excluded)
+    """Compute sympy formulas for the spherical Bessel functions up to order ``n``.
+
+    Args:
+        n: Maximum order (exclusive). Formulas for orders 0, 1, ..., n-1 are returned.
+
+    Returns:
+        List of ``n`` sympy expressions in ``x``.
     """
     x = sp.symbols("x")
     # j_i = (-x)^i * (1/x * d/dx)^î * sin(x)/x
@@ -337,14 +386,15 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
 
 
 def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
-    """
-    Compute the sympy formulas for the normalized and rescaled spherical bessel functions up to
-    order n (excluded) and maximum frequency k (excluded).
+    """Compute sympy formulas for the normalised, rescaled spherical Bessel basis.
+
+    Args:
+        n: Maximum order (exclusive).
+        k: Number of basis functions per order (maximum frequency, exclusive).
 
     Returns:
-        bess_basis: list
-            Bessel basis formulas taking in a single argument x.
-            Has length n where each element has length k. -> In total n*k many.
+        Nested list of shape ``(n, k)`` containing sympy expressions in ``x``
+        representing the normalised basis functions.
     """
     zeros = Jn_zeros(n, k)
     normalizer = []
@@ -369,42 +419,34 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
 
 
 def sph_harm_prefactor(l: int, m: int) -> float:
+    """Compute the constant pre-factor for real spherical harmonic ``Y_l^m``.
+
+    Pre-factor: ``sqrt((2l+1) / (4*pi) * (l-|m|)! / (l+|m|)!)``.
+
+    Args:
+        l: Degree of the spherical harmonic. Must satisfy ``l >= 0``.
+        m: Order of the spherical harmonic. Must satisfy ``-l <= m <= l``.
+
+    Returns:
+        Pre-factor value.
     """
-    Computes the constant pre-factor for the spherical harmonic of degree l and order m.
-
-    Parameters
-    ----------
-        l: int
-            Degree of the spherical harmonic. l >= 0
-        m: int
-            Order of the spherical harmonic. -l <= m <= l
-
-    Returns
-    -------
-        factor: float
-
-    """
-    # sqrt((2*l+1)/4*pi * (l-m)!/(l+m)! )
+    # sqrt((2l+1) / (4*pi) * (l-|m|)! / (l+|m|)!)
     return ((2 * l + 1) / (4 * np.pi) * math.factorial(l - abs(m)) / math.factorial(l + abs(m))) ** 0.5
 
 
 def associated_legendre_polynomials(L: int, zero_m_only: bool = True, pos_m_only: bool = True) -> list[list[Any]]:
-    """
-    Computes string formulas of the associated legendre polynomials up to degree L (excluded).
+    """Compute sympy formulas for the associated Legendre polynomials up to degree ``L``.
 
-    Parameters
-    ----------
-        L: int
-            Degree up to which to calculate the associated legendre polynomials (degree L is excluded).
-        zero_m_only: bool
-            If True only calculate the polynomials for the polynomials where m=0.
-        pos_m_only: bool
-            If True only calculate the polynomials for the polynomials where m>=0. Overwritten by zero_m_only.
+    Args:
+        L: Maximum degree (exclusive). Polynomials for degrees 0, 1, ..., L-1.
+        zero_m_only: If ``True``, compute only the ``m = 0`` polynomials.
+        pos_m_only: If ``True``, compute only the ``m >= 0`` polynomials.
+            Overridden by ``zero_m_only``.
 
-    Returns
-    -------
-        polynomials: list
-            Contains the sympy functions of the polynomials (in total L many if zero_m_only is True else L^2 many).
+    Returns:
+        Nested list where ``result[l]`` has length ``2*l + 1`` and
+        ``result[l][m]`` is the sympy formula for ``P_l^m``.
+        Entries are ``0`` (integer) for uncomputed orders.
     """
     # calculations from http://web.cmb.usc.edu/people/alber/Software/tomominer/docs/cpp/group__legendre__polynomials.html
     z = sp.symbols("z")
@@ -445,27 +487,21 @@ def associated_legendre_polynomials(L: int, zero_m_only: bool = True, pos_m_only
 
 
 def real_sph_harm(L: int, spherical_coordinates: bool, zero_m_only: bool = True) -> list[list[Any]]:
-    """
-    Computes formula strings of the the real part of the spherical harmonics up to degree L (excluded).
-    Variables are either spherical coordinates phi and theta (or cartesian coordinates x,y,z) on the UNIT SPHERE.
+    """Compute sympy formulas for the real spherical harmonics up to degree ``L``.
 
-    Parameters
-    ----------
-        L: int
-            Degree up to which to calculate the spherical harmonics (degree L is excluded).
-        spherical_coordinates: bool
-            - True: Expects the input of the formula strings to be phi and theta.
-            - False: Expects the input of the formula strings to be x, y and z.
-        zero_m_only: bool
-            If True only calculate the harmonics where m=0.
+    The variables are either spherical coordinates (``phi``, ``theta``) or
+    Cartesian coordinates (``x``, ``y``, ``z``) on the unit sphere.
 
-    Returns
-    -------
-        Y_lm_real: list
-            Computes formula strings of the the real part of the spherical harmonics up
-            to degree L (where degree L is not excluded).
-            In total L^2 many sph harm exist up to degree L (excluded). However, if zero_m_only only is True then
-            the total count is reduced to be only L many.
+    Args:
+        L: Maximum degree (exclusive). Harmonics for degrees 0, 1, ..., L-1.
+        spherical_coordinates: If ``True``, formulas use ``phi`` and ``theta``.
+            If ``False``, formulas use ``x``, ``y``, and ``z``.
+        zero_m_only: If ``True``, compute only the ``m = 0`` harmonics.
+
+    Returns:
+        Nested list where ``result[l]`` has length ``1`` if ``zero_m_only``
+        is ``True``, otherwise length ``2*l + 1``. Each entry is a sympy
+        expression or ``0`` for uncomputed harmonics.
     """
     z = sp.symbols("z")
     P_l_m = associated_legendre_polynomials(L, zero_m_only)

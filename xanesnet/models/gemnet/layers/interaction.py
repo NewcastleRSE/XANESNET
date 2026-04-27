@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Interaction blocks for GemNet-T (triplets only) and GemNet-Q (quadruplets + triplets)."""
 
 import torch
 
@@ -24,41 +25,27 @@ from .scaling import ScalingFactor
 
 
 class InteractionBlock(torch.nn.Module):
-    """
-    Interaction block for GemNet-Q/dQ.
+    """Full interaction block for GemNet-Q/dQ (quadruplets + triplets).
 
-    Parameters
-    ----------
-        emb_size_atom: int
-            Embedding size of the atoms.
-        emb_size_edge: int
-            Embedding size of the edges.
-        emb_size_trip: int
-            (Down-projected) Embedding size in the triplet message passing block.
-        emb_size_quad: int
-            (Down-projected) Embedding size in the quadruplet message passing block.
-        emb_size_rbf: int
-            Embedding size of the radial basis transformation.
-        emb_size_cbf: int
-            Embedding size of the circular basis transformation (one angle).
-        emb_size_sbf: int
-            Embedding size of the spherical basis transformation (two angles).
-        emb_size_bil_trip: int
-            Embedding size of the edge embeddings in the triplet-based message passing block after the bilinear layer.
-        emb_size_bil_quad: int
-            Embedding size of the edge embeddings in the quadruplet-based message passing block after the bilinear layer.
-        num_before_skip: int
-            Number of residual blocks before the first skip connection.
-        num_after_skip: int
-            Number of residual blocks after the first skip connection.
-        num_concat: int
-            Number of residual blocks after the concatenation.
-        num_atom: int
-            Number of residual blocks in the atom embedding blocks.
-        activation: str
-            Name of the activation function to use in the dense layers (except for the final dense layer).
-        scale_file: str
-            Path to the json file containing the scaling factors.
+    Args:
+        emb_size_atom: Atom embedding dimension.
+        emb_size_edge: Edge embedding dimension.
+        emb_size_trip: Down-projected embedding size in the triplet block.
+        emb_size_quad: Down-projected embedding size in the quadruplet block.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension (one angle).
+        emb_size_sbf: Spherical basis embedding dimension (two angles).
+        emb_size_bil_trip: Edge embedding size after the bilinear layer in the
+            triplet block.
+        emb_size_bil_quad: Edge embedding size after the bilinear layer in the
+            quadruplet block.
+        num_before_skip: Number of residual blocks before the skip connection.
+        num_after_skip: Number of residual blocks after the skip connection.
+        num_concat: Number of residual blocks after the atom-edge concatenation.
+        num_atom: Number of residual blocks in the atom update block.
+        activation: Activation function name.
+        scale_file: Path to JSON scale-factor file, or ``None``.
+        name: Block name (used to look up scale factors).
     """
 
     def __init__(
@@ -156,6 +143,7 @@ class InteractionBlock(torch.nn.Module):
         self.inv_sqrt_3 = 1 / (3.0**0.5)
 
     def reset_parameters(self) -> None:
+        """Re-initialise all sub-layer weights."""
         self.dense_ca.reset_parameters()
         self.quad_interaction.reset_parameters()
         self.trip_interaction.reset_parameters()
@@ -189,13 +177,39 @@ class InteractionBlock(torch.nn.Module):
         id_c: torch.Tensor,
         id_a: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Returns
-        -------
-            h: Tensor, shape=(nEdges, emb_size_atom)
-                Atom embeddings.
-            m: Tensor, shape=(nEdges, emb_size_edge)
-                Edge embeddings (c->a).
+        """Run one quadruplet + triplet interaction step.
+
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            m: Edge embeddings (c -> a), shape ``(nEdges, emb_size_edge)``.
+            rbf4: Down-projected radial basis for quadruplets,
+                shape ``(nEdges, emb_size_rbf)``.
+            cbf4: Down-projected circular basis for quadruplets,
+                shape ``(nIntEdges, emb_size_cbf)``.
+            sbf4: Down-projected spherical basis for quadruplets
+                (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
+            Kidx4: Neighbour index for the quadruplet sparse dense matrix.
+            rbf3: Down-projected radial basis for triplets,
+                shape ``(nEdges, emb_size_rbf)``.
+            cbf3: Down-projected circular basis for triplets
+                (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
+            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
+            id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
+            id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.
+            id4_reduce_ca: Quadruplet reduce index c -> a.
+            id4_expand_intm_db: Intermediate-triplet expand index d -> b.
+            id4_expand_abd: Quadruplet expand index for a-b-d.
+            rbf_h: Shared radial basis for the atom update block,
+                shape ``(nEdges, emb_size_rbf)``.
+            id_c: Source atom index for each edge, shape ``(nEdges,)``.
+            id_a: Target atom index for each edge, shape ``(nEdges,)``.
+
+        Returns:
+            Tuple ``(h, m)``:
+
+            * ``h``: Updated atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            * ``m``: Updated edge embeddings, shape ``(nEdges, emb_size_edge)``.
         """
         # Initial transformation
         x_ca_skip = self.dense_ca(m)  # (nEdges, emb_size_edge)
@@ -219,7 +233,7 @@ class InteractionBlock(torch.nn.Module):
 
         ## --------------------------------------- Update Edge Embeddings ---------------------------------------- ##
         # Transformations before skip connection
-        for i, layer in enumerate(self.layers_before_skip):
+        for layer in self.layers_before_skip:
             x = layer(x)  # (nEdges, emb_size_edge)
 
         # Skip connection
@@ -227,7 +241,7 @@ class InteractionBlock(torch.nn.Module):
         m = m * self.inv_sqrt_2
 
         # Transformations after skip connection
-        for i, layer in enumerate(self.layers_after_skip):
+        for layer in self.layers_after_skip:
             m = layer(m)  # (nEdges, emb_size_edge)
 
         ## --------------------------------------- Update Atom Embeddings ---------------------------------------- ##
@@ -240,7 +254,7 @@ class InteractionBlock(torch.nn.Module):
         ## ----------------------------- Update Edge Embeddings with Atom Embeddings ----------------------------- ##
         m2 = self.concat_layer(h, m, id_c, id_a)  # (nEdges, emb_size_edge)
 
-        for i, layer in enumerate(self.residual_m):
+        for layer in self.residual_m:
             m2 = layer(m2)  # (nEdges, emb_size_edge)
 
         # Skip connection
@@ -250,35 +264,25 @@ class InteractionBlock(torch.nn.Module):
 
 
 class InteractionBlockTripletsOnly(torch.nn.Module):
-    """
-    Interaction block for GemNet-T/dT.
+    """Interaction block for GemNet-T/dT (triplets only, no quadruplets).
 
-    Parameters
-    ----------
-        emb_size_atom: int
-            Embedding size of the atoms.
-        emb_size_edge: int
-            Embedding size of the edges.
-        emb_size_trip: int
-            (Down-projected) Embedding size in the triplet message passing block.
-        emb_size_rbf: int
-            Embedding size of the radial basis transformation.
-        emb_size_cbf: int
-            Embedding size of the circular basis transformation (one angle).
-        emb_size_bil_trip: int
-            Embedding size of the edge embeddings in the triplet-based message passing block after the bilinear layer.
-        num_before_skip: int
-            Number of residual blocks before the first skip connection.
-        num_after_skip: int
-            Number of residual blocks after the first skip connection.
-        num_concat: int
-            Number of residual blocks after the concatenation.
-        num_atom: int
-            Number of residual blocks in the atom embedding blocks.
-        activation: str
-            Name of the activation function to use in the dense layers (except for the final dense layer).
-        scale_file: str
-            Path to the json file containing the scaling factors.
+    Args:
+        emb_size_atom: Atom embedding dimension.
+        emb_size_edge: Edge embedding dimension.
+        emb_size_trip: Down-projected embedding size in the triplet block.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension (one angle).
+        emb_size_bil_trip: Edge embedding size after the bilinear layer in the
+            triplet block.
+        num_before_skip: Number of residual blocks before the skip connection.
+        num_after_skip: Number of residual blocks after the skip connection.
+        num_concat: Number of residual blocks after the atom-edge concatenation.
+        num_atom: Number of residual blocks in the atom update block.
+        activation: Activation function name.
+        scale_file: Path to JSON scale-factor file, or ``None``.
+        name: Block name (used to look up scale factors).
+        **kwargs: Extra keyword arguments accepted and ignored for interface
+            compatibility with :class:`InteractionBlock`.
     """
 
     def __init__(
@@ -362,6 +366,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0**0.5)
 
     def reset_parameters(self) -> None:
+        """Re-initialise all sub-layer weights."""
         self.dense_ca.reset_parameters()
         self.trip_interaction.reset_parameters()
         for layer in self.layers_before_skip:
@@ -388,13 +393,31 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         id_a: torch.Tensor,
         **kwargs: torch.Tensor | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Returns
-        -------
-            h: Tensor, shape=(nEdges, emb_size_atom)
-                Atom embeddings.
-            m: Tensor, shape=(nEdges, emb_size_edge)
-                Edge embeddings (c->a).
+        """Run one triplet-only interaction step.
+
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            m: Edge embeddings (c -> a), shape ``(nEdges, emb_size_edge)``.
+            rbf3: Down-projected radial basis for triplets,
+                shape ``(nEdges, emb_size_rbf)``.
+            cbf3: Down-projected circular basis for triplets
+                (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
+            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
+            id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
+            id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.
+            rbf_h: Shared radial basis for the atom update block,
+                shape ``(nEdges, emb_size_rbf)``.
+            id_c: Source atom index for each edge, shape ``(nEdges,)``.
+            id_a: Target atom index for each edge, shape ``(nEdges,)``.
+            **kwargs: Extra keyword arguments accepted and ignored for
+                interface compatibility with :class:`InteractionBlock`.
+
+        Returns:
+            Tuple ``(h, m)``:
+
+            * ``h``: Updated atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            * ``m``: Updated edge embeddings, shape ``(nEdges, emb_size_edge)``.
         """
         # Initial transformation
         x_ca_skip = self.dense_ca(m)  # (nEdges, emb_size_edge)
@@ -407,7 +430,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
 
         ## ---------------------------------------- Update Edge Embeddings --------------------------------------- ##
         # Transformations before skip connection
-        for i, layer in enumerate(self.layers_before_skip):
+        for layer in self.layers_before_skip:
             x = layer(x)  # (nEdges, emb_size_edge)
 
         # Skip connection
@@ -415,7 +438,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         m = m * self.inv_sqrt_2
 
         # Transformations after skip connection
-        for i, layer in enumerate(self.layers_after_skip):
+        for layer in self.layers_after_skip:
             m = layer(m)  # (nEdges, emb_size_edge)
 
         ## ---------------------------------------- Update Atom Embeddings --------------------------------------- ##
@@ -428,7 +451,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         ## ----------------------------- Update Edge Embeddings with Atom Embeddings ----------------------------- ##
         m2 = self.concat_layer(h, m, id_c, id_a)  # (nEdges, emb_size_edge)
 
-        for i, layer in enumerate(self.residual_m):
+        for layer in self.residual_m:
             m2 = layer(m2)  # (nEdges, emb_size_edge)
 
         # Skip connection
@@ -438,27 +461,18 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
 
 
 class QuadrupletInteraction(torch.nn.Module):
-    """
-    Quadruplet-based message passing block.
+    """Quadruplet-based message passing block.
 
-    Parameters
-    ----------
-        emb_size_edge: int
-            Embedding size of the edges.
-        emb_size_quad: int
-            (Down-projected) Embedding size of the edge embeddings after the hadamard product with rbf.
-        emb_size_bilinear: int
-            Embedding size of the edge embeddings after the bilinear layer.
-        emb_size_rbf: int
-            Embedding size of the radial basis transformation.
-        emb_size_cbf: int
-            Embedding size of the circular basis transformation (one angle).
-        emb_size_sbf: int
-            Embedding size of the spherical basis transformation (two angles).
-        activation: str
-            Name of the activation function to use in the dense layers (except for the final dense layer).
-        scale_file: str
-            Path to the json file containing the scaling factors.
+    Args:
+        emb_size_edge: Edge embedding dimension.
+        emb_size_quad: Down-projected edge embedding size (after Hadamard with RBF).
+        emb_size_bilinear: Edge embedding size after the bilinear layer.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension (one angle).
+        emb_size_sbf: Spherical basis embedding dimension (two angles).
+        activation: Activation function name.
+        scale_file: Path to JSON scale-factor file, or ``None``.
+        name: Block name (used to look up scale factors).
     """
 
     def __init__(
@@ -519,6 +533,7 @@ class QuadrupletInteraction(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0**0.5)
 
     def reset_parameters(self) -> None:
+        """Re-initialise all sub-layer weights."""
         self.dense_db.reset_parameters()
         self.mlp_rbf.reset_parameters()
         self.mlp_cbf.reset_parameters()
@@ -539,11 +554,22 @@ class QuadrupletInteraction(torch.nn.Module):
         id4_expand_intm_db: torch.Tensor,
         id4_expand_abd: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Returns
-        -------
-            m: Tensor, shape=(nEdges, emb_size_edge)
-                Edge embeddings (c->a).
+        """Run the quadruplet interaction and return updated edge embeddings.
+
+        Args:
+            m: Edge embeddings, shape ``(nEdges, emb_size_edge)``.
+            rbf: Projected radial basis, shape ``(nEdges, emb_size_rbf)``.
+            cbf: Projected circular basis, shape ``(nIntEdges, emb_size_cbf)``.
+            sbf: Projected spherical basis tuple
+                (from :class:`~.efficient.EfficientInteractionDownProjection`).
+            Kidx4: Neighbour index for the quadruplet sparse dense matrix.
+            id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
+            id4_reduce_ca: Quadruplet reduce index c -> a.
+            id4_expand_intm_db: Intermediate-triplet expand index d -> b.
+            id4_expand_abd: Quadruplet expand index for a-b-d.
+
+        Returns:
+            Updated edge embeddings of shape ``(nEdges, emb_size_edge)``.
         """
         x_db = self.dense_db(m)  # (nEdges, emb_size_edge)
 
@@ -565,9 +591,7 @@ class QuadrupletInteraction(torch.nn.Module):
         x = self.scale_sbf_sum(x_db, x)
 
         # Basis representation:
-        # rbf(d_db)
-        # cbf(d_ba, angle_abd)
-        # sbf(d_ca, angle_cab, angle_cabd)
+        # rbf(d_db), cbf(d_ba, angle_abd), sbf(d_ca, angle_cab, angle_cabd)
 
         # Upproject embeddings
         x_ca = self.up_projection_ca(x)  # (nEdges, emb_size_edge)
@@ -582,25 +606,17 @@ class QuadrupletInteraction(torch.nn.Module):
 
 
 class TripletInteraction(torch.nn.Module):
-    """
-    Triplet-based message passing block.
+    """Triplet-based message passing block.
 
-    Parameters
-    ----------
-        emb_size_edge: int
-            Embedding size of the edges.
-        emb_size_trip: int
-            (Down-projected) Embedding size of the edge embeddings after the hadamard product with rbf.
-        emb_size_bilinear: int
-            Embedding size of the edge embeddings after the bilinear layer.
-        emb_size_rbf: int
-            Embedding size of the radial basis transformation.
-        emb_size_cbf: int
-            Embedding size of the circular basis transformation (one angle).
-        activation: str
-            Name of the activation function to use in the dense layers (except for the final dense layer).
-        scale_file: str
-            Path to the json file containing the scaling factors.
+    Args:
+        emb_size_edge: Edge embedding dimension.
+        emb_size_trip: Down-projected edge embedding size (after Hadamard with RBF).
+        emb_size_bilinear: Edge embedding size after the bilinear layer.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension (one angle).
+        activation: Activation function name.
+        scale_file: Path to JSON scale-factor file, or ``None``.
+        name: Block name (used to look up scale factors).
     """
 
     def __init__(
@@ -657,6 +673,7 @@ class TripletInteraction(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0) ** 0.5
 
     def reset_parameters(self) -> None:
+        """Re-initialise all sub-layer weights."""
         self.dense_ba.reset_parameters()
         self.mlp_rbf.reset_parameters()
         self.mlp_cbf.reset_parameters()
@@ -674,11 +691,21 @@ class TripletInteraction(torch.nn.Module):
         id3_expand_ba: torch.Tensor,
         id3_reduce_ca: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Returns
-        -------
-            m: Tensor, shape=(nEdges, emb_size_edge)
-                Edge embeddings (c->a).
+        """Run the triplet interaction and return updated edge embeddings.
+
+        Args:
+            m: Edge embeddings, shape ``(nEdges, emb_size_edge)``.
+            rbf3: Projected radial basis for triplets,
+                shape ``(nEdges, emb_size_rbf)``.
+            cbf3: Projected circular basis for triplets
+                (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
+            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
+            id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
+            id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.
+
+        Returns:
+            Updated edge embeddings of shape ``(nEdges, emb_size_edge)``.
         """
         # Dense transformation
         x_ba = self.dense_ba(m)  # (nEdges, emb_size_edge)
@@ -698,8 +725,7 @@ class TripletInteraction(torch.nn.Module):
         x = self.scale_cbf_sum(x_ba, x)
 
         # Basis representation:
-        # rbf(d_ba)
-        # cbf(d_ca, angle_cab)
+        # rbf(d_ba), cbf(d_ca, angle_cab)
 
         # Up project embeddings
         x_ca = self.up_projection_ca(x)  # (nEdges, emb_size_edge)

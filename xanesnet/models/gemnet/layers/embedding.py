@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Atom and edge embedding modules for GemNet."""
 
 import numpy as np
 import torch
@@ -21,16 +22,13 @@ from .base import Dense
 
 
 class AtomEmbedding(torch.nn.Module):
-    """
-    Initial atom embeddings based on the atom type.
+    """Initial atom embeddings based on atomic number.
 
-    Parameters
-    ----------
-        emb_size: int
-            Atom embeddings size.
-        num_elements: int
-            Size of the element-type embedding table. Default 94 supports
-            atomic numbers 1..94 (up to Pu). Use ``z - 1`` indexing internally.
+    Args:
+        emb_size: Atom embedding dimension.
+        num_elements: Number of distinct element types in the embedding table.
+            The default of 94 supports atomic numbers 1–94 (up to Pu).
+            Internally uses ``z - 1`` indexing.
     """
 
     def __init__(self, emb_size: int, num_elements: int = 94) -> None:
@@ -38,35 +36,36 @@ class AtomEmbedding(torch.nn.Module):
         self.emb_size = emb_size
         self.num_elements = num_elements
         self.embeddings = torch.nn.Embedding(num_elements, emb_size)
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
+        """Re-initialise the embedding table with uniform distribution in ``[-sqrt(3), sqrt(3)]``."""
         torch.nn.init.uniform_(self.embeddings.weight, a=-np.sqrt(3), b=np.sqrt(3))
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
+        """Look up atom embeddings by atomic number.
+
+        Args:
+            z: Atomic numbers, shape ``(nAtoms,)``.
+
+        Returns:
+            Atom embeddings of shape ``(nAtoms, emb_size)``.
         """
-        Returns
-        -------
-            h: Tensor, shape=(nAtoms, emb_size)
-                Atom embeddings.
-        """
-        h = self.embeddings(z - 1)  # -1 because z.min()=1 (==Hydrogen)
+        h = self.embeddings(z - 1)  # -1 because z.min() == 1 (Hydrogen)
         return h
 
 
 class EdgeEmbedding(torch.nn.Module):
-    """
-    Edge embedding based on the concatenation of atom embeddings and subsequent dense layer.
+    """Edge embeddings from atom-embedding concatenation followed by a dense layer.
 
-    Parameters
-    ----------
-        atom_features: int
-            Embedding size of the atom embeddings.
-        edge_features: int
-            Embedding size of the edge embeddings.
-        out_features: int
-            Embedding size after the dense layer.
-        activation: str
-            Activation function used in the dense layer.
+    Concatenates the embeddings of the source and target atoms with the
+    edge radial basis features, then applies a :class:`Dense` projection.
+
+    Args:
+        atom_features: Atom embedding dimension.
+        edge_features: Edge radial basis feature dimension.
+        out_features: Output edge embedding dimension.
+        activation: Activation function name.
     """
 
     def __init__(
@@ -81,6 +80,7 @@ class EdgeEmbedding(torch.nn.Module):
         self.dense = Dense(in_features, out_features, activation=activation, bias=False)
 
     def reset_parameters(self) -> None:
+        """Re-initialise the inner dense layer."""
         self.dense.reset_parameters()
 
     def forward(
@@ -90,18 +90,22 @@ class EdgeEmbedding(torch.nn.Module):
         idnb_a: torch.Tensor,
         idnb_c: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Returns
-        -------
-            m_ca: Tensor, shape=(nEdges, emb_size)
-                Edge embeddings.
-        """
-        # m_rbf: shape (nEdges, nFeatures)
-        # in embedding block: m_rbf = rbf ; In interaction block: m_rbf = m_ca
+        """Compute edge embeddings from atom embeddings and edge features.
 
-        h_a = h[idnb_a]  # shape=(nEdges, emb_size)
-        h_c = h[idnb_c]  # shape=(nEdges, emb_size)
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, atom_features)``.
+            m_rbf: Per-edge features (RBF in the embedding block, ``m_ca`` in
+                interaction blocks), shape ``(nEdges, edge_features)``.
+            idnb_a: Source atom index for each edge, shape ``(nEdges,)``.
+                The historical name is preserved for API compatibility.
+            idnb_c: Target atom index for each edge, shape ``(nEdges,)``.
+                The historical name is preserved for API compatibility.
 
-        m_ca = torch.cat([h_a, h_c, m_rbf], dim=-1)  # (nEdges, 2*emb_size+nFeatures)
-        m_ca = self.dense(m_ca)  # (nEdges, emb_size)
+        Returns:
+            Edge embeddings of shape ``(nEdges, out_features)``.
+        """
+        h_src = h[idnb_a]  # (nEdges, atom_features)
+        h_dst = h[idnb_c]  # (nEdges, atom_features)
+        m_ca = torch.cat([h_src, h_dst, m_rbf], dim=-1)  # (nEdges, 2*atom_features + edge_features)
+        m_ca = self.dense(m_ca)  # (nEdges, out_features)
         return m_ca
