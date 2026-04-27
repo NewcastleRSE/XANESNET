@@ -14,6 +14,8 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import math
+
 import torch
 
 
@@ -23,6 +25,7 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
     """
     eps = 1e-6
 
+    axis: int | list[int]
     if len(kernel.shape) == 3:
         axis = [0, 1]  # last dimension is output dimension
     else:
@@ -45,7 +48,7 @@ def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
     tensor = torch.nn.init.orthogonal_(tensor)
 
     if len(tensor.shape) == 3:
-        fan_in = tensor.shape[:-1].numel()
+        fan_in = math.prod(tensor.shape[:-1])
     else:
         fan_in = tensor.shape[1]
 

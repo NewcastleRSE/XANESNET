@@ -130,7 +130,7 @@ class E3EEFullDatasetMp(E3EEFullDataset):
                 "edge_vec": edge_vec,
                 "energies": energies_stack,
                 "intensities": intensities_stack,
-                "file_name": [f"{pmg_obj.properties['file_name']}::site_{si}" for si in absorber_idxs],
+                "file_name": pmg_obj.properties["file_name"],
             }
 
             if self.use_path_branch:

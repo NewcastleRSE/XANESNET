@@ -44,7 +44,7 @@ class EnvEmbedData:
     energies: torch.Tensor | None = None
     c_star: torch.Tensor | None = None
     lengths: torch.Tensor | None = None
-    file_name: str | list[Any] | None = None  # TODO can we make this more type safe?
+    file_name: str | list[str] | None = None
     basis: SpectralBasis | None = None  # not saved in state dict
 
     def to(self, device: str | torch.device) -> "EnvEmbedData":
@@ -165,12 +165,12 @@ class EnvEmbedDataset(TorchDataset):
             xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
 
             # Compute descriptor features (all sites for env embedding)
-            descriptor_features = []
+            descriptor_features_list = []
             for descriptor in self.descriptor_list:
                 feature = descriptor.transform_pmg(pmg_obj, site_index=None)
-                descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=1)
-            descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
+                descriptor_features_list.append(feature)
+            descriptor_features_np = np.concatenate(descriptor_features_list, axis=1)
+            descriptor_features = torch.tensor(descriptor_features_np, dtype=torch.float32)
 
             for site_idx in xanes_idxs:
                 # XANES
@@ -308,7 +308,7 @@ class EnvEmbedDataset(TorchDataset):
             energies=energies,
             c_star=c_star,
             lengths=lengths,
-            file_name=file_name_list,
+            file_name=file_name_list,  # type: ignore[arg-type]
             basis=batch[0].basis,  # all samples in batch should have same basis
         )
 

@@ -22,7 +22,7 @@ from typing import Any
 
 # These dictionaries contain default config values
 
-DATASOURCE_DEFAULT = {
+DATASOURCE_DEFAULT: dict[str, dict[str, Any]] = {
     "xyzspec": {},
     "multixyzspec": {},
     "pmgjson": {},
@@ -158,7 +158,7 @@ DATASET_DEFAULT: dict[str, dict[str, Any]] = {
 
 # Multiprocessing dataset variants.
 # adds ``num_workers`` knob (None / non-positive means "use os.cpu_count()").
-_MP_DATASET_NAMES = {
+_MP_DATASET_NAMES: set[str] = {
     "descriptor",
     "e3ee",
     "e3ee_full",
@@ -170,7 +170,7 @@ _MP_DATASET_NAMES = {
 for _name in _MP_DATASET_NAMES:
     DATASET_DEFAULT[f"{_name}_mp"] = {**DATASET_DEFAULT[_name], "num_workers": None}
 
-MODEL_DEFAULTS = {
+MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
     "mlp": {
         "hidden_size": 226,
         "dropout": 0.1,
@@ -339,7 +339,7 @@ MODEL_DEFAULTS = {
     },
 }
 
-TRAINER_DEFAULTS = {
+TRAINER_DEFAULTS: dict[str, dict[str, Any]] = {
     "basic": {
         "batch_size": 3,
         "shuffle": True,
@@ -361,7 +361,7 @@ TRAINER_DEFAULTS = {
     },
 }
 
-INFERENCER_DEFAULTS = {
+INFERENCER_DEFAULTS: dict[str, dict[str, Any]] = {
     "basic": {
         "batch_size": 1,
         "shuffle": False,
@@ -370,7 +370,7 @@ INFERENCER_DEFAULTS = {
     },
 }
 
-STRATEGY_DEFAULTS = {
+STRATEGY_DEFAULTS: dict[str, dict[str, Any]] = {
     "single": {
         "weight_init": "default",
         "weight_init_params": {},
@@ -403,13 +403,13 @@ STRATEGY_DEFAULTS = {
 
 # These dictionaries contain required config keys
 
-DATASOURCE_REQUIRED = {
+DATASOURCE_REQUIRED: dict[str, list[str]] = {
     "xyzspec": ["xyz_path", "xanes_path"],
     "multixyzspec": ["root_path"],
     "pmgjson": ["json_path"],
 }
 
-DATASET_REQUIRED = {
+DATASET_REQUIRED: dict[str, list[str]] = {
     "descriptor": ["root"],
     "descriptor_mp": ["root"],
     "envembed": ["root"],
@@ -427,7 +427,7 @@ DATASET_REQUIRED = {
     "richgraph": ["root"],  # TODO Not fully implemented yet.
 }
 
-MODEL_REQUIRED = {
+MODEL_REQUIRED: dict[str, list[str]] = {
     "mlp": ["out_size", "in_size"],
     "envembed": ["in_size", "kgroups"],
     "schnet": ["reduce_channels_2"],
@@ -439,15 +439,15 @@ MODEL_REQUIRED = {
     "e3ee_full": ["out_size"],
 }
 
-TRAINER_REQUIRED = {
+TRAINER_REQUIRED: dict[str, list[str]] = {
     "basic": [],
 }
 
-INFERENCER_REQUIRED = {
+INFERENCER_REQUIRED: dict[str, list[str]] = {
     "basic": [],
 }
 
-STRATEGY_REQUIRED = {
+STRATEGY_REQUIRED: dict[str, list[str]] = {
     "single": [],
     "bootstrap": [],
     "ensemble": [],

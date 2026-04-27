@@ -99,6 +99,7 @@ class Strategy(ABC):
         Returns a list of trained models.
         """
         logging.info("Start strategy...")
+        return []
 
     @abstractmethod
     def setup_inferencers(self, device: str | torch.device) -> None:

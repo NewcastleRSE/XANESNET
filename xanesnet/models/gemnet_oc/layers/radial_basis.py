@@ -115,6 +115,7 @@ class RadialBasis(torch.nn.Module):
 
         env_name = envelope.get_str("name").lower()
         env_hparams = {k: v for k, v in envelope.as_dict().items() if k != "name"}
+        self.envelope: PolynomialEnvelope | ExponentialEnvelope
         if env_name == "polynomial":
             self.envelope = PolynomialEnvelope(**env_hparams)
         elif env_name == "exponential":
@@ -124,6 +125,7 @@ class RadialBasis(torch.nn.Module):
 
         rbf_name = rbf.get_str("name").lower()
         rbf_hparams = {k: v for k, v in rbf.as_dict().items() if k != "name"}
+        self.rbf: GaussianBasis | SphericalBesselBasis | BernsteinBasis
         if rbf_name == "gaussian":
             self.rbf = GaussianBasis(start=0, stop=1, num_gaussians=num_radial, **rbf_hparams)
         elif rbf_name == "spherical_bessel":

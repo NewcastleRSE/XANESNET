@@ -16,7 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 class DescriptorRegistry:
-    _registry = {}
+    _registry: dict[str, type] = {}
 
     @classmethod
     def register(cls, name: str):

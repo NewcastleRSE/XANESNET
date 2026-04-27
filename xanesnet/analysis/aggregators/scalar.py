@@ -58,8 +58,8 @@ class ScalarAggregator(Aggregator):
         for sample in selector:
             self._collect_scalars(sample, values_by_key)
 
-        for sample in per_sample_values:
-            self._collect_scalars(sample, values_by_key)
+        for raw_sample in per_sample_values:
+            self._collect_scalars(raw_sample, values_by_key)
 
         if not values_by_key:
             raise ValueError(f"ScalarAggregator: No scalar values found for selector {selector} at index {index}.")

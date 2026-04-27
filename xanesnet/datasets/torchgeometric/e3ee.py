@@ -58,7 +58,7 @@ class E3EEBatch(Protocol):
     # Targets
     energies: torch.Tensor
     intensities: torch.Tensor
-    file_name: np.ndarray
+    file_name: list[str]
 
 
 ###############################################################################
@@ -154,7 +154,7 @@ class E3EEDataset(TorchGeometricDataset):
                     "edge_vec": edge_vec,
                     "energies": energies,
                     "intensities": intensities,
-                    "file_name": f"{pmg_obj.properties['file_name']}::site_{site_idx}",
+                    "file_name": pmg_obj.properties["file_name"],
                 }
 
                 if self.use_path_branch:
@@ -236,7 +236,7 @@ class E3EEDataset(TorchGeometricDataset):
             path_rjk = torch.cat([s.path_rjk for s in batch], dim=0)
             path_cosangle = torch.cat([s.path_cosangle for s in batch], dim=0)
 
-        file_name = np.array([s.file_name for s in batch], dtype=object)
+        file_name: list[str] = [s.file_name for s in batch]
 
         batched = Batch.from_data_list(
             batch,

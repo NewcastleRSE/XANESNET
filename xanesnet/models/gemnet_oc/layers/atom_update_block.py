@@ -42,7 +42,7 @@ class AtomUpdateBlock(torch.nn.Module):
     def get_mlp(self, units_in: int, units: int, nHidden: int, activation):
         if units_in != units:
             dense1 = Dense(units_in, units, activation=activation, bias=False)
-            mlp = [dense1]
+            mlp: list[Dense | ResidualLayer] = [dense1]
         else:
             mlp = []
         res = [ResidualLayer(units, nLayers=2, activation=activation) for _ in range(nHidden)]
@@ -64,7 +64,9 @@ class AtomUpdateBlock(torch.nn.Module):
 
 
 class OutputBlock(AtomUpdateBlock):
-    """XANES output block — returns per-atom embedding only (no force branch)."""
+    """
+    XANES output block — returns per-atom embedding only (no force branch).
+    """
 
     def __init__(
         self,

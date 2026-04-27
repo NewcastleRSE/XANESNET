@@ -92,13 +92,13 @@ class GeometryGraphDatasetMp(GeometryGraphDataset):
             xanes = xanes[xanes_idxs]
             absorber_mask = torch.zeros(len(pmg_obj.labels), dtype=torch.bool)
             absorber_mask[xanes_idxs] = True
-            intensities = np.array([x["intensities"] for x in xanes], dtype=np.float32)
-            energies = np.array([x["energies"] for x in xanes], dtype=np.float32)
+            intensities_np = np.array([x["intensities"] for x in xanes], dtype=np.float32)
+            energies_np = np.array([x["energies"] for x in xanes], dtype=np.float32)
 
             atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
             cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
-            energies = torch.tensor(energies, dtype=torch.float32)
-            intensities = torch.tensor(intensities, dtype=torch.float32)
+            energies = torch.tensor(energies_np, dtype=torch.float32)
+            intensities = torch.tensor(intensities_np, dtype=torch.float32)
 
             edge_index, edge_weight, angle, idx_kj, idx_ji = self._build_edges(
                 pmg_obj,

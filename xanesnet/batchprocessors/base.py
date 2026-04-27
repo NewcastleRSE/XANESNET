@@ -16,7 +16,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC, abstractmethod
 
-# TODO do we need this ?
+# TODO do we need this ? Why do we need this? Can we get rid of it?
 from typing import TYPE_CHECKING, Any
 
 import numpy as np

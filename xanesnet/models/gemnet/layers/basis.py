@@ -141,15 +141,13 @@ class SphericalBasisLayer(torch.nn.Module):
 
         d_scaled = D_ca * self.inv_cutoff  # (nEdges,)
         u_d = self.envelope(d_scaled)
-        rbf = [f(d_scaled) for f in self.bessel_funcs]
         # s: 0 0 0 0 1 1 1 1 ...
         # r: 0 1 2 3 0 1 2 3 ...
-        rbf = torch.stack(rbf, dim=1)  # (nEdges, num_spherical * num_radial)
+        rbf: torch.Tensor = torch.stack([f(d_scaled) for f in self.bessel_funcs], dim=1)  # (nEdges, num_spherical * num_radial)
         rbf = rbf * self.norm_const
         rbf_env = u_d[:, None] * rbf  # (nEdges, num_spherical * num_radial)
 
-        sph = [f(Angle_cab) for f in self.sph_funcs]
-        sph = torch.stack(sph, dim=1)  # (nTriplets, num_spherical)
+        sph: torch.Tensor = torch.stack([f(Angle_cab) for f in self.sph_funcs], dim=1)  # (nTriplets, num_spherical)
 
         if not self.efficient:
             rbf_env = rbf_env[id3_reduce_ca]  # (nTriplets, num_spherical * num_radial)
@@ -251,10 +249,9 @@ class TensorBasisLayer(torch.nn.Module):
         d_scaled = D_ca * self.inv_cutoff
         u_d = self.envelope(d_scaled)
 
-        rbf = [f(d_scaled) for f in self.bessel_funcs]
         # s: 0 0 0 0 1 1 1 1 ...
         # r: 0 1 2 3 0 1 2 3 ...
-        rbf = torch.stack(rbf, dim=1)  # (nEdges, num_spherical * num_radial)
+        rbf: torch.Tensor = torch.stack([f(d_scaled) for f in self.bessel_funcs], dim=1)  # (nEdges, num_spherical * num_radial)
         rbf = rbf * self.norm_const
 
         rbf_env = u_d[:, None] * rbf  # (nEdges, num_spherical * num_radial)
@@ -270,8 +267,7 @@ class TensorBasisLayer(torch.nn.Module):
             # j_ln: l: 0  0    1  1  1  1  1  1    2  2  2  2  2  2  2  2  2  2
             #       n: 0  1    0  1  0  1  0  1    0  1  0  1  0  1  0  1  0  1
 
-        sph = [f(Alpha_cab, Theta_cabd) for f in self.sph_funcs]
-        sph = torch.stack(sph, dim=1)  # (nQuadruplets, num_spherical**2)
+        sph: torch.Tensor = torch.stack([f(Alpha_cab, Theta_cabd) for f in self.sph_funcs], dim=1)  # (nQuadruplets, num_spherical**2)
 
         if not self.efficient:
             sph = torch.repeat_interleave(sph, self.num_radial, dim=1)  # (nQuadruplets, num_spherical**2 * num_radial)
@@ -353,11 +349,11 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
     zeros = Jn_zeros(n, k)
     normalizer = []
     for order in range(n):
-        normalizer_tmp = []
+        normalizer_list = []
         for i in range(k):
-            normalizer_tmp += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
+            normalizer_list += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
         normalizer_tmp = (
-            1 / np.array(normalizer_tmp) ** 0.5
+            1 / np.array(normalizer_list) ** 0.5
         )  # sqrt(2/(j_l+1)**2) , sqrt(1/c**3) not taken into account yet
         normalizer += [normalizer_tmp]
 

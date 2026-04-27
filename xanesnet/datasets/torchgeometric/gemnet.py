@@ -362,7 +362,7 @@ class GemNetDataset(TorchGeometricDataset):
                 "energies": torch.tensor(energies, dtype=torch.float32),
                 "intensities": torch.tensor(intensities, dtype=torch.float32),
                 "absorber_mask": absorber_mask,
-                "file_name": pmg_obj.properties.get("file_name", ""),
+                "file_name": pmg_obj.properties["file_name"],
             }
 
             # Quadruplets / interaction edges (GemNet-Q and GemNet-OC)
@@ -373,6 +373,7 @@ class GemNetDataset(TorchGeometricDataset):
                 self.int_min_facet_area,
                 self.int_cov_radii_scale,
             )
+            int_edge_index = int_edge_weight = int_edge_vec = None
             if self.quadruplets:
                 if int_params == main_params:
                     int_edge_index = edge_index

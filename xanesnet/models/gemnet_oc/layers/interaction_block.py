@@ -66,6 +66,7 @@ class InteractionBlock(torch.nn.Module):
             activation=activation,
         )
 
+        self.quad_interaction: QuadrupletInteraction | None
         if quad_interaction:
             self.quad_interaction = QuadrupletInteraction(
                 emb_size_edge=emb_size_edge,
@@ -80,6 +81,7 @@ class InteractionBlock(torch.nn.Module):
         else:
             self.quad_interaction = None
 
+        self.atom_edge_interaction: TripletInteraction | None
         if atom_edge_interaction:
             self.atom_edge_interaction = TripletInteraction(
                 emb_size_in=emb_size_atom,
@@ -94,6 +96,7 @@ class InteractionBlock(torch.nn.Module):
             )
         else:
             self.atom_edge_interaction = None
+        self.edge_atom_interaction: TripletInteraction | None
         if edge_atom_interaction:
             self.edge_atom_interaction = TripletInteraction(
                 emb_size_in=emb_size_edge,
@@ -108,6 +111,7 @@ class InteractionBlock(torch.nn.Module):
             )
         else:
             self.edge_atom_interaction = None
+        self.atom_interaction: PairInteraction | None
         if atom_interaction:
             self.atom_interaction = PairInteraction(
                 emb_size_atom=emb_size_atom,

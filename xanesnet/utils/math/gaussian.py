@@ -38,8 +38,7 @@ class SpectralBasis(nn.Module):
         N = energies.numel()
         dE = float(energies[1] - energies[0])
 
-        widths_bins = tuple(max(w / dE, 0.5) for w in self.widths_eV)
-        widths_bins = [float(w) for w in widths_bins]
+        widths_bins: list[float] = [max(w / dE, 0.5) for w in self.widths_eV]
 
         grid_idx = torch.arange(N, device=energies.device, dtype=energies.dtype)
         centers_grid = grid_idx[:: self.stride]

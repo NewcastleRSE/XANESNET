@@ -92,12 +92,12 @@ class EnvEmbedDatasetMp(EnvEmbedDataset):
             xanes = np.array(pmg_obj.site_properties[key], dtype=object)
             xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
 
-            descriptor_features = []
+            descriptor_features_list = []
             for descriptor in self.descriptor_list:
                 feature = descriptor.transform_pmg(pmg_obj, site_index=None)
-                descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=1)
-            descriptor_features = torch.tensor(descriptor_features, dtype=torch.float32)
+                descriptor_features_list.append(feature)
+            descriptor_features_np = np.concatenate(descriptor_features_list, axis=1)
+            descriptor_features = torch.tensor(descriptor_features_np, dtype=torch.float32)
 
             seq = 0
             for site_idx in xanes_idxs:

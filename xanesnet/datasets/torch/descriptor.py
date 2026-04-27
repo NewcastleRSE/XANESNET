@@ -260,7 +260,7 @@ class DescriptorDataset(TorchDataset):
             energies=_stack([b.energies for b in batch]),
             fourier=_stack([b.fourier for b in batch]),
             c_star=_stack([b.c_star for b in batch]),
-            file_name=[b.file_name for b in batch],  # type: ignore[list-item]
+            file_name=[b.file_name for b in batch],  # type: ignore[list-item, misc]
         )
 
     def _load_item(self, path: str) -> DescriptorData:

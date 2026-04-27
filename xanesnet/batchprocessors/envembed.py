@@ -44,7 +44,7 @@ class EnvEmbedBatchProcessor(BatchProcessor):
             "descriptor_features": batch.descriptor_features,  # type: ignore
             "distance_features": batch.distance_features,  # type: ignore
             "lengths": batch.lengths,  # type: ignore
-            "basis": batch.basis,  # # type: ignore
+            "basis": batch.basis,  # type: ignore[dict-item]
         }
 
     def target_preparation(self, batch: EnvEmbedData) -> torch.Tensor:

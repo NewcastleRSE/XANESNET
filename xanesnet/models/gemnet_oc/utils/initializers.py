@@ -18,6 +18,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
+import math
 from functools import partial
 
 import torch
@@ -33,7 +34,7 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
 def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
     """He-orthogonal initialisation (Saxe / He / Kaiming hybrid)."""
     tensor = torch.nn.init.orthogonal_(tensor)
-    fan_in = tensor.shape[:-1].numel() if len(tensor.shape) == 3 else tensor.shape[1]
+    fan_in = math.prod(tensor.shape[:-1]) if len(tensor.shape) == 3 else tensor.shape[1]
     with torch.no_grad():
         tensor.data = _standardize(tensor.data)
         tensor.data *= (1 / fan_in) ** 0.5

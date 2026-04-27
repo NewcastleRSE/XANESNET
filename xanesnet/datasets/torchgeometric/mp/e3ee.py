@@ -124,7 +124,7 @@ class E3EEDatasetMp(E3EEDataset):
                     "edge_vec": edge_vec,
                     "energies": energies,
                     "intensities": intensities,
-                    "file_name": f"{pmg_obj.properties['file_name']}::site_{site_idx}",
+                    "file_name": pmg_obj.properties["file_name"],
                 }
 
                 if self.use_path_branch:

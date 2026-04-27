@@ -51,6 +51,7 @@ class Dense(torch.nn.Module):
 
         if isinstance(activation, str):
             activation = activation.lower()
+        self._activation: ScaledSiLU | torch.nn.Identity
         if activation in ["swish", "silu"]:
             self._activation = ScaledSiLU()
         elif activation is None:

@@ -37,7 +37,7 @@ class BasicStopper(EarlyStopper):
 
         self.patience = patience
         self.min_delta = min_delta
-        self.last_improvement_epoch = None
+        self.last_improvement_epoch: int | None = None
 
     def step(self, value: float, model: Model, epoch: int) -> bool:
         prev_best_value = self.best_value
@@ -59,6 +59,7 @@ class BasicStopper(EarlyStopper):
         if meaningful_improvement:
             self.last_improvement_epoch = epoch
 
-        epochs_without_improvement = epoch - self.last_improvement_epoch
+        last_improvement = self.last_improvement_epoch
+        epochs_without_improvement = epoch - last_improvement
 
         return epochs_without_improvement >= self.patience

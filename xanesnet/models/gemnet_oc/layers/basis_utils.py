@@ -78,11 +78,11 @@ def bessel_basis(n: int, k: int):
     zeros = Jn_zeros(n, k)
     normalizer = []
     for order in range(n):
-        normalizer_tmp = []
+        normalizer_list = []
         for i in range(k):
-            normalizer_tmp += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
+            normalizer_list += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
         normalizer_tmp = (
-            1 / np.array(normalizer_tmp) ** 0.5
+            1 / np.array(normalizer_list) ** 0.5
         )  # sqrt(2/(j_l+1)**2) , sqrt(1/c**3) not taken into account yet
         normalizer += [normalizer_tmp]
 
@@ -287,7 +287,7 @@ def real_sph_harm(
             x, y = sym.symbols("x y", real=True)
             for l_degree in range(L_maxdegree):
                 for m_order in range(len(Y_l_m[l_degree])):
-                    Y_l_m[l_degree][m_order] = sym.simplify(Y_l_m[l_degree][m_order].subs(phi, sym.atan2(y, x)))  # type: ignore[union-attr]
+                    Y_l_m[l_degree][m_order] = sym.simplify(Y_l_m[l_degree][m_order].subs(phi, sym.atan2(y, x)))  # type: ignore[union-attr, attr-defined]
     return Y_l_m
 
 

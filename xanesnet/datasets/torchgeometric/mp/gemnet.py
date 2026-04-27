@@ -123,7 +123,7 @@ class GemNetDatasetMp(GemNetDataset):
                     break
             else:
                 logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties.get('file_name', '')}); skipping."
+                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
                 )
                 continue
 
@@ -186,7 +186,7 @@ class GemNetDatasetMp(GemNetDataset):
                 "energies": torch.tensor(energies, dtype=torch.float32),
                 "intensities": torch.tensor(intensities, dtype=torch.float32),
                 "absorber_mask": absorber_mask,
-                "file_name": pmg_obj.properties.get("file_name", ""),
+                "file_name": pmg_obj.properties["file_name"],
             }
 
             int_edge_index: torch.Tensor | None = None

@@ -516,10 +516,10 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
     zeros = Jn_zeros(n, k)
     normalizer = []
     for order in range(n):
-        normalizer_tmp = []
+        normalizer_list = []
         for i in range(k):
-            normalizer_tmp += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
-        normalizer_tmp = 1 / np.array(normalizer_tmp) ** 0.5
+            normalizer_list += [0.5 * Jn(zeros[order, i], order + 1) ** 2]
+        normalizer_tmp = 1 / np.array(normalizer_list) ** 0.5
         normalizer += [normalizer_tmp]
 
     f = spherical_bessel_formulas(n)

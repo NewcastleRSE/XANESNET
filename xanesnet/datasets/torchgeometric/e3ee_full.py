@@ -59,7 +59,7 @@ class E3EEFullBatch(Protocol):
     # Targets, concatenated over absorbers across the batch
     energies: torch.Tensor
     intensities: torch.Tensor
-    file_name: np.ndarray
+    file_name: list[str]
 
 
 ###############################################################################
@@ -167,8 +167,7 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "edge_vec": edge_vec,
                 "energies": energies_stack,
                 "intensities": intensities_stack,
-                # TODO we have to check this file_name logic hand how its related with inference.
-                "file_name": [f"{pmg_obj.properties['file_name']}::site_{si}" for si in absorber_idxs],
+                "file_name": pmg_obj.properties["file_name"],
             }
 
             if self.use_path_branch:
@@ -291,15 +290,9 @@ class E3EEFullDataset(TorchGeometricDataset):
             path_rjk = torch.cat([s.path_rjk for s in batch], dim=0)
             path_cosangle = torch.cat([s.path_cosangle for s in batch], dim=0)
 
-        # One file_name per absorber, aligned with the concatenated targets.
-        file_name_list: list[str] = []
+        file_name: list[str] = []
         for s in batch:
-            names = s.file_name
-            if isinstance(names, str):
-                file_name_list.append(names)
-            else:
-                file_name_list.extend(list(names))
-        file_name = np.array(file_name_list, dtype=object)
+            file_name.extend([s.file_name] * int(s.absorber_mask.sum().item()))
 
         batched = Batch.from_data_list(
             batch,

@@ -71,7 +71,7 @@ class MLP(Model):
         self.activation = activation
 
         act_fn = ActivationRegistry.get(activation)
-        layers = []
+        layers: list[nn.Module] = []
 
         # Initialise input and hidden layers
         current_size = in_size
