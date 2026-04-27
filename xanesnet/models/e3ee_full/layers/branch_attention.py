@@ -178,6 +178,7 @@ class AllAtomAtomAttention(nn.Module):
             src_active = src_active & absorber_mask.reshape(flat)
 
         # Restrict to edges with active src and valid dst.
+        # Normally the dataset and graph construction should ensure this already.
         edge_active = src_active[att_src] & mask_flat[att_dst]
         ea_src = att_src[edge_active]
         ea_dst = att_dst[edge_active]

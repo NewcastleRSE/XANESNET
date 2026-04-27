@@ -158,10 +158,13 @@ class AllAtomEquivariantAtomAttention(nn.Module):
         z_flat = z.reshape(flat)
         mask_flat = mask.reshape(flat)
 
+        # Active queries.
         src_active = mask_flat.clone()
         if absorber_mask is not None:
             src_active = src_active & absorber_mask.reshape(flat)
 
+        # Restrict to edges with active src and valid dst.
+        # Normally the dataset and graph construction should ensure this already.
         edge_active = src_active[att_src] & mask_flat[att_dst]
         ea_src = att_src[edge_active]
         ea_dst = att_dst[edge_active]
@@ -175,7 +178,7 @@ class AllAtomEquivariantAtomAttention(nn.Module):
             zero_inv = invariant_features_from_irreps(out_inv, self.out_irreps)
             return self.out_mlp(zero_inv).view(bsz, n_atoms, n_energies, self.latent_dim)
 
-        # Unit vector (zero-vector self-edges \u2192 SH(0) is well-defined as constant 0e=1, 1o=0).
+        # Unit vector (zero-vector self-edges -> SH(0) is well-defined as constant 0e=1, 1o=0).
         eps_dist = ea_dist.clamp_min(1e-8)
         u = ea_vec / eps_dist.unsqueeze(-1)
         # For self-edges we want SH = constant l=0 only. spherical_harmonics on
@@ -208,7 +211,7 @@ class AllAtomEquivariantAtomAttention(nn.Module):
         env_e = self.value_envelope(ea_dist).unsqueeze(-1)  # [E, 1]
         v_irrep = v_irrep * env_e
 
-        # Per-energy modulation \u2192 [E, nE, out_irreps.dim]
+        # Per-energy modulation -> [E, nE, out_irreps.dim]
         v_mod = self.energy_mod(v_irrep, e_feat)
 
         # Invariant scoring per (edge, energy, head) \u2192 mean over heads.

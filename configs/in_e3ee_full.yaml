@@ -50,9 +50,11 @@ model:
   e3nn_lmax: 2
   out_mlp_layers: 3
   use_invariant_branch: True
-  use_attention_branch: False
-  use_equivariant_branch: True
+  use_attention_branch: True
   use_eq_attention_branch: True
+  use_conv_branch: True
+  use_eq_conv_branch: True
+  use_equivariant_branch: True
   use_path_branch: False
   use_absorber_mask: True
   residual_scale_init: 0.1
@@ -61,6 +63,7 @@ model:
   attention_lmax: 2
   attention_irreps: "32x0e + 16x1o + 8x2e"
   att_cutoff: 10.0
+  conv_use_gate: True
 
 trainer:
   # general:

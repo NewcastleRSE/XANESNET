@@ -25,8 +25,10 @@ from ..registry import ModelRegistry
 from .layers import (
     MLP,
     AllAtomAtomAttention,
+    AllAtomAtomConvolution,
     AllAtomEnergyBranch,
     AllAtomEquivariantAtomAttention,
+    AllAtomEquivariantAtomConvolution,
     AllAtomEquivariantHead,
     AllAtomPathAggregator,
     EnergyRBFEmbedding,
@@ -39,13 +41,7 @@ from .utils import invariant_feature_dim, invariant_features_from_irreps
 @ModelRegistry.register("e3ee_full")
 class E3EEFull(Model):
     """
-    Absorber-agnostic E3-equivariant XANES model predicting a spectrum for
-    every atom in the structure.
-
-    Architecture mirrors ``E3EE`` but the encoder has no absorber flag and
-    every branch produces a ``[B, N, nE, ...]`` tensor so that spectra are
-    emitted natively for all sites. The training loop uses an ``absorber_mask``
-    (identical pattern to SchNet / DimeNet) to select sites with ground truth.
+    Multi-Absorber E3-equivariant XANES model.
     """
 
     def __init__(
@@ -71,6 +67,8 @@ class E3EEFull(Model):
         use_attention_branch: bool,
         use_equivariant_branch: bool,
         use_eq_attention_branch: bool,
+        use_conv_branch: bool,
+        use_eq_conv_branch: bool,
         use_path_branch: bool,
         use_absorber_mask: bool,
         residual_scale_init: float,
@@ -79,6 +77,7 @@ class E3EEFull(Model):
         attention_lmax: int,
         attention_irreps: str,
         att_cutoff: float,
+        conv_use_gate: bool = True,
     ) -> None:
         super().__init__(model_type)
 
@@ -101,6 +100,8 @@ class E3EEFull(Model):
         self.use_attention_branch = use_attention_branch
         self.use_equivariant_branch = use_equivariant_branch
         self.use_eq_attention_branch = use_eq_attention_branch
+        self.use_conv_branch = use_conv_branch
+        self.use_eq_conv_branch = use_eq_conv_branch
         self.use_path_branch = use_path_branch
         self.use_absorber_mask = use_absorber_mask
         self.residual_scale_init = residual_scale_init
@@ -109,6 +110,7 @@ class E3EEFull(Model):
         self.attention_lmax = attention_lmax
         self.attention_irreps = attention_irreps
         self.att_cutoff = att_cutoff
+        self.conv_use_gate = conv_use_gate
 
         # Energy index range for RBF embedding (uses grid indices 0..out_size-1)
         self._energy_min = 0.0
@@ -177,6 +179,37 @@ class E3EEFull(Model):
                 n_heads=attention_heads,
             )
 
+        # Branch 2c (optional): SchNet/PaiNN-style invariant convolution.
+        if self.use_conv_branch:
+            self.atom_convolution = AllAtomAtomConvolution(
+                atom_dim=self._inv_dim,
+                e_dim=energy_rbf_dim,
+                hidden_dim=atom_hidden_dim,
+                latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                rbf_dim=attention_rbf_dim,
+                max_z=max_z,
+                z_emb_dim=32,
+                use_gate=conv_use_gate,
+            )
+
+        # Branch 2d (optional): NequIP/MACE-style equivariant convolution.
+        if self.use_eq_conv_branch:
+            self.eq_atom_convolution = AllAtomEquivariantAtomConvolution(
+                atom_dim=self._inv_dim,
+                irreps_node=self.atom_encoder.irreps_node,
+                e_dim=energy_rbf_dim,
+                hidden_dim=atom_hidden_dim,
+                latent_dim=latent_dim,
+                att_cutoff=att_cutoff,
+                attention_lmax=attention_lmax,
+                attention_irreps=attention_irreps,
+                rbf_dim=attention_rbf_dim,
+                max_z=max_z,
+                z_emb_dim=32,
+                use_gate=conv_use_gate,
+            )
+
         # Branch 3 (optional): late equivariant head, per atom
         if self.use_equivariant_branch:
             self.eq_head = AllAtomEquivariantHead(
@@ -210,6 +243,8 @@ class E3EEFull(Model):
             + int(self.use_attention_branch)
             + int(self.use_equivariant_branch)
             + int(self.use_eq_attention_branch)
+            + int(self.use_conv_branch)
+            + int(self.use_eq_conv_branch)
             + int(self.use_path_branch)
         )
         head_in_dim = n_active * latent_dim
@@ -284,18 +319,16 @@ class E3EEFull(Model):
 
         h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)  # [B, N, inv_dim]
 
-        # When ``use_absorber_mask`` is enabled, all branches are restricted
-        # to the absorber sites: branches that natively support filtering
-        # receive the mask, the path branch drops paths whose center is not
-        # an absorber, and other branches' outputs are zeroed out at the end.
         active_mask = absorber_mask if self.use_absorber_mask else None
 
         parts = []
 
+        # Branch 1
         if self.use_invariant_branch:
             abs_lat = self.abs_branch(h, e_feat)  # [B, N, nE, latent]
             parts.append(abs_lat)
 
+        # Branch 2a
         if self.use_attention_branch:
             attn_lat = self.atom_attention(
                 h=h,
@@ -309,6 +342,7 @@ class E3EEFull(Model):
             )  # [B, N, nE, latent]
             parts.append(attn_lat)
 
+        # Branch 2b
         if self.use_eq_attention_branch:
             eq_attn_lat = self.eq_atom_attention(
                 h=h,
@@ -324,10 +358,42 @@ class E3EEFull(Model):
             )  # [B, N, nE, latent]
             parts.append(eq_attn_lat)
 
+        # Branch 2c
+        if self.use_conv_branch:
+            conv_lat = self.atom_convolution(
+                h=h,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                att_src=att_src,
+                att_dst=att_dst,
+                att_dist=att_dist,
+                absorber_mask=active_mask,
+            )  # [B, N, nE, latent]
+            parts.append(conv_lat)
+
+        # Branch 2d
+        if self.use_eq_conv_branch:
+            eq_conv_lat = self.eq_atom_convolution(
+                h=h,
+                h_full=h_full,
+                z=x,
+                mask=mask,
+                e_feat=e_feat,
+                att_src=att_src,
+                att_dst=att_dst,
+                att_dist=att_dist,
+                att_vec=att_vec,
+                absorber_mask=active_mask,
+            )  # [B, N, nE, latent]
+            parts.append(eq_conv_lat)
+
+        # Branch 3
         if self.use_equivariant_branch:
             eq_lat = self.eq_head(h_full, e_feat)  # [B, N, nE, latent]
             parts.append(eq_lat)
 
+        # Branch 4
         if self.use_path_branch:
             h_flat = h.reshape(bsz * n_atoms, self._inv_dim)
             z_flat = x.reshape(bsz * n_atoms)
@@ -411,6 +477,8 @@ class E3EEFull(Model):
                 "use_attention_branch": self.use_attention_branch,
                 "use_equivariant_branch": self.use_equivariant_branch,
                 "use_eq_attention_branch": self.use_eq_attention_branch,
+                "use_conv_branch": self.use_conv_branch,
+                "use_eq_conv_branch": self.use_eq_conv_branch,
                 "use_path_branch": self.use_path_branch,
                 "use_absorber_mask": self.use_absorber_mask,
                 "residual_scale_init": self.residual_scale_init,
@@ -419,6 +487,7 @@ class E3EEFull(Model):
                 "attention_lmax": self.attention_lmax,
                 "attention_irreps": self.attention_irreps,
                 "att_cutoff": self.att_cutoff,
+                "conv_use_gate": self.conv_use_gate,
             }
         )
         return signature
