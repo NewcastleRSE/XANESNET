@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Variance-preserving scale factors and JSON-loading utilities for GemNet-OC calibration."""
 
 import json
 import logging
@@ -22,19 +23,19 @@ import torch
 
 
 class ScaleFactor(torch.nn.Module):
-    """
-    Scalar variance-preserving factor.
+    """Scalar variance-preserving scale factor stored as a non-trainable parameter.
 
-    The default value is 1.0 (identity / no scaling). A model loaded with
-    ``scale_file=None`` therefore behaves as if no scaling were applied.
-    Pre-fitted values are produced offline by
-    ``scripts/gemnet_scale_fitting.py`` and persisted either via
-    :func:`load_scales_json` (loading from the JSON the fitter writes) or
-    automatically as part of the model's ``state_dict``.
+    The default value is ``1.0`` (identity, no scaling). Pre-fitted values are
+    produced offline by ``scripts/gemnet_scale_fitting.py`` and persisted
+    either via :func:`load_scales_json` or as part of the model's
+    ``state_dict``.
 
-    The ``ref`` argument is accepted (and ignored) so call sites match the
-    fairchem-style ``forward(x, ref=...)`` signature observed by the
-    offline fitter via forward hooks.
+    The ``ref`` argument is accepted and ignored so call sites match the
+    fairchem-style ``forward(x, ref=...)`` signature used by the offline
+    fitter via forward hooks.
+
+    Args:
+        name: Optional human-readable label (used for logging / JSON keys).
     """
 
     scale_factor: torch.Tensor
@@ -45,24 +46,52 @@ class ScaleFactor(torch.nn.Module):
         self.scale_factor = torch.nn.Parameter(torch.tensor(1.0), requires_grad=False)
 
     def forward(self, x: torch.Tensor, ref: torch.Tensor | None = None) -> torch.Tensor:
+        """Scale the input tensor.
+
+        Args:
+            x: Input tensor to scale.
+            ref: Ignored reference tensor (accepted for API compatibility
+                with the fairchem fitter hooks).
+
+        Returns:
+            ``x`` multiplied by the stored scale factor.
+        """
         return x * self.scale_factor
 
 
 def collect_scale_factors(model: torch.nn.Module) -> dict[str, ScaleFactor]:
-    """
-    Return all :class:`ScaleFactor` submodules keyed by their dotted name.
+    """Return all :class:`ScaleFactor` submodules keyed by their dotted name.
+
+    Args:
+        model: A :class:`torch.nn.Module` to inspect.
+
+    Returns:
+        Dictionary mapping dotted parameter paths to their
+        :class:`ScaleFactor` instances.
     """
     return {name: m for name, m in model.named_modules() if isinstance(m, ScaleFactor)}
 
 
 def load_scales_json(model: torch.nn.Module, path: str | Path, *, strict: bool = False) -> int:
-    """
-    Load fitted scale-factor values from a JSON file produced by
-    ``scripts/gemnet_scale_fitting.py`` into ``model``.
+    """Load fitted scale-factor values from a JSON file into ``model``.
 
-    Returns the number of factors successfully loaded. Missing keys are
-    tolerated (unless ``strict=True``); the corresponding ``ScaleFactor``
-    submodules remain at 1.0 (identity).
+    The JSON file is produced by ``scripts/gemnet_scale_fitting.py``.
+    Missing keys are tolerated unless ``strict=True``; the corresponding
+    :class:`ScaleFactor` submodules remain at ``1.0`` (identity).
+
+    Args:
+        model: Model whose :class:`ScaleFactor` parameters to update.
+        path: Path to the JSON file.
+        strict: If ``True``, raise :class:`ValueError` when any
+            :class:`ScaleFactor` key is absent from the file.
+
+    Returns:
+        Number of scale factors successfully loaded.
+
+    Raises:
+        FileNotFoundError: If ``path`` does not exist.
+        ValueError: If the file does not contain a JSON object, or if
+            ``strict=True`` and keys are missing.
     """
     path = Path(path)
     if not path.exists():

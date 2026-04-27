@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Atom and edge embedding modules for GemNet-OC."""
 
 import numpy as np
 import torch
@@ -21,11 +22,12 @@ from .base_layers import Dense
 
 
 class AtomEmbedding(torch.nn.Module):
-    """Initial atom embeddings based on the atomic number.
+    """Initial atom embeddings looked up by atomic number.
 
-    ``num_elements`` sets the size of the embedding table. The default of 94
-    is enough for all naturally occurring elements plus hydrogen's 0-index
-    offset (`Z - 1` is used below).
+    Args:
+        emb_size: Atom embedding dimension.
+        num_elements: Embedding table size. The default of 94 covers atomic
+            numbers 1-94 (Hydrogen to Plutonium). Uses ``Z - 1`` indexing.
     """
 
     def __init__(self, emb_size: int, num_elements: int = 94) -> None:
@@ -36,10 +38,28 @@ class AtomEmbedding(torch.nn.Module):
         torch.nn.init.uniform_(self.embeddings.weight, a=-np.sqrt(3), b=np.sqrt(3))
 
     def forward(self, Z: torch.Tensor) -> torch.Tensor:
+        """Look up atom embeddings by atomic number.
+
+        Args:
+            Z: Atomic numbers, shape ``(nAtoms,)``.
+
+        Returns:
+            Atom embeddings of shape ``(nAtoms, emb_size)``.
+        """
         return self.embeddings(Z - 1)
 
 
 class EdgeEmbedding(torch.nn.Module):
+    """Edge embeddings from concatenated atom embeddings and edge features.
+
+    Args:
+        atom_features: Atom embedding dimension.
+        edge_features: Per-edge feature dimension (e.g. number of radial basis
+            functions).
+        out_features: Output edge embedding dimension.
+        activation: Activation function name.
+    """
+
     def __init__(
         self,
         atom_features: int,
@@ -52,6 +72,17 @@ class EdgeEmbedding(torch.nn.Module):
         self.dense = Dense(in_features, out_features, activation=activation, bias=False)
 
     def forward(self, h: torch.Tensor, m: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        """Compute edge embeddings from atom and edge features.
+
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, atom_features)``.
+            m: Per-edge features (e.g. RBF), shape ``(nEdges, edge_features)``.
+            edge_index: Edge connectivity, shape ``(2, nEdges)``, where row 0
+                is the source atom and row 1 is the target atom.
+
+        Returns:
+            Edge embeddings of shape ``(nEdges, out_features)``.
+        """
         h_s = h[edge_index[0]]
         h_t = h[edge_index[1]]
         m_st = torch.cat([h_s, h_t, m], dim=-1)

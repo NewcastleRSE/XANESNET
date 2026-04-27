@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Circular and spherical basis layers for GemNet-OC angular embeddings."""
 
 import torch
 
@@ -24,6 +25,21 @@ from .scaling import ScaleFactor
 
 
 class CircularBasisLayer(torch.nn.Module):
+    """Circular basis combining a radial basis and an angular (cosine) basis.
+
+    Used for triplet interactions that only require the angle between two
+    neighbouring edges.
+
+    Args:
+        num_spherical: Number of angular basis functions.
+        radial_basis: Pre-built :class:`RadialBasis` instance.
+        cbf: Config specifying the circular basis type
+            (``"gaussian"`` or ``"spherical_harmonics"``) and its
+            hyperparameters.
+        scale_basis: Apply a learnable :class:`ScaleFactor` to the angular
+            component after evaluation.
+    """
+
     def __init__(
         self,
         num_spherical: int,
@@ -47,7 +63,17 @@ class CircularBasisLayer(torch.nn.Module):
         else:
             raise ValueError(f"Unknown cosine basis function '{cbf_name}'.")
 
-    def forward(self, D_ca: torch.Tensor, cosφ_cab: torch.Tensor):
+    def forward(self, D_ca: torch.Tensor, cosφ_cab: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate the radial and circular basis for triplet interactions.
+
+        Args:
+            D_ca: Edge distances, shape ``(nEdges,)``.
+            cosφ_cab: Cosine of the triplet angle, shape ``(nTriplets,)``.
+
+        Returns:
+            Tuple of ``(rad_basis, cir_basis)`` with shapes
+            ``(nEdges, num_radial)`` and ``(nTriplets, num_spherical)``.
+        """
         rad_basis = self.radial_basis(D_ca)
         cir_basis = self.cosφ_basis(cosφ_cab)
         if self.scale_basis:
@@ -56,6 +82,23 @@ class CircularBasisLayer(torch.nn.Module):
 
 
 class SphericalBasisLayer(torch.nn.Module):
+    """Spherical basis combining a radial basis and a full angular (spherical harmonic) basis.
+
+    Used for quadruplet interactions that require both the planar angle and the
+    dihedral angle.
+
+    Args:
+        num_spherical: Number of spherical basis functions per angular
+            dimension; output size is ``num_spherical ** 2`` for outer-product
+            variants.
+        radial_basis: Pre-built :class:`RadialBasis` instance.
+        sbf: Config specifying the spherical basis type
+            (``"spherical_harmonics"``, ``"legendre_outer"``, or
+            ``"gaussian_outer"``) and its hyperparameters.
+        scale_basis: Apply a learnable :class:`ScaleFactor` to the spherical
+            component after evaluation.
+    """
+
     def __init__(
         self,
         num_spherical: int,
@@ -89,7 +132,21 @@ class SphericalBasisLayer(torch.nn.Module):
         else:
             raise ValueError(f"Unknown spherical basis function '{sbf_name}'.")
 
-    def forward(self, D_ca: torch.Tensor, cosφ_cab: torch.Tensor, θ_cabd: torch.Tensor):
+    def forward(
+        self, D_ca: torch.Tensor, cosφ_cab: torch.Tensor, θ_cabd: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate the radial and spherical basis for quadruplet interactions.
+
+        Args:
+            D_ca: Edge distances, shape ``(nEdges,)``.
+            cosφ_cab: Cosine of the triplet angle, shape ``(nQuadruplets,)``.
+            θ_cabd: Dihedral angle in **radians**, shape ``(nQuadruplets,)``.
+
+        Returns:
+            Tuple of ``(rad_basis, sph_basis)`` with shapes
+            ``(nEdges, num_radial)`` and ``(nQuadruplets, num_spherical**2)``
+            (exact second dimension depends on the basis type).
+        """
         rad_basis = self.radial_basis(D_ca)
         sph_basis = self.spherical_basis(cosφ_cab, θ_cabd)
         if self.scale_basis:

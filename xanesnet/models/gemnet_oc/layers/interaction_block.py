@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Interaction blocks for GemNet-OC (triplet, quadruplet, atom-edge, and pair interactions)."""
 
 import math
 
@@ -26,6 +27,36 @@ from .scaling import ScaleFactor
 
 
 class InteractionBlock(torch.nn.Module):
+    """Full GemNet-OC interaction block combining triplet, quadruplet, and pair interactions.
+
+    Applies edge-to-edge (E2E), atom-to-edge (A2E), edge-to-atom (E2A), and
+    atom-to-atom (A2A) message-passing paths as configured, then updates both
+    the edge embeddings ``m`` and atom embeddings ``h``.
+
+    Args:
+        emb_size_atom: Atom embedding dimension.
+        emb_size_edge: Edge embedding dimension.
+        emb_size_trip_in: Input triplet embedding dimension.
+        emb_size_trip_out: Output triplet embedding dimension.
+        emb_size_quad_in: Input quadruplet embedding dimension.
+        emb_size_quad_out: Output quadruplet embedding dimension.
+        emb_size_a2a_in: Input atom-pair embedding dimension.
+        emb_size_a2a_out: Output atom-pair embedding dimension.
+        emb_size_rbf: Radial basis function embedding dimension.
+        emb_size_cbf: Circular basis function embedding dimension.
+        emb_size_sbf: Spherical basis function embedding dimension.
+        num_before_skip: Number of residual layers before the skip connection.
+        num_after_skip: Number of residual layers after the skip connection.
+        num_concat: Number of residual layers after the concat layer.
+        num_atom: Number of residual layers in the atom update block.
+        num_atom_emb_layers: Extra atom residual layers before the update.
+        quad_interaction: Enable quadruplet interactions.
+        atom_edge_interaction: Enable atom-to-edge interactions.
+        edge_atom_interaction: Enable edge-to-atom interactions.
+        atom_interaction: Enable atom-to-atom pair interactions.
+        activation: Activation function name.
+    """
+
     def __init__(
         self,
         emb_size_atom: int,
@@ -48,7 +79,7 @@ class InteractionBlock(torch.nn.Module):
         atom_edge_interaction: bool = False,
         edge_atom_interaction: bool = False,
         atom_interaction: bool = False,
-        activation=None,
+        activation: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -154,23 +185,47 @@ class InteractionBlock(torch.nn.Module):
 
     def forward(
         self,
-        h,
-        m,
-        bases_qint,
-        bases_e2e,
-        bases_a2e,
-        bases_e2a,
-        basis_a2a_rad,
-        basis_atom_update,
-        edge_index_main,
-        a2ee2a_graph,
-        a2a_graph,
-        id_swap,
-        trip_idx_e2e,
-        trip_idx_a2e,
-        trip_idx_e2a,
-        quad_idx,
-    ):
+        h: torch.Tensor,
+        m: torch.Tensor,
+        bases_qint: dict[str, torch.Tensor],
+        bases_e2e: dict[str, torch.Tensor],
+        bases_a2e: dict[str, torch.Tensor],
+        bases_e2a: dict[str, torch.Tensor],
+        basis_a2a_rad: torch.Tensor | None,
+        basis_atom_update: torch.Tensor,
+        edge_index_main: torch.Tensor,
+        a2ee2a_graph: dict[str, torch.Tensor],
+        a2a_graph: dict[str, torch.Tensor],
+        id_swap: torch.Tensor,
+        trip_idx_e2e: dict[str, torch.Tensor],
+        trip_idx_a2e: dict[str, torch.Tensor],
+        trip_idx_e2a: dict[str, torch.Tensor],
+        quad_idx: dict,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run one interaction block over atom and edge embeddings.
+
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            m: Edge embeddings, shape ``(nEdges, emb_size_edge)``.
+            bases_qint: Quadruplet interaction bases.
+            bases_e2e: Edge-to-edge triplet bases.
+            bases_a2e: Atom-to-edge triplet bases.
+            bases_e2a: Edge-to-atom triplet bases.
+            basis_a2a_rad: Atom-pair radial basis, or ``None``.
+            basis_atom_update: Radial basis for the atom update block.
+            edge_index_main: Main edge index, shape ``(2, nEdges)``.
+            a2ee2a_graph: Atom-to-edge-to-atom graph dictionary.
+            a2a_graph: Atom-to-atom graph dictionary.
+            id_swap: Index mapping each edge to its reverse, shape
+                ``(nEdges,)``.
+            trip_idx_e2e: Triplet indices for E2E interactions.
+            trip_idx_a2e: Triplet indices for A2E interactions.
+            trip_idx_e2a: Triplet indices for E2A interactions.
+            quad_idx: Quadruplet indices (nested dict).
+
+        Returns:
+            Updated ``(h, m)`` tuple of atom and edge embeddings.
+        """
         num_atoms = h.shape[0]
 
         x_ca_skip = self.dense_ca(m)
@@ -245,16 +300,30 @@ class InteractionBlock(torch.nn.Module):
 
 
 class QuadrupletInteraction(torch.nn.Module):
+    """Quadruplet interaction using radial, circular, and spherical bases.
+
+    Args:
+        emb_size_edge: Edge embedding dimension.
+        emb_size_quad_in: Input quadruplet embedding dimension.
+        emb_size_quad_out: Output quadruplet embedding dimension.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension.
+        emb_size_sbf: Spherical basis embedding dimension.
+        symmetric_mp: If ``True``, apply symmetric message passing (ca + ac
+            scaled by ``1 / sqrt(2)``).
+        activation: Activation function name.
+    """
+
     def __init__(
         self,
-        emb_size_edge,
-        emb_size_quad_in,
-        emb_size_quad_out,
-        emb_size_rbf,
-        emb_size_cbf,
-        emb_size_sbf,
-        symmetric_mp=True,
-        activation=None,
+        emb_size_edge: int,
+        emb_size_quad_in: int,
+        emb_size_quad_out: int,
+        emb_size_rbf: int,
+        emb_size_cbf: int,
+        emb_size_sbf: int,
+        symmetric_mp: bool = True,
+        activation: str | None = None,
     ) -> None:
         super().__init__()
         self.symmetric_mp = symmetric_mp
@@ -277,7 +346,26 @@ class QuadrupletInteraction(torch.nn.Module):
 
         self.inv_sqrt_2 = 1 / math.sqrt(2.0)
 
-    def forward(self, m, bases, idx, id_swap):
+    def forward(
+        self,
+        m: torch.Tensor,
+        bases: dict[str, torch.Tensor],
+        idx: dict,
+        id_swap: torch.Tensor,
+    ) -> torch.Tensor:
+        """Apply quadruplet interaction to edge embeddings.
+
+        Args:
+            m: Edge embeddings, shape ``(nEdges, emb_size_edge)``.
+            bases: Dictionary with keys ``"rad"``, ``"cir"``, ``"sph"``
+                holding the respective pre-computed bases.
+            idx: Quadruplet index dictionary.
+            id_swap: Edge-swap index, shape ``(nEdges,)``.
+
+        Returns:
+            Updated edge embeddings of shape
+            ``(nEdges, emb_size_edge)``.
+        """
         x_db = self.dense_db(m)
 
         x_db2 = x_db * self.mlp_rbf(bases["rad"])
@@ -304,6 +392,21 @@ class QuadrupletInteraction(torch.nn.Module):
 
 
 class TripletInteraction(torch.nn.Module):
+    """Triplet interaction using radial and circular bases.
+
+    Args:
+        emb_size_in: Input embedding dimension (atom or edge).
+        emb_size_out: Output embedding dimension (atom or edge).
+        emb_size_trip_in: Intermediate triplet input embedding dimension.
+        emb_size_trip_out: Intermediate triplet output embedding dimension.
+        emb_size_rbf: Radial basis embedding dimension.
+        emb_size_cbf: Circular basis embedding dimension.
+        symmetric_mp: If ``True``, apply symmetric message passing.
+        swap_output: If ``True``, apply ``id_swap`` when ``symmetric_mp``
+            is ``False``.
+        activation: Activation function name.
+    """
+
     def __init__(
         self,
         emb_size_in: int,
@@ -314,7 +417,7 @@ class TripletInteraction(torch.nn.Module):
         emb_size_cbf: int,
         symmetric_mp: bool = True,
         swap_output: bool = True,
-        activation=None,
+        activation: str | None = None,
     ) -> None:
         super().__init__()
         self.symmetric_mp = symmetric_mp
@@ -337,15 +440,33 @@ class TripletInteraction(torch.nn.Module):
 
     def forward(
         self,
-        m,
-        bases,
-        idx,
-        id_swap,
-        expand_idx=None,
-        idx_agg2=None,
-        idx_agg2_inner=None,
-        agg2_out_size=None,
-    ):
+        m: torch.Tensor,
+        bases: dict[str, torch.Tensor],
+        idx: dict[str, torch.Tensor],
+        id_swap: torch.Tensor,
+        expand_idx: torch.Tensor | None = None,
+        idx_agg2: torch.Tensor | None = None,
+        idx_agg2_inner: torch.Tensor | None = None,
+        agg2_out_size: int | None = None,
+    ) -> torch.Tensor:
+        """Apply triplet interaction to edge or atom embeddings.
+
+        Args:
+            m: Input embeddings (edge or atom), shape
+                ``(N, emb_size_in)``.
+            bases: Dictionary with keys ``"rad"`` and ``"cir"`` holding
+                the pre-computed radial and circular bases.
+            idx: Triplet index dictionary with keys ``"in"`` and ``"out"``.
+            id_swap: Edge-swap index, shape ``(nEdges,)``.
+            expand_idx: Optional expansion index for atom-to-edge paths.
+            idx_agg2: Optional second aggregation target index.
+            idx_agg2_inner: Optional per-target enumeration for second
+                aggregation.
+            agg2_out_size: Output size for the second aggregation.
+
+        Returns:
+            Updated embeddings of shape ``(N_out, emb_size_out)``.
+        """
         x_ba = self.dense_ba(m)
         if expand_idx is not None:
             x_ba = x_ba[expand_idx]
@@ -381,7 +502,24 @@ class TripletInteraction(torch.nn.Module):
 
 
 class PairInteraction(torch.nn.Module):
-    def __init__(self, emb_size_atom, emb_size_pair_in, emb_size_pair_out, emb_size_rbf, activation=None) -> None:
+    """Atom-pair (A2A) interaction via radial-basis weighted bilinear projection.
+
+    Args:
+        emb_size_atom: Atom embedding dimension.
+        emb_size_pair_in: Intermediate pair input embedding dimension.
+        emb_size_pair_out: Intermediate pair output embedding dimension.
+        emb_size_rbf: Radial basis embedding dimension.
+        activation: Activation function name.
+    """
+
+    def __init__(
+        self,
+        emb_size_atom: int,
+        emb_size_pair_in: int,
+        emb_size_pair_out: int,
+        emb_size_rbf: int,
+        activation: str | None = None,
+    ) -> None:
         super().__init__()
 
         self.bilinear = Dense(emb_size_rbf * emb_size_pair_in, emb_size_pair_out, activation=None, bias=False)
@@ -392,13 +530,34 @@ class PairInteraction(torch.nn.Module):
 
         self.inv_sqrt_2 = 1 / math.sqrt(2.0)
 
-    def forward(self, h, rad_basis, edge_index, target_neighbor_idx):
+    def forward(
+        self,
+        h: torch.Tensor,
+        rad_basis: torch.Tensor,
+        edge_index: torch.Tensor,
+        target_neighbor_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        """Apply atom-pair interaction to atom embeddings.
+
+        Args:
+            h: Atom embeddings, shape ``(nAtoms, emb_size_atom)``.
+            rad_basis: Atom-pair radial basis packed per destination atom,
+                shape ``(nAtoms, emb_size_rbf, Kmax)`` where ``Kmax`` is the
+                maximum number of neighbours for any atom in the batch.
+            edge_index: Atom-pair edge index, shape ``(2, nEdges)``.
+            target_neighbor_idx: Per-target atom neighbour enumeration,
+                shape ``(nEdges,)``.
+
+        Returns:
+            Updated atom embeddings of shape
+            ``(nAtoms, emb_size_atom)``.
+        """
         num_atoms = h.shape[0]
 
         x_b = self.down_projection(h)
         x_ba = x_b[edge_index[0]]
 
-        Kmax = torch.max(target_neighbor_idx) + 1
+        Kmax = 0 if target_neighbor_idx.numel() == 0 else int(target_neighbor_idx.max().item()) + 1
         x2 = x_ba.new_zeros(num_atoms, Kmax, x_ba.shape[-1])
         x2[edge_index[1], target_neighbor_idx] = x_ba
 
