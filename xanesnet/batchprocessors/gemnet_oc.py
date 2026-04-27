@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Batch processor for the GemNet-OC model."""
 
 import numpy as np
 import torch
@@ -26,8 +27,7 @@ from .registry import BatchProcessorRegistry
 @BatchProcessorRegistry.register("gemnet_oc", "gemnet_oc")
 @BatchProcessorRegistry.register("gemnet_oc_mp", "gemnet_oc")
 class GemNetOCBatchProcessor(BatchProcessor):
-    """
-    Batch processor for the PyG-based ``GemNetDataset`` feeding GemNet-OC.
+    """Batch processor for the PyG-based ``GemNetDataset`` feeding GemNet-OC.
 
     GemNet-OC reads a large set of precomputed tensors (main/qint/a2ee2a/a2a
     graphs plus triplet, mixed-triplet and quadruplet indices). All are
@@ -68,6 +68,14 @@ class GemNetOCBatchProcessor(BatchProcessor):
     )
 
     def input_preparation(self, batch: GemNetBatch) -> dict[str, torch.Tensor | None]:
+        """Prepare GemNet-OC model inputs from the batch.
+
+        Args:
+            batch: Collated GemNet-OC batch.
+
+        Returns:
+            Dict of tensors matching :meth:`xanesnet.models.gemnet_oc.gemnet_oc.GemNetOC.forward`.
+        """
         inputs: dict[str, torch.Tensor | None] = {
             "z": batch.x,
             "edge_index": batch.edge_index,
@@ -83,10 +91,35 @@ class GemNetOCBatchProcessor(BatchProcessor):
         return inputs
 
     def prediction_preparation(self, batch: GemNetBatch, predictions: torch.Tensor) -> torch.Tensor:
+        """Select absorber-site predictions from the per-atom output.
+
+        Args:
+            batch: Collated GemNet batch carrying ``absorber_mask``.
+            predictions: Per-atom output tensor. ``(num_atoms_total, num_targets)``
+
+        Returns:
+            Predictions for absorber atoms only. ``(n_abs, num_targets)``
+        """
         return predictions[batch.absorber_mask]
 
     def target_preparation(self, batch: GemNetBatch) -> torch.Tensor:
+        """Prepare target spectra from the batch.
+
+        Args:
+            batch: Collated GemNet-OC batch.
+
+        Returns:
+            Target spectra for absorber atoms only. ``(n_abs, n_energies)``
+        """
         return batch.intensities
 
     def file_name_extraction(self, batch: GemNetBatch) -> np.ndarray:
+        """Extract file names from the batch.
+
+        Args:
+            batch: Collated GemNet-OC batch.
+
+        Returns:
+            Array of file name strings aligned with absorber targets. ``(n_abs,)``
+        """
         return np.array(batch.file_name, dtype=str)
