@@ -1,25 +1,9 @@
-"""
-Absorber-centred e3ee XANES model for XANESNET.
-
-Revised version with:
-- batched/vectorized graph construction
-- cached absorber-relative geometry passed through branches
-- faster energy-conditioned atom attention with energy-dependent queries
-  and energy-independent atom keys/values
-- smooth cosine cutoff envelope
-- irrep-aware normalization
-- gentler residual updates
-- weighted message aggregation in equivariant encoder
-- invariant summaries from all irreps for downstream use
-- optional path branch retained
-- late equivariant absorber head to keep equivariant information alive deeper into the head
-- physical absolute energy support (uses batch.e directly when available)
-"""
-
 from typing import Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 from e3nn import o3
 from e3nn.nn import Gate
 from e3nn.o3 import FullyConnectedTensorProduct
@@ -38,19 +22,10 @@ def build_absorber_relative_geometry(
     mask: torch.Tensor,
     absorber_index: int = 0,
 ):
-    """
-    Build absorber-relative geometry once and reuse it everywhere.
-
-    Returns:
-        rel         [B, N, 3]  position relative to absorber
-        r           [B, N]     absorber-neighbour distance
-        u           [B, N, 3]  absorber-neighbour unit vector
-        valid_neigh [B, N]     valid neighbours excluding absorber
-    """
-    abs_pos = pos[:, absorber_index, :].unsqueeze(1)        # [B, 1, 3]
-    rel = pos - abs_pos                                      # [B, N, 3]
-    r = torch.linalg.norm(rel, dim=-1)                       # [B, N]
-    u = rel / r.unsqueeze(-1).clamp_min(1e-8)               # [B, N, 3]
+    abs_pos = pos[:, absorber_index, :].unsqueeze(1)
+    rel = pos - abs_pos
+    r = torch.linalg.norm(rel, dim=-1)
+    u = rel / r.unsqueeze(-1).clamp_min(1e-8)
 
     valid_neigh = mask.clone()
     valid_neigh[:, absorber_index] = False
@@ -63,22 +38,15 @@ def build_absorber_relative_geometry(
     }
 
 
+def build_absorber_attention_mask(geom: dict, cutoff: float) -> torch.Tensor:
+    return geom["valid_neigh"] & (geom["r"] <= cutoff)
+
+
 def invariant_feature_dim(irreps: o3.Irreps) -> int:
     return sum(mul for mul, _ in irreps)
 
 
 def invariant_features_from_irreps(x: torch.Tensor, irreps: o3.Irreps) -> torch.Tensor:
-    """
-    Convert flattened irreps features into invariant features.
-
-    Supports x of shape [..., D].
-
-    For l = 0:
-        keep scalar channels directly
-
-    For l > 0:
-        take RMS norm of each irrep copy
-    """
     orig_shape = x.shape[:-1]
     D = x.shape[-1]
 
@@ -112,7 +80,7 @@ class GaussianRBF(nn.Module):
         if gamma is None:
             delta = (stop - start) / max(n_rbf - 1, 1)
             gamma = 1.0 / (delta * delta + 1e-12)
-        self.gamma = gamma
+        self.gamma = float(gamma)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.exp(-self.gamma * (x.unsqueeze(-1) - self.centers) ** 2)
@@ -183,15 +151,6 @@ class RadialMLP(nn.Module):
 
 
 class IrrepNorm(nn.Module):
-    """
-    Simple irrep-respecting normalization.
-
-    - l = 0 blocks:
-        mean/variance normalization across multiplicity channels
-    - l > 0 blocks:
-        RMS normalization per irrep copy
-    """
-
     def __init__(self, irreps: o3.Irreps, eps: float = 1e-8, affine: bool = True):
         super().__init__()
         self.irreps = o3.Irreps(irreps)
@@ -243,13 +202,6 @@ class IrrepNorm(nn.Module):
 # ============================================================
 
 class BatchedRadiusGraphBuilder(nn.Module):
-    """
-    Vectorized padded-batch radius graph construction.
-
-    Returns flattened node indices for a [B, N, ...] tensor layout,
-    where flat index = b * N + i.
-    """
-
     def __init__(self, cutoff: float):
         super().__init__()
         self.cutoff = float(cutoff)
@@ -259,8 +211,8 @@ class BatchedRadiusGraphBuilder(nn.Module):
         dtype = pos.dtype
         B, N, _ = pos.shape
 
-        diff = pos[:, :, None, :] - pos[:, None, :, :]         # [B, N, N, 3]
-        dist = torch.linalg.norm(diff, dim=-1)                 # [B, N, N]
+        diff = pos[:, :, None, :] - pos[:, None, :, :]
+        dist = torch.linalg.norm(diff, dim=-1)
 
         valid = mask[:, :, None] & mask[:, None, :]
         edge_mask = valid & (dist <= self.cutoff) & (dist > 1e-8)
@@ -277,6 +229,182 @@ class BatchedRadiusGraphBuilder(nn.Module):
             edge_vec = pos[b, dst] - pos[b, src]
 
         return edge_src, edge_dst, edge_vec
+
+
+# ============================================================
+# Invariant/scalar encoder
+# ============================================================
+
+class TrueInvariantAtomEncoder(nn.Module):
+    def __init__(
+        self,
+        max_z: int = 100,
+        cutoff: float = 6.0,
+        num_interactions: int = 3,
+        rbf_dim: int = 16,
+        node_attr_dim: int = 64,
+        hidden_dim: int = 128,
+        node_dim: int = 128,
+        residual_scale_init: float = 0.1,
+    ):
+        super().__init__()
+        self.cutoff = float(cutoff)
+        self.rbf_dim = int(rbf_dim)
+        self.node_dim = int(node_dim)
+
+        self.graph_builder = BatchedRadiusGraphBuilder(cutoff=cutoff)
+        self.dist_rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.z_emb = nn.Embedding(max_z + 1, node_attr_dim)
+
+        self.input_scalar_dim = node_attr_dim + 1 + rbf_dim
+        self.input_mlp = MLP(
+            in_dim=self.input_scalar_dim,
+            hidden_dim=hidden_dim,
+            out_dim=node_dim,
+            n_layers=2,
+            layer_norm=True,
+        )
+
+        self.blocks = nn.ModuleList([
+            InvariantInteractionBlock(
+                node_dim=node_dim,
+                rbf_dim=rbf_dim,
+                radial_hidden_dim=hidden_dim,
+                cutoff=cutoff,
+                residual_scale_init=residual_scale_init,
+            )
+            for _ in range(num_interactions)
+        ])
+        self.out_norm = nn.LayerNorm(node_dim)
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N = z.shape
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(
+                z=z,
+                pos=pos,
+                mask=mask,
+                absorber_index=absorber_index,
+            )
+
+        r_abs = geom["r"]
+
+        abs_flag = torch.zeros_like(z, dtype=pos.dtype)
+        abs_flag[:, absorber_index] = 1.0
+
+        zf = self.z_emb(z)
+        rf = self.dist_rbf(r_abs.clamp(max=self.cutoff))
+
+        scalar_in = torch.cat([zf, abs_flag.unsqueeze(-1), rf], dim=-1)
+        x = self.input_mlp(scalar_in)
+
+        flat_mask = mask.reshape(B * N)
+        x = x.reshape(B * N, self.node_dim)
+        x = x * flat_mask.unsqueeze(-1).to(x.dtype)
+
+        edge_src, edge_dst, edge_vec = self.graph_builder(pos, mask)
+
+        if edge_vec.numel() > 0:
+            edge_len = torch.linalg.norm(edge_vec, dim=-1)
+            edge_rbf = self.dist_rbf(edge_len.clamp(max=self.cutoff))
+            edge_sh = torch.zeros(
+                edge_vec.shape[0], 1, device=edge_vec.device, dtype=edge_vec.dtype
+            )
+        else:
+            edge_len = torch.zeros(0, device=pos.device, dtype=pos.dtype)
+            edge_rbf = torch.zeros(0, self.rbf_dim, device=pos.device, dtype=pos.dtype)
+            edge_sh = torch.zeros(0, 1, device=pos.device, dtype=pos.dtype)
+
+        for block in self.blocks:
+            x = block(
+                x=x,
+                edge_src=edge_src,
+                edge_dst=edge_dst,
+                edge_sh=edge_sh,
+                edge_rbf=edge_rbf,
+                edge_len=edge_len,
+            )
+
+        x = self.out_norm(x)
+        x = x * flat_mask.unsqueeze(-1).to(x.dtype)
+
+        return x.view(B, N, self.node_dim)
+
+
+class InvariantInteractionBlock(nn.Module):
+    def __init__(
+        self,
+        node_dim: int,
+        rbf_dim: int,
+        radial_hidden_dim: int,
+        cutoff: float,
+        residual_scale_init: float = 0.1,
+    ):
+        super().__init__()
+
+        self.pre_norm = nn.LayerNorm(node_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
+
+        self.weight_mlp = RadialMLP(rbf_dim, radial_hidden_dim, node_dim)
+
+        self.edge_gate = nn.Sequential(
+            nn.Linear(rbf_dim, radial_hidden_dim),
+            nn.SiLU(),
+            nn.Linear(radial_hidden_dim, 1),
+            nn.Sigmoid(),
+        )
+
+        self.msg_mlp = nn.Sequential(
+            nn.Linear(node_dim, radial_hidden_dim),
+            nn.SiLU(),
+            nn.Linear(radial_hidden_dim, node_dim),
+        )
+
+        self.self_linear = nn.Linear(node_dim, node_dim)
+        self.update_linear = nn.Linear(node_dim, node_dim)
+
+        self.res_scale = nn.Parameter(
+            torch.tensor(float(residual_scale_init), dtype=torch.float32)
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_src: torch.Tensor,
+        edge_dst: torch.Tensor,
+        edge_sh: torch.Tensor,
+        edge_rbf: torch.Tensor,
+        edge_len: torch.Tensor,
+    ) -> torch.Tensor:
+        if edge_src.numel() == 0:
+            return x
+
+        x_norm = self.pre_norm(x)
+
+        edge_w = self.cutoff_fn(edge_len).unsqueeze(-1) * self.edge_gate(edge_rbf)
+
+        m = x_norm[edge_src] * self.weight_mlp(edge_rbf)
+        m = m * edge_w
+
+        agg = torch.zeros_like(x)
+        agg.index_add_(0, edge_dst, m)
+
+        norm = torch.zeros(x.shape[0], 1, device=x.device, dtype=x.dtype)
+        norm.index_add_(0, edge_dst, edge_w)
+        agg = agg / norm.clamp_min(1e-8)
+
+        agg = self.msg_mlp(agg)
+
+        out = self.self_linear(x_norm) + self.update_linear(agg)
+        return x + self.res_scale.to(x.dtype) * out
 
 
 # ============================================================
@@ -345,7 +473,7 @@ class EquivariantInteractionBlock(nn.Module):
 
     def forward(
         self,
-        x: torch.Tensor,               # [B*N, D]
+        x: torch.Tensor,
         edge_src: torch.Tensor,
         edge_dst: torch.Tensor,
         edge_sh: torch.Tensor,
@@ -403,10 +531,12 @@ class TrueE3EEAtomEncoder(nn.Module):
         irreps_node: str = "64x0e + 32x1o + 16x2e",
         irreps_message: str = "16x0e + 8x1o + 4x2e",
         residual_scale_init: float = 0.1,
+        use_invariance: bool = False,
     ):
         super().__init__()
         self.cutoff = cutoff
         self.rbf_dim = rbf_dim
+        self.use_invariance = use_invariance
         self.irreps_node = o3.Irreps(irreps_node)
         self.irreps_message = o3.Irreps(irreps_message)
 
@@ -422,20 +552,32 @@ class TrueE3EEAtomEncoder(nn.Module):
 
         self.irreps_sh = o3.Irreps.spherical_harmonics(lmax)
 
-        self.blocks = nn.ModuleList([
-            EquivariantInteractionBlock(
-                irreps_node=str(self.irreps_node),
-                irreps_sh=str(self.irreps_sh),
-                irreps_message=str(self.irreps_message),
-                rbf_dim=rbf_dim,
-                radial_hidden_dim=hidden_dim,
-                cutoff=cutoff,
-                residual_scale_init=residual_scale_init,
-            )
-            for _ in range(num_interactions)
-        ])
-
-        self.out_norm = IrrepNorm(self.irreps_node)
+        if self.use_invariance:
+            self.blocks = nn.ModuleList([
+                InvariantInteractionBlock(
+                    node_dim=self.irreps_node.dim,
+                    rbf_dim=rbf_dim,
+                    radial_hidden_dim=hidden_dim,
+                    cutoff=cutoff,
+                    residual_scale_init=residual_scale_init,
+                )
+                for _ in range(num_interactions)
+            ])
+            self.out_norm = nn.LayerNorm(self.irreps_node.dim)
+        else:
+            self.blocks = nn.ModuleList([
+                EquivariantInteractionBlock(
+                    irreps_node=str(self.irreps_node),
+                    irreps_sh=str(self.irreps_sh),
+                    irreps_message=str(self.irreps_message),
+                    rbf_dim=rbf_dim,
+                    radial_hidden_dim=hidden_dim,
+                    cutoff=cutoff,
+                    residual_scale_init=residual_scale_init,
+                )
+                for _ in range(num_interactions)
+            ])
+            self.out_norm = IrrepNorm(self.irreps_node)
 
     def forward(
         self,
@@ -501,350 +643,184 @@ class TrueE3EEAtomEncoder(nn.Module):
 
 
 # ============================================================
-# Optional path branch
+# Learned branch fusion
 # ============================================================
 
-class PairElementEnergyScattering(nn.Module):
+class GatedBranchFusion(nn.Module):
     def __init__(
         self,
-        max_z: int,
-        z_emb_dim: int,
+        branch_dims: list[int],
+        fused_dim: int,
+        cond_dim: int,
+        hidden_dim: int,
+        use_softmax: bool = True,
+    ):
+        super().__init__()
+        self.n_branches = len(branch_dims)
+        self.fused_dim = fused_dim
+        self.use_softmax = use_softmax
+
+        self.proj = nn.ModuleList([
+            nn.Identity() if d == fused_dim else nn.Linear(d, fused_dim)
+            for d in branch_dims
+        ])
+
+        gate_in_dim = self.n_branches * (2 * fused_dim) + cond_dim
+        self.gate_mlp = MLP(
+            in_dim=gate_in_dim,
+            hidden_dim=hidden_dim,
+            out_dim=self.n_branches,
+            n_layers=3,
+        )
+
+        self.out_mlp = MLP(
+            in_dim=fused_dim,
+            hidden_dim=hidden_dim,
+            out_dim=fused_dim,
+            n_layers=2,
+        )
+
+        last_linear = None
+        for m in reversed(self.gate_mlp.net):
+            if isinstance(m, nn.Linear):
+                last_linear = m
+                break
+        if last_linear is not None:
+            nn.init.zeros_(last_linear.weight)
+            nn.init.zeros_(last_linear.bias)
+
+    def forward(
+        self,
+        branches: list[torch.Tensor],
+        cond_feat: torch.Tensor,
+        return_gates: bool = False,
+    ):
+        if len(branches) != self.n_branches:
+            raise ValueError(f"Expected {self.n_branches} branches, got {len(branches)}")
+
+        proj_branches = [proj(x) for proj, x in zip(self.proj, branches)]
+
+        summaries = []
+        for x in proj_branches:
+            summaries.append(x)
+            summaries.append(torch.abs(x))
+
+        gate_in = torch.cat(summaries + [cond_feat], dim=-1)
+        gate_logits = self.gate_mlp(gate_in)
+
+        if self.use_softmax:
+            gates = torch.softmax(gate_logits, dim=-1)
+        else:
+            gates = torch.sigmoid(gate_logits)
+            gates = gates / gates.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+
+        fused = 0.0
+        for i, x in enumerate(proj_branches):
+            fused = fused + gates[..., i].unsqueeze(-1) * x
+
+        fused = self.out_mlp(fused)
+
+        if return_gates:
+            return fused, gates
+        return fused
+
+
+# ============================================================
+# Absorber branches
+# ============================================================
+
+class FieldConditionedInvariantAbsorberHead(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
         e_dim: int,
+        field_abs_dim: int,
         hidden_dim: int,
         out_dim: int,
     ):
         super().__init__()
-        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
         self.mlp = MLP(
-            in_dim=2 * z_emb_dim + e_dim,
+            in_dim=atom_dim + e_dim + field_abs_dim,
             hidden_dim=hidden_dim,
             out_dim=out_dim,
             n_layers=3,
         )
 
-    def forward(self, z_j: torch.Tensor, z_k: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        B, P = z_j.shape
-        nE, dE = e_feat.shape
-
-        ej = self.z_emb(z_j).unsqueeze(2).expand(B, P, nE, -1)
-        ek = self.z_emb(z_k).unsqueeze(2).expand(B, P, nE, -1)
-        ef = e_feat.unsqueeze(0).unsqueeze(0).expand(B, P, nE, dE)
-
-        return self.mlp(torch.cat([ej, ek, ef], dim=-1))
-
-
-class AbsorberPathAggregator(nn.Module):
-    """
-    3-body absorber-centred path aggregator for paths (0, j, k),
-    operating on invariant atomwise features.
-
-    Geometry is reused from cached absorber-relative quantities where possible.
-    """
-
-    def __init__(
-        self,
-        atom_dim: int,
-        rbf_dim: int,
-        geom_hidden_dim: int,
-        scatter_dim: int,
-        out_dim: int,
-        cutoff: float,
-        max_paths_per_structure: int = 256,
-    ):
-        super().__init__()
-        self.cutoff = cutoff
-        self.max_paths_per_structure = max_paths_per_structure
-        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
-        self.cutoff_fn = CosineCutoff(cutoff)
-
-        self.geom_mlp = MLP(
-            in_dim=2 * atom_dim + 3 * rbf_dim + 1,
-            hidden_dim=geom_hidden_dim,
-            out_dim=scatter_dim,
-            n_layers=3,
-        )
-
-        self.out_proj = MLP(
-            in_dim=scatter_dim,
-            hidden_dim=geom_hidden_dim,
-            out_dim=out_dim,
-            n_layers=2,
-        )
-
-    def _enumerate_paths(self, z, pos, mask, absorber_index, geom=None):
-        B, N = z.shape
-        device = z.device
-
-        if geom is None:
-            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
-
-        r = geom["r"]
-        valid = geom["valid_neigh"] & (r <= self.cutoff)
-
-        all_j, all_k, all_m = [], [], []
-        Pmax = self.max_paths_per_structure
-
-        for b in range(B):
-            idx = torch.where(valid[b])[0]
-
-            if idx.numel() < 2:
-                j_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
-                k_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
-                pmask = torch.zeros(Pmax, dtype=torch.bool, device=device)
-            else:
-                pairs = torch.combinations(idx, r=2)
-
-                pos0 = pos[b, absorber_index].unsqueeze(0)
-                posj = pos[b, pairs[:, 0]]
-                posk = pos[b, pairs[:, 1]]
-
-                r0j = torch.linalg.norm(posj - pos0, dim=-1)
-                r0k = torch.linalg.norm(posk - pos0, dim=-1)
-                rjk = torch.linalg.norm(posk - posj, dim=-1)
-
-                score = r0j + r0k + 0.5 * rjk
-                order = torch.argsort(score)
-                pairs = pairs[order]
-
-                if pairs.shape[0] > Pmax:
-                    pairs = pairs[:Pmax]
-
-                P = pairs.shape[0]
-                j_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
-                k_idx = torch.zeros(Pmax, dtype=torch.long, device=device)
-                pmask = torch.zeros(Pmax, dtype=torch.bool, device=device)
-
-                j_idx[:P] = pairs[:, 0]
-                k_idx[:P] = pairs[:, 1]
-                pmask[:P] = True
-
-            all_j.append(j_idx)
-            all_k.append(k_idx)
-            all_m.append(pmask)
-
-        return torch.stack(all_j, dim=0), torch.stack(all_k, dim=0), torch.stack(all_m, dim=0)
-
     def forward(
         self,
-        h: torch.Tensor,
-        z: torch.Tensor,
-        pos: torch.Tensor,
-        mask: torch.Tensor,
-        pair_elem_energy: PairElementEnergyScattering,
+        h_abs: torch.Tensor,
         e_feat: torch.Tensor,
-        absorber_index: int = 0,
-        geom: Optional[dict] = None,
+        field_abs_feat: torch.Tensor,
     ) -> torch.Tensor:
-        B, N, H = h.shape
-        device = h.device
+        B, H = h_abs.shape
+        nE, dE = e_feat.shape
+        ff = field_abs_feat.shape[-1]
 
-        if geom is None:
-            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
-
-        j_idx, k_idx, path_mask = self._enumerate_paths(
-            z=z,
-            pos=pos,
-            mask=mask,
-            absorber_index=absorber_index,
-            geom=geom,
-        )
-        batch_idx = torch.arange(B, device=device)[:, None]
-
-        hj = h[batch_idx, j_idx]
-        hk = h[batch_idx, k_idx]
-
-        pos0 = pos[:, absorber_index, :].unsqueeze(1)
-        posj = pos[batch_idx, j_idx]
-        posk = pos[batch_idx, k_idx]
-
-        vj = posj - pos0
-        vk = posk - pos0
-        vjk = posk - posj
-
-        r0j = torch.linalg.norm(vj, dim=-1)
-        r0k = torch.linalg.norm(vk, dim=-1)
-        rjk = torch.linalg.norm(vjk, dim=-1)
-
-        uj = vj / r0j.unsqueeze(-1).clamp_min(1e-8)
-        uk = vk / r0k.unsqueeze(-1).clamp_min(1e-8)
-        cosang = (uj * uk).sum(dim=-1, keepdim=True).clamp(-1.0, 1.0)
-
-        f0j = self.rbf(r0j.clamp(max=self.cutoff))
-        f0k = self.rbf(r0k.clamp(max=self.cutoff))
-        fjk = self.rbf(rjk.clamp(max=self.cutoff))
-
-        geom_in = torch.cat([hj, hk, f0j, f0k, fjk, cosang], dim=-1)
-        g_geom = self.geom_mlp(geom_in)
-
-        zj = z[batch_idx, j_idx]
-        zk = z[batch_idx, k_idx]
-        g_elem = pair_elem_energy(zj, zk, e_feat)
-
-        cutoff_w = (
-            self.cutoff_fn(r0j) *
-            self.cutoff_fn(r0k) *
-            self.cutoff_fn(rjk)
-        ).unsqueeze(-1).unsqueeze(-1)
-
-        contrib = g_geom.unsqueeze(2) * g_elem
-        contrib = contrib * cutoff_w
-        contrib = contrib * path_mask.unsqueeze(-1).unsqueeze(-1).to(contrib.dtype)
-
-        agg = contrib.sum(dim=1)
-
-        norm = cutoff_w.squeeze(-1) * path_mask.unsqueeze(-1).to(cutoff_w.dtype)
-        norm = norm.sum(dim=1).clamp_min(1e-8)
-        agg = agg / norm.unsqueeze(1)
-
-        return self.out_proj(agg)
+        x = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+            field_abs_feat.unsqueeze(1).expand(B, nE, ff),
+        ], dim=-1)
+        return self.mlp(x)
 
 
-# ============================================================
-# Faster energy-conditioned atom attention
-# ============================================================
-
-class EnergyConditionedAtomAttention(nn.Module):
-    """
-    Faster energy-conditioned attention over atomwise invariant features.
-
-    Changes relative to the earlier version:
-    - queries are energy-dependent
-    - keys/values are atom-dependent but energy-independent
-    - cached absorber-relative geometry can be passed in
-    - avoids large [B, N, nE, ...] MLP expansions for k and v
-    """
-
+class EnergyConditionedInvariantAbsorberHead(nn.Module):
     def __init__(
         self,
         atom_dim: int,
         e_dim: int,
-        rbf_dim: int,
         hidden_dim: int,
-        latent_dim: int,
-        cutoff: float,
-        max_z: int = 100,
-        z_emb_dim: int = 32,
-        n_heads: int = 4,
+        out_dim: int,
     ):
         super().__init__()
-        assert latent_dim % n_heads == 0, "latent_dim must be divisible by n_heads"
-
-        self.atom_dim = atom_dim
-        self.e_dim = e_dim
-        self.rbf_dim = rbf_dim
-        self.hidden_dim = hidden_dim
-        self.latent_dim = latent_dim
-        self.cutoff = cutoff
-        self.n_heads = n_heads
-        self.head_dim = latent_dim // n_heads
-
-        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
-        self.cutoff_fn = CosineCutoff(cutoff)
-        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
-
-        # Energy-dependent query from absorber invariant features + energy embedding
-        self.query_mlp = MLP(
+        self.mlp = MLP(
             in_dim=atom_dim + e_dim,
             hidden_dim=hidden_dim,
-            out_dim=latent_dim,
+            out_dim=out_dim,
             n_layers=3,
         )
 
-        # Atom-dependent keys/values, independent of energy
-        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 3 + 1
-        self.key_mlp = MLP(
-            in_dim=atom_static_dim,
-            hidden_dim=hidden_dim,
-            out_dim=latent_dim,
-            n_layers=3,
-        )
-        self.value_mlp = MLP(
-            in_dim=atom_static_dim,
-            hidden_dim=hidden_dim,
-            out_dim=latent_dim,
-            n_layers=3,
-        )
-
-        self.out_proj = MLP(
-            in_dim=latent_dim,
-            hidden_dim=hidden_dim,
-            out_dim=latent_dim,
-            n_layers=2,
-        )
-
-        self.score_scale = self.head_dim ** -0.5
-
-    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
-        new_shape = x.shape[:-1] + (self.n_heads, self.head_dim)
-        return x.view(*new_shape)
-
-    def forward(
-        self,
-        h: torch.Tensor,          # [B, N, H]
-        z: torch.Tensor,          # [B, N]
-        pos: torch.Tensor,        # [B, N, 3]
-        mask: torch.Tensor,       # [B, N]
-        e_feat: torch.Tensor,     # [nE, dE]
-        absorber_index: int = 0,
-        geom: Optional[dict] = None,
-    ) -> torch.Tensor:
-        B, N, H = h.shape
+    def forward(self, h_abs: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
+        B, H = h_abs.shape
         nE, dE = e_feat.shape
 
-        if geom is None:
-            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
-
-        r = geom["r"]             # [B, N]
-        u = geom["u"]             # [B, N, 3]
-        valid = mask & (r <= self.cutoff)
-
-        # Query: absorber invariant features + energy embedding
-        h_abs = h[:, absorber_index, :]                          # [B, H]
-        q_in = torch.cat([
+        x = torch.cat([
             h_abs.unsqueeze(1).expand(B, nE, H),
             e_feat.unsqueeze(0).expand(B, nE, dE),
         ], dim=-1)
-        q = self.query_mlp(q_in)                                 # [B, nE, L]
+        return self.mlp(x)
 
-        # Static atom features, computed once per atom
-        zr = self.z_emb(z)                                       # [B, N, z_emb_dim]
-        rr = self.rbf(r.clamp(max=self.cutoff))                  # [B, N, rbf_dim]
-        is_abs = torch.zeros_like(r)
-        is_abs[:, absorber_index] = 1.0
 
-        atom_static = torch.cat([h, zr, rr, u, is_abs.unsqueeze(-1)], dim=-1)  # [B, N, F]
-        k = self.key_mlp(atom_static)                            # [B, N, L]
-        v = self.value_mlp(atom_static)                          # [B, N, L]
+class FieldConditionedAbsorberBranch(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        field_abs_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.mlp = MLP(
+            in_dim=atom_dim + e_dim + field_abs_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
 
-        # Split into heads
-        q = self._split_heads(q)                                 # [B, nE, nH, dH]
-        k = self._split_heads(k)                                 # [B, N,  nH, dH]
-        v = self._split_heads(v)                                 # [B, N,  nH, dH]
+    def forward(self, h_abs: torch.Tensor, e_feat: torch.Tensor, field_abs_feat: torch.Tensor) -> torch.Tensor:
+        B, H = h_abs.shape
+        nE, dE = e_feat.shape
+        hf = field_abs_feat.shape[-1]
 
-        # Scores: [B, nE, N, nH]
-        scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) * self.score_scale
+        ha = h_abs.unsqueeze(1).expand(B, nE, H)
+        ef = e_feat.unsqueeze(0).expand(B, nE, dE)
+        ff = field_abs_feat.unsqueeze(1).expand(B, nE, hf)
 
-        radial_bias = torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
-        scores = scores + radial_bias
-
-        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
-        scores = scores.masked_fill(~attn_mask, -1e9)
-
-        attn = torch.softmax(scores, dim=2)
-        attn = attn * attn_mask.to(attn.dtype)
-
-        # Weighted sum over atoms -> [B, nE, nH, dH]
-        out = (attn.unsqueeze(-1) * v.unsqueeze(1)).sum(dim=2)
-        out = out.reshape(B, nE, self.latent_dim)
-
-        return self.out_proj(out)
+        return self.mlp(torch.cat([ha, ef, ff], dim=-1))
 
 
 class EnergyConditionedAbsorberBranch(nn.Module):
-    """
-    Energy-dependent absorber branch based on invariant absorber features.
-    """
-
     def __init__(
         self,
         atom_dim: int,
@@ -869,40 +845,24 @@ class EnergyConditionedAbsorberBranch(nn.Module):
         return self.mlp(torch.cat([ha, ef], dim=-1))
 
 
-# ============================================================
-# Late equivariant head
-# ============================================================
-
 class EnergyIrrepModulation(nn.Module):
-    """
-    Energy-conditioned scalar modulation of each irrep copy.
-
-    For each energy, predicts one scalar per irrep copy and multiplies
-    the full irrep block by that scalar. This preserves equivariance.
-    """
-
-    def __init__(self, irreps: o3.Irreps, e_dim: int, hidden_dim: int):
+    def __init__(self, irreps: o3.Irreps, cond_dim: int, hidden_dim: int):
         super().__init__()
         self.irreps = o3.Irreps(irreps)
         self.n_copies = sum(mul for mul, _ in self.irreps)
 
         self.mlp = MLP(
-            in_dim=e_dim,
+            in_dim=cond_dim,
             hidden_dim=hidden_dim,
             out_dim=self.n_copies,
             n_layers=3,
         )
 
-    def forward(self, x: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        """
-        x:      [B, D]
-        e_feat: [nE, e_dim]
-        return: [B, nE, D]
-        """
+    def forward(self, x: torch.Tensor, cond_feat: torch.Tensor) -> torch.Tensor:
         B, D = x.shape
-        nE = e_feat.shape[0]
+        nE = cond_feat.shape[0] if cond_feat.ndim == 2 else cond_feat.shape[1]
 
-        gates = self.mlp(e_feat)  # [nE, n_copies]
+        gates = self.mlp(cond_feat)
 
         outs = []
         xoff = 0
@@ -913,10 +873,14 @@ class EnergyIrrepModulation(nn.Module):
             block_dim = mul * dim
 
             xb = x[:, xoff:xoff + block_dim].view(B, mul, dim)
-            gb = gates[:, goff:goff + mul]
+            gb = gates[:, goff:goff + mul] if gates.ndim == 2 else gates[..., goff:goff + mul]
 
-            xb = xb.unsqueeze(1)                 # [B, 1, mul, dim]
-            gb = gb.unsqueeze(0).unsqueeze(-1)  # [1, nE, mul, 1]
+            if gb.ndim == 2:
+                xb = xb.unsqueeze(1)
+                gb = gb.unsqueeze(0).unsqueeze(-1)
+            else:
+                xb = xb.unsqueeze(1)
+                gb = gb.unsqueeze(-1)
 
             outs.append((xb * gb).reshape(B, nE, block_dim))
 
@@ -926,17 +890,49 @@ class EnergyIrrepModulation(nn.Module):
         return torch.cat(outs, dim=-1)
 
 
+class FieldConditionedEquivariantAbsorberHead(nn.Module):
+    def __init__(
+        self,
+        irreps_node: o3.Irreps,
+        e_dim: int,
+        field_abs_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+    ):
+        super().__init__()
+        self.irreps_node = o3.Irreps(irreps_node)
+        self.inv_dim = invariant_feature_dim(self.irreps_node)
+
+        self.mod = EnergyIrrepModulation(
+            self.irreps_node,
+            cond_dim=e_dim + field_abs_dim,
+            hidden_dim=hidden_dim,
+        )
+
+        self.out_mlp = MLP(
+            in_dim=self.inv_dim + field_abs_dim,
+            hidden_dim=hidden_dim,
+            out_dim=out_dim,
+            n_layers=3,
+        )
+
+    def forward(self, h_abs_full: torch.Tensor, e_feat: torch.Tensor, field_abs_feat: torch.Tensor) -> torch.Tensor:
+        B = h_abs_full.shape[0]
+        nE = e_feat.shape[0]
+        ff = field_abs_feat.shape[-1]
+
+        cond = torch.cat([
+            e_feat.unsqueeze(0).expand(B, nE, -1),
+            field_abs_feat.unsqueeze(1).expand(B, nE, ff),
+        ], dim=-1)
+
+        h_mod = self.mod(h_abs_full, cond)
+        inv = invariant_features_from_irreps(h_mod, self.irreps_node)
+        inv = torch.cat([inv, field_abs_feat.unsqueeze(1).expand(B, nE, ff)], dim=-1)
+        return self.out_mlp(inv)
+
+
 class EnergyConditionedEquivariantAbsorberHead(nn.Module):
-    """
-    Keeps absorber equivariant information alive until late in the head.
-
-    Steps:
-    - take absorber equivariant feature
-    - apply energy-conditioned irrep-wise modulation
-    - convert to invariant summaries only at the end
-    - project to latent
-    """
-
     def __init__(
         self,
         irreps_node: o3.Irreps,
@@ -946,8 +942,13 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
     ):
         super().__init__()
         self.irreps_node = o3.Irreps(irreps_node)
-        self.mod = EnergyIrrepModulation(self.irreps_node, e_dim=e_dim, hidden_dim=hidden_dim)
         self.inv_dim = invariant_feature_dim(self.irreps_node)
+
+        self.mod = EnergyIrrepModulation(
+            self.irreps_node,
+            cond_dim=e_dim,
+            hidden_dim=hidden_dim,
+        )
 
         self.out_mlp = MLP(
             in_dim=self.inv_dim,
@@ -957,9 +958,846 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
         )
 
     def forward(self, h_abs_full: torch.Tensor, e_feat: torch.Tensor) -> torch.Tensor:
-        h_mod = self.mod(h_abs_full, e_feat)  # [B, nE, D]
-        inv = invariant_features_from_irreps(h_mod, self.irreps_node)  # [B, nE, inv_dim]
+        B = h_abs_full.shape[0]
+        nE = e_feat.shape[0]
+
+        cond = e_feat.unsqueeze(0).expand(B, nE, -1)
+        h_mod = self.mod(h_abs_full, cond)
+        inv = invariant_features_from_irreps(h_mod, self.irreps_node)
         return self.out_mlp(inv)
+
+
+# ============================================================
+# Invariant attention heads
+# ============================================================
+
+class FieldConditionedAtomAttention(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        rbf_dim: int,
+        hidden_dim: int,
+        latent_dim: int,
+        cutoff: float,
+        field_atom_dim: int,
+        field_abs_dim: int,
+        max_z: int = 100,
+        z_emb_dim: int = 32,
+        n_heads: int = 4,
+    ):
+        super().__init__()
+        assert latent_dim % n_heads == 0, "latent_dim must be divisible by n_heads"
+
+        self.cutoff = float(cutoff)
+        self.latent_dim = latent_dim
+        self.n_heads = n_heads
+        self.head_dim = latent_dim // n_heads
+
+        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
+        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
+
+        self.query_mlp = MLP(
+            in_dim=atom_dim + e_dim + field_abs_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 1 + field_atom_dim
+        self.key_mlp = MLP(
+            in_dim=atom_static_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+        self.value_mlp = MLP(
+            in_dim=atom_static_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        self.out_proj = MLP(
+            in_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=2,
+        )
+
+        self.score_scale = self.head_dim ** -0.5
+
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        return x.view(*x.shape[:-1], self.n_heads, self.head_dim)
+
+    def forward(
+        self,
+        h: torch.Tensor,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        e_feat: torch.Tensor,
+        field_atom_lat: torch.Tensor,
+        field_abs_feat: torch.Tensor,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N, H = h.shape
+        nE, dE = e_feat.shape
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
+
+        r = geom["r"]
+        valid = build_absorber_attention_mask(geom, self.cutoff)
+
+        h_abs = h[:, absorber_index, :]
+
+        q_in = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+            field_abs_feat.unsqueeze(1).expand(B, nE, field_abs_feat.shape[-1]),
+        ], dim=-1)
+        q = self.query_mlp(q_in)
+
+        zr = self.z_emb(z)
+        rr = self.rbf(r.clamp(max=self.cutoff))
+
+        is_abs = torch.zeros_like(r, dtype=h.dtype)
+        is_abs[:, absorber_index] = 1.0
+
+        atom_static = torch.cat(
+            [h, zr, rr, is_abs.unsqueeze(-1), field_atom_lat],
+            dim=-1,
+        )
+        k = self.key_mlp(atom_static)
+        v = self.value_mlp(atom_static)
+
+        q = self._split_heads(q)
+        k = self._split_heads(k)
+        v = self._split_heads(v)
+
+        scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) * self.score_scale
+        radial_bias = torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
+        scores = scores + radial_bias
+
+        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
+        scores = scores.masked_fill(~attn_mask, -1e9)
+
+        attn = torch.softmax(scores, dim=2)
+        attn = attn * attn_mask.to(attn.dtype)
+        attn = attn / attn.sum(dim=2, keepdim=True).clamp_min(1e-8)
+
+        out = (attn.unsqueeze(-1) * v.unsqueeze(1)).sum(dim=2)
+        out = out.reshape(B, nE, self.latent_dim)
+
+        return self.out_proj(out)
+
+
+class EnergyConditionedAtomAttention(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        e_dim: int,
+        rbf_dim: int,
+        hidden_dim: int,
+        latent_dim: int,
+        cutoff: float,
+        max_z: int = 100,
+        z_emb_dim: int = 32,
+        n_heads: int = 4,
+    ):
+        super().__init__()
+        assert latent_dim % n_heads == 0, "latent_dim must be divisible by n_heads"
+
+        self.cutoff = cutoff
+        self.latent_dim = latent_dim
+        self.n_heads = n_heads
+        self.head_dim = latent_dim // n_heads
+
+        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
+        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
+
+        self.query_mlp = MLP(
+            in_dim=atom_dim + e_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        atom_static_dim = atom_dim + z_emb_dim + rbf_dim + 1
+        self.key_mlp = MLP(
+            in_dim=atom_static_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+        self.value_mlp = MLP(
+            in_dim=atom_static_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+        self.out_proj = MLP(
+            in_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=2,
+        )
+
+        self.score_scale = self.head_dim ** -0.5
+
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        return x.view(*x.shape[:-1], self.n_heads, self.head_dim)
+
+    def forward(
+        self,
+        h: torch.Tensor,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        e_feat: torch.Tensor,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N, H = h.shape
+        nE, dE = e_feat.shape
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
+
+        r = geom["r"]
+        valid = build_absorber_attention_mask(geom, self.cutoff)
+
+        h_abs = h[:, absorber_index, :]
+
+        q_in = torch.cat([
+            h_abs.unsqueeze(1).expand(B, nE, H),
+            e_feat.unsqueeze(0).expand(B, nE, dE),
+        ], dim=-1)
+        q = self.query_mlp(q_in)
+
+        zr = self.z_emb(z)
+        rr = self.rbf(r.clamp(max=self.cutoff))
+        is_abs = torch.zeros_like(r)
+        is_abs[:, absorber_index] = 1.0
+
+        atom_static = torch.cat([h, zr, rr, is_abs.unsqueeze(-1)], dim=-1)
+        k = self.key_mlp(atom_static)
+        v = self.value_mlp(atom_static)
+
+        q = self._split_heads(q)
+        k = self._split_heads(k)
+        v = self._split_heads(v)
+
+        scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) * self.score_scale
+        radial_bias = torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1).unsqueeze(-1)
+        scores = scores + radial_bias
+
+        attn_mask = valid.unsqueeze(1).unsqueeze(-1)
+        scores = scores.masked_fill(~attn_mask, -1e9)
+
+        attn = torch.softmax(scores, dim=2)
+        attn = attn * attn_mask.to(attn.dtype)
+        attn = attn / attn.sum(dim=2, keepdim=True).clamp_min(1e-8)
+
+        out = (attn.unsqueeze(-1) * v.unsqueeze(1)).sum(dim=2)
+        out = out.reshape(B, nE, self.latent_dim)
+
+        return self.out_proj(out)
+
+
+# ============================================================
+# Faster shared equivariant environment attention
+# ============================================================
+
+class FieldModulatedEquivariantEnvironmentAttention(nn.Module):
+    """
+    Faster equivariant environment branch:
+      i)   bottleneck value-weight generation
+      ii)  compressed invariant summaries in score path
+      iii) dot-product attention for neighbour scoring
+      iv)  coarse energy evaluation with user-defined stride
+      v)   shared projections
+      vi)  field acts as a modifier of environment scores, not separate field attention
+    """
+    def __init__(
+        self,
+        irreps_node: o3.Irreps,
+        irreps_sh: o3.Irreps,
+        e_dim: int,
+        rbf_dim: int,
+        hidden_dim: int,
+        latent_dim: int,
+        cutoff: float,
+        field_atom_dim: int = 0,
+        field_abs_dim: int = 0,
+        max_z: int = 100,
+        z_emb_dim: int = 32,
+        tp_value_rank: int = 16,
+        score_dim: int = 64,
+        inv_proj_dim: int = 32,
+        geom_proj_dim: int = 32,
+        env_energy_stride: int = 4,
+        use_field: bool = True,
+    ):
+        super().__init__()
+        self.irreps_node = o3.Irreps(irreps_node)
+        self.irreps_sh = o3.Irreps(irreps_sh)
+        self.cutoff = float(cutoff)
+        self.use_field = bool(use_field)
+        self.env_energy_stride = max(1, int(env_energy_stride))
+
+        self.inv_dim = invariant_feature_dim(self.irreps_node)
+
+        self.rbf = GaussianRBF(0.0, cutoff, rbf_dim)
+        self.cutoff_fn = CosineCutoff(cutoff)
+        self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
+
+        # Shared compressed projections
+        self.abs_inv_proj = MLP(self.inv_dim, hidden_dim, inv_proj_dim, n_layers=2)
+        self.nei_inv_proj = MLP(self.inv_dim, hidden_dim, inv_proj_dim, n_layers=2)
+
+        geom_in_dim = z_emb_dim + rbf_dim + (field_atom_dim if self.use_field else 0)
+        self.geom_proj = MLP(geom_in_dim, hidden_dim, geom_proj_dim, n_layers=2)
+
+        abs_cond_dim = e_dim + (field_abs_dim if self.use_field else 0)
+        self.query_proj = MLP(inv_proj_dim + abs_cond_dim, hidden_dim, score_dim, n_layers=2)
+        self.key_proj = MLP(inv_proj_dim + geom_proj_dim, hidden_dim, score_dim, n_layers=2)
+
+        if self.use_field:
+            self.field_score_mod = MLP(
+                field_atom_dim + field_abs_dim + e_dim,
+                hidden_dim,
+                1,
+                n_layers=2,
+            )
+
+        # Equivariant value path: geometry-dependent, energy-independent
+        self.value_tp = FullyConnectedTensorProduct(
+            self.irreps_node,
+            self.irreps_sh,
+            self.irreps_node,
+            shared_weights=False,
+        )
+        self.weight_numel = self.value_tp.weight_numel
+        self.tp_value_rank = int(tp_value_rank)
+
+        self.value_coeff_mlp = MLP(
+            geom_proj_dim + (field_abs_dim if self.use_field else 0),
+            hidden_dim,
+            self.tp_value_rank,
+            n_layers=2,
+        )
+        self.value_basis = nn.Parameter(
+            torch.randn(self.tp_value_rank, self.weight_numel) * (self.weight_numel ** -0.5)
+        )
+
+        self.out_mlp = MLP(
+            in_dim=self.inv_dim + (field_abs_dim if self.use_field else 0),
+            hidden_dim=hidden_dim,
+            out_dim=latent_dim,
+            n_layers=3,
+        )
+
+    def _coarse_indices(self, nE: int, device: torch.device) -> torch.Tensor:
+        idx = torch.arange(0, nE, self.env_energy_stride, device=device, dtype=torch.long)
+        if idx.numel() == 0 or idx[-1].item() != nE - 1:
+            idx = torch.cat([idx, torch.tensor([nE - 1], device=device, dtype=torch.long)], dim=0)
+        return idx
+
+    def _upsample_linear(self, coarse_x: torch.Tensor, coarse_idx: torch.Tensor, nE_full: int) -> torch.Tensor:
+        """
+        Torch-safe 1D linear interpolation from coarse energy grid back to full grid.
+
+        Args:
+            coarse_x:   [B, nEc, D]
+            coarse_idx: [nEc] integer indices into the full energy grid
+            nE_full:    full number of energy points
+
+        Returns:
+            [B, nE_full, D]
+        """
+        B, nEc, D = coarse_x.shape
+        device = coarse_x.device
+        dtype = coarse_x.dtype
+
+        if nEc == nE_full:
+            return coarse_x
+
+        # Fast path: uniformly spaced coarse grid
+        diffs = coarse_idx[1:] - coarse_idx[:-1]
+        uniform = bool(torch.all(diffs == diffs[0]).item()) if nEc > 1 else True
+
+        if uniform:
+            # reshape to [B, D, nEc] for interpolate
+            x = coarse_x.transpose(1, 2)  # [B, D, nEc]
+            x_up = F.interpolate(
+                x,
+                size=nE_full,
+                mode="linear",
+                align_corners=True,
+            )
+            return x_up.transpose(1, 2)   # [B, nE_full, D]
+
+        # General fallback for non-uniform coarse_idx:
+        # piecewise linear interpolation using torch.bucketize
+        full_pos = torch.arange(nE_full, device=device, dtype=coarse_idx.dtype)
+
+        # For each full-grid point, find right bracket in coarse_idx
+        right = torch.bucketize(full_pos, coarse_idx)
+        right = right.clamp(min=1, max=nEc - 1)
+        left = right - 1
+
+        x0 = coarse_idx[left].to(dtype)   # [nE_full]
+        x1 = coarse_idx[right].to(dtype)  # [nE_full]
+        xp = full_pos.to(dtype)
+
+        t = (xp - x0) / (x1 - x0).clamp_min(1e-8)   # [nE_full]
+        t = t.view(1, nE_full, 1)                    # [1, nE_full, 1]
+
+        # Gather coarse values at left/right
+        y0 = coarse_x[:, left, :]    # [B, nE_full, D]
+        y1 = coarse_x[:, right, :]   # [B, nE_full, D]
+
+        out = (1.0 - t) * y0 + t * y1
+
+        # Exact overwrite at sampled coarse points
+        out[:, coarse_idx.long(), :] = coarse_x
+        return out
+
+    def forward(
+        self,
+        h_full: torch.Tensor,
+        h_inv: torch.Tensor,
+        z: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        e_feat: torch.Tensor,
+        field_atom_lat: Optional[torch.Tensor] = None,
+        field_abs_feat: Optional[torch.Tensor] = None,
+        absorber_index: int = 0,
+        geom: Optional[dict] = None,
+    ) -> torch.Tensor:
+        B, N, D = h_full.shape
+        nE, dE = e_feat.shape
+        dtype = h_full.dtype
+        device = h_full.device
+
+        if geom is None:
+            geom = build_absorber_relative_geometry(z, pos, mask, absorber_index)
+
+        r = geom["r"]
+        u = geom["u"]
+        valid = build_absorber_attention_mask(geom, self.cutoff)
+
+        # ----------------------------------------------------
+        # Shared static projections
+        # ----------------------------------------------------
+        inv_abs = h_inv[:, absorber_index, :]               # [B, inv_dim]
+        inv_nei = h_inv                                     # [B, N, inv_dim]
+
+        abs_small = self.abs_inv_proj(inv_abs)              # [B, inv_proj_dim]
+        nei_small = self.nei_inv_proj(inv_nei)              # [B, N, inv_proj_dim]
+
+        zr = self.z_emb(z)                                  # [B, N, z_emb_dim]
+        rr = self.rbf(r.clamp(max=self.cutoff))             # [B, N, rbf_dim]
+
+        if self.use_field:
+            geom_in = torch.cat([zr, rr, field_atom_lat], dim=-1)
+        else:
+            geom_in = torch.cat([zr, rr], dim=-1)
+
+        geom_small = self.geom_proj(geom_in)                # [B, N, geom_proj_dim]
+
+        # ----------------------------------------------------
+        # Geometry-only equivariant values computed once
+        # ----------------------------------------------------
+        sh = o3.spherical_harmonics(
+            self.irreps_sh,
+            u.reshape(-1, 3),
+            normalize=True,
+            normalization="component",
+        ).view(B, N, self.irreps_sh.dim)
+
+        if self.use_field:
+            value_in = torch.cat(
+                [
+                    geom_small,
+                    field_abs_feat.unsqueeze(1).expand(B, N, field_abs_feat.shape[-1]),
+                ],
+                dim=-1,
+            )
+        else:
+            value_in = geom_small
+
+        value_coeff = self.value_coeff_mlp(value_in.reshape(B * N, -1))      # [B*N, R]
+        value_w = value_coeff @ self.value_basis                              # [B*N, W]
+
+        values = self.value_tp(
+            h_full.reshape(B * N, D),
+            sh.reshape(B * N, self.irreps_sh.dim),
+            value_w,
+        ).view(B, N, self.irreps_node.dim)                                    # [B,N,D_ir]
+
+        # ----------------------------------------------------
+        # Coarse energy scoring
+        # ----------------------------------------------------
+        coarse_idx = self._coarse_indices(nE, device=device)
+        e_coarse = e_feat[coarse_idx]                                         # [nEc, dE]
+        nEc = e_coarse.shape[0]
+
+        if self.use_field:
+            q_in = torch.cat([
+                abs_small.unsqueeze(1).expand(B, nEc, abs_small.shape[-1]),
+                e_coarse.unsqueeze(0).expand(B, nEc, dE),
+                field_abs_feat.unsqueeze(1).expand(B, nEc, field_abs_feat.shape[-1]),
+            ], dim=-1)
+        else:
+            q_in = torch.cat([
+                abs_small.unsqueeze(1).expand(B, nEc, abs_small.shape[-1]),
+                e_coarse.unsqueeze(0).expand(B, nEc, dE),
+            ], dim=-1)
+
+        q = self.query_proj(q_in)                                             # [B,nEc,score_dim]
+
+        k_in = torch.cat([nei_small, geom_small], dim=-1)                     # [B,N,*]
+        k = self.key_proj(k_in)                                               # [B,N,score_dim]
+
+        scores = (q.unsqueeze(2) * k.unsqueeze(1)).sum(dim=-1) / (k.shape[-1] ** 0.5)
+        scores = scores + torch.log(self.cutoff_fn(r).clamp_min(1e-8)).unsqueeze(1)
+
+        if self.use_field:
+            field_mod_in = torch.cat([
+                field_atom_lat.unsqueeze(1).expand(B, nEc, N, field_atom_lat.shape[-1]),
+                field_abs_feat.unsqueeze(1).unsqueeze(2).expand(B, nEc, N, field_abs_feat.shape[-1]),
+                e_coarse.unsqueeze(0).unsqueeze(2).expand(B, nEc, N, dE),
+            ], dim=-1)
+            field_mod = self.field_score_mod(field_mod_in).squeeze(-1)        # [B,nEc,N]
+            scores = scores + field_mod
+
+        attn_mask = valid.unsqueeze(1)                                        # [B,1,N]
+        scores = scores.masked_fill(~attn_mask, -1e9)
+
+        attn = torch.softmax(scores, dim=2)
+        attn = attn * attn_mask.to(attn.dtype)
+        attn = attn / attn.sum(dim=2, keepdim=True).clamp_min(1e-8)
+
+        agg = (attn.unsqueeze(-1) * values.unsqueeze(1)).sum(dim=2)           # [B,nEc,D_ir]
+
+        inv_agg = invariant_features_from_irreps(agg, self.irreps_node)       # [B,nEc,inv_dim]
+
+        if self.use_field:
+            out_in = torch.cat([
+                inv_agg,
+                field_abs_feat.unsqueeze(1).expand(B, nEc, field_abs_feat.shape[-1]),
+            ], dim=-1)
+        else:
+            out_in = inv_agg
+
+        out_coarse = self.out_mlp(out_in)                                     # [B,nEc,latent_dim]
+
+        # ----------------------------------------------------
+        # Linear interpolation back to full energy grid
+        # ----------------------------------------------------
+        out_full = self._upsample_linear(out_coarse, coarse_idx, nE)
+
+        return out_full
+
+
+# ============================================================
+# Multipole field blocks
+# ============================================================
+
+class InitialMultipoleProjector(nn.Module):
+    def __init__(self, atom_dim: int, hidden_dim: int):
+        super().__init__()
+        self.net = MLP(
+            in_dim=atom_dim + 2,
+            hidden_dim=hidden_dim,
+            out_dim=8,
+            n_layers=3,
+        )
+
+    def forward(
+        self,
+        h: torch.Tensor,
+        atom_charges: Optional[torch.Tensor] = None,
+        atom_spins: Optional[torch.Tensor] = None,
+    ):
+        B, N, _ = h.shape
+        dtype = h.dtype
+        device = h.device
+
+        if atom_charges is None:
+            atom_charges = torch.zeros(B, N, device=device, dtype=dtype)
+        if atom_spins is None:
+            atom_spins = torch.zeros(B, N, device=device, dtype=dtype)
+
+        x = torch.cat([h, atom_charges.unsqueeze(-1), atom_spins.unsqueeze(-1)], dim=-1)
+        out = self.net(x)
+
+        q0 = atom_charges + out[..., 0]
+        m0 = atom_spins + out[..., 1]
+        mu_q0 = out[..., 2:5]
+        mu_m0 = out[..., 5:8]
+
+        return q0, m0, mu_q0, mu_m0
+
+
+class GaussianMultipoleFieldBuilder(nn.Module):
+    def __init__(self, cutoff: float, sigma: float = 0.6, eps: float = 0.15):
+        super().__init__()
+        self.cutoff = float(cutoff)
+        self.sigma = float(sigma)
+        self.eps = float(eps)
+        self.cutoff_fn = CosineCutoff(cutoff)
+
+    def forward(
+        self,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        q: torch.Tensor,
+        m: torch.Tensor,
+        mu_q: torch.Tensor,
+        mu_m: torch.Tensor,
+    ):
+        rij = pos[:, :, None, :] - pos[:, None, :, :]
+        dij = torch.linalg.norm(rij, dim=-1)
+        uij = rij / dij.unsqueeze(-1).clamp_min(1e-8)
+
+        valid = mask[:, :, None] & mask[:, None, :]
+        not_self = dij > 1e-8
+        pair_mask = valid & not_self & (dij <= self.cutoff)
+
+        invr = 1.0 / torch.sqrt(dij ** 2 + self.eps ** 2)
+        w_cut = self.cutoff_fn(dij) * pair_mask.to(pos.dtype)
+        w_g = torch.exp(-0.5 * (dij / self.sigma) ** 2)
+        w = w_cut * w_g
+
+        qj = q[:, None, :]
+        mj = m[:, None, :]
+
+        vq_mono = (w * invr * qj).sum(dim=-1)
+        vm_mono = (w * invr * mj).sum(dim=-1)
+
+        eq_mono = ((w * invr * invr * qj).unsqueeze(-1) * uij).sum(dim=2)
+        em_mono = ((w * invr * invr * mj).unsqueeze(-1) * uij).sum(dim=2)
+
+        muqj = mu_q[:, None, :, :]
+        mumj = mu_m[:, None, :, :]
+
+        muq_dot_u = (muqj * uij).sum(dim=-1)
+        mum_dot_u = (mumj * uij).sum(dim=-1)
+
+        vq_dip = (w * invr * invr * muq_dot_u).sum(dim=-1)
+        vm_dip = (w * invr * invr * mum_dot_u).sum(dim=-1)
+
+        eq_dip = ((w * invr.pow(3) * muq_dot_u).unsqueeze(-1) * uij).sum(dim=2)
+        em_dip = ((w * invr.pow(3) * mum_dot_u).unsqueeze(-1) * uij).sum(dim=2)
+
+        return {
+            "vq": vq_mono + vq_dip,
+            "vm": vm_mono + vm_dip,
+            "eq_vec": eq_mono + eq_dip,
+            "em_vec": em_mono + em_dip,
+        }
+
+
+class MultipoleUpdater(nn.Module):
+    def __init__(self, atom_dim: int, hidden_dim: int):
+        super().__init__()
+        self.net = MLP(
+            in_dim=atom_dim + 2 + 6 + 2 + 6,
+            hidden_dim=hidden_dim,
+            out_dim=12,
+            n_layers=3,
+        )
+
+    def forward(self, h, q, m, mu_q, mu_m, field):
+        x = torch.cat(
+            [
+                h,
+                q.unsqueeze(-1),
+                m.unsqueeze(-1),
+                mu_q,
+                mu_m,
+                field["vq"].unsqueeze(-1),
+                field["vm"].unsqueeze(-1),
+                field["eq_vec"],
+                field["em_vec"],
+            ],
+            dim=-1,
+        )
+        out = self.net(x)
+
+        dq = out[..., 0]
+        dm = out[..., 1]
+        dmu_q = out[..., 2:5]
+        dmu_m = out[..., 5:8]
+        fq = torch.nn.functional.softplus(out[..., 8]) + 1e-6
+        fm = torch.nn.functional.softplus(out[..., 9]) + 1e-6
+        alpha_q = torch.sigmoid(out[..., 10]).unsqueeze(-1)
+        alpha_m = torch.sigmoid(out[..., 11]).unsqueeze(-1)
+
+        return dq, dm, dmu_q, dmu_m, fq, fm, alpha_q, alpha_m
+
+
+class ChargeSpinEquilibrator(nn.Module):
+    def forward(
+        self,
+        q: torch.Tensor,
+        m: torch.Tensor,
+        fq: torch.Tensor,
+        fm: torch.Tensor,
+        mask: torch.Tensor,
+        total_charge: Optional[torch.Tensor] = None,
+        total_spin: Optional[torch.Tensor] = None,
+    ):
+        B, N = q.shape
+        dtype = q.dtype
+        device = q.device
+
+        if total_charge is None:
+            total_charge = torch.zeros(B, device=device, dtype=dtype)
+        if total_spin is None:
+            total_spin = torch.zeros(B, device=device, dtype=dtype)
+
+        if total_charge.ndim > 1:
+            total_charge = total_charge.view(total_charge.shape[0], -1).squeeze(-1)
+        if total_spin.ndim > 1:
+            total_spin = total_spin.view(total_spin.shape[0], -1).squeeze(-1)
+
+        maskf = mask.to(dtype)
+
+        q = q * maskf
+        m = m * maskf
+        fq = fq * maskf
+        fm = fm * maskf
+
+        dq = total_charge - q.sum(dim=1)
+        dm = total_spin - m.sum(dim=1)
+
+        fq_norm = fq / fq.sum(dim=1, keepdim=True).clamp_min(1e-8)
+        fm_norm = fm / fm.sum(dim=1, keepdim=True).clamp_min(1e-8)
+
+        q = (q + fq_norm * dq.unsqueeze(-1)) * maskf
+        m = (m + fm_norm * dm.unsqueeze(-1)) * maskf
+        return q, m
+
+
+class MultipoleFieldRefiner(nn.Module):
+    def __init__(
+        self,
+        atom_dim: int,
+        hidden_dim: int,
+        cutoff: float,
+        n_iter: int = 2,
+        sigma: float = 0.6,
+    ):
+        super().__init__()
+        self.n_iter = n_iter
+
+        self.init_proj = InitialMultipoleProjector(atom_dim=atom_dim, hidden_dim=hidden_dim)
+        self.field_builder = GaussianMultipoleFieldBuilder(cutoff=cutoff, sigma=sigma)
+        self.updater = MultipoleUpdater(atom_dim=atom_dim, hidden_dim=hidden_dim)
+        self.equil = ChargeSpinEquilibrator()
+
+        self.field_atom_summary = MLP(
+            in_dim=2 + 6 + 2 + 6,
+            hidden_dim=hidden_dim,
+            out_dim=hidden_dim,
+            n_layers=3,
+        )
+        self.field_abs_summary = MLP(
+            in_dim=2 + 6 + 2 + 6,
+            hidden_dim=hidden_dim,
+            out_dim=hidden_dim,
+            n_layers=3,
+        )
+
+    def forward(
+        self,
+        h: torch.Tensor,
+        pos: torch.Tensor,
+        mask: torch.Tensor,
+        absorber_index: int = 0,
+        atom_charges: Optional[torch.Tensor] = None,
+        atom_spins: Optional[torch.Tensor] = None,
+        total_charge: Optional[torch.Tensor] = None,
+        total_spin: Optional[torch.Tensor] = None,
+    ):
+        q, m, mu_q, mu_m = self.init_proj(
+            h=h,
+            atom_charges=atom_charges,
+            atom_spins=atom_spins,
+        )
+
+        fq0 = torch.ones_like(q)
+        fm0 = torch.ones_like(m)
+        q, m = self.equil(q, m, fq0, fm0, mask, total_charge=total_charge, total_spin=total_spin)
+
+        maskf = mask.unsqueeze(-1).to(h.dtype)
+        mu_q = mu_q * maskf
+        mu_m = mu_m * maskf
+
+        for _ in range(self.n_iter):
+            field = self.field_builder(pos, mask, q, m, mu_q, mu_m)
+            dq, dm, dmu_q, dmu_m, fq, fm, alpha_q, alpha_m = self.updater(h, q, m, mu_q, mu_m, field)
+
+            q = q + dq
+            m = m + dm
+            mu_q = mu_q + alpha_q * dmu_q
+            mu_m = mu_m + alpha_m * dmu_m
+
+            q, m = self.equil(q, m, fq, fm, mask, total_charge=total_charge, total_spin=total_spin)
+            mu_q = mu_q * maskf
+            mu_m = mu_m * maskf
+
+        field = self.field_builder(pos, mask, q, m, mu_q, mu_m)
+
+        atom_summary_in = torch.cat(
+            [
+                q.unsqueeze(-1),
+                m.unsqueeze(-1),
+                mu_q,
+                mu_m,
+                field["vq"].unsqueeze(-1),
+                field["vm"].unsqueeze(-1),
+                field["eq_vec"],
+                field["em_vec"],
+            ],
+            dim=-1,
+        )
+        field_atom_lat = self.field_atom_summary(atom_summary_in)
+
+        abs_summary_in = torch.cat(
+            [
+                q[:, absorber_index].unsqueeze(-1),
+                m[:, absorber_index].unsqueeze(-1),
+                mu_q[:, absorber_index, :],
+                mu_m[:, absorber_index, :],
+                field["vq"][:, absorber_index].unsqueeze(-1),
+                field["vm"][:, absorber_index].unsqueeze(-1),
+                field["eq_vec"][:, absorber_index, :],
+                field["em_vec"][:, absorber_index, :],
+            ],
+            dim=-1,
+        )
+        field_abs_feat = self.field_abs_summary(abs_summary_in)
+
+        return {
+            "q": q,
+            "m": m,
+            "mu_q": mu_q,
+            "mu_m": mu_m,
+            "field": field,
+            "field_atom_lat": field_atom_lat,
+            "field_abs_feat": field_abs_feat,
+        }
 
 
 # ============================================================
@@ -969,16 +1807,6 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
 @register_model("e3eenet")
 @register_scheme("e3eenet", scheme_name="e3ee")
 class E3EEmbed(Model):
-    """
-    Absorber-centred energy embedded e3 XANES model with:
-    - equivariant atom encoder
-    - invariant atomwise summaries
-    - faster energy-conditioned attention over atoms
-    - late equivariant absorber head
-    - optional path branch
-    - physical absolute energy input
-    """
-
     def __init__(
         self,
         in_features: int,
@@ -997,35 +1825,63 @@ class E3EEmbed(Model):
         e3nn_irreps_message: str = "16x0e + 8x1o + 4x2e",
         e3nn_lmax: int = 2,
         out_mlp_layers: int = 3,
-        use_path_terms: bool = False,
-        max_paths_per_structure: int = 128,
         residual_scale_init: float = 0.1,
         attention_heads: int = 4,
+        polar_hidden_dim: int = 128,
+        polar_iterations: int = 2,
+        field_sigma: float = 0.6,
+        use_charge_spin: bool = True,
+        use_invariance: bool = False,
+        # legacy flag kept for config compatibility; no longer used in env branch
+        use_energy_dependent_equivariant_attention: bool = False,
+        tp_rank: int = 8,
+        # new knobs
+        env_energy_stride: int = 4,
+        env_score_dim: int = 64,
+        env_inv_proj_dim: int = 32,
+        env_geom_proj_dim: int = 32,
+        env_tp_value_rank: int = 16,
     ):
         super().__init__()
         self.nn_flag = 1
         self.gnn_flag = 0
         self.batch_flag = 1
-        self.use_path_terms = use_path_terms
 
-        # Used only as a fallback range if no physical energies are present.
+        self.use_charge_spin = use_charge_spin
+        self.use_invariance = use_invariance
+        self.use_energy_dependent_equivariant_attention = use_energy_dependent_equivariant_attention
+        self.tp_rank = tp_rank
+
         self.energy_min = 0.0
         self.energy_max = float(out_features - 1)
 
-        self.atom_encoder = TrueE3EEAtomEncoder(
-            max_z=max_z,
-            cutoff=local_cutoff,
-            num_interactions=atom_layers,
-            rbf_dim=rbf_dim,
-            lmax=e3nn_lmax,
-            node_attr_dim=atom_emb_dim,
-            hidden_dim=atom_hidden_dim,
-            irreps_node=e3nn_irreps,
-            irreps_message=e3nn_irreps_message,
-            residual_scale_init=residual_scale_init,
-        )
-
-        self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
+        if self.use_invariance:
+            self.atom_encoder = TrueInvariantAtomEncoder(
+                max_z=max_z,
+                cutoff=local_cutoff,
+                num_interactions=atom_layers,
+                rbf_dim=rbf_dim,
+                node_attr_dim=atom_emb_dim,
+                hidden_dim=atom_hidden_dim,
+                node_dim=atom_hidden_dim,
+                residual_scale_init=residual_scale_init,
+            )
+            self.inv_dim = atom_hidden_dim
+        else:
+            self.atom_encoder = TrueE3EEAtomEncoder(
+                max_z=max_z,
+                cutoff=local_cutoff,
+                num_interactions=atom_layers,
+                rbf_dim=rbf_dim,
+                lmax=e3nn_lmax,
+                node_attr_dim=atom_emb_dim,
+                hidden_dim=atom_hidden_dim,
+                irreps_node=e3nn_irreps,
+                irreps_message=e3nn_irreps_message,
+                residual_scale_init=residual_scale_init,
+                use_invariance=False,
+            )
+            self.inv_dim = invariant_feature_dim(self.atom_encoder.irreps_node)
 
         self.energy_embedding = EnergyRBFEmbedding(
             e_min=self.energy_min,
@@ -1033,58 +1889,189 @@ class E3EEmbed(Model):
             n_rbf=energy_rbf_dim,
         )
 
-        self.abs_branch = EnergyConditionedAbsorberBranch(
-            atom_dim=self.inv_dim,
-            e_dim=energy_rbf_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=latent_dim,
-        )
+        if self.use_charge_spin:
+            self.field_atom_dim = polar_hidden_dim
+            self.field_abs_dim = polar_hidden_dim
 
-        self.atom_attention = EnergyConditionedAtomAttention(
-            atom_dim=self.inv_dim,
-            e_dim=energy_rbf_dim,
-            rbf_dim=rbf_dim,
-            hidden_dim=atom_hidden_dim,
-            latent_dim=latent_dim,
-            cutoff=local_cutoff,
-            max_z=max_z,
-            z_emb_dim=32,
-            n_heads=attention_heads,
-        )
-
-        self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
-            irreps_node=self.atom_encoder.irreps_node,
-            e_dim=energy_rbf_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=latent_dim,
-        )
-
-        if self.use_path_terms:
-            self.pair_elem_energy = PairElementEnergyScattering(
-                max_z=max_z,
-                z_emb_dim=32,
-                e_dim=energy_rbf_dim,
-                hidden_dim=128,
-                out_dim=scatter_dim,
-            )
-
-            self.path_agg = AbsorberPathAggregator(
+            self.polar_refiner = MultipoleFieldRefiner(
                 atom_dim=self.inv_dim,
-                rbf_dim=rbf_dim,
-                geom_hidden_dim=128,
-                scatter_dim=scatter_dim,
-                out_dim=latent_dim,
+                hidden_dim=polar_hidden_dim,
                 cutoff=local_cutoff,
-                max_paths_per_structure=max_paths_per_structure,
+                n_iter=polar_iterations,
+                sigma=field_sigma,
             )
 
-        head_in_dim = 4 * latent_dim if self.use_path_terms else 3 * latent_dim
-        self.head = MLP(
-            in_dim=head_in_dim,
-            hidden_dim=head_hidden_dim,
-            out_dim=1,
-            n_layers=out_mlp_layers,
-        )
+            self.abs_branch = FieldConditionedAbsorberBranch(
+                atom_dim=self.inv_dim,
+                e_dim=energy_rbf_dim,
+                field_abs_dim=self.field_abs_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=latent_dim,
+            )
+
+            if self.use_invariance:
+                self.atom_attention = FieldConditionedAtomAttention(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    rbf_dim=rbf_dim,
+                    hidden_dim=atom_hidden_dim,
+                    latent_dim=latent_dim,
+                    cutoff=local_cutoff,
+                    field_atom_dim=self.field_atom_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    max_z=max_z,
+                    z_emb_dim=32,
+                    n_heads=attention_heads,
+                )
+            else:
+                self.atom_attention = FieldModulatedEquivariantEnvironmentAttention(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    irreps_sh=self.atom_encoder.irreps_sh,
+                    e_dim=energy_rbf_dim,
+                    rbf_dim=rbf_dim,
+                    hidden_dim=atom_hidden_dim,
+                    latent_dim=latent_dim,
+                    cutoff=local_cutoff,
+                    field_atom_dim=self.field_atom_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    max_z=max_z,
+                    z_emb_dim=32,
+                    tp_value_rank=env_tp_value_rank,
+                    score_dim=env_score_dim,
+                    inv_proj_dim=env_inv_proj_dim,
+                    geom_proj_dim=env_geom_proj_dim,
+                    env_energy_stride=env_energy_stride,
+                    use_field=True,
+                )
+
+            if self.use_invariance:
+                self.eq_abs_head = FieldConditionedInvariantAbsorberHead(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+            else:
+                self.eq_abs_head = FieldConditionedEquivariantAbsorberHead(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    e_dim=energy_rbf_dim,
+                    field_abs_dim=self.field_abs_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+
+            local_fusion_cond_dim = energy_rbf_dim + self.field_abs_dim
+
+            if self.use_invariance:
+                self.local_fusion = GatedBranchFusion(
+                    branch_dims=[latent_dim, latent_dim],
+                    fused_dim=latent_dim,
+                    cond_dim=local_fusion_cond_dim,
+                    hidden_dim=head_hidden_dim,
+                    use_softmax=True,
+                )
+            else:
+                # abs_lat, eq_abs_lat, attn_lat
+                self.local_fusion = GatedBranchFusion(
+                    branch_dims=[latent_dim, latent_dim, latent_dim],
+                    fused_dim=latent_dim,
+                    cond_dim=local_fusion_cond_dim,
+                    hidden_dim=head_hidden_dim,
+                    use_softmax=True,
+                )
+
+            self.local_head = MLP(
+                in_dim=latent_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=1,
+                n_layers=out_mlp_layers,
+            )
+
+            # no separate field branch now; field acts through env scores
+            self.field_scale = nn.Parameter(torch.tensor(0.0, dtype=torch.float32))
+
+        else:
+            self.abs_branch = EnergyConditionedAbsorberBranch(
+                atom_dim=self.inv_dim,
+                e_dim=energy_rbf_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=latent_dim,
+            )
+
+            if self.use_invariance:
+                self.atom_attention = EnergyConditionedAtomAttention(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    rbf_dim=rbf_dim,
+                    hidden_dim=atom_hidden_dim,
+                    latent_dim=latent_dim,
+                    cutoff=local_cutoff,
+                    max_z=max_z,
+                    z_emb_dim=32,
+                    n_heads=attention_heads,
+                )
+            else:
+                self.atom_attention = FieldModulatedEquivariantEnvironmentAttention(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    irreps_sh=self.atom_encoder.irreps_sh,
+                    e_dim=energy_rbf_dim,
+                    rbf_dim=rbf_dim,
+                    hidden_dim=atom_hidden_dim,
+                    latent_dim=latent_dim,
+                    cutoff=local_cutoff,
+                    field_atom_dim=0,
+                    field_abs_dim=0,
+                    max_z=max_z,
+                    z_emb_dim=32,
+                    tp_value_rank=env_tp_value_rank,
+                    score_dim=env_score_dim,
+                    inv_proj_dim=env_inv_proj_dim,
+                    geom_proj_dim=env_geom_proj_dim,
+                    env_energy_stride=env_energy_stride,
+                    use_field=False,
+                )
+
+            if self.use_invariance:
+                self.eq_abs_head = EnergyConditionedInvariantAbsorberHead(
+                    atom_dim=self.inv_dim,
+                    e_dim=energy_rbf_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+            else:
+                self.eq_abs_head = EnergyConditionedEquivariantAbsorberHead(
+                    irreps_node=self.atom_encoder.irreps_node,
+                    e_dim=energy_rbf_dim,
+                    hidden_dim=head_hidden_dim,
+                    out_dim=latent_dim,
+                )
+
+            local_fusion_cond_dim = energy_rbf_dim
+
+            if self.use_invariance:
+                self.local_fusion = GatedBranchFusion(
+                    branch_dims=[latent_dim, latent_dim],
+                    fused_dim=latent_dim,
+                    cond_dim=local_fusion_cond_dim,
+                    hidden_dim=head_hidden_dim,
+                    use_softmax=True,
+                )
+            else:
+                self.local_fusion = GatedBranchFusion(
+                    branch_dims=[latent_dim, latent_dim, latent_dim],
+                    fused_dim=latent_dim,
+                    cond_dim=local_fusion_cond_dim,
+                    hidden_dim=head_hidden_dim,
+                    use_softmax=True,
+                )
+
+            self.local_head = MLP(
+                in_dim=latent_dim,
+                hidden_dim=head_hidden_dim,
+                out_dim=1,
+                n_layers=out_mlp_layers,
+            )
 
         self.register_config(
             {
@@ -1104,28 +2091,37 @@ class E3EEmbed(Model):
                 "e3nn_irreps_message": e3nn_irreps_message,
                 "e3nn_lmax": e3nn_lmax,
                 "out_mlp_layers": out_mlp_layers,
-                "use_path_terms": use_path_terms,
-                "max_paths_per_structure": max_paths_per_structure,
                 "residual_scale_init": residual_scale_init,
                 "attention_heads": attention_heads,
+                "polar_hidden_dim": polar_hidden_dim,
+                "polar_iterations": polar_iterations,
+                "field_sigma": field_sigma,
+                "use_charge_spin": use_charge_spin,
+                "use_invariance": use_invariance,
+                "use_energy_dependent_equivariant_attention": use_energy_dependent_equivariant_attention,
+                "tp_rank": tp_rank,
+                "env_energy_stride": env_energy_stride,
+                "env_score_dim": env_score_dim,
+                "env_inv_proj_dim": env_inv_proj_dim,
+                "env_geom_proj_dim": env_geom_proj_dim,
+                "env_tp_value_rank": env_tp_value_rank,
             },
             type="e3eenet",
         )
 
     def _get_energy_grid(self, batch, device, dtype):
-        return torch.arange(
-            batch.y.shape[-1],
-            device=device,
-            dtype=dtype,
-        )
+        return torch.arange(batch.y.shape[-1], device=device, dtype=dtype)
 
     def get_descriptor(self, batch):
         z = batch.z
         pos = batch.pos
         mask = batch.mask
-        absorber_index = 0
+        absorber_index = (
+            int(batch.absorber_index.item())
+            if hasattr(batch, "absorber_index") and torch.is_tensor(batch.absorber_index)
+            else 0
+        )
 
-        # Cache absorber-relative geometry once and pass it through
         geom = build_absorber_relative_geometry(
             z=z,
             pos=pos,
@@ -1134,57 +2130,162 @@ class E3EEmbed(Model):
         )
 
         energies = self._get_energy_grid(batch, device=pos.device, dtype=pos.dtype)
-
-        h_full = self.atom_encoder(
-            z=z,
-            pos=pos,
-            mask=mask,
-            absorber_index=absorber_index,
-            geom=geom,
-        )
-        h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)
-
         e_feat = self.energy_embedding(energies)
 
-        abs_lat = self.abs_branch(
-            h[:, absorber_index, :],
-            e_feat,
-        )
-
-        attn_lat = self.atom_attention(
-            h=h,
+        enc = self.atom_encoder(
             z=z,
             pos=pos,
             mask=mask,
-            e_feat=e_feat,
             absorber_index=absorber_index,
             geom=geom,
         )
 
-        eq_abs_lat = self.eq_abs_head(
-            h_full[:, absorber_index, :],
-            e_feat,
-        )
+        if self.use_invariance:
+            h = enc
+            h_full = None
+        else:
+            h_full = enc
+            h = invariant_features_from_irreps(h_full, self.atom_encoder.irreps_node)
 
-        parts = [abs_lat, attn_lat, eq_abs_lat]
+        if self.use_charge_spin:
+            atom_charges = getattr(batch, "atom_charges", None)
+            atom_spins = getattr(batch, "atom_spins", None)
+            total_charge = getattr(batch, "charge", None)
+            total_spin = getattr(batch, "spin", None)
 
-        if self.use_path_terms:
-            path_lat = self.path_agg(
+            polar = self.polar_refiner(
                 h=h,
-                z=z,
                 pos=pos,
                 mask=mask,
-                pair_elem_energy=self.pair_elem_energy,
-                e_feat=e_feat,
                 absorber_index=absorber_index,
-                geom=geom,
+                atom_charges=atom_charges,
+                atom_spins=atom_spins,
+                total_charge=total_charge,
+                total_spin=total_spin,
             )
-            parts.append(path_lat)
 
-        x = torch.cat(parts, dim=-1)
-        return x
+            field_atom_lat = polar["field_atom_lat"]
+            field_abs_feat = polar["field_abs_feat"]
+
+            abs_lat = self.abs_branch(
+                h[:, absorber_index, :],
+                e_feat,
+                field_abs_feat,
+            )
+
+            if self.use_invariance:
+                attn_lat = self.atom_attention(
+                    h=h,
+                    z=z,
+                    pos=pos,
+                    mask=mask,
+                    e_feat=e_feat,
+                    field_atom_lat=field_atom_lat,
+                    field_abs_feat=field_abs_feat,
+                    absorber_index=absorber_index,
+                    geom=geom,
+                )
+                eq_abs_lat = None
+            else:
+                attn_lat = self.atom_attention(
+                    h_full=h_full,
+                    h_inv=h,
+                    z=z,
+                    pos=pos,
+                    mask=mask,
+                    e_feat=e_feat,
+                    field_atom_lat=field_atom_lat,
+                    field_abs_feat=field_abs_feat,
+                    absorber_index=absorber_index,
+                    geom=geom,
+                )
+
+                eq_abs_lat = self.eq_abs_head(
+                    h_full[:, absorber_index, :],
+                    e_feat,
+                    field_abs_feat,
+                )
+
+            local_cond = torch.cat([
+                e_feat.unsqueeze(0).expand(abs_lat.shape[0], abs_lat.shape[1], -1),
+                field_abs_feat.unsqueeze(1).expand(abs_lat.shape[0], abs_lat.shape[1], -1),
+            ], dim=-1)
+
+            if self.use_invariance:
+                local_x, local_gates = self.local_fusion(
+                    branches=[abs_lat, attn_lat],
+                    cond_feat=local_cond,
+                    return_gates=True,
+                )
+            else:
+                local_x, local_gates = self.local_fusion(
+                    branches=[abs_lat, eq_abs_lat, attn_lat],
+                    cond_feat=local_cond,
+                    return_gates=True,
+                )
+
+            return {
+                "local_x": local_x,
+                "use_charge_spin": True,
+                "local_gates": local_gates,
+            }
+
+        else:
+            abs_lat = self.abs_branch(
+                h[:, absorber_index, :],
+                e_feat,
+            )
+
+            if self.use_invariance:
+                attn_lat = self.atom_attention(
+                    h=h,
+                    z=z,
+                    pos=pos,
+                    mask=mask,
+                    e_feat=e_feat,
+                    absorber_index=absorber_index,
+                    geom=geom,
+                )
+                eq_abs_lat = None
+            else:
+                attn_lat = self.atom_attention(
+                    h_full=h_full,
+                    h_inv=h,
+                    z=z,
+                    pos=pos,
+                    mask=mask,
+                    e_feat=e_feat,
+                    absorber_index=absorber_index,
+                    geom=geom,
+                )
+
+                eq_abs_lat = self.eq_abs_head(
+                    h_full[:, absorber_index, :],
+                    e_feat,
+                )
+
+            local_cond = e_feat.unsqueeze(0).expand(abs_lat.shape[0], abs_lat.shape[1], -1)
+
+            if self.use_invariance:
+                local_x, local_gates = self.local_fusion(
+                    branches=[abs_lat, attn_lat],
+                    cond_feat=local_cond,
+                    return_gates=True,
+                )
+            else:
+                local_x, local_gates = self.local_fusion(
+                    branches=[abs_lat, eq_abs_lat, attn_lat],
+                    cond_feat=local_cond,
+                    return_gates=True,
+                )
+
+            return {
+                "local_x": local_x,
+                "use_charge_spin": False,
+                "local_gates": local_gates,
+            }
 
     def forward(self, batch):
-        x = self.get_descriptor(batch)
-        y = self.head(x).squeeze(-1)
-        return y
+        desc = self.get_descriptor(batch)
+        y_local = self.local_head(desc["local_x"]).squeeze(-1)
+        return y_local
