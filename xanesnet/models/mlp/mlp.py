@@ -69,7 +69,6 @@ class MLP(Model):
         self.shrink_rate = shrink_rate
         self.activation = activation
 
-        act_fn = ActivationRegistry.get(activation)
         layers: list[nn.Module] = []
 
         # Initialise input and hidden layers
@@ -81,7 +80,7 @@ class MLP(Model):
 
             layers.append(nn.Linear(current_size, next_size))
             layers.append(nn.Dropout(dropout))
-            layers.append(act_fn)
+            layers.append(ActivationRegistry.get(activation))
             current_size = next_size
 
         # Initialise output layer
