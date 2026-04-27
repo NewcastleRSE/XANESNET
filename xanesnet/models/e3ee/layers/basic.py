@@ -190,8 +190,7 @@ class IrrepNorm(nn.Module):
     Irrep-respecting normalization.
 
     For ``l = 0`` blocks the multiplicity channels are mean/variance
-    normalized.  For ``l > 0`` blocks each irrep copy is RMS-normalized to
-    unit norm.
+    normalized.  For ``l > 0`` blocks each irrep copy is RMS-normalized across its irrep dimension.
 
     Args:
         irreps: The irreps specification that describes the feature layout.
