@@ -1,29 +1,33 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
+"""Visualize GemNet and GemNet-OC graph-index diagnostics for PMGJSON samples."""
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
+from typing import Any, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.patches import Patch
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
-from pymatgen.core import Element, Structure
+from pymatgen.core import Element, Molecule, Structure
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -49,12 +53,39 @@ from xanesnet.utils.graph.gemnet_indices import (
     compute_triplets,
 )
 
-###############################################################################
-############################### small helpers #################################
-###############################################################################
+PMGObject: TypeAlias = Structure | Molecule
+MinFacetArea: TypeAlias = float | str | None
+GraphBuildResult: TypeAlias = tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]
+TensorDict: TypeAlias = dict[str, torch.Tensor]
+RGBColor: TypeAlias = tuple[float, float, float]
+EdgePanel: TypeAlias = tuple[str, np.ndarray, np.ndarray, np.ndarray, RGBColor]
+HistSeries: TypeAlias = tuple[np.ndarray, str, str]
+DegreeSeries: TypeAlias = tuple[np.ndarray, str, str]
 
 
-def build_main_edges(pmg_obj, cutoff, max_nbrs, method, min_facet_area, cov_radii_scale):
+def build_main_edges(
+    pmg_obj: PMGObject,
+    cutoff: float,
+    max_nbrs: int,
+    method: str,
+    min_facet_area: MinFacetArea,
+    cov_radii_scale: float,
+) -> GraphBuildResult:
+    """Build a graph with vectors for a GemNet diagnostic panel.
+
+    Args:
+        pmg_obj: Pymatgen object containing atom coordinates.
+        cutoff: Maximum edge distance in **angstrom**.
+        max_nbrs: Maximum number of outgoing neighbours per atom.
+        method: Graph construction method accepted by ``build_edges``.
+        min_facet_area: Voronoi facet area threshold in **angstrom squared** or percent.
+        cov_radii_scale: Scale factor for covalent-radius graph construction.
+
+    Returns:
+        Edge indices ``(2, E)``, distances ``(E,)`` in **angstrom**, vectors ``(E, 3)``
+        in **angstrom**, and optional edge attributes.
+    """
+
     edge_index, edge_weight, edge_vec, edge_attr = build_edges(
         pmg_obj,
         cutoff=cutoff,
@@ -69,6 +100,17 @@ def build_main_edges(pmg_obj, cutoff, max_nbrs, method, min_facet_area, cov_radi
 
 
 def sample_rng_indices(n: int, k: int, seed: int = 0) -> np.ndarray:
+    """Sample up to ``k`` unique indices from ``range(n)``.
+
+    Args:
+        n: Population size.
+        k: Requested number of samples.
+        seed: NumPy random-generator seed.
+
+    Returns:
+        Integer indices with shape ``(min(n, k),)``.
+    """
+
     if n == 0:
         return np.zeros(0, dtype=np.int64)
     k = min(k, n)
@@ -82,27 +124,33 @@ def compute_dihedrals(
     id4_expand_db: torch.Tensor,
     id4_int_edge: torch.Tensor,
 ) -> np.ndarray:
-    """
-    GemNet dihedral angle per quadruplet c-a-b-d, computed from the three
-    vectors vec_ca (main), vec_ba (int), vec_db (main). Returns radians in
-    [0, pi].
+    """Compute GemNet diagnostic dihedral angles for quadruplets.
+
+    Args:
+        edge_vec: Main edge vectors with shape ``(E, 3)`` in **angstrom**.
+        int_edge_vec: Interaction edge vectors with shape ``(E_int, 3)`` in **angstrom**.
+        id4_reduce_ca: Main ``c->a`` edge indices with shape ``(Q,)``.
+        id4_expand_db: Main ``d->b`` edge indices with shape ``(Q,)``.
+        id4_int_edge: Interaction ``b->a`` edge indices with shape ``(Q,)``.
+
+    Returns:
+        Dihedral angles in radians with shape ``(Q,)`` and values in ``[0, pi]``.
     """
     if id4_reduce_ca.numel() == 0:
         return np.zeros(0, dtype=np.float64)
-    vec_ca = edge_vec[id4_reduce_ca]  # pos_a - pos_c
-    vec_ba = int_edge_vec[id4_int_edge]  # pos_a - pos_b
-    vec_db = edge_vec[id4_expand_db]  # pos_b - pos_d
-    # Reconstruct path vectors along c -> a -> b -> d
-    b1 = vec_ca  # a - c
-    b2 = -vec_ba  # b - a
-    b3 = -vec_db  # d - b
+    vec_ca = edge_vec[id4_reduce_ca]
+    vec_ba = int_edge_vec[id4_int_edge]
+    vec_db = edge_vec[id4_expand_db]
+    b1 = vec_ca
+    b2 = -vec_ba
+    b3 = -vec_db
     n1 = torch.linalg.cross(b1, b2, dim=-1)
     n2 = torch.linalg.cross(b2, b3, dim=-1)
     b2n = b2 / (b2.norm(dim=-1, keepdim=True) + 1e-12)
     m1 = torch.linalg.cross(n1, b2n, dim=-1)
     x = (n1 * n2).sum(dim=-1)
     y = (m1 * n2).sum(dim=-1)
-    dih = torch.atan2(y, x).abs()  # map to [0, pi]
+    dih = torch.atan2(y, x).abs()
     return dih.detach().cpu().numpy()
 
 
@@ -113,26 +161,24 @@ def quad_int_edge_from_quad(
     id4_reduce_ca: torch.Tensor,
     id4_expand_db: torch.Tensor,
 ) -> torch.Tensor:
-    """
-    Recover, per quadruplet, the id of the interaction edge b->a. We know
-    ``a = main_dst[id4_reduce_ca]`` and ``b = main_src[id4_expand_db]``, and
-    that the int edge has source=b, target=a. Since the same (b,a) pair can
-    exist in the int graph only once per periodic image, we match via
-    int_edge_index columns. This is only used for diagnostic dihedrals so we
-    accept a linear fallback via a dict lookup when needed.
+    """Recover one diagnostic interaction edge index per quadruplet.
+
+    Args:
+        n_int: Number of interaction edges.
+        int_edge_index: Interaction edge indices with shape ``(2, E_int)``.
+        edge_index: Main edge indices with shape ``(2, E)``.
+        id4_reduce_ca: Main ``c->a`` edge indices with shape ``(Q,)``.
+        id4_expand_db: Main ``d->b`` edge indices with shape ``(Q,)``.
+
+    Returns:
+        Interaction ``b->a`` edge ids with shape ``(Q,)``. Missing matches are ``-1``.
     """
     if id4_reduce_ca.numel() == 0:
         return torch.empty(0, dtype=torch.int64)
     a = edge_index[1][id4_reduce_ca]
-    b = edge_index[0][id4_expand_db]  # src of d->b is d, dst is b -> index 1
-    # NOTE: in GemNetData we store edge c->a with source=c,target=a, and
-    # edge d->b with source=d,target=b. So b = dst of id4_expand_db.
     b = edge_index[1][id4_expand_db]
-    idx_int_s = int_edge_index[0]  # b
-    idx_int_t = int_edge_index[1]  # a
-    # Build dictionary (b, a) -> first int edge id. For periodic, multiple
-    # images per (b,a) are OK: the dihedral is approximate when there is no
-    # 1:1 correspondence (this script is a visual diagnostic, not training).
+    idx_int_s = int_edge_index[0]
+    idx_int_t = int_edge_index[1]
     lookup: dict[tuple[int, int], int] = {}
     for i in range(n_int):
         lookup.setdefault((int(idx_int_s[i].item()), int(idx_int_t[i].item())), i)
@@ -143,15 +189,37 @@ def quad_int_edge_from_quad(
     return out
 
 
-###############################################################################
-############################### 3D plotters ###################################
-###############################################################################
+def _draw_generic_edges(
+    ax: Any,
+    coords: np.ndarray,
+    edge_src: np.ndarray,
+    edge_dst: np.ndarray,
+    edge_vec: np.ndarray,
+    is_periodic: bool,
+    color_intra: RGBColor,
+    color_pbc: RGBColor,
+    alpha: float = 0.75,
+) -> int:
+    """Draw one edge graph with custom colours.
 
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Source atom indices with shape ``(E,)``.
+        edge_dst: Destination atom indices with shape ``(E,)``.
+        edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
+        is_periodic: Whether periodic-boundary crossings should be highlighted.
+        color_intra: RGB colour for intra-cell edges.
+        color_pbc: RGB colour for periodic-boundary edges.
+        alpha: Alpha value for intra-cell edges.
 
-def _draw_generic_edges(ax, coords, edge_src, edge_dst, edge_vec, is_periodic, color_intra, color_pbc, alpha=0.75):
-    segments = []
-    colors = []
-    widths = []
+    Returns:
+        Number of drawn edges whose endpoint crosses a periodic boundary.
+    """
+
+    segments: list[np.ndarray] = []
+    colors: list[tuple[float, float, float, float]] = []
+    widths: list[float] = []
     n_pbc = 0
     for s, d, vec in zip(edge_src.tolist(), edge_dst.tolist(), edge_vec):
         start = coords[s]
@@ -168,12 +236,36 @@ def _draw_generic_edges(ax, coords, edge_src, edge_dst, edge_vec, is_periodic, c
     return n_pbc
 
 
-def plot_triplets(ax, coords, edge_src, edge_dst, edge_vec, id3_reduce_ca, id3_expand_ba, max_draw, seed=0):
+def plot_triplets(
+    ax: Any,
+    coords: np.ndarray,
+    edge_src: np.ndarray,
+    edge_dst: np.ndarray,
+    edge_vec: np.ndarray,
+    id3_reduce_ca: np.ndarray,
+    id3_expand_ba: np.ndarray,
+    max_draw: int,
+    seed: int = 0,
+) -> None:
+    """Plot a deterministic sample of GemNet triplet triangles.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Source atom indices with shape ``(E,)``; retained for call-site symmetry.
+        edge_dst: Destination atom indices with shape ``(E,)``.
+        edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
+        id3_reduce_ca: Main ``c->a`` edge indices with shape ``(T,)``.
+        id3_expand_ba: Main ``b->a`` edge indices with shape ``(T,)``.
+        max_draw: Maximum number of triplets to draw.
+        seed: NumPy random-generator seed.
+    """
+
     n = id3_reduce_ca.shape[0]
     if n == 0:
         return
     take = sample_rng_indices(n, max_draw, seed=seed)
-    tris = []
+    tris: list[np.ndarray] = []
     for t in take:
         e_ca = int(id3_reduce_ca[t])
         e_ba = int(id3_expand_ba[t])
@@ -189,25 +281,46 @@ def plot_triplets(ax, coords, edge_src, edge_dst, edge_vec, id3_reduce_ca, id3_e
 
 
 def plot_quadruplets(
-    ax,
-    coords,
-    edge_src,
-    edge_dst,
-    edge_vec,
-    int_edge_src,
-    int_edge_dst,
-    int_edge_vec,
-    id4_reduce_ca,
-    id4_expand_db,
-    id4_int_edge,
-    max_draw,
-    seed=0,
-):
+    ax: Any,
+    coords: np.ndarray,
+    edge_src: np.ndarray,
+    edge_dst: np.ndarray,
+    edge_vec: np.ndarray,
+    int_edge_src: np.ndarray,
+    int_edge_dst: np.ndarray,
+    int_edge_vec: np.ndarray,
+    id4_reduce_ca: np.ndarray,
+    id4_expand_db: np.ndarray,
+    id4_int_edge: np.ndarray,
+    max_draw: int,
+    seed: int = 0,
+) -> int:
+    """Plot a deterministic sample of diagnostic quadruplet paths.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Main source atom indices with shape ``(E,)``; retained for API symmetry.
+        edge_dst: Main destination atom indices with shape ``(E,)``.
+        edge_vec: Main edge vectors with shape ``(E, 3)`` in **angstrom**.
+        int_edge_src: Interaction source indices with shape ``(E_int,)``; retained for API symmetry.
+        int_edge_dst: Interaction destination indices with shape ``(E_int,)``; retained for API symmetry.
+        int_edge_vec: Interaction edge vectors with shape ``(E_int, 3)`` in **angstrom**.
+        id4_reduce_ca: Main ``c->a`` edge indices with shape ``(Q,)``.
+        id4_expand_db: Main ``d->b`` edge indices with shape ``(Q,)``.
+        id4_int_edge: Diagnostic interaction ``b->a`` edge indices with shape ``(Q,)``.
+        max_draw: Maximum number of quadruplets to draw.
+        seed: NumPy random-generator seed.
+
+    Returns:
+        Number of quadruplet paths actually drawn.
+    """
+
     n = id4_reduce_ca.shape[0]
     if n == 0:
         return 0
     take = sample_rng_indices(n, max_draw, seed=seed)
-    polylines = []
+    polylines: list[np.ndarray] = []
     for t in take:
         e_ca = int(id4_reduce_ca[t])
         e_db = int(id4_expand_db[t])
@@ -222,7 +335,7 @@ def plot_quadruplets(
         polylines.append(np.stack([pc, pa, pb, pd], axis=0))
     if not polylines:
         return 0
-    segs = []
+    segs: list[np.ndarray] = []
     for poly in polylines:
         segs.append(poly[0:2])
         segs.append(poly[1:3])
@@ -234,32 +347,47 @@ def plot_quadruplets(
 
 
 def plot_mixed_triplets(
-    ax,
-    coords,
-    main_edge_src,
-    main_edge_dst,
-    main_edge_vec,
-    other_edge_src,
-    other_edge_vec,
-    idx_out,
-    idx_in,
-    max_draw,
-    color,
-    seed=0,
-):
+    ax: Any,
+    coords: np.ndarray,
+    main_edge_src: np.ndarray,
+    main_edge_dst: np.ndarray,
+    main_edge_vec: np.ndarray,
+    other_edge_src: np.ndarray,
+    other_edge_vec: np.ndarray,
+    idx_out: np.ndarray,
+    idx_in: np.ndarray,
+    max_draw: int,
+    color: RGBColor,
+    seed: int = 0,
+) -> None:
+    """Plot a deterministic sample of GemNet-OC mixed triplets.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        main_edge_src: Main source indices with shape ``(E,)``; retained for API symmetry.
+        main_edge_dst: Main destination indices with shape ``(E,)``.
+        main_edge_vec: Main edge vectors with shape ``(E, 3)`` in **angstrom**.
+        other_edge_src: Other-graph source indices with shape ``(E_other,)``.
+        other_edge_vec: Other-graph edge vectors with shape ``(E_other, 3)`` in **angstrom**.
+        idx_out: Output edge indices with shape ``(T,)``.
+        idx_in: Input edge indices with shape ``(T,)``.
+        max_draw: Maximum number of mixed triplets to draw.
+        color: RGB colour used for the triangle faces and edges.
+        seed: NumPy random-generator seed.
+    """
+
     n = idx_out.shape[0]
     if n == 0:
         return
     take = sample_rng_indices(n, max_draw, seed=seed)
-    tris = []
+    tris: list[np.ndarray] = []
     for t in take:
         eo = int(idx_out[t])
         ei = int(idx_in[t])
-        # Main output edge c->a: target a is pivot for to_outedge=False matches
         a = int(main_edge_dst[eo])
         pa = coords[a]
         pc = pa - np.asarray(main_edge_vec[eo], dtype=np.float64)
-        # Input edge source/target on the other graph
         sb = int(other_edge_src[ei])
         pb = coords[sb]
         tris.append(np.stack([pc, pa, pb], axis=0))
@@ -267,12 +395,9 @@ def plot_mixed_triplets(
     ax.add_collection3d(poly)
 
 
-###############################################################################
-################################# main ########################################
-###############################################################################
-
-
 def main() -> None:
+    """Run the GemNet graph diagnostic command-line interface."""
+
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -354,7 +479,6 @@ def main() -> None:
     p.add_argument("--no-show", action="store_true")
     args = p.parse_args()
 
-    # ---------- Load sample ----------
     pmg_obj = load_sample(args.json_dir, args.index, args.file)
     stem = pmg_obj.properties.get("file_name", "<unknown>")
     is_periodic = isinstance(pmg_obj, Structure)
@@ -368,7 +492,17 @@ def main() -> None:
     if min_facet_area is not None and not min_facet_area.endswith("%"):
         min_facet_area = float(min_facet_area)
 
-    def _coerce_mfa(val: str | None, fallback):
+    def _coerce_mfa(val: str | None, fallback: MinFacetArea) -> MinFacetArea:
+        """Return a graph-specific Voronoi threshold or the main-graph fallback.
+
+        Args:
+            val: Raw command-line value for a graph-specific threshold.
+            fallback: Already-coerced main graph threshold.
+
+        Returns:
+            Threshold as ``None``, a float in **angstrom squared**, or a percentage string.
+        """
+
         if val is None:
             return fallback
         return val if val.endswith("%") else float(val)
@@ -396,7 +530,6 @@ def main() -> None:
     oc_mfa_aint = _coerce_mfa(args.oc_min_facet_area_aint, min_facet_area)
     oc_covs_aint = args.oc_cov_radii_scale_aint if args.oc_cov_radii_scale_aint is not None else args.cov_radii_scale
 
-    # ---------- Build graphs ----------
     edge_index, edge_weight, edge_vec, edge_attr = build_main_edges(
         pmg_obj, args.cutoff, args.max_neighbors, args.graph_method, min_facet_area, args.cov_radii_scale
     )
@@ -405,7 +538,6 @@ def main() -> None:
     edge_vec_np = edge_vec.numpy()
     edge_w_np = edge_weight.numpy()
 
-    # Triplets on main graph
     id3_reduce_ca, id3_expand_ba, Kidx3 = compute_triplets(edge_index, n_atoms)
     triplet_angles = np.zeros(0, dtype=np.float64)
     if id3_reduce_ca.numel() > 0:
@@ -414,7 +546,6 @@ def main() -> None:
         cos = (v_ca * v_ba).sum(dim=-1) / (v_ca.norm(dim=-1) * v_ba.norm(dim=-1) + 1e-12)
         triplet_angles = torch.arccos(cos.clamp(-1.0, 1.0)).numpy()
 
-    # id_swap sanity (will raise if graph not symmetric — useful check)
     id_swap_ok = True
     id_swap_err = ""
     try:
@@ -427,11 +558,10 @@ def main() -> None:
         id_swap_ok = False
         id_swap_err = str(exc)
 
-    # Quadruplets
     int_edge_index = torch.empty(2, 0, dtype=torch.int64)
     int_edge_vec = torch.empty(0, 3)
     int_edge_w_np = np.zeros(0)
-    quad: dict = {}
+    quad: TensorDict = {}
     dihedrals = np.zeros(0, dtype=np.float64)
     if args.quadruplets:
         int_edge_index, int_edge_weight, int_edge_vec, _ = build_main_edges(
@@ -452,15 +582,14 @@ def main() -> None:
             )
             quad["id4_int_edge_diag"] = id4_int_edge
 
-    # OC graphs
     a2ee2a_edge_index = torch.empty(2, 0, dtype=torch.int64)
     a2ee2a_edge_vec = torch.empty(0, 3)
     a2ee2a_edge_w_np = np.zeros(0)
     a2a_edge_index = torch.empty(2, 0, dtype=torch.int64)
     a2a_edge_vec = torch.empty(0, 3)
     a2a_edge_w_np = np.zeros(0)
-    a2e_mixed: dict = {}
-    e2a_mixed: dict = {}
+    a2e_mixed: TensorDict = {}
+    e2a_mixed: TensorDict = {}
     a2e_angles = np.zeros(0, dtype=np.float64)
     e2a_angles = np.zeros(0, dtype=np.float64)
     if args.oc:
@@ -489,7 +618,6 @@ def main() -> None:
                 num_nodes=n_atoms,
                 to_outedge=False,
             )
-            # Mixed-triplet angles
             if a2e_mixed["in_"].numel() > 0:
                 v_out = edge_vec[a2e_mixed["out"]]
                 v_in = a2ee2a_edge_vec[a2e_mixed["in_"]]
@@ -501,7 +629,6 @@ def main() -> None:
                 cos = (v_out * v_in).sum(dim=-1) / (v_out.norm(dim=-1) * v_in.norm(dim=-1) + 1e-12)
                 e2a_angles = torch.arccos(cos.clamp(-1.0, 1.0)).numpy()
 
-    # ---------- Visualisation setup ----------
     vis_points = coords.copy()
     if is_periodic:
         vis_points = np.concatenate([vis_points, _cell_corner_coords(pmg_obj)], axis=0)
@@ -511,9 +638,7 @@ def main() -> None:
     label_atoms = (not args.no_atom_labels) and (n_atoms <= 60)
     abs_sym = Element.from_Z(int(atomic_numbers[args.absorber_idx])).symbol
 
-    # Build list of "edge graphs" to plot (always main, plus int / a2ee2a / a2a
-    # when active). Each entry: (title, edge_index_np, edge_vec_np, color_intra).
-    edge_panels: list[tuple[str, np.ndarray, np.ndarray, np.ndarray, tuple[float, float, float]]] = [
+    edge_panels: list[EdgePanel] = [
         (
             f"Main edges ({args.graph_method}, E={edge_index.shape[1]})",
             edge_src,
@@ -552,7 +677,6 @@ def main() -> None:
             )
         )
 
-    # Build list of "index graphs" (triplets, quads, mixed a2e/e2a).
     n_a2e = a2e_mixed.get("in_", torch.empty(0)).numel() if a2e_mixed else 0
     n_e2a = e2a_mixed.get("in_", torch.empty(0)).numel() if e2a_mixed else 0
     index_panels: list[str] = ["triplets"]
@@ -576,7 +700,6 @@ def main() -> None:
         bottom=0.05,
     )
 
-    # ---- Row 0: edge graphs ----
     n_pbc_main = 0
     for i, (title, es, ed, evec, col) in enumerate(edge_panels):
         ax = fig.add_subplot(gs[0, i], projection="3d")
@@ -598,7 +721,6 @@ def main() -> None:
             _draw_generic_edges(ax, coords, es, ed, evec, is_periodic, color_intra=col, color_pbc=(0.85, 0.30, 0.10))
             ax.legend(handles=[Patch(color=(*col, 0.8), label=title.split(" ")[0])], loc="upper left", fontsize=8)
 
-    # ---- Row 1: index graphs (triplets / quads / mixed) ----
     for i, kind in enumerate(index_panels):
         ax = fig.add_subplot(gs[1, i], projection="3d")
         if kind == "triplets":
@@ -729,18 +851,14 @@ def main() -> None:
                 )
             ax.legend(handles=[Patch(color=(0.15, 0.55, 0.55, 0.4), label="e2a")], loc="upper left", fontsize=8)
 
-    # ---------- Histograms ----------
-    # Split the bottom row into exactly 3 equal-width panels regardless of
-    # how many columns the 3D grid uses.
     _third = max(1, n_graph_cols // 3)
     _rem = n_graph_cols - 2 * _third
     ax_hw = fig.add_subplot(gs[2, 0:_third])
     ax_hd = fig.add_subplot(gs[2, _third : 2 * _third])
     ax_ha = fig.add_subplot(gs[2, 2 * _third : 2 * _third + _rem])
 
-    # Edge-weight hist (main, int, a2ee2a, a2a)
     bins = 30
-    hist_series: list[tuple[np.ndarray, str, str]] = [(edge_w_np, f"main (E={edge_w_np.size})", "steelblue")]
+    hist_series: list[HistSeries] = [(edge_w_np, f"main (E={edge_w_np.size})", "steelblue")]
     if int_edge_w_np.size > 0:
         hist_series.append((int_edge_w_np, f"int (E={int_edge_w_np.size})", "#d98a1d"))
     if a2ee2a_edge_w_np.size > 0:
@@ -759,9 +877,8 @@ def main() -> None:
     ax_hw.set_ylabel("count")
     ax_hw.legend(fontsize=7, loc="upper right")
 
-    # Per-atom out-degree grouped bars (main, int, a2ee2a, a2a)
     deg_main = np.bincount(edge_src, minlength=n_atoms)
-    deg_series: list[tuple[np.ndarray, str, str]] = [(deg_main, "main", "steelblue")]
+    deg_series: list[DegreeSeries] = [(deg_main, "main", "steelblue")]
     if int_edge_index.size(1) > 0:
         deg_series.append((np.bincount(int_edge_index[0].numpy(), minlength=n_atoms), "int", "#d98a1d"))
     if a2ee2a_edge_index.size(1) > 0:
@@ -794,7 +911,6 @@ def main() -> None:
     ax_hd.set_ylabel("# edges")
     ax_hd.legend(fontsize=7, loc="upper right")
 
-    # Angle distributions
     any_ang = False
     if triplet_angles.size > 0:
         ax_ha.hist(
@@ -844,7 +960,6 @@ def main() -> None:
         ax_ha.text(0.5, 0.5, "no angles", ha="center", va="center", transform=ax_ha.transAxes)
         ax_ha.set_axis_off()
 
-    # ---------- Stdout summary ----------
     line = "=" * 70
     print(line)
     print(f"datasource:      {args.json_dir}")
@@ -931,11 +1046,6 @@ def main() -> None:
 
     print(line)
 
-    # ---------- Input-size impact ----------
-    # Per-sample tensor-element counts that flow into the model. These dominate
-    # runtime/memory scaling: edge-indexed features scale with E, triplet-
-    # indexed with T, quadruplet-indexed with Q, and basis-embedding scatters
-    # scale with the corresponding dst-atom neighbor lists.
     print("Input-size impact (per-sample tensor counts):")
     print(f"  atoms                              N = {n_atoms}")
     print(f"  main edges                         E_main   = {edge_index.shape[1]}")

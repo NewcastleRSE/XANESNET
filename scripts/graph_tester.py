@@ -1,23 +1,27 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
+"""Visualize molecular graph construction diagnostics for PMGJSON samples."""
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+from __future__ import annotations
 
 import argparse
 import itertools
 import sys
 from pathlib import Path
+from typing import Any, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,8 +41,26 @@ from xanesnet.utils.graph import (
     compute_triplets_and_angles,
 )
 
+PMGObject: TypeAlias = Structure | Molecule
+RGBColor: TypeAlias = tuple[float, float, float]
+VoronoiFacet: TypeAlias = tuple[np.ndarray, float, float]
+
 
 def load_sample(json_dir: Path, index: int | None, file_stem: str | None) -> Structure | Molecule:
+    """Load one PMGJSON object by sorted index or file stem.
+
+    Args:
+        json_dir: Directory containing one PMGJSON file per sample.
+        index: Zero-based sample index used when ``file_stem`` is not supplied.
+        file_stem: Sample file stem without the ``.json`` suffix.
+
+    Returns:
+        Loaded pymatgen ``Structure`` or ``Molecule``.
+
+    Raises:
+        SystemExit: If the requested sample is not available.
+    """
+
     ds = PMGJSONSource(datasource_type="pmgjson", json_path=str(json_dir))
     if file_stem is not None:
         if file_stem not in ds.file_names:
@@ -54,8 +76,17 @@ def load_sample(json_dir: Path, index: int | None, file_stem: str | None) -> Str
     raise SystemExit("Failed to iterate datasource")
 
 
-def element_colors(atomic_numbers: np.ndarray) -> list[tuple[float, float, float]]:
-    colors: list[tuple[float, float, float]] = []
+def element_colors(atomic_numbers: np.ndarray) -> list[RGBColor]:
+    """Return display colours for atomic numbers.
+
+    Args:
+        atomic_numbers: Atomic numbers with shape ``(N,)``.
+
+    Returns:
+        RGB colours normalized to Matplotlib's ``0.0`` to ``1.0`` range.
+    """
+
+    colors: list[RGBColor] = []
     for z in atomic_numbers.tolist():
         try:
             rgb = Element.from_Z(int(z)).color
@@ -66,21 +97,53 @@ def element_colors(atomic_numbers: np.ndarray) -> list[tuple[float, float, float
 
 
 def _cell_corner_coords(structure: Structure) -> np.ndarray:
+    """Return Cartesian unit-cell corner coordinates.
+
+    Args:
+        structure: Periodic structure whose lattice defines the unit cell.
+
+    Returns:
+        Corner coordinates with shape ``(8, 3)`` in **angstrom**.
+    """
+
     lattice = np.array(structure.lattice.matrix, dtype=np.float64)
     return np.array(list(itertools.product([0.0, 1.0], repeat=3))) @ lattice
 
 
-def draw_unit_cell(ax, structure: Structure) -> None:
+def draw_unit_cell(ax: Any, structure: Structure) -> None:
+    """Draw the periodic unit-cell wireframe.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        structure: Periodic structure whose lattice defines the unit cell.
+    """
+
     corners_frac = np.array(list(itertools.product([0.0, 1.0], repeat=3)))
     corners = _cell_corner_coords(structure)
-    edges = []
+    edges: list[list[np.ndarray]] = []
     for i, j in itertools.combinations(range(8), 2):
         if np.sum(np.abs(corners_frac[i] - corners_frac[j])) == 1.0:
             edges.append([corners[i], corners[j]])
     ax.add_collection3d(Line3DCollection(edges, colors="black", linewidths=0.6, alpha=0.35))
 
 
-def plot_atoms(ax, coords, atomic_numbers, absorber_idx, label=True):
+def plot_atoms(
+    ax: Any,
+    coords: np.ndarray,
+    atomic_numbers: np.ndarray,
+    absorber_idx: int,
+    label: bool = True,
+) -> None:
+    """Plot atoms and mark the absorber atom.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        atomic_numbers: Atomic numbers with shape ``(N,)``.
+        absorber_idx: Atom index highlighted as the absorber.
+        label: Whether to draw element/index labels beside atoms.
+    """
+
     colors = element_colors(atomic_numbers)
     sizes = np.array([max(60.0, 30.0 + float(z) * 2.0) for z in atomic_numbers])
     ax.scatter(
@@ -101,13 +164,31 @@ def plot_atoms(ax, coords, atomic_numbers, absorber_idx, label=True):
             ax.text(x, y, z_, f" {sym}{i}", fontsize=6, color="black")
 
 
-def plot_edges(ax, coords, edge_src, edge_dst, edge_vec, is_periodic):
+def plot_edges(
+    ax: Any,
+    coords: np.ndarray,
+    edge_src: np.ndarray,
+    edge_dst: np.ndarray,
+    edge_vec: np.ndarray,
+    is_periodic: bool,
+) -> int:
+    """Draw graph edges and count periodic-boundary crossings.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Source atom indices with shape ``(E,)``.
+        edge_dst: Destination atom indices with shape ``(E,)``.
+        edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
+        is_periodic: Whether periodic-boundary crossings should be highlighted.
+
+    Returns:
+        Number of drawn edges whose endpoint crosses a periodic boundary.
     """
-    Draw intra-cell edges boldly; PBC-crossing edges thinner and more faded so focus stays on the primary graph.
-    """
-    segments = []
-    segment_colors = []
-    segment_widths = []
+
+    segments: list[np.ndarray] = []
+    segment_colors: list[tuple[float, float, float, float]] = []
+    segment_widths: list[float] = []
     n_crossing = 0
     for s, d, vec in zip(edge_src.tolist(), edge_dst.tolist(), edge_vec):
         start = coords[s]
@@ -129,12 +210,34 @@ def plot_edges(ax, coords, edge_src, edge_dst, edge_vec, is_periodic):
     return n_crossing
 
 
-def plot_triplets(ax, coords, edge_src, edge_dst, edge_vec, idx_kj, idx_ji, max_draw):
+def plot_triplets(
+    ax: Any,
+    coords: np.ndarray,
+    edge_src: np.ndarray,
+    edge_dst: np.ndarray,
+    edge_vec: np.ndarray,
+    idx_kj: np.ndarray,
+    idx_ji: np.ndarray,
+    max_draw: int,
+) -> None:
+    """Plot a deterministic sample of triplet triangles.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Source atom indices with shape ``(E,)``; retained for call-site symmetry.
+        edge_dst: Destination atom indices with shape ``(E,)``.
+        edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
+        idx_kj: First edge index per triplet with shape ``(T,)``.
+        idx_ji: Second edge index per triplet with shape ``(T,)``.
+        max_draw: Maximum number of triplets to draw.
+    """
+
     n = idx_kj.shape[0]
     if n == 0:
         return
     take = np.random.default_rng(0).choice(n, size=min(max_draw, n), replace=False)
-    tris = []
+    tris: list[np.ndarray] = []
     for t in take:
         ekj = int(idx_kj[t])
         eji = int(idx_ji[t])
@@ -149,7 +252,18 @@ def plot_triplets(ax, coords, edge_src, edge_dst, edge_vec, idx_kj, idx_ji, max_
     ax.add_collection3d(poly)
 
 
-def absorber_neighbor_coords(pmg_obj, absorber_idx, cutoff):
+def absorber_neighbor_coords(pmg_obj: PMGObject, absorber_idx: int, cutoff: float) -> np.ndarray:
+    """Return neighbouring coordinates around the absorber.
+
+    Args:
+        pmg_obj: Pymatgen object containing the absorber and neighbours.
+        absorber_idx: Atom index used as the absorber.
+        cutoff: Maximum neighbour distance in **angstrom**.
+
+    Returns:
+        Neighbour coordinates with shape ``(M, 3)`` in **angstrom**.
+    """
+
     abs_coord = np.array(pmg_obj.cart_coords[absorber_idx], dtype=np.float64)
     if isinstance(pmg_obj, Structure):
         neighbors = pmg_obj.get_neighbors(pmg_obj[absorber_idx], r=cutoff)
@@ -162,7 +276,25 @@ def absorber_neighbor_coords(pmg_obj, absorber_idx, cutoff):
     return all_coords[keep]
 
 
-def plot_absorber_paths(ax, pmg_obj, absorber_idx, cutoff, max_paths, max_draw):
+def plot_absorber_paths(
+    ax: Any,
+    pmg_obj: PMGObject,
+    absorber_idx: int,
+    cutoff: float,
+    max_paths: int,
+    max_draw: int,
+) -> None:
+    """Plot a deterministic sample of absorber-centred two-neighbour paths.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        pmg_obj: Pymatgen object containing atom coordinates.
+        absorber_idx: Atom index used as the absorber.
+        cutoff: Maximum neighbour distance in **angstrom**.
+        max_paths: Number of lowest-score paths retained before drawing.
+        max_draw: Maximum number of retained paths to draw.
+    """
+
     abs_coord = np.array(pmg_obj.cart_coords[absorber_idx], dtype=np.float64)
     neigh_coords = absorber_neighbor_coords(pmg_obj, absorber_idx, cutoff)
     n = neigh_coords.shape[0]
@@ -183,7 +315,14 @@ def plot_absorber_paths(ax, pmg_obj, absorber_idx, cutoff, max_paths, max_draw):
     ax.add_collection3d(poly)
 
 
-def equalize_3d_axes(ax, points):
+def equalize_3d_axes(ax: Any, points: np.ndarray) -> None:
+    """Set equal 3D axis limits around a point cloud.
+
+    Args:
+        ax: Matplotlib 3D axis to update.
+        points: Cartesian points with shape ``(N, 3)`` in **angstrom**.
+    """
+
     mins = points.min(axis=0)
     maxs = points.max(axis=0)
     span = float((maxs - mins).max()) * 0.55 + 1e-6
@@ -196,7 +335,31 @@ def equalize_3d_axes(ax, points):
     ax.set_zlabel("z")
 
 
-def setup_axis(ax, pmg_obj, coords, atomic_numbers, absorber_idx, vis_points, is_periodic, title, label_atoms):
+def setup_axis(
+    ax: Any,
+    pmg_obj: PMGObject,
+    coords: np.ndarray,
+    atomic_numbers: np.ndarray,
+    absorber_idx: int,
+    vis_points: np.ndarray,
+    is_periodic: bool,
+    title: str,
+    label_atoms: bool,
+) -> None:
+    """Apply common atom, cell, title, and axis-limit setup.
+
+    Args:
+        ax: Matplotlib 3D axis to update.
+        pmg_obj: Pymatgen object being visualized.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        atomic_numbers: Atomic numbers with shape ``(N,)``.
+        absorber_idx: Atom index highlighted as the absorber.
+        vis_points: Points used to choose equal axis limits, shape ``(M, 3)``.
+        is_periodic: Whether to draw a unit cell.
+        title: Axis title.
+        label_atoms: Whether atom labels should be shown.
+    """
+
     if is_periodic:
         draw_unit_cell(ax, pmg_obj)
     plot_atoms(ax, coords, atomic_numbers, absorber_idx, label=label_atoms)
@@ -204,15 +367,17 @@ def setup_axis(ax, pmg_obj, coords, atomic_numbers, absorber_idx, vis_points, is
     equalize_3d_axes(ax, vis_points)
 
 
-def compute_voronoi_facets(pmg_obj, cutoff):
-    """
-    Return a list of (polygon_verts [k,3], area, pair_distance) for Voronoi
-    facets where at least one endpoint is in the central cell (or, for a
-    Molecule, any finite facet). Edges whose midpoint-pair distance exceeds
-    ``cutoff`` are dropped, matching ``build_edges_voronoi``.
+def compute_voronoi_facets(pmg_obj: PMGObject, cutoff: float) -> list[VoronoiFacet]:
+    """Return finite Voronoi facets that match the graph cutoff.
 
-    Independent scipy reimplementation so the script does not reach into
-    private helpers of ``xanesnet.utils.graph``.
+    Args:
+        pmg_obj: Pymatgen object used for Voronoi construction.
+        cutoff: Maximum midpoint-pair distance in **angstrom**.
+
+    Returns:
+        Facets as ``(vertices, area, pair_distance)`` tuples. Vertices have shape
+        ``(K, 3)`` in **angstrom**, area is in **angstrom squared**, and pair distance
+        is in **angstrom**.
     """
     from scipy.spatial import (  # local import keeps import cost optional
         QhullError,
@@ -253,7 +418,7 @@ def compute_voronoi_facets(pmg_obj, cutoff):
     except QhullError:
         return []
 
-    facets: list[tuple[np.ndarray, float, float]] = []
+    facets: list[VoronoiFacet] = []
     for rp, rv in zip(vor.ridge_points, vor.ridge_vertices):
         if len(rv) < 3 or -1 in rv:
             continue
@@ -264,11 +429,8 @@ def compute_voronoi_facets(pmg_obj, cutoff):
         if d > cutoff or d < 1e-8:
             continue
         verts = vor.vertices[rv]
-        # Defensive: sort vertices around the facet centroid in the facet plane
-        # so the shoelace cross-sum is correct even for non-convex winding.
         centroid = verts.mean(axis=0)
         rel = verts - centroid
-        # Estimate facet normal from first non-degenerate triangle
         normal = np.cross(rel[1], rel[2])
         nrm = float(np.linalg.norm(normal))
         if nrm < 1e-12:
@@ -287,15 +449,20 @@ def compute_voronoi_facets(pmg_obj, cutoff):
     return facets
 
 
-def plot_voronoi_facets(ax, facets):
+def plot_voronoi_facets(ax: Any, facets: list[VoronoiFacet]) -> None:
+    """Plot Voronoi facets coloured by area.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        facets: Facets returned by ``compute_voronoi_facets``.
+    """
+
     if not facets:
         return
     polys = [f[0] for f in facets]
     areas = np.array([f[1] for f in facets], dtype=np.float64)
     if areas.size == 0:
         return
-    # Color facets by area on a perceptual colormap so small and large facets
-    # are both clearly distinguishable against the white background and atoms.
     amax = float(areas.max()) if areas.max() > 0 else 1.0
     amin = float(areas.min())
     norm = (areas - amin) / max(amax - amin, 1e-12)
@@ -311,7 +478,9 @@ def plot_voronoi_facets(ax, facets):
     ax.add_collection3d(coll)
 
 
-def main():
+def main() -> None:
+    """Run the graph diagnostic command-line interface."""
+
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -366,7 +535,6 @@ def main():
     if not (0 <= args.absorber_idx < n_atoms):
         raise SystemExit(f"--absorber-idx {args.absorber_idx} out of range [0, {n_atoms})")
 
-    # min_facet_area is a float-or-string: coerce string-looking floats to float
     min_facet_area = args.min_facet_area
     if min_facet_area is not None and not min_facet_area.endswith("%"):
         min_facet_area = float(min_facet_area)

@@ -1,22 +1,26 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
+"""Inspect saved prediction files with the available XANESNET prediction readers."""
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+from __future__ import annotations
 
 import argparse
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -28,7 +32,17 @@ from xanesnet.serialization.prediction_readers import (
 )
 
 
-def format_value(value, full=False):
+def format_value(value: Any, full: bool = False) -> str:
+    """Format a prediction value for compact terminal output.
+
+    Args:
+        value: Value returned by a prediction reader.
+        full: Whether ndarray values should be printed in full.
+
+    Returns:
+        Human-readable value summary.
+    """
+
     if isinstance(value, np.ndarray):
         s = f"shape={value.shape}, dtype={value.dtype}"
         if full:
@@ -47,13 +61,20 @@ def format_value(value, full=False):
 
 
 def test_reader(reader_cls: type[PredictionReader], path: Path, show_sample: bool = False) -> None:
+    """Exercise one prediction reader implementation against a directory.
+
+    Args:
+        reader_cls: Prediction reader class to instantiate.
+        path: Directory containing prediction files for that reader.
+        show_sample: Whether to print every field from the first sample.
+    """
+
     print(f"\n{'='*60}")
     print(f"Testing {reader_cls.__name__} at: {path}")
     print(f"{'='*60}")
 
     try:
         with reader_cls(path) as reader:
-            # Test __len__
             total_samples = len(reader)
             print(f"Total samples (len): {total_samples}")
 
@@ -69,7 +90,6 @@ def test_reader(reader_cls: type[PredictionReader], path: Path, show_sample: boo
                     print(format_value(value, full=True))
                 print("\n" + "-" * 40)
 
-            # Test Iteration (first few)
             print("\n--- Testing Iteration (first 3) ---")
             start_time = time.perf_counter()
             for i, sample in enumerate(reader):
@@ -81,7 +101,6 @@ def test_reader(reader_cls: type[PredictionReader], path: Path, show_sample: boo
             end_time = time.perf_counter()
             print(f"\nIteration time (first {min(3, total_samples)}): {(end_time - start_time)*1000:.4f} ms")
 
-            # Test Random Access (__getitem__)
             idx = total_samples - 1
             print(f"\n--- Testing Random Access (index {idx}) ---")
 
@@ -92,7 +111,6 @@ def test_reader(reader_cls: type[PredictionReader], path: Path, show_sample: boo
             print(f"Sample {idx} keys: {list(last_sample.keys())}")
             print(f"Random access time: {(end_time - start_time)*1000:.4f} ms")
 
-            # Test get_all
             print("\n--- Testing get_all() ---")
 
             start_time = time.perf_counter()
@@ -111,7 +129,9 @@ def test_reader(reader_cls: type[PredictionReader], path: Path, show_sample: boo
         traceback.print_exc()
 
 
-def main():
+def main() -> None:
+    """Run the prediction-reader smoke-test command-line interface."""
+
     parser = argparse.ArgumentParser(description="Test XANESNET Prediction Readers")
     parser.add_argument("path", type=str, help="Path to the directory containing prediction files")
     parser.add_argument("--show-sample", action="store_true", help="Print the full content of the first sample")
@@ -124,8 +144,7 @@ def main():
 
     print(f"Inspecting directory: {path}")
 
-    # Auto-detect which readers apply
-    readers_to_test = []
+    readers_to_test: list[type[PredictionReader]] = []
 
     if (path / "predictions.h5").exists():
         print("-> Found 'predictions.h5', testing HDF5Reader.")

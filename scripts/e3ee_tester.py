@@ -1,24 +1,26 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Visualize E3EE encoder and attention graph diagnostics for PMGJSON samples."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
+from typing import Any, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,10 +46,18 @@ from graph_tester import (
 
 from xanesnet.utils.graph import GRAPH_METHODS, build_edges
 
+VoronoiFacet: TypeAlias = tuple[np.ndarray, float, float]
+
 
 def _coerce_min_facet_area(val: str | None) -> float | str | None:
-    """Match the convention used by other testers: floats are stripped of
-    trailing whitespace; percentage strings are passed through as-is."""
+    """Return a numeric or percentage Voronoi facet-area threshold.
+
+    Args:
+        val: Raw command-line value. Empty strings and ``None`` disable filtering.
+
+    Returns:
+        ``None``, a float threshold in **angstrom squared**, or a percentage string.
+    """
     if val is None or val == "":
         return None
     if val.endswith("%"):
@@ -56,7 +66,7 @@ def _coerce_min_facet_area(val: str | None) -> float | str | None:
 
 
 def _draw_directed_edges(
-    ax,
+    ax: Any,
     coords: np.ndarray,
     edge_src: np.ndarray,
     edge_dst: np.ndarray,
@@ -67,8 +77,23 @@ def _draw_directed_edges(
     width_intra: float = 1.2,
     width_pbc: float = 0.5,
 ) -> int:
-    """Plot edges with a configurable colour. Returns the number of PBC
-    crossings (intra-cell edges otherwise)."""
+    """Plot directed graph edges on a 3D axis.
+
+    Args:
+        ax: Matplotlib 3D axis to draw on.
+        coords: Cartesian atom coordinates with shape ``(N, 3)`` in **angstrom**.
+        edge_src: Source atom indices with shape ``(E,)``.
+        edge_dst: Destination atom indices with shape ``(E,)``.
+        edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
+        is_periodic: Whether periodic boundary crossings should be highlighted.
+        color_intra: RGBA colour for intra-cell edges.
+        color_pbc: RGBA colour for periodic-boundary edges.
+        width_intra: Line width for intra-cell edges.
+        width_pbc: Line width for periodic-boundary edges.
+
+    Returns:
+        Number of edges whose drawn endpoint crosses a periodic boundary.
+    """
     segments: list[np.ndarray] = []
     colors: list[tuple[float, float, float, float]] = []
     widths: list[float] = []
@@ -100,8 +125,18 @@ def _absorber_slice(
     att_edge_vec: torch.Tensor,
     absorber_idx: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Filter the full attention graph to edges sourced at ``absorber_idx`` and
-    prepend the self-loop, mirroring ``E3EEDataset.prepare``."""
+    """Return the absorber-sourced attention subgraph with a self-loop prepended.
+
+    Args:
+        att_edge_index: Attention edge indices with shape ``(2, E)``.
+        att_edge_weight: Attention edge distances with shape ``(E,)`` in **angstrom**.
+        att_edge_vec: Attention edge vectors with shape ``(E, 3)`` in **angstrom**.
+        absorber_idx: Atom index used as the attention query source.
+
+    Returns:
+        Source indices, destination indices, distances, and vectors for the absorber slice.
+        The first entry is the zero-distance self-loop used by ``E3EEDataset.prepare``.
+    """
     src = att_edge_index[0]
     dst = att_edge_index[1]
     sel = src == absorber_idx
@@ -136,6 +171,8 @@ def _absorber_slice(
 
 
 def main() -> None:
+    """Run the E3EE graph diagnostic command-line interface."""
+
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -167,7 +204,6 @@ def main() -> None:
     p.add_argument("--no-show", action="store_true")
     args = p.parse_args()
 
-    # ---------- Load sample ----------
     pmg_obj = load_sample(args.json_dir, args.index, args.file)
     stem = pmg_obj.properties.get("file_name", "<unknown>")
     is_periodic = hasattr(pmg_obj, "lattice")
@@ -180,7 +216,6 @@ def main() -> None:
     main_mfa = _coerce_min_facet_area(args.min_facet_area)
     att_mfa = _coerce_min_facet_area(args.att_min_facet_area)
 
-    # ---------- Build graphs ----------
     edge_index, edge_weight, edge_vec, edge_attr = build_edges(
         pmg_obj,
         cutoff=args.cutoff,
@@ -215,7 +250,6 @@ def main() -> None:
         att_edge_index, att_edge_weight, att_edge_vec, args.absorber_idx
     )
 
-    # ---------- Visualisation setup ----------
     vis_points = coords.copy()
     if is_periodic:
         from graph_tester import _cell_corner_coords  # type: ignore[attr-defined]
@@ -248,7 +282,6 @@ def main() -> None:
     ax_hist_att = fig.add_subplot(gs[1, 1])
     ax_hist_deg = fig.add_subplot(gs[1, 2])
 
-    # ---------- Main graph panel ----------
     setup_axis(
         ax_main,
         pmg_obj,
@@ -264,14 +297,13 @@ def main() -> None:
     main_legend = [Patch(color=(0.15, 0.45, 0.75, 0.6), label="intra-cell")]
     if is_periodic:
         main_legend.append(Patch(color=(0.85, 0.30, 0.10, 0.55), label="PBC crossing"))
-    voronoi_facets: list = []
+    voronoi_facets: list[VoronoiFacet] = []
     if args.show_voronoi:
         voronoi_facets = compute_voronoi_facets(pmg_obj, args.cutoff)
         plot_voronoi_facets(ax_main, voronoi_facets)
         main_legend.append(Patch(color=(0.30, 0.45, 0.75, 0.30), label="Voronoi facet"))
     ax_main.legend(handles=main_legend, loc="upper left", fontsize=8)
 
-    # ---------- Full attention graph panel ----------
     setup_axis(
         ax_att,
         pmg_obj,
@@ -300,7 +332,6 @@ def main() -> None:
         att_legend.append(Patch(color=(0.85, 0.30, 0.10, 0.45), label="att edge (PBC)"))
     ax_att.legend(handles=att_legend, loc="upper left", fontsize=8)
 
-    # ---------- Per-absorber attention slice panel ----------
     n_abs_edges = abs_dst_np.size
     setup_axis(
         ax_abs,
@@ -313,7 +344,6 @@ def main() -> None:
         f"Absorber slice from {abs_sym}{args.absorber_idx} " f"(E={n_abs_edges}, +1 self-loop)",
         label_atoms,
     )
-    # Skip the self-loop (vec=0) when drawing.
     has_vec = np.linalg.norm(abs_vec_np, axis=-1) > 1e-9
     n_pbc_abs = _draw_directed_edges(
         ax_abs,
@@ -327,7 +357,6 @@ def main() -> None:
         width_intra=1.6,
         width_pbc=0.6,
     )
-    # Mark the self-loop as a small ring around the absorber.
     ax_abs.scatter(
         coords[args.absorber_idx, 0],
         coords[args.absorber_idx, 1],
@@ -338,14 +367,13 @@ def main() -> None:
         linewidths=1.5,
     )
     abs_legend = [
-        Patch(color=(0.85, 0.25, 0.55, 0.85), label="absorber → key"),
+        Patch(color=(0.85, 0.25, 0.55, 0.85), label="absorber -> key"),
         Patch(color="none", label=f"self-loop ({abs_sym}{args.absorber_idx})"),
     ]
     if is_periodic:
         abs_legend.insert(1, Patch(color=(0.85, 0.30, 0.10, 0.55), label="PBC crossing"))
     ax_abs.legend(handles=abs_legend, loc="upper left", fontsize=8)
 
-    # ---------- Histograms ----------
     if edge_w_np.size:
         ax_hist_main.hist(edge_w_np, bins=30, color="steelblue", edgecolor="white")
     ax_hist_main.axvline(args.cutoff, color="red", ls="--", lw=1.0, label=f"cutoff={args.cutoff}")
@@ -388,7 +416,6 @@ def main() -> None:
         )
     ax_hist_deg.legend(fontsize=8, loc="upper right")
 
-    # ---------- Stdout summary ----------
     main_deg = np.bincount(edge_src, minlength=n_atoms) if edge_src.size else np.zeros(n_atoms, dtype=np.int64)
     isolated_main = np.where(main_deg == 0)[0]
     print("=" * 66)
