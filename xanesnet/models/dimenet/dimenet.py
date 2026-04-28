@@ -680,12 +680,24 @@ class Envelope(torch.nn.Module):
 
 
 def Jn(r: float, n: int) -> np.floating[Any]:
-    """Evaluate the n-th order spherical Bessel function at r."""
+    """Evaluate the n-th order spherical Bessel function at ``r``.
+
+    Args:
+        r: Radial coordinate.
+        n: Spherical Bessel function order.
+
+    Returns:
+        Function value ``j_n(r)``.
+    """
     return np.sqrt(np.pi / (2 * r)) * scipy.special.jv(n + 0.5, r)
 
 
 def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
     """Compute the first k zeros of each of the n lowest-order spherical Bessel functions.
+
+    Args:
+        n: Number of spherical Bessel orders.
+        k: Number of zeros per order.
 
     Returns:
         Array of shape ``(n, k)`` where ``[i, j]`` is the j-th zero of the
@@ -708,6 +720,9 @@ def Jn_zeros(n: int, k: int) -> npt.NDArray[np.float32]:
 def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
     """Return symbolic spherical Bessel function formulas for orders 0 to n-1.
 
+    Args:
+        n: Number of spherical Bessel orders.
+
     Returns:
         List of n SymPy expressions in the symbol ``x``.
     """
@@ -724,6 +739,10 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
 
 def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
     """Construct normalized Bessel basis function expressions.
+
+    Args:
+        n: Number of spherical Bessel orders.
+        k: Number of basis functions per order.
 
     Returns:
         Nested list of shape ``(n, k)`` of SymPy expressions, where
@@ -750,7 +769,15 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
 
 
 def sph_harm_prefactor(k: int, m: int) -> float:
-    """Compute the real spherical harmonic prefactor for degree k and order m."""
+    """Compute the real spherical harmonic prefactor for degree ``k`` and order ``m``.
+
+    Args:
+        k: Spherical harmonic degree.
+        m: Spherical harmonic order.
+
+    Returns:
+        Real spherical harmonic normalization prefactor.
+    """
     return ((2 * k + 1) * math.factorial(k - abs(m)) / (4 * np.pi * math.factorial(k + abs(m)))) ** 0.5
 
 

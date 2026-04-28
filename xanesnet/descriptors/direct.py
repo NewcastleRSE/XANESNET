@@ -52,6 +52,9 @@ class DIRECT(Descriptor):
             system: The atomic system.
             site_index: Site index, list of site indices, or ``None`` for all sites.
 
+        Returns:
+            Precomputed descriptor array once implemented.
+
         Raises:
             NotImplementedError: Always, because ``DIRECT`` is not implemented yet.
         """

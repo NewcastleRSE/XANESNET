@@ -28,7 +28,7 @@ import torch
 
 
 def _standardize(kernel: torch.Tensor) -> torch.Tensor:
-    """Standardise a weight tensor to zero mean and unit variance per fan-in."""
+    """Standardize a weight tensor to zero mean and unit variance per fan-in."""
     eps = 1e-6
     axis = [0, 1] if len(kernel.shape) == 3 else 1
     var, mean = torch.var_mean(kernel, dim=axis, unbiased=True, keepdim=True)
@@ -36,7 +36,14 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
 
 
 def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
-    """He-orthogonal initialization (Saxe / He / Kaiming hybrid)."""
+    """Initialize ``tensor`` with the He-orthogonal scheme.
+
+    Args:
+        tensor: Weight tensor to initialize in place.
+
+    Returns:
+        The initialized ``tensor``.
+    """
     tensor = torch.nn.init.orthogonal_(tensor)
     fan_in = math.prod(tensor.shape[:-1]) if len(tensor.shape) == 3 else tensor.shape[1]
     with torch.no_grad():

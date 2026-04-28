@@ -31,7 +31,7 @@ class WeightInitFn(Protocol):
 
 
 class WeightInitRegistry:
-    """Class-level registry mapping weight initialization names to initializer callables."""
+    """Name-based registry for weight initializer callables."""
 
     _registry: dict[str, WeightInitFn] = {}
 
@@ -42,13 +42,13 @@ class WeightInitRegistry:
 
     @classmethod
     def register(cls, name: str) -> Callable[[WeightInitFn], WeightInitFn]:
-        """Return a decorator that registers a weight initializer under ``name``.
+        """Register a weight initializer under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the initializer.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the callable unchanged.
+            Decorator that registers and returns the callable unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -66,17 +66,17 @@ class WeightInitRegistry:
 
     @classmethod
     def get(cls, name: str, **kwargs) -> Callable[[torch.Tensor], torch.Tensor]:
-        """Look up a weight initializer and return a partially-applied callable.
+        """Return the weight initializer registered as ``name``.
 
         Args:
-            name: Initializer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
             **kwargs: Extra keyword arguments forwarded to the underlying initializer.
 
         Returns:
             A single-argument callable ``(tensor) -> tensor`` with ``kwargs`` bound.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no weight initializer is registered under ``name``.
         """
         name = name.lower()
 
@@ -93,10 +93,10 @@ class WeightInitRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered weight initializer name strings.
+        """Return all registered weight initializer names.
 
         Returns:
-            List of registered weight-initializer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())
 
@@ -120,19 +120,19 @@ class BiasInitFn(Protocol):
 
 
 class BiasInitRegistry:
-    """Class-level registry mapping bias initialization names to initializer callables."""
+    """Name-based registry for bias initializer callables."""
 
     _registry: dict[str, BiasInitFn] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[BiasInitFn], BiasInitFn]:
-        """Return a decorator that registers a bias initializer under ``name``.
+        """Register a bias initializer under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the initializer.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the callable unchanged.
+            Decorator that registers and returns the callable unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -150,16 +150,16 @@ class BiasInitRegistry:
 
     @classmethod
     def get(cls, name: str) -> BiasInitFn:
-        """Look up and return a registered bias initializer callable.
+        """Return the bias initializer registered as ``name``.
 
         Args:
-            name: Initializer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered bias initializer callable.
+            Registered bias initializer callable.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no bias initializer is registered under ``name``.
         """
         name = name.lower()
 
@@ -169,10 +169,10 @@ class BiasInitRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered bias initializer name strings.
+        """Return all registered bias initializer names.
 
         Returns:
-            List of registered bias-initializer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())
 

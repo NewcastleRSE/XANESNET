@@ -21,22 +21,19 @@ import torch.nn as nn
 
 
 class ActivationRegistry:
-    """Class-level registry mapping activation function names to their ``nn.Module`` classes.
-
-    All names are normalized to lower-case on registration and look-up.
-    """
+    """Name-based registry for activation module classes."""
 
     _registry: dict[str, type[nn.Module]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[nn.Module]], type[nn.Module]]:
-        """Return a decorator that registers an activation class under ``name``.
+        """Register an activation class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the activation.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -57,14 +54,14 @@ class ActivationRegistry:
         """Instantiate and return a registered activation module.
 
         Args:
-            name: Activation identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
             **kwargs: Extra keyword arguments forwarded to the activation class constructor.
 
         Returns:
             An instantiated ``nn.Module`` for the requested activation.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no activation is registered under ``name``.
         """
         name = name.lower()
         if name not in cls._registry:
@@ -73,10 +70,10 @@ class ActivationRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered activation name strings.
+        """Return all registered activation names.
 
         Returns:
-            List of registered activation identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())
 

@@ -72,6 +72,9 @@ def load_pretrained_model() -> Any:
     Note:
         Not implemented yet.
 
+    Returns:
+        Loaded model once implemented.
+
     Raises:
         NotImplementedError: Always.
     """

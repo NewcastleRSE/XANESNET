@@ -31,8 +31,29 @@ class BasicTrainer(Trainer):
     """Basic single-process trainer.
 
     Trains the model for a fixed number of epochs using the configuration
-    supplied via the parent :class:`Trainer`. See :class:`Trainer` for full
-    parameter documentation.
+    supplied via the parent :class:`Trainer`.
+
+    Args:
+        dataset: Dataset to train on. Must provide ``train_subset``; ``valid_subset`` is optional.
+        model: Model to train.
+        device: Device identifier or :class:`torch.device` instance.
+        checkpointer: Checkpoint manager for saving model states.
+        batch_size: Number of samples per training batch.
+        shuffle: Whether to shuffle training data each epoch.
+        drop_last: Whether to drop the last incomplete training batch.
+        num_workers: Number of data-loader worker processes.
+        loss: Configuration for the loss function.
+        regularizer: Configuration for the regularizer.
+        trainer_type: Identifier string for this trainer type.
+        epochs: Total number of training epochs.
+        learning_rate: Initial learning rate.
+        optimizer: Optimizer name looked up via :class:`~xanesnet.components.OptimizerRegistry`.
+        max_norm: Maximum gradient norm for clipping, or ``None`` to disable.
+        lr_scheduler: Configuration for the per-epoch learning-rate scheduler.
+        early_stopper: Configuration for the early-stopping criterion.
+        validation_interval: Run validation every this many epochs when a validation subset is present.
+        lr_warmup: Whether to apply a per-step linear warm-up phase.
+        warmup_steps: Number of warm-up steps when ``lr_warmup=True``.
     """
 
     def __init__(

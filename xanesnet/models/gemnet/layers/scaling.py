@@ -23,8 +23,7 @@ import torch
 
 
 class ScaleFactor(torch.nn.Module):
-    """
-    Scalar variance-preserving factor.
+    """Scalar variance-preserving factor.
 
     The default value is 1.0 (identity / no scaling). A model loaded with
     ``scale_file=None`` therefore behaves as if no scaling were applied.
@@ -36,6 +35,10 @@ class ScaleFactor(torch.nn.Module):
     The ``ref`` argument is accepted (and ignored) so call sites match the
     fairchem-style ``forward(x, ref=...)`` signature observed by the
     offline fitter via forward hooks.
+
+    Args:
+        name: Optional human-readable label used as the JSON key when scales
+            are fitted or loaded.
     """
 
     scale_factor: torch.Tensor
@@ -47,19 +50,31 @@ class ScaleFactor(torch.nn.Module):
         self.scale_factor = torch.nn.Parameter(torch.tensor(1.0), requires_grad=False)
 
     def forward(self, x: torch.Tensor, ref: torch.Tensor | None = None) -> torch.Tensor:
-        """Apply the configured scale factor."""
+        """Apply the configured scale factor.
+
+        Args:
+            x: Input tensor to scale.
+            ref: Ignored reference tensor accepted for API compatibility.
+
+        Returns:
+            ``x`` multiplied by the stored scale factor.
+        """
         return x * self.scale_factor
 
 
 class ScalingFactor(ScaleFactor):
-    """
-    Legacy GemNet API shim: ``forward(x_ref, y)`` with the same semantics as
+    """Legacy GemNet API shim: ``forward(x_ref, y)`` with the same semantics as
     :class:`ScaleFactor` (scale ``y``, observe ``x_ref`` as input).
 
     The ``scale_file`` and ``device`` constructor arguments are accepted for
     backwards-compat with the pre-existing GemNet layer call sites but are
     ignored - scales are loaded by the model itself via
     :func:`load_scales_json` (or via ``state_dict`` round-trip).
+
+    Args:
+        scale_file: Ignored legacy argument kept for constructor compatibility.
+        name: Optional human-readable label used as the JSON key.
+        device: Optional device used to place the scale parameter.
     """
 
     def __init__(
@@ -74,23 +89,50 @@ class ScalingFactor(ScaleFactor):
             self.scale_factor.data = self.scale_factor.data.to(device)
 
     def forward(self, x_ref: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
-        """Apply the configured scale factor."""
+        """Apply the configured scale factor.
+
+        Args:
+            x_ref: Ignored reference tensor accepted for API compatibility.
+            y: Tensor to scale.
+
+        Returns:
+            ``y`` multiplied by the stored scale factor.
+        """
         return super().forward(y, ref=x_ref)
 
 
 def collect_scale_factors(model: torch.nn.Module) -> dict[str, ScaleFactor]:
-    """Return all :class:`ScaleFactor` submodules keyed by their dotted name."""
+    """Return all :class:`ScaleFactor` submodules keyed by their dotted name.
+
+    Args:
+        model: Module tree to inspect.
+
+    Returns:
+        Dictionary mapping dotted module paths to :class:`ScaleFactor` instances.
+    """
     return {name: m for name, m in model.named_modules() if isinstance(m, ScaleFactor)}
 
 
 def load_scales_json(model: torch.nn.Module, path: str | Path, *, strict: bool = False) -> int:
-    """
-    Load fitted scale-factor values from a JSON file produced by
+    """Load fitted scale-factor values from a JSON file produced by
     ``scripts/gemnet_scale_fitting.py`` into ``model``.
 
-    Returns the number of factors successfully loaded. Missing keys are
-    tolerated (unless ``strict=True``); the corresponding ``ScaleFactor``
-    submodules remain at 1.0 (identity).
+    Missing keys are tolerated unless ``strict=True``; the corresponding
+    :class:`ScaleFactor` submodules remain at 1.0 (identity).
+
+    Args:
+        model: Module whose :class:`ScaleFactor` parameters to update.
+        path: Path to the JSON file produced by the scale fitter.
+        strict: If ``True``, raise :class:`ValueError` when any
+            :class:`ScaleFactor` key is absent from the file.
+
+    Returns:
+        Number of scale factors successfully loaded.
+
+    Raises:
+        FileNotFoundError: If ``path`` does not exist.
+        ValueError: If the file does not contain a JSON object, or if
+            ``strict=True`` and a scale key is missing.
     """
     path = Path(path)
     if not path.exists():

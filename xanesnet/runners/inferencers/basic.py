@@ -32,7 +32,17 @@ class BasicInferencer(Inferencer):
     """Basic single-process inferencer.
 
     Runs model inference over a dataset and optionally writes predictions to
-    an HDF5 file. See :class:`Inferencer` for full parameter documentation.
+    disk through the configured prediction writer.
+
+    Args:
+        dataset: Dataset to run inference on.
+        model: Model to evaluate.
+        device: Device identifier or :class:`torch.device` instance.
+        batch_size: Number of samples per inference batch.
+        shuffle: Whether to shuffle the data (typically ``False`` for inference).
+        drop_last: Whether to drop the last incomplete batch.
+        num_workers: Number of data-loader worker processes.
+        inferencer_type: Identifier string for this inferencer type.
     """
 
     def __init__(

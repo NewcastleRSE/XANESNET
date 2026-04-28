@@ -22,7 +22,15 @@ from .basic import MLP, CosineCutoff, GaussianRBF
 
 
 class PairElementEnergyScattering(nn.Module):
-    """Energy-conditioned element-pair scattering features (flat per-path)."""
+    """Energy-conditioned element-pair scattering features (flat per-path).
+
+    Args:
+        max_z: Maximum atomic number supported by the element embedding.
+        z_emb_dim: Embedding dimension for atomic numbers.
+        e_dim: Dimension of the energy RBF embedding.
+        hidden_dim: Hidden dimension of the output MLP.
+        out_dim: Output feature dimension per path.
+    """
 
     def __init__(
         self,

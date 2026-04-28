@@ -21,19 +21,19 @@ import torch.optim as optim
 
 
 class OptimizerRegistry:
-    """Class-level registry mapping optimizer names to their optimizer classes."""
+    """Name-based registry for optimizer classes."""
 
     _registry: dict[str, type[optim.Optimizer]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[optim.Optimizer]], type[optim.Optimizer]]:
-        """Return a decorator that registers an optimizer class under ``name``.
+        """Register an optimizer class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the optimizer.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -51,16 +51,16 @@ class OptimizerRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[optim.Optimizer]:
-        """Look up and return a registered optimizer class.
+        """Return the optimizer class registered as ``name``.
 
         Args:
-            name: Optimizer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered optimizer class.
+            Registered optimizer class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no optimizer is registered under ``name``.
         """
         name = name.lower()
         if name not in cls._registry:
@@ -69,10 +69,10 @@ class OptimizerRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered optimizer name strings.
+        """Return all registered optimizer names.
 
         Returns:
-            List of registered optimizer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())
 

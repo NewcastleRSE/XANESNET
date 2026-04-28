@@ -21,7 +21,7 @@ import torch
 
 
 def _standardize(kernel: torch.Tensor) -> torch.Tensor:
-    """Standardise a weight tensor to zero mean and unit variance.
+    """Standardize a weight tensor to zero mean and unit variance.
 
     For 3-D tensors (e.g. the weight in
     :class:`~xanesnet.models.gemnet.layers.efficient.EfficientInteractionDownProjection`),
@@ -32,7 +32,7 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
             ``(in_a, in_b, out_features)``.
 
     Returns:
-        Standardised tensor with the same shape as ``kernel``.
+        Standardized tensor with the same shape as ``kernel``.
     """
     eps = 1e-6
 

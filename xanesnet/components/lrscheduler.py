@@ -21,7 +21,7 @@ import torch.optim as optim
 
 
 class LRSchedulerRegistry:
-    """Class-level registry mapping scheduler names to their ``LRScheduler`` classes."""
+    """Name-based registry for learning-rate scheduler classes."""
 
     _registry: dict[str, type[optim.lr_scheduler.LRScheduler]] = {}
 
@@ -29,13 +29,13 @@ class LRSchedulerRegistry:
     def register(
         cls, name: str
     ) -> Callable[[type[optim.lr_scheduler.LRScheduler]], type[optim.lr_scheduler.LRScheduler]]:
-        """Return a decorator that registers an LR scheduler class under ``name``.
+        """Register a learning-rate scheduler class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the scheduler.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -53,16 +53,16 @@ class LRSchedulerRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[optim.lr_scheduler.LRScheduler]:
-        """Look up and return a registered LR scheduler class.
+        """Return the learning-rate scheduler class registered as ``name``.
 
         Args:
-            name: Scheduler identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``LRScheduler`` class.
+            Registered learning-rate scheduler class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no learning-rate scheduler is registered under ``name``.
         """
         name = name.lower()
         if name not in cls._registry:
@@ -71,23 +71,32 @@ class LRSchedulerRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered scheduler name strings.
+        """Return all registered learning-rate scheduler names.
 
         Returns:
-            List of registered learning-rate scheduler identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())
 
 
 class NoOpLRScheduler(optim.lr_scheduler.LRScheduler):
-    """Learning rate scheduler that leaves all parameter group learning rates unchanged."""
+    """Learning rate scheduler that leaves all parameter group learning rates unchanged.
+
+    Args:
+        optimizer: Wrapped optimizer whose learning rates are reported unchanged.
+        last_epoch: Last epoch index passed to :class:`torch.optim.lr_scheduler.LRScheduler`.
+    """
 
     def __init__(self, optimizer: optim.Optimizer, last_epoch: int = -1) -> None:
         """Initialize ``NoOpLRScheduler``."""
         super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:  # type: ignore[override]
-        """Return the current learning rates unchanged."""
+        """Return the current learning rates unchanged.
+
+        Returns:
+            Current learning rate from each optimizer parameter group.
+        """
         return [group["lr"] for group in self.optimizer.param_groups]
 
 
