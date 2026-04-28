@@ -18,7 +18,7 @@ import logging
 import os
 import shutil
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -30,6 +30,8 @@ from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.splits import load_split_indices
 from xanesnet.utils.exceptions import ConfigError
+
+SavePathFn = Callable[[int], str]
 
 ###############################################################################
 #################################### CLASS ####################################
@@ -68,10 +70,18 @@ class Dataset(TorchDataset, ABC):
         self._split_indexfile = split_indexfile
         self._subsets: list[Subset] = []
 
-    @abstractmethod
     def prepare(self) -> bool:
         """
         Process the raw data and prepare it for use in the model.
+        """
+        return self._prepare_sequential()
+
+    def _prepare_processed_dir(self) -> bool:
+        """
+        Prepare the processed data directory.
+
+        Returns ``True`` when existing processed files should be used and no
+        processing should run, otherwise ``False``.
         """
         if self.skip_prepare:
             logging.info("skip_prepare is True. Skipping data preparation.")
@@ -94,6 +104,36 @@ class Dataset(TorchDataset, ABC):
                 raise ConfigError("Processed data directory is not empty. Please clear it before proceeding.")
 
         return False
+
+    @abstractmethod
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """
+        Process one raw datasource item and save all processed samples.
+
+        ``save_path_fn`` receives the per-item output sequence number and
+        returns the path where that output should be written. The return value
+        is the number of processed files written for ``idx``.
+        """
+        ...
+
+    def _prepare_sequential(self) -> bool:
+        """
+        Process all datasource items sequentially using ``_prepare_single``.
+        """
+        skip_processing = self._prepare_processed_dir()
+        if skip_processing:
+            return True
+
+        counter = 0
+        for idx in tqdm(range(len(self.datasource)), desc="Processing data", total=len(self.datasource)):
+
+            def save_path_fn(seq: int, offset: int = counter) -> str:
+                return os.path.join(self.processed_dir, f"{offset + seq}.pth")
+
+            counter += self._prepare_single(idx, save_path_fn)
+
+        self._length = counter
+        return True
 
     def check_preload(self) -> bool:
         """

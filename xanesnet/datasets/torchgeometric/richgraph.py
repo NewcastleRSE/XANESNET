@@ -20,17 +20,14 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 ! ---
 """
 
-import os
-
 import torch
 from torch_geometric.data import Data
 from torch_geometric.nn import radius_graph
-from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 
-from ..base import TorchGeometricDataset
+from ..base import SavePathFn, TorchGeometricDataset
 from ..registry import DatasetRegistry
 
 ###############################################################################
@@ -53,70 +50,50 @@ class RichGraphDataset(TorchGeometricDataset):
     ) -> None:
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        file_name = pmg_obj.properties["file_name"]
+        atomic_symbols = pmg_obj.labels
+        atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+        cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
 
-        if skip_processing:
-            return True
+        # TODO add cutoff_radius config
+        edge_index = radius_graph(cart_coords, r=5.0, loop=False)
 
-        counter = 0  # Counter for naming processed files
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            file_name = pmg_obj.properties["file_name"]
-            atomic_symbols = pmg_obj.labels
-            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
-            cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
+        row, col = edge_index
+        dist = torch.norm(cart_coords[row] - cart_coords[col], dim=1)
+        edge_weight = 1 / dist
+        edge_weight = edge_weight.view(-1, 1)
 
-            # edge indices
-            # TODO add cutoff_radius config
-            edge_index = radius_graph(cart_coords, r=5.0, loop=False)
+        # TODO we need to decide on node, edge, and global features.
+        x = torch.tensor([1.0])
+        edge_attr = dist.view(-1, 1)
+        global_attr = torch.tensor([1.0])
 
-            # edge weights (inverse distance)
-            row, col = edge_index
-            dist = torch.norm(cart_coords[row] - cart_coords[col], dim=1)
-            edge_weight = 1 / dist  # invert to make shorter distances a larger weight
-            edge_weight = edge_weight.view(-1, 1)
+        # TODO if we want to do multi-absorber training in the future, we would need to store
+        # TODO energies and intensities for all atoms and index them in the model forward pass.
+        energies, intensities = (
+            pmg_obj.site_properties["XANES"][0]["energies"],
+            pmg_obj.site_properties["XANES"][0]["intensities"],
+        )
+        energies = torch.tensor(energies, dtype=torch.float32)
+        intensities = torch.tensor(intensities, dtype=torch.float32)
 
-            # node features
-            # TODO we need to decide on node features
-            x = torch.tensor([1.0])  # placeholder
+        data = Data(
+            z=atomic_numbers,
+            x=x,
+            edge_index=edge_index,
+            edge_weight=edge_weight,
+            edge_attr=edge_attr,
+            global_attr=global_attr,
+            energies=energies,
+            intensities=intensities,
+            file_name=file_name,
+            atomic_symbols=atomic_symbols,
+        )
 
-            # edge features
-            # TODO we need to decide on edge features
-            edge_attr = dist.view(-1, 1)
-
-            # global features
-            # TODO we need to decide on global features
-            global_attr = torch.tensor([1.0])  # placeholder
-
-            # XANES (first atom)
-            # TODO if we want to do multi-absorber training in the future, we would need to store
-            # TODO energies and intensities for all atoms and index them in the model forward pass.
-            energies, intensities = (
-                pmg_obj.site_properties["XANES"][0]["energies"],
-                pmg_obj.site_properties["XANES"][0]["intensities"],
-            )
-            energies = torch.tensor(energies, dtype=torch.float32)
-            intensities = torch.tensor(intensities, dtype=torch.float32)
-
-            data = Data(
-                z=atomic_numbers,
-                x=x,
-                edge_index=edge_index,
-                edge_weight=edge_weight,
-                edge_attr=edge_attr,
-                global_attr=global_attr,
-                energies=energies,
-                intensities=intensities,
-                file_name=file_name,
-                atomic_symbols=atomic_symbols,
-            )
-
-            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-            self._save_data(data, save_path)
-            counter += 1
-
-        self._length = counter
-        return True
+        self._save_data(data, save_path_fn(0))
+        return 1
 
     @staticmethod
     def _save_data(data: Data, path: str) -> None:

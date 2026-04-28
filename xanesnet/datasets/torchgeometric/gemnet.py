@@ -15,14 +15,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from typing import Any, Protocol
 
 import numpy as np
 import torch
 from torch_geometric.data import Batch, Data
 from torch_geometric.data.data import BaseData
-from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
@@ -34,7 +32,7 @@ from xanesnet.utils.graph.gemnet_indices import (
     compute_triplets,
 )
 
-from ..base import TorchGeometricDataset
+from ..base import SavePathFn, TorchGeometricDataset
 from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
@@ -285,271 +283,242 @@ class GemNetDataset(TorchGeometricDataset):
                 "indices will NOT be computed; GemNet-OC's quad_interaction must be False."
             )
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
-        if skip_processing:
-            return True
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(
+                f"No XANES spectrum found for sample {idx} ({pmg_obj.properties.get('file_name', '')}); skipping."
+            )
+            return 0
 
-        counter = 0
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
+        if len(xanes_idxs) == 0:
+            logging.warning(f"No absorbers for sample {idx}; skipping.")
+            return 0
+
+        xanes = xanes[xanes_idxs]
+        intensities = np.stack([x["intensities"] for x in xanes]).astype(np.float32)
+        energies = np.stack([x["energies"] for x in xanes]).astype(np.float32)
+
+        n_atoms = len(pmg_obj.atomic_numbers)
+        absorber_mask = torch.zeros(n_atoms, dtype=torch.bool)
+        absorber_mask[xanes_idxs] = True
+
+        atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+        cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
+
+        main_params = (
+            self.cutoff,
+            self.max_num_neighbors,
+            self.graph_method,
+            self.min_facet_area,
+            self.cov_radii_scale,
+        )
+        edge_index, edge_weight, edge_vec, _ = build_edges(
+            pmg_obj,
+            self.cutoff,
+            self.max_num_neighbors,
+            compute_vectors=True,
+            method=self.graph_method,
+            min_facet_area=self.min_facet_area,
+            cov_radii_scale=self.cov_radii_scale,
+        )
+        assert edge_vec is not None
+
+        if edge_index.size(1) > 0:
+            id_swap = compute_id_swap(edge_index, edge_vec)
+            id3_reduce_ca, id3_expand_ba, Kidx3 = compute_triplets(edge_index, n_atoms)
+        else:
+            id_swap = torch.empty(0, dtype=torch.int64)
+            id3_reduce_ca = torch.empty(0, dtype=torch.int64)
+            id3_expand_ba = torch.empty(0, dtype=torch.int64)
+            Kidx3 = torch.empty(0, dtype=torch.int64)
+
+        data_fields: dict[str, Any] = {
+            "x": atomic_numbers,
+            "pos": cart_coords,
+            "edge_index": edge_index,
+            "edge_weight": edge_weight,
+            "edge_vec": edge_vec,
+            "id_c": edge_index[0].clone().to(torch.int64),
+            "id_a": edge_index[1].clone().to(torch.int64),
+            "id_swap": id_swap,
+            "id3_reduce_ca": id3_reduce_ca,
+            "id3_expand_ba": id3_expand_ba,
+            "Kidx3": Kidx3,
+            "energies": torch.tensor(energies, dtype=torch.float32),
+            "intensities": torch.tensor(intensities, dtype=torch.float32),
+            "absorber_mask": absorber_mask,
+            "file_name": pmg_obj.properties["file_name"],
+        }
+
+        int_params = (
+            self.int_cutoff,
+            self.int_max_neighbors,
+            self.int_graph_method,
+            self.int_min_facet_area,
+            self.int_cov_radii_scale,
+        )
+        int_edge_index = int_edge_weight = int_edge_vec = None
+        if self.quadruplets:
+            if int_params == main_params:
+                int_edge_index = edge_index
+                int_edge_weight = edge_weight
+                int_edge_vec = edge_vec
             else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties.get('file_name', '')}); skipping."
+                int_edge_index, int_edge_weight, int_edge_vec, _ = build_edges(
+                    pmg_obj,
+                    self.int_cutoff,
+                    self.int_max_neighbors,
+                    compute_vectors=True,
+                    method=self.int_graph_method,
+                    min_facet_area=self.int_min_facet_area,
+                    cov_radii_scale=self.int_cov_radii_scale,
                 )
-                continue
-
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
-            if len(xanes_idxs) == 0:
-                logging.warning(f"No absorbers for sample {idx}; skipping.")
-                continue
-
-            xanes = xanes[xanes_idxs]
-            intensities = np.stack([x["intensities"] for x in xanes]).astype(np.float32)
-            energies = np.stack([x["energies"] for x in xanes]).astype(np.float32)
-
-            n_atoms = len(pmg_obj.atomic_numbers)
-            absorber_mask = torch.zeros(n_atoms, dtype=torch.bool)
-            absorber_mask[xanes_idxs] = True
-
-            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
-            cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
-
-            # Main graph (cutoff, embedding)
-            main_params = (
-                self.cutoff,
-                self.max_num_neighbors,
-                self.graph_method,
-                self.min_facet_area,
-                self.cov_radii_scale,
+            assert int_edge_vec is not None
+            data_fields.update(
+                {
+                    "int_edge_index": int_edge_index,
+                    "int_edge_weight": int_edge_weight,
+                    "int_edge_vec": int_edge_vec,
+                    "id4_int_b": int_edge_index[0].clone().to(torch.int64),
+                    "id4_int_a": int_edge_index[1].clone().to(torch.int64),
+                }
             )
-            edge_index, edge_weight, edge_vec, _ = build_edges(
-                pmg_obj,
-                self.cutoff,
-                self.max_num_neighbors,
-                compute_vectors=True,
-                method=self.graph_method,
-                min_facet_area=self.min_facet_area,
-                cov_radii_scale=self.cov_radii_scale,
-            )
-            assert edge_vec is not None
-
-            # GemNet indices on the main graph
-            if edge_index.size(1) > 0:
-                id_swap = compute_id_swap(edge_index, edge_vec)
-                id3_reduce_ca, id3_expand_ba, Kidx3 = compute_triplets(edge_index, n_atoms)
+            if int_edge_index.size(1) > 0 and edge_index.size(1) > 0:
+                quad = compute_quadruplets(edge_index, edge_vec, int_edge_index, int_edge_vec, n_atoms)
             else:
-                id_swap = torch.empty(0, dtype=torch.int64)
-                id3_reduce_ca = torch.empty(0, dtype=torch.int64)
-                id3_expand_ba = torch.empty(0, dtype=torch.int64)
-                Kidx3 = torch.empty(0, dtype=torch.int64)
-
-            data_fields: dict[str, Any] = {
-                "x": atomic_numbers,
-                "pos": cart_coords,
-                "edge_index": edge_index,
-                "edge_weight": edge_weight,
-                "edge_vec": edge_vec,
-                "id_c": edge_index[0].clone().to(torch.int64),
-                "id_a": edge_index[1].clone().to(torch.int64),
-                "id_swap": id_swap,
-                "id3_reduce_ca": id3_reduce_ca,
-                "id3_expand_ba": id3_expand_ba,
-                "Kidx3": Kidx3,
-                "energies": torch.tensor(energies, dtype=torch.float32),
-                "intensities": torch.tensor(intensities, dtype=torch.float32),
-                "absorber_mask": absorber_mask,
-                "file_name": pmg_obj.properties["file_name"],
-            }
-
-            # Quadruplets / interaction edges (GemNet-Q and GemNet-OC)
-            int_params = (
-                self.int_cutoff,
-                self.int_max_neighbors,
-                self.int_graph_method,
-                self.int_min_facet_area,
-                self.int_cov_radii_scale,
-            )
-            int_edge_index = int_edge_weight = int_edge_vec = None
-            if self.quadruplets:
-                if int_params == main_params:
-                    int_edge_index = edge_index
-                    int_edge_weight = edge_weight
-                    int_edge_vec = edge_vec
-                else:
-                    int_edge_index, int_edge_weight, int_edge_vec, _ = build_edges(
-                        pmg_obj,
-                        self.int_cutoff,
-                        self.int_max_neighbors,
-                        compute_vectors=True,
-                        method=self.int_graph_method,
-                        min_facet_area=self.int_min_facet_area,
-                        cov_radii_scale=self.int_cov_radii_scale,
-                    )
-                assert int_edge_vec is not None
-                data_fields.update(
-                    {
-                        "int_edge_index": int_edge_index,
-                        "int_edge_weight": int_edge_weight,
-                        "int_edge_vec": int_edge_vec,
-                        "id4_int_b": int_edge_index[0].clone().to(torch.int64),
-                        "id4_int_a": int_edge_index[1].clone().to(torch.int64),
-                    }
+                empty = torch.empty(0, dtype=torch.int64)
+                quad = dict(
+                    id4_reduce_ca=empty,
+                    id4_expand_db=empty,
+                    id4_reduce_cab=empty,
+                    id4_expand_abd=empty,
+                    id4_reduce_intm_ca=empty,
+                    id4_expand_intm_db=empty,
+                    id4_reduce_intm_ab=empty,
+                    id4_expand_intm_ab=empty,
+                    Kidx4=empty,
                 )
-                if int_edge_index.size(1) > 0 and edge_index.size(1) > 0:
-                    quad = compute_quadruplets(edge_index, edge_vec, int_edge_index, int_edge_vec, n_atoms)
-                else:
-                    empty = torch.empty(0, dtype=torch.int64)
-                    quad = dict(
-                        id4_reduce_ca=empty,
-                        id4_expand_db=empty,
-                        id4_reduce_cab=empty,
-                        id4_expand_abd=empty,
-                        id4_reduce_intm_ca=empty,
-                        id4_expand_intm_db=empty,
-                        id4_reduce_intm_ab=empty,
-                        id4_expand_intm_ab=empty,
-                        Kidx4=empty,
-                    )
-                data_fields.update(quad)
+            data_fields.update(quad)
 
-            # GemNet-OC extra graphs and mixed triplets
-            if self.oc_mode:
-                # a2ee2a graph (used by atom-edge / edge-atom interactions).
-                # Reuse the main graph when every graph-building parameter
-                # matches (cutoff, max_neighbors, method, and method-specific
-                # extras); otherwise build from scratch.
-                aeaint_params = (
+        if self.oc_mode:
+            aeaint_params = (
+                self.oc_cutoff_aeaint,
+                self.oc_max_neighbors_aeaint,
+                self.oc_graph_method_aeaint,
+                self.oc_min_facet_area_aeaint,
+                self.oc_cov_radii_scale_aeaint,
+            )
+            if aeaint_params == main_params:
+                a2ee2a_edge_index = edge_index
+                a2ee2a_edge_weight = edge_weight
+                a2ee2a_edge_vec = edge_vec
+            else:
+                a2ee2a_edge_index, a2ee2a_edge_weight, a2ee2a_edge_vec, _ = build_edges(
+                    pmg_obj,
                     self.oc_cutoff_aeaint,
                     self.oc_max_neighbors_aeaint,
-                    self.oc_graph_method_aeaint,
-                    self.oc_min_facet_area_aeaint,
-                    self.oc_cov_radii_scale_aeaint,
+                    compute_vectors=True,
+                    method=self.oc_graph_method_aeaint,
+                    min_facet_area=self.oc_min_facet_area_aeaint,
+                    cov_radii_scale=self.oc_cov_radii_scale_aeaint,
                 )
-                if aeaint_params == main_params:
-                    a2ee2a_edge_index = edge_index
-                    a2ee2a_edge_weight = edge_weight
-                    a2ee2a_edge_vec = edge_vec
-                else:
-                    a2ee2a_edge_index, a2ee2a_edge_weight, a2ee2a_edge_vec, _ = build_edges(
-                        pmg_obj,
-                        self.oc_cutoff_aeaint,
-                        self.oc_max_neighbors_aeaint,
-                        compute_vectors=True,
-                        method=self.oc_graph_method_aeaint,
-                        min_facet_area=self.oc_min_facet_area_aeaint,
-                        cov_radii_scale=self.oc_cov_radii_scale_aeaint,
-                    )
-                # a2a graph (used by atom-atom interactions). Reuse int graph or
-                # main graph when their full configuration matches.
-                aint_params = (
+            aint_params = (
+                self.oc_cutoff_aint,
+                self.oc_max_neighbors_aint,
+                self.oc_graph_method_aint,
+                self.oc_min_facet_area_aint,
+                self.oc_cov_radii_scale_aint,
+            )
+            if self.quadruplets and aint_params == int_params:
+                a2a_edge_index = int_edge_index
+                a2a_edge_weight = int_edge_weight
+                a2a_edge_vec = int_edge_vec
+            elif aint_params == main_params:
+                a2a_edge_index = edge_index
+                a2a_edge_weight = edge_weight
+                a2a_edge_vec = edge_vec
+            else:
+                a2a_edge_index, a2a_edge_weight, a2a_edge_vec, _ = build_edges(
+                    pmg_obj,
                     self.oc_cutoff_aint,
                     self.oc_max_neighbors_aint,
-                    self.oc_graph_method_aint,
-                    self.oc_min_facet_area_aint,
-                    self.oc_cov_radii_scale_aint,
+                    compute_vectors=True,
+                    method=self.oc_graph_method_aint,
+                    min_facet_area=self.oc_min_facet_area_aint,
+                    cov_radii_scale=self.oc_cov_radii_scale_aint,
                 )
-                if self.quadruplets and aint_params == int_params:
-                    a2a_edge_index = int_edge_index
-                    a2a_edge_weight = int_edge_weight
-                    a2a_edge_vec = int_edge_vec
-                elif aint_params == main_params:
-                    a2a_edge_index = edge_index
-                    a2a_edge_weight = edge_weight
-                    a2a_edge_vec = edge_vec
-                else:
-                    a2a_edge_index, a2a_edge_weight, a2a_edge_vec, _ = build_edges(
-                        pmg_obj,
-                        self.oc_cutoff_aint,
-                        self.oc_max_neighbors_aint,
-                        compute_vectors=True,
-                        method=self.oc_graph_method_aint,
-                        min_facet_area=self.oc_min_facet_area_aint,
-                        cov_radii_scale=self.oc_cov_radii_scale_aint,
-                    )
-                assert a2ee2a_edge_vec is not None and a2a_edge_vec is not None
+            assert a2ee2a_edge_vec is not None and a2a_edge_vec is not None
 
-                data_fields.update(
-                    {
-                        "a2ee2a_edge_index": a2ee2a_edge_index,
-                        "a2ee2a_edge_weight": a2ee2a_edge_weight,
-                        "a2ee2a_edge_vec": a2ee2a_edge_vec,
-                        "a2a_edge_index": a2a_edge_index,
-                        "a2a_edge_weight": a2a_edge_weight,
-                        "a2a_edge_vec": a2a_edge_vec,
-                    }
+            data_fields.update(
+                {
+                    "a2ee2a_edge_index": a2ee2a_edge_index,
+                    "a2ee2a_edge_weight": a2ee2a_edge_weight,
+                    "a2ee2a_edge_vec": a2ee2a_edge_vec,
+                    "a2a_edge_index": a2a_edge_index,
+                    "a2a_edge_weight": a2a_edge_weight,
+                    "a2a_edge_vec": a2a_edge_vec,
+                }
+            )
+
+            if self.quadruplets:
+                data_fields["qint_edge_index"] = data_fields["int_edge_index"]
+                data_fields["qint_edge_weight"] = data_fields["int_edge_weight"]
+                data_fields["qint_edge_vec"] = data_fields["int_edge_vec"]
+            else:
+                qint_edge_index, qint_edge_weight, qint_edge_vec, _ = build_edges(
+                    pmg_obj,
+                    self.int_cutoff,
+                    self.int_max_neighbors,
+                    compute_vectors=True,
+                    method=self.int_graph_method,
+                    min_facet_area=self.int_min_facet_area,
+                    cov_radii_scale=self.int_cov_radii_scale,
                 )
+                assert qint_edge_vec is not None
+                data_fields["qint_edge_index"] = qint_edge_index
+                data_fields["qint_edge_weight"] = qint_edge_weight
+                data_fields["qint_edge_vec"] = qint_edge_vec
 
-                # qint graph: identical to the interaction graph when quadruplets=True.
-                # Share storage with ``int_edge_*`` (no clone) since both sets of keys
-                # are read-only after ``prepare`` and tensors are never mutated in place.
-                if self.quadruplets:
-                    data_fields["qint_edge_index"] = data_fields["int_edge_index"]
-                    data_fields["qint_edge_weight"] = data_fields["int_edge_weight"]
-                    data_fields["qint_edge_vec"] = data_fields["int_edge_vec"]
-                else:
-                    qint_edge_index, qint_edge_weight, qint_edge_vec, _ = build_edges(
-                        pmg_obj,
-                        self.int_cutoff,
-                        self.int_max_neighbors,
-                        compute_vectors=True,
-                        method=self.int_graph_method,
-                        min_facet_area=self.int_min_facet_area,
-                        cov_radii_scale=self.int_cov_radii_scale,
-                    )
-                    assert qint_edge_vec is not None
-                    data_fields["qint_edge_index"] = qint_edge_index
-                    data_fields["qint_edge_weight"] = qint_edge_weight
-                    data_fields["qint_edge_vec"] = qint_edge_vec
+            data_fields["trip_e2e_in"] = data_fields["id3_expand_ba"]
+            data_fields["trip_e2e_out"] = data_fields["id3_reduce_ca"]
+            data_fields["trip_e2e_out_agg"] = data_fields["Kidx3"]
 
-                # Triplets on the main graph (already computed, re-used as "e2e").
-                # Store GemNet-OC style aliases (same content).
-                data_fields["trip_e2e_in"] = data_fields["id3_expand_ba"]
-                data_fields["trip_e2e_out"] = data_fields["id3_reduce_ca"]
-                # GemNet-OC requires out_agg = inner idx per out. Recompute here
-                # (Kidx3 is the same array under a different name).
-                data_fields["trip_e2e_out_agg"] = data_fields["Kidx3"]
+            a2e = compute_mixed_triplets(
+                main_edge_index=edge_index,
+                main_edge_vec=edge_vec,
+                other_edge_index=a2ee2a_edge_index,
+                other_edge_vec=a2ee2a_edge_vec,
+                num_nodes=n_atoms,
+                to_outedge=False,
+            )
+            e2a = compute_mixed_triplets(
+                main_edge_index=a2ee2a_edge_index,
+                main_edge_vec=a2ee2a_edge_vec,
+                other_edge_index=edge_index,
+                other_edge_vec=edge_vec,
+                num_nodes=n_atoms,
+                to_outedge=False,
+            )
+            data_fields.update(
+                {
+                    "trip_a2e_in": a2e["in_"],
+                    "trip_a2e_out": a2e["out"],
+                    "trip_a2e_out_agg": a2e["out_agg"],
+                    "trip_e2a_in": e2a["in_"],
+                    "trip_e2a_out": e2a["out"],
+                    "trip_e2a_out_agg": e2a["out_agg"],
+                }
+            )
 
-                # Mixed triplet indices (a2e and e2a). "in" edges come from the
-                # a2ee2a graph; "out" edges from the main graph (or vice versa).
-                a2e = compute_mixed_triplets(
-                    main_edge_index=edge_index,
-                    main_edge_vec=edge_vec,
-                    other_edge_index=a2ee2a_edge_index,
-                    other_edge_vec=a2ee2a_edge_vec,
-                    num_nodes=n_atoms,
-                    to_outedge=False,
-                )
-                e2a = compute_mixed_triplets(
-                    main_edge_index=a2ee2a_edge_index,
-                    main_edge_vec=a2ee2a_edge_vec,
-                    other_edge_index=edge_index,
-                    other_edge_vec=edge_vec,
-                    num_nodes=n_atoms,
-                    to_outedge=False,
-                )
-                data_fields.update(
-                    {
-                        "trip_a2e_in": a2e["in_"],  # a2ee2a edge ids
-                        "trip_a2e_out": a2e["out"],  # main edge ids
-                        "trip_a2e_out_agg": a2e["out_agg"],
-                        "trip_e2a_in": e2a["in_"],  # main edge ids
-                        "trip_e2a_out": e2a["out"],  # a2ee2a edge ids
-                        "trip_e2a_out_agg": e2a["out_agg"],
-                    }
-                )
-
-            struct = GemNetData(**data_fields)
-
-            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-            self._save_data(struct, save_path)
-            counter += 1
-
-        self._length = counter
-        return True
+        struct = GemNetData(**data_fields)
+        self._save_data(struct, save_path_fn(0))
+        return 1
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         fields_to_cat = ["energies", "intensities", "absorber_mask"]

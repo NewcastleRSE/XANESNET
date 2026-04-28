@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from typing import Any, Protocol
 
 import numpy as np
@@ -23,13 +22,12 @@ import torch
 from pymatgen.core import Molecule, Structure
 from torch_geometric.data import Batch, Data
 from torch_geometric.data.data import BaseData
-from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 from xanesnet.utils.graph import build_edges, compute_triplets_and_angles
 
-from ..base import TorchGeometricDataset
+from ..base import SavePathFn, TorchGeometricDataset
 from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
@@ -116,70 +114,55 @@ class GeometryGraphDataset(TorchGeometricDataset):
         self.min_facet_area = min_facet_area
         self.cov_radii_scale = cov_radii_scale
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping.")
+            return 0
 
-        if skip_processing:
-            return True
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
+        xanes = xanes[xanes_idxs]
+        absorber_mask = torch.zeros(len(pmg_obj.labels), dtype=torch.bool)
+        absorber_mask[xanes_idxs] = True
+        intensities_np = np.array([x["intensities"] for x in xanes], dtype=np.float32)
+        energies_np = np.array([x["energies"] for x in xanes], dtype=np.float32)
 
-        counter = 0  # Counter for naming processed files
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            # Check if XANES spectrum is available for the sample; if not, skip processing
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
-            else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
+        atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+        cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
+        energies = torch.tensor(energies_np, dtype=torch.float32)
+        intensities = torch.tensor(intensities_np, dtype=torch.float32)
 
-            # XANES
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
-            xanes = xanes[xanes_idxs]
-            absorber_mask = torch.zeros(len(pmg_obj.labels), dtype=torch.bool)
-            absorber_mask[xanes_idxs] = True
-            intensities_np = np.array([x["intensities"] for x in xanes], dtype=np.float32)
-            energies_np = np.array([x["energies"] for x in xanes], dtype=np.float32)
+        edge_index, edge_weight, angle, idx_kj, idx_ji = self._build_edges(
+            pmg_obj,
+            self.cutoff,
+            self.max_num_neighbors,
+            self.compute_angles,
+            self.graph_method,
+            self.min_facet_area,
+            self.cov_radii_scale,
+        )
 
-            # Atomic numbers and coordinates
-            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
-            cart_coords = torch.tensor(pmg_obj.cart_coords, dtype=torch.float32)
-            energies = torch.tensor(energies_np, dtype=torch.float32)
-            intensities = torch.tensor(intensities_np, dtype=torch.float32)
+        struct = GeometryGraphData(
+            x=atomic_numbers,
+            pos=cart_coords,
+            edge_index=edge_index,
+            edge_weight=edge_weight,
+            batch=None,
+            angle=angle,
+            idx_kj=idx_kj,
+            idx_ji=idx_ji,
+            energies=energies,
+            intensities=intensities,
+            absorber_mask=absorber_mask,
+            file_name=pmg_obj.properties["file_name"],
+        )
 
-            edge_index, edge_weight, angle, idx_kj, idx_ji = self._build_edges(
-                pmg_obj,
-                self.cutoff,
-                self.max_num_neighbors,
-                self.compute_angles,
-                self.graph_method,
-                self.min_facet_area,
-                self.cov_radii_scale,
-            )
-
-            struct = GeometryGraphData(
-                x=atomic_numbers,
-                pos=cart_coords,
-                edge_index=edge_index,
-                edge_weight=edge_weight,
-                batch=None,  # will be set in collate_fn
-                angle=angle,
-                idx_kj=idx_kj,
-                idx_ji=idx_ji,
-                energies=energies,
-                intensities=intensities,
-                absorber_mask=absorber_mask,
-                file_name=pmg_obj.properties["file_name"],
-            )
-
-            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-            self._save_data(struct, save_path)
-            counter += 1
-
-        self._length = counter
-        return True
+        self._save_data(struct, save_path_fn(0))
+        return 1
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         fields_to_cat = ["energies", "intensities", "absorber_mask"]

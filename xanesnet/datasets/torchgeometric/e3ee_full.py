@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from typing import Protocol
 
 import numpy as np
@@ -23,9 +22,8 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.data import Batch, Data
 from torch_geometric.data.data import BaseData
-from tqdm import tqdm
 
-from xanesnet.datasets import TorchGeometricDataset
+from xanesnet.datasets.base import SavePathFn, TorchGeometricDataset
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 from xanesnet.utils.graph import build_absorber_paths, build_edges
@@ -127,171 +125,155 @@ class E3EEFullDataset(TorchGeometricDataset):
         self.att_cov_radii_scale = att_cov_radii_scale
         self.use_absorber_mask = use_absorber_mask
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
-        if skip_processing:
-            return True
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping.")
+            return 0
 
-        counter = 0
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        absorber_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
+
+        n_atoms_total = len(pmg_obj)
+        atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+
+        absorber_mask = torch.zeros(n_atoms_total, dtype=torch.bool)
+        for si in absorber_idxs:
+            absorber_mask[si] = True
+
+        energies_stack = torch.tensor(
+            np.array([xanes[si]["energies"] for si in absorber_idxs], dtype=np.float32),
+            dtype=torch.float32,
+        )
+        intensities_stack = torch.tensor(
+            np.array([xanes[si]["intensities"] for si in absorber_idxs], dtype=np.float32),
+            dtype=torch.float32,
+        )
+
+        edge_index, edge_weight, edge_vec, _edge_attr = build_edges(
+            pmg_obj,
+            cutoff=self.cutoff,
+            max_num_neighbors=self.max_num_neighbors,
+            compute_vectors=True,
+            method=self.graph_method,
+            min_facet_area=self.min_facet_area,
+            cov_radii_scale=self.cov_radii_scale,
+        )
+        assert edge_vec is not None
+
+        att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
+            pmg_obj,
+            cutoff=self.att_cutoff,
+            max_num_neighbors=self.att_max_num_neighbors,
+            compute_vectors=True,
+            method=self.att_graph_method,
+            min_facet_area=self.att_min_facet_area,
+            cov_radii_scale=self.att_cov_radii_scale,
+        )
+        assert att_edge_vec is not None
+        if self.use_absorber_mask:
+            abs_self_idx = torch.tensor(absorber_idxs, dtype=torch.int64)
+            src_full = att_edge_index[0].to(dtype=torch.int64)
+            keep = absorber_mask[src_full]
+            att_src = torch.cat([abs_self_idx, src_full[keep]], dim=0)
+            att_dst = torch.cat(
+                [abs_self_idx, att_edge_index[1].to(dtype=torch.int64)[keep]],
+                dim=0,
+            )
+            att_dist = torch.cat(
+                [
+                    torch.zeros(abs_self_idx.shape[0], dtype=torch.float32),
+                    att_edge_weight.to(dtype=torch.float32)[keep],
+                ],
+                dim=0,
+            )
+            att_vec = torch.cat(
+                [
+                    torch.zeros(abs_self_idx.shape[0], 3, dtype=torch.float32),
+                    att_edge_vec.to(dtype=torch.float32)[keep],
+                ],
+                dim=0,
+            )
+        else:
+            self_idx = torch.arange(n_atoms_total, dtype=torch.int64)
+            att_src = torch.cat([self_idx, att_edge_index[0].to(dtype=torch.int64)], dim=0)
+            att_dst = torch.cat([self_idx, att_edge_index[1].to(dtype=torch.int64)], dim=0)
+            att_dist = torch.cat(
+                [torch.zeros(n_atoms_total, dtype=torch.float32), att_edge_weight.to(dtype=torch.float32)],
+                dim=0,
+            )
+            att_vec = torch.cat(
+                [torch.zeros(n_atoms_total, 3, dtype=torch.float32), att_edge_vec.to(dtype=torch.float32)],
+                dim=0,
+            )
+
+        data_kwargs: dict = {
+            "x": atomic_numbers,
+            "absorber_mask": absorber_mask,
+            "edge_src": edge_index[0],
+            "edge_dst": edge_index[1],
+            "edge_weight": edge_weight,
+            "edge_vec": edge_vec,
+            "att_src": att_src,
+            "att_dst": att_dst,
+            "att_dist": att_dist,
+            "att_vec": att_vec,
+            "energies": energies_stack,
+            "intensities": intensities_stack,
+            "file_name": pmg_obj.properties["file_name"],
+        }
+
+        if self.use_path_branch:
+            centers: list[torch.Tensor] = []
+            j_list: list[torch.Tensor] = []
+            k_list: list[torch.Tensor] = []
+            r0j_list: list[torch.Tensor] = []
+            r0k_list: list[torch.Tensor] = []
+            rjk_list: list[torch.Tensor] = []
+            cos_list: list[torch.Tensor] = []
+
+            site_iter = absorber_idxs if self.use_absorber_mask else range(n_atoms_total)
+            for site_idx in site_iter:
+                paths = build_absorber_paths(
+                    pmg_obj,
+                    absorber_idx=site_idx,
+                    cutoff=self.cutoff,
+                    max_paths=self.max_paths_per_site,
+                )
+                n_p = paths["path_j"].shape[0]
+                if n_p == 0:
+                    continue
+                centers.append(torch.full((n_p,), site_idx, dtype=torch.int64))
+                j_list.append(paths["path_j"])
+                k_list.append(paths["path_k"])
+                r0j_list.append(paths["path_r0j"])
+                r0k_list.append(paths["path_r0k"])
+                rjk_list.append(paths["path_rjk"])
+                cos_list.append(paths["path_cosangle"])
+
+            if centers:
+                data_kwargs["path_center"] = torch.cat(centers, dim=0)
+                data_kwargs["path_j"] = torch.cat(j_list, dim=0)
+                data_kwargs["path_k"] = torch.cat(k_list, dim=0)
+                data_kwargs["path_r0j"] = torch.cat(r0j_list, dim=0)
+                data_kwargs["path_r0k"] = torch.cat(r0k_list, dim=0)
+                data_kwargs["path_rjk"] = torch.cat(rjk_list, dim=0)
+                data_kwargs["path_cosangle"] = torch.cat(cos_list, dim=0)
             else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
+                data_kwargs["path_center"] = torch.zeros(0, dtype=torch.int64)
+                data_kwargs["path_j"] = torch.zeros(0, dtype=torch.int64)
+                data_kwargs["path_k"] = torch.zeros(0, dtype=torch.int64)
+                data_kwargs["path_r0j"] = torch.zeros(0, dtype=torch.float32)
+                data_kwargs["path_r0k"] = torch.zeros(0, dtype=torch.float32)
+                data_kwargs["path_rjk"] = torch.zeros(0, dtype=torch.float32)
+                data_kwargs["path_cosangle"] = torch.zeros(0, dtype=torch.float32)
 
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            absorber_idxs: list[int] = np.where(xanes != None)[0].tolist()
-
-            n_atoms_total = len(pmg_obj)
-            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
-
-            absorber_mask = torch.zeros(n_atoms_total, dtype=torch.bool)
-            for si in absorber_idxs:
-                absorber_mask[si] = True
-
-            energies_stack = torch.tensor(
-                np.array([xanes[si]["energies"] for si in absorber_idxs], dtype=np.float32),
-                dtype=torch.float32,
-            )
-            intensities_stack = torch.tensor(
-                np.array([xanes[si]["intensities"] for si in absorber_idxs], dtype=np.float32),
-                dtype=torch.float32,
-            )
-
-            # Edges are structure-wide (one compute per sample).
-            edge_index, edge_weight, edge_vec, _edge_attr = build_edges(
-                pmg_obj,
-                cutoff=self.cutoff,
-                max_num_neighbors=self.max_num_neighbors,
-                compute_vectors=True,
-                method=self.graph_method,
-                min_facet_area=self.min_facet_area,
-                cov_radii_scale=self.cov_radii_scale,
-            )
-            assert edge_vec is not None
-
-            # Attention graph (full): every site to every neighbour
-            # Self-loops at distance 0 are added explicitly so each site attends to itself.
-            att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
-                pmg_obj,
-                cutoff=self.att_cutoff,
-                max_num_neighbors=self.att_max_num_neighbors,
-                compute_vectors=True,
-                method=self.att_graph_method,
-                min_facet_area=self.att_min_facet_area,
-                cov_radii_scale=self.att_cov_radii_scale,
-            )
-            assert att_edge_vec is not None
-            if self.use_absorber_mask:
-                # Self-loops + neighbour edges only for absorber sites.
-                abs_self_idx = torch.tensor(absorber_idxs, dtype=torch.int64)
-                src_full = att_edge_index[0].to(dtype=torch.int64)
-                keep = absorber_mask[src_full]
-                att_src = torch.cat([abs_self_idx, src_full[keep]], dim=0)
-                att_dst = torch.cat(
-                    [abs_self_idx, att_edge_index[1].to(dtype=torch.int64)[keep]],
-                    dim=0,
-                )
-                att_dist = torch.cat(
-                    [
-                        torch.zeros(abs_self_idx.shape[0], dtype=torch.float32),
-                        att_edge_weight.to(dtype=torch.float32)[keep],
-                    ],
-                    dim=0,
-                )
-                att_vec = torch.cat(
-                    [
-                        torch.zeros(abs_self_idx.shape[0], 3, dtype=torch.float32),
-                        att_edge_vec.to(dtype=torch.float32)[keep],
-                    ],
-                    dim=0,
-                )
-            else:
-                self_idx = torch.arange(n_atoms_total, dtype=torch.int64)
-                att_src = torch.cat([self_idx, att_edge_index[0].to(dtype=torch.int64)], dim=0)
-                att_dst = torch.cat([self_idx, att_edge_index[1].to(dtype=torch.int64)], dim=0)
-                att_dist = torch.cat(
-                    [torch.zeros(n_atoms_total, dtype=torch.float32), att_edge_weight.to(dtype=torch.float32)],
-                    dim=0,
-                )
-                att_vec = torch.cat(
-                    [torch.zeros(n_atoms_total, 3, dtype=torch.float32), att_edge_vec.to(dtype=torch.float32)],
-                    dim=0,
-                )
-
-            data_kwargs: dict = {
-                "x": atomic_numbers,
-                "absorber_mask": absorber_mask,
-                "edge_src": edge_index[0],
-                "edge_dst": edge_index[1],
-                "edge_weight": edge_weight,
-                "edge_vec": edge_vec,
-                "att_src": att_src,
-                "att_dst": att_dst,
-                "att_dist": att_dist,
-                "att_vec": att_vec,
-                "energies": energies_stack,
-                "intensities": intensities_stack,
-                "file_name": pmg_obj.properties["file_name"],
-            }
-
-            if self.use_path_branch:
-                centers: list[torch.Tensor] = []
-                j_list: list[torch.Tensor] = []
-                k_list: list[torch.Tensor] = []
-                r0j_list: list[torch.Tensor] = []
-                r0k_list: list[torch.Tensor] = []
-                rjk_list: list[torch.Tensor] = []
-                cos_list: list[torch.Tensor] = []
-
-                site_iter = absorber_idxs if self.use_absorber_mask else range(n_atoms_total)
-                for site_idx in site_iter:
-                    paths = build_absorber_paths(
-                        pmg_obj,
-                        absorber_idx=site_idx,
-                        cutoff=self.cutoff,
-                        max_paths=self.max_paths_per_site,
-                    )
-                    n_p = paths["path_j"].shape[0]
-                    if n_p == 0:
-                        continue
-                    centers.append(torch.full((n_p,), site_idx, dtype=torch.int64))
-                    j_list.append(paths["path_j"])
-                    k_list.append(paths["path_k"])
-                    r0j_list.append(paths["path_r0j"])
-                    r0k_list.append(paths["path_r0k"])
-                    rjk_list.append(paths["path_rjk"])
-                    cos_list.append(paths["path_cosangle"])
-
-                if centers:
-                    data_kwargs["path_center"] = torch.cat(centers, dim=0)
-                    data_kwargs["path_j"] = torch.cat(j_list, dim=0)
-                    data_kwargs["path_k"] = torch.cat(k_list, dim=0)
-                    data_kwargs["path_r0j"] = torch.cat(r0j_list, dim=0)
-                    data_kwargs["path_r0k"] = torch.cat(r0k_list, dim=0)
-                    data_kwargs["path_rjk"] = torch.cat(rjk_list, dim=0)
-                    data_kwargs["path_cosangle"] = torch.cat(cos_list, dim=0)
-                else:
-                    data_kwargs["path_center"] = torch.zeros(0, dtype=torch.int64)
-                    data_kwargs["path_j"] = torch.zeros(0, dtype=torch.int64)
-                    data_kwargs["path_k"] = torch.zeros(0, dtype=torch.int64)
-                    data_kwargs["path_r0j"] = torch.zeros(0, dtype=torch.float32)
-                    data_kwargs["path_r0k"] = torch.zeros(0, dtype=torch.float32)
-                    data_kwargs["path_rjk"] = torch.zeros(0, dtype=torch.float32)
-                    data_kwargs["path_cosangle"] = torch.zeros(0, dtype=torch.float32)
-
-            struct = Data(**data_kwargs)
-
-            save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-            self._save_data(struct, save_path)
-            counter += 1
-
-        self._length = counter
-        return True
+        struct = Data(**data_kwargs)
+        self._save_data(struct, save_path_fn(0))
+        return 1
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         """

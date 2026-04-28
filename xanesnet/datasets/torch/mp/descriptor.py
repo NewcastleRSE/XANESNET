@@ -14,24 +14,16 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
-
-import numpy as np
-import torch
-
-from xanesnet.datasets._mp import mp_save_path, run_mp_prepare
-from xanesnet.datasets.base import Dataset as _BaseDataset
+from xanesnet.datasets._mp import MpDatasetMixin
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
-from xanesnet.utils.exceptions import ConfigError
-from xanesnet.utils.math import fft, gaussian_fit
 
 from ...registry import DatasetRegistry
-from ..descriptor import SPECTRUM_KEYS, DescriptorData, DescriptorDataset
+from ..descriptor import DescriptorDataset
 
 
 @DatasetRegistry.register("descriptor_mp")
-class DescriptorDatasetMp(DescriptorDataset):
+class DescriptorDatasetMp(MpDatasetMixin, DescriptorDataset):
     """Multiprocessing variant of :class:`DescriptorDataset`."""
 
     def __init__(
@@ -72,74 +64,3 @@ class DescriptorDatasetMp(DescriptorDataset):
             descriptors=descriptors,
         )
         self.num_workers = num_workers
-
-    def prepare(self) -> bool:
-        skip_processing = _BaseDataset.prepare(self)
-        if skip_processing:
-            return True
-
-        self._length = run_mp_prepare(self, len(self.datasource), self.num_workers)
-        return True
-
-    def _process_range(self, start: int, end: int) -> None:
-        for idx in range(start, end):
-            pmg_obj = self.datasource[idx]
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
-            else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
-
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
-
-            descriptor_features = []
-            for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj, site_index=xanes_idxs)
-                descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=1)
-
-            seq = 0
-            for site_idx, df in zip(xanes_idxs, descriptor_features):
-                df = torch.tensor(df, dtype=torch.float32)
-
-                spectrum = pmg_obj.site_properties[key][site_idx]
-                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
-                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
-
-                fourier = None
-                if self.fourier:
-                    fourier = fft(intensities, self.fourier_concat)
-
-                c_star = None
-                if self.gaussian:
-                    assert self.basis is not None
-                    c_star = gaussian_fit(basis=self.basis, xanes=intensities)
-
-                if self.mode == "forward":
-                    x = df
-                    y = intensities
-                elif self.mode == "reverse":
-                    x = intensities
-                    y = df
-                else:
-                    raise ConfigError(f"Invalid mode: {self.mode}")
-
-                data = DescriptorData(
-                    x=x,
-                    y=y,
-                    energies=energies,
-                    fourier=fourier,
-                    c_star=c_star,
-                    file_name=pmg_obj.properties["file_name"],
-                )
-
-                data.save(mp_save_path(self.processed_dir, idx, seq))
-                seq += 1
-
-    @property
-    def signature(self) -> Config:
-        return super().signature

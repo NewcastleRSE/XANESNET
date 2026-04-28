@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,14 +22,13 @@ import numpy as np
 import torch
 from pymatgen.core import Molecule, Structure
 from torch.nn.utils.rnn import pad_sequence
-from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import Descriptor, DescriptorRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.utils.math import SpectralBasis, gaussian_fit
 
-from ..base import TorchDataset
+from ..base import SavePathFn, TorchDataset
 from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
@@ -142,70 +140,61 @@ class EnvEmbedDataset(TorchDataset):
         self.basis: SpectralBasis | None = None
         self._setup_spectral_basis()
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
-        if skip_processing:
-            return True
-
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
         assert self.basis is not None, "Spectral basis must be set up successfully."
 
-        counter = 0  # Counter for naming processed files
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
-            # Check if XANES spectrum is available for the sample; if not, skip processing
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
-            else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping.")
+            return 0
 
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
 
-            # Compute descriptor features (all sites for env embedding)
-            descriptor_features_list = []
-            for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj, site_index=None)
-                descriptor_features_list.append(feature)
-            descriptor_features_np = np.concatenate(descriptor_features_list, axis=1)
-            descriptor_features = torch.tensor(descriptor_features_np, dtype=torch.float32)
+        # Compute descriptor features (all sites for env embedding)
+        descriptor_features_list = []
+        for descriptor in self.descriptor_list:
+            feature = descriptor.transform_pmg(pmg_obj, site_index=None)
+            descriptor_features_list.append(feature)
+        descriptor_features_np = np.concatenate(descriptor_features_list, axis=1)
+        descriptor_features = torch.tensor(descriptor_features_np, dtype=torch.float32)
 
-            for site_idx in xanes_idxs:
-                # XANES
-                spectrum = pmg_obj.site_properties[key][site_idx]
-                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
-                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
+        seq = 0
+        for site_idx in xanes_idxs:
+            # XANES
+            spectrum = pmg_obj.site_properties[key][site_idx]
+            energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
+            intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
 
-                # Build per-site environment: descriptor features + distance features
-                # For periodic structures with env_radius, this finds all neighbors
-                # (incl. periodic images) within the radius. For molecules, unchanged.
-                site_descs, site_dists = self._build_site_environment(
-                    pmg_obj, absorber_idx=site_idx, all_descriptors=descriptor_features
-                )
+            # Build per-site environment: descriptor features + distance features
+            # For periodic structures with env_radius, this finds all neighbors
+            # (incl. periodic images) within the radius. For molecules, unchanged.
+            site_descs, site_dists = self._build_site_environment(
+                pmg_obj, absorber_idx=site_idx, all_descriptors=descriptor_features
+            )
 
-                # Gaussian
-                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
+            # Gaussian
+            c_star = gaussian_fit(basis=self.basis, xanes=intensities)
 
-                # Create Data object
-                data = EnvEmbedData(
-                    descriptor_features=site_descs,
-                    distance_features=site_dists,
-                    intensities=intensities,
-                    energies=energies,
-                    c_star=c_star,
-                    file_name=pmg_obj.properties["file_name"],
-                    basis=self.basis,
-                )
+            # Create Data object
+            data = EnvEmbedData(
+                descriptor_features=site_descs,
+                distance_features=site_dists,
+                intensities=intensities,
+                energies=energies,
+                c_star=c_star,
+                file_name=pmg_obj.properties["file_name"],
+                basis=self.basis,
+            )
 
-                # Save processed data
-                save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-                data.save(save_path)
-                counter += 1
+            # Save processed data
+            data.save(save_path_fn(seq))
+            seq += 1
 
-        self._length = counter
-        return True
+        return seq
 
     def _setup_spectral_basis(self) -> None:
         # Load directly from file

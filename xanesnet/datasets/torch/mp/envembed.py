@@ -14,23 +14,16 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
-
-import numpy as np
-import torch
-
-from xanesnet.datasets._mp import mp_save_path, run_mp_prepare
-from xanesnet.datasets.base import Dataset as _BaseDataset
+from xanesnet.datasets._mp import MpDatasetMixin
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
-from xanesnet.utils.math import gaussian_fit
 
 from ...registry import DatasetRegistry
-from ..envembed import SPECTRUM_KEYS, EnvEmbedData, EnvEmbedDataset
+from ..envembed import EnvEmbedDataset
 
 
 @DatasetRegistry.register("envembed_mp")
-class EnvEmbedDatasetMp(EnvEmbedDataset):
+class EnvEmbedDatasetMp(MpDatasetMixin, EnvEmbedDataset):
     """Multiprocessing variant of :class:`EnvEmbedDataset`."""
 
     def __init__(
@@ -65,65 +58,3 @@ class EnvEmbedDatasetMp(EnvEmbedDataset):
             descriptors=descriptors,
         )
         self.num_workers = num_workers
-
-    def prepare(self) -> bool:
-        skip_processing = _BaseDataset.prepare(self)
-        if skip_processing:
-            return True
-
-        assert self.basis is not None, "Spectral basis must be set up successfully."
-
-        self._length = run_mp_prepare(self, len(self.datasource), self.num_workers)
-        return True
-
-    def _process_range(self, start: int, end: int) -> None:
-        assert self.basis is not None
-        for idx in range(start, end):
-            pmg_obj = self.datasource[idx]
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
-            else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
-
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
-
-            descriptor_features_list = []
-            for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj, site_index=None)
-                descriptor_features_list.append(feature)
-            descriptor_features_np = np.concatenate(descriptor_features_list, axis=1)
-            descriptor_features = torch.tensor(descriptor_features_np, dtype=torch.float32)
-
-            seq = 0
-            for site_idx in xanes_idxs:
-                spectrum = pmg_obj.site_properties[key][site_idx]
-                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
-                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
-
-                site_descs, site_dists = self._build_site_environment(
-                    pmg_obj, absorber_idx=site_idx, all_descriptors=descriptor_features
-                )
-
-                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
-
-                data = EnvEmbedData(
-                    descriptor_features=site_descs,
-                    distance_features=site_dists,
-                    intensities=intensities,
-                    energies=energies,
-                    c_star=c_star,
-                    file_name=pmg_obj.properties["file_name"],
-                    basis=self.basis,
-                )
-
-                data.save(mp_save_path(self.processed_dir, idx, seq))
-                seq += 1
-
-    @property
-    def signature(self) -> Config:
-        return super().signature

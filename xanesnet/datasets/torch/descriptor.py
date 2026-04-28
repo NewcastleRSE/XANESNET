@@ -15,13 +15,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import torch
-from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import Descriptor, DescriptorRegistry
@@ -29,7 +27,7 @@ from xanesnet.serialization.config import Config
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.math import SpectralBasis, fft, gaussian_fit
 
-from ..base import TorchDataset
+from ..base import SavePathFn, TorchDataset
 from ..registry import DatasetRegistry
 
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
@@ -142,80 +140,71 @@ class DescriptorDataset(TorchDataset):
         if self.gaussian:
             self._setup_spectral_basis()
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
-        if skip_processing:
-            return True
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping.")
+            return 0
 
-        counter = 0  # Counter for naming processed files
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), desc="Processing data", total=len(self.datasource)):
-            # Check if XANES spectrum is available for the sample; if not, skip processing
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+
+        # Compute descriptor features
+        descriptor_features = []
+        for descriptor in self.descriptor_list:
+            feature = descriptor.transform_pmg(pmg_obj, site_index=xanes_idxs)
+            descriptor_features.append(feature)
+        descriptor_features = np.concatenate(descriptor_features, axis=1)
+
+        seq = 0
+        for site_idx, df in zip(xanes_idxs, descriptor_features):
+            # descriptor features
+            df = torch.tensor(df, dtype=torch.float32)
+
+            # XANES
+            spectrum = pmg_obj.site_properties[key][site_idx]
+            energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
+            intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
+
+            # FFT
+            fourier = None
+            if self.fourier:
+                fourier = fft(intensities, self.fourier_concat)
+
+            # Gaussian
+            c_star = None
+            if self.gaussian:
+                assert self.basis is not None, "Spectral basis must be set up successfully before preparing data."
+                c_star = gaussian_fit(basis=self.basis, xanes=intensities)
+
+            # Mode
+            if self.mode == "forward":
+                x = df
+                y = intensities
+            elif self.mode == "reverse":
+                x = intensities
+                y = df
             else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
+                raise ConfigError(f"Invalid mode: {self.mode}")
 
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            xanes_idxs: list[int] = np.where(xanes != None)[0].tolist()
+            # Create Data object
+            data = DescriptorData(
+                x=x,
+                y=y,
+                energies=energies,
+                fourier=fourier,
+                c_star=c_star,
+                file_name=pmg_obj.properties["file_name"],
+            )
 
-            # Compute descriptor features
-            descriptor_features = []
-            for descriptor in self.descriptor_list:
-                feature = descriptor.transform_pmg(pmg_obj, site_index=xanes_idxs)
-                descriptor_features.append(feature)
-            descriptor_features = np.concatenate(descriptor_features, axis=1)
+            # Save processed data
+            data.save(save_path_fn(seq))
+            seq += 1
 
-            for site_idx, df in zip(xanes_idxs, descriptor_features):
-                # descriptor features
-                df = torch.tensor(df, dtype=torch.float32)
-
-                # XANES
-                spectrum = pmg_obj.site_properties[key][site_idx]
-                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
-                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
-
-                # FFT
-                fourier = None
-                if self.fourier:
-                    fourier = fft(intensities, self.fourier_concat)
-
-                # Gaussian
-                c_star = None
-                if self.gaussian:
-                    assert self.basis is not None, "Spectral basis must be set up successfully before preparing data."
-                    c_star = gaussian_fit(basis=self.basis, xanes=intensities)
-
-                # Mode
-                if self.mode == "forward":
-                    x = df
-                    y = intensities
-                elif self.mode == "reverse":
-                    x = intensities
-                    y = df
-                else:
-                    raise ConfigError(f"Invalid mode: {self.mode}")
-
-                # Create Data object
-                data = DescriptorData(
-                    x=x,
-                    y=y,
-                    energies=energies,
-                    fourier=fourier,
-                    c_star=c_star,
-                    file_name=pmg_obj.properties["file_name"],
-                )
-
-                # Save processed data
-                save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-                data.save(save_path)
-                counter += 1
-
-        self._length = counter
-        return True
+        return seq
 
     def _setup_spectral_basis(self) -> None:
         # Load directly from file

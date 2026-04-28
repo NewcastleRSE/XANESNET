@@ -15,7 +15,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
 from typing import Protocol
 
 import numpy as np
@@ -23,9 +22,8 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.data import Batch, Data
 from torch_geometric.data.data import BaseData
-from tqdm import tqdm
 
-from xanesnet.datasets import TorchGeometricDataset
+from xanesnet.datasets.base import SavePathFn, TorchGeometricDataset
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 from xanesnet.utils.graph import build_absorber_paths, build_edges
@@ -119,115 +117,102 @@ class E3EEDataset(TorchGeometricDataset):
         self.att_min_facet_area = att_min_facet_area
         self.att_cov_radii_scale = att_cov_radii_scale
 
-    def prepare(self) -> bool:
-        skip_processing = super().prepare()
-        if skip_processing:
-            return True
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        pmg_obj = self.datasource[idx]
+        for key in SPECTRUM_KEYS:
+            if key in pmg_obj.site_properties.keys():
+                break
+        else:
+            logging.warning(f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping.")
+            return 0
 
-        counter = 0  # Counter for naming processed files
-        for idx, pmg_obj in tqdm(enumerate(self.datasource), total=len(self.datasource), desc="Processing data"):
-            # Check if XANES spectrum is available for the sample; if not, skip processing
-            for key in SPECTRUM_KEYS:
-                if key in pmg_obj.site_properties.keys():
-                    break
-            else:
-                logging.warning(
-                    f"No XANES spectrum found for sample {idx} ({pmg_obj.properties['file_name']}); skipping."
-                )
-                continue
+        xanes = np.array(pmg_obj.site_properties[key], dtype=object)
+        absorber_idxs: list[int] = np.where(xanes != None)[0].tolist()  # noqa: E711
 
-            xanes = np.array(pmg_obj.site_properties[key], dtype=object)
-            absorber_idxs: list[int] = np.where(xanes != None)[0].tolist()
+        atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
 
-            atomic_numbers = torch.tensor(pmg_obj.atomic_numbers, dtype=torch.int64)
+        edge_index, edge_weight, edge_vec, _ = build_edges(
+            pmg_obj,
+            cutoff=self.cutoff,
+            max_num_neighbors=self.max_num_neighbors,
+            compute_vectors=True,
+            method=self.graph_method,
+            min_facet_area=self.min_facet_area,
+            cov_radii_scale=self.cov_radii_scale,
+        )
+        assert edge_vec is not None
 
-            # Edges are shared across absorbers within the same structure.
-            edge_index, edge_weight, edge_vec, _ = build_edges(
-                pmg_obj,
-                cutoff=self.cutoff,
-                max_num_neighbors=self.max_num_neighbors,
-                compute_vectors=True,
-                method=self.graph_method,
-                min_facet_area=self.min_facet_area,
-                cov_radii_scale=self.cov_radii_scale,
+        att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
+            pmg_obj,
+            cutoff=self.att_cutoff,
+            max_num_neighbors=self.att_max_num_neighbors,
+            compute_vectors=True,
+            method=self.att_graph_method,
+            min_facet_area=self.att_min_facet_area,
+            cov_radii_scale=self.att_cov_radii_scale,
+        )
+        assert att_edge_vec is not None
+        att_src_all = att_edge_index[0]
+        att_dst_all = att_edge_index[1]
+
+        seq = 0
+        for site_idx in absorber_idxs:
+            spectrum = pmg_obj.site_properties[key][site_idx]
+            energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
+            intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
+
+            sel = att_src_all == site_idx
+            att_dst_site = torch.cat(
+                [
+                    torch.tensor([site_idx], dtype=torch.int64),
+                    att_dst_all[sel].to(dtype=torch.int64),
+                ],
+                dim=0,
             )
-            assert edge_vec is not None
-
-            # Attention-graph edges (absorber → neighbours).
-            att_edge_index, att_edge_weight, att_edge_vec, _ = build_edges(
-                pmg_obj,
-                cutoff=self.att_cutoff,
-                max_num_neighbors=self.att_max_num_neighbors,
-                compute_vectors=True,
-                method=self.att_graph_method,
-                min_facet_area=self.att_min_facet_area,
-                cov_radii_scale=self.att_cov_radii_scale,
+            att_dist_site = torch.cat(
+                [
+                    torch.zeros(1, dtype=torch.float32),
+                    att_edge_weight[sel].to(dtype=torch.float32),
+                ],
+                dim=0,
             )
-            assert att_edge_vec is not None
-            att_src_all = att_edge_index[0]
-            att_dst_all = att_edge_index[1]
+            att_vec_site = torch.cat(
+                [
+                    torch.zeros(1, 3, dtype=torch.float32),
+                    att_edge_vec[sel].to(dtype=torch.float32),
+                ],
+                dim=0,
+            )
 
-            for site_idx in absorber_idxs:
-                spectrum = pmg_obj.site_properties[key][site_idx]
-                energies = torch.tensor(spectrum["energies"], dtype=torch.float32)
-                intensities = torch.tensor(spectrum["intensities"], dtype=torch.float32)
+            data_kwargs: dict = {
+                "x": atomic_numbers,
+                "absorber_index": torch.tensor(site_idx, dtype=torch.int64),
+                "edge_src": edge_index[0],
+                "edge_dst": edge_index[1],
+                "edge_weight": edge_weight,
+                "edge_vec": edge_vec,
+                "att_dst": att_dst_site,
+                "att_dist": att_dist_site,
+                "att_vec": att_vec_site,
+                "energies": energies,
+                "intensities": intensities,
+                "file_name": pmg_obj.properties["file_name"],
+            }
 
-                # Filter att-edges rooted at this absorber, prepend self-loop.
-                sel = att_src_all == site_idx
-                att_dst_site = torch.cat(
-                    [
-                        torch.tensor([site_idx], dtype=torch.int64),
-                        att_dst_all[sel].to(dtype=torch.int64),
-                    ],
-                    dim=0,
+            if self.use_path_branch:
+                paths = build_absorber_paths(
+                    pmg_obj,
+                    absorber_idx=site_idx,
+                    cutoff=self.cutoff,
+                    max_paths=self.max_paths_per_structure,
                 )
-                att_dist_site = torch.cat(
-                    [
-                        torch.zeros(1, dtype=torch.float32),
-                        att_edge_weight[sel].to(dtype=torch.float32),
-                    ],
-                    dim=0,
-                )
-                att_vec_site = torch.cat(
-                    [
-                        torch.zeros(1, 3, dtype=torch.float32),
-                        att_edge_vec[sel].to(dtype=torch.float32),
-                    ],
-                    dim=0,
-                )
+                data_kwargs.update(paths)
 
-                data_kwargs: dict = {
-                    "x": atomic_numbers,
-                    "absorber_index": torch.tensor(site_idx, dtype=torch.int64),
-                    "edge_src": edge_index[0],
-                    "edge_dst": edge_index[1],
-                    "edge_weight": edge_weight,
-                    "edge_vec": edge_vec,
-                    "att_dst": att_dst_site,
-                    "att_dist": att_dist_site,
-                    "att_vec": att_vec_site,
-                    "energies": energies,
-                    "intensities": intensities,
-                    "file_name": pmg_obj.properties["file_name"],
-                }
+            struct = Data(**data_kwargs)
+            self._save_data(struct, save_path_fn(seq))
+            seq += 1
 
-                if self.use_path_branch:
-                    paths = build_absorber_paths(
-                        pmg_obj,
-                        absorber_idx=site_idx,
-                        cutoff=self.cutoff,
-                        max_paths=self.max_paths_per_structure,
-                    )
-                    data_kwargs.update(paths)
-
-                struct = Data(**data_kwargs)
-
-                save_path = os.path.join(self.processed_dir, f"{counter}.pth")
-                self._save_data(struct, save_path)
-                counter += 1
-
-        self._length = counter
-        return True
+        return seq
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
         """
