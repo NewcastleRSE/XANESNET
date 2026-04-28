@@ -1,28 +1,65 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""GemNet triplet, quadruplet, and mixed-triplet index computation."""
 
 import torch
 from torch_geometric.typing import SparseTensor
 
 
-def _ragged_range(sizes: torch.Tensor) -> torch.Tensor:
-    """
-    Multiple concatenated ranges.
+def _edge_keys(edge_index: torch.Tensor, edge_vec: torch.Tensor, decimals: int) -> list[tuple[int, int, int, int, int]]:
+    """Return quantized per-edge keys for reverse-edge matching.
 
-    Example: ``sizes = [1, 4, 2, 3]`` -> ``[0, 0,1,2,3, 0,1, 0,1,2]``.
+    Args:
+        edge_index: ``(2, E)`` int64 source/destination indices.
+        edge_vec: ``(E, 3)`` float displacement vectors.
+        decimals: Number of decimal places used before integer quantization.
+
+    Returns:
+        List of per-edge keys ``(src, dst, qx, qy, qz)``.
+    """
+    src = edge_index[0].tolist()
+    dst = edge_index[1].tolist()
+    v_r = _round_vec(edge_vec, decimals).tolist()
+    return [(src_i, dst_i, vec_i[0], vec_i[1], vec_i[2]) for src_i, dst_i, vec_i in zip(src, dst, v_r, strict=True)]
+
+
+def _reverse_key(key: tuple[int, int, int, int, int]) -> tuple[int, int, int, int, int]:
+    """Return the reverse-edge key corresponding to ``key``.
+
+    Args:
+        key: Quantized edge key ``(src, dst, qx, qy, qz)``.
+
+    Returns:
+        Reverse-edge key ``(dst, src, -qx, -qy, -qz)``.
+    """
+    src, dst, qx, qy, qz = key
+    return dst, src, -qx, -qy, -qz
+
+
+def _ragged_range(sizes: torch.Tensor) -> torch.Tensor:
+    """Return concatenated ranges ``[0, 1, ..., s_i - 1]`` for each size ``s_i``.
+
+    Example:
+        ``sizes = [1, 4, 2, 3]`` -> ``[0, 0, 1, 2, 3, 0, 1, 0, 1, 2]``
+
+    Args:
+        sizes: ``(N,)`` tensor of non-negative range lengths.
+
+    Returns:
+        ``(sum(sizes),)`` ragged-range tensor.
     """
     assert sizes.dim() == 1
     if int(sizes.sum().item()) == 0:
@@ -41,46 +78,81 @@ def _ragged_range(sizes: torch.Tensor) -> torch.Tensor:
 
 
 def _round_vec(vec: torch.Tensor, decimals: int = 3) -> torch.Tensor:
-    """
-    Round displacement vectors to tolerate tiny numerical differences.
+    """Round displacement vectors to integer-quantised values for key comparison.
+
+    Args:
+        vec: ``(E, 3)`` float displacement vectors.
+        decimals: Number of decimal places to round to before quantising.
+
+    Returns:
+        ``(E, 3)`` int64 tensor.
     """
     scale = 10**decimals
     return (vec * scale).round().to(torch.int64)
 
 
 def compute_id_swap(edge_index: torch.Tensor, edge_vec: torch.Tensor, decimals: int = 3) -> torch.Tensor:
-    """
-    For each directed edge ``e = (c -> a)`` with vector ``v``, return the index of its counter-edge
-    ``(a -> c)`` with vector ``-v``. Works for molecular and periodic graphs provided the graph is
-    already symmetrised (every forward edge has a reverse partner, possibly at the same image).
+    """For each directed edge ``(c -> a, v)`` return the index of its counter-edge ``(a -> c, -v)``.
 
-    Raises
-    ------
-    ValueError
-        If no matching counter-edge is found for some edge.
+    Works for molecular and periodic graphs provided the graph is already
+    symmetrised (every forward edge has a reverse partner, possibly at the
+    same image).
+
+    Args:
+        edge_index: ``(2, E)`` int64 -- source/destination node indices.
+        edge_vec: ``(E, 3)`` float -- displacement vectors.
+        decimals: Decimal places used when quantising vectors for matching.
+
+    Returns:
+        ``(E,)`` int64 -- for each edge ``i``, the index of its reverse edge.
+
+    Raises:
+        ValueError: If no matching counter-edge is found for any edge.
     """
     e = edge_index.size(1)
     if e == 0:
         return edge_index.new_empty(0, dtype=torch.int64)
 
-    src = edge_index[0].tolist()
-    dst = edge_index[1].tolist()
-    v_r = _round_vec(edge_vec, decimals).tolist()
-
-    fwd: dict[tuple, int] = {}
-    for i in range(e):
-        key = (src[i], dst[i], v_r[i][0], v_r[i][1], v_r[i][2])
-        fwd[key] = i
+    keys = _edge_keys(edge_index, edge_vec, decimals)
+    buckets: dict[tuple[int, int, int, int, int], list[int]] = {}
+    for i, key in enumerate(keys):
+        buckets.setdefault(key, []).append(i)
 
     id_swap = torch.empty(e, dtype=torch.int64, device=edge_index.device)
-    for i in range(e):
-        rev_key = (dst[i], src[i], -v_r[i][0], -v_r[i][1], -v_r[i][2])
-        j = fwd.get(rev_key)
-        if j is None:
+    processed: set[tuple[int, int, int, int, int]] = set()
+    for key, idxs in buckets.items():
+        if key in processed:
+            continue
+
+        rev_key = _reverse_key(key)
+        rev_idxs = buckets.get(rev_key)
+        if rev_idxs is None:
+            i = idxs[0]
+            src_i, dst_i, *_ = key
             raise ValueError(
-                f"Edge {i} (src={src[i]}, dst={dst[i]}) has no matching counter-edge; graph is not symmetric."
+                f"Edge {i} (src={src_i}, dst={dst_i}) has no matching counter-edge; graph is not symmetric."
             )
-        id_swap[i] = j
+
+        if key == rev_key:
+            for i in idxs:
+                id_swap[i] = i
+            processed.add(key)
+            continue
+
+        if len(idxs) != len(rev_idxs):
+            src_i, dst_i, *_ = key
+            raise ValueError(
+                "Edge multiplicities do not match between forward and reverse directions "
+                f"for (src={src_i}, dst={dst_i})."
+            )
+
+        for i, j in zip(idxs, rev_idxs, strict=True):
+            id_swap[i] = j
+            id_swap[j] = i
+
+        processed.add(key)
+        processed.add(rev_key)
+
     return id_swap
 
 
@@ -88,22 +160,26 @@ def compute_triplets(
     edge_index: torch.Tensor,
     num_nodes: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Compute GemNet triplet indices ``c -> a <- b`` where both edges target the same atom ``a``.
+    """Compute GemNet triplet indices ``c -> a <- b`` sharing target atom ``a``.
 
-    Returns
-    -------
-    id3_reduce_ca: (T,) int64 edge indices, giving the ``c -> a`` edge of each
-        triplet. Sorted ascending so ``Kidx3`` is well-defined.
-    id3_expand_ba: (T,) int64 edge indices, giving the ``b -> a`` edge of each
-        triplet.
-    Kidx3: (T,) ragged inner index within each ``id3_reduce_ca`` group
-        (``[0, 1, ..., K_i - 1]``).
+    Args:
+        edge_index: ``(2, E)`` int64 -- directed edge list.
+        num_nodes: Total number of nodes in the graph.
 
-    Notes
-    -----
-    Self-loop triplets where ``e == e'`` (the same directed edge used as both legs) are removed.
-    Two edges with the same atom indices but different periodic images give a valid triplet (they have different edge ids).
+    Returns:
+        A 3-tuple ``(id3_reduce_ca, id3_expand_ba, Kidx3)``:
+
+        - ``id3_reduce_ca``: ``(T,)`` int64 -- edge indices of the ``c -> a``
+          leg, sorted ascending so ``Kidx3`` is well-defined.
+        - ``id3_expand_ba``: ``(T,)`` int64 -- edge indices of the ``b -> a``
+          leg.
+        - ``Kidx3``: ``(T,)`` int64 -- ragged inner index within each
+          ``id3_reduce_ca`` group (``[0, 1, ..., K_i - 1]``).
+
+    Note:
+        Self-loop triplets where the same directed edge serves as both legs
+        are removed. Two edges with the same atom indices but different
+        periodic images yield valid, distinct triplets.
     """
     n_edges = edge_index.size(1)
     if n_edges == 0:
@@ -156,30 +232,40 @@ def compute_quadruplets(
     num_nodes: int,
     eps: float = 1e-4,
 ) -> dict[str, torch.Tensor]:
-    """
-    Compute GemNet-Q / GemNet-OC quadruplet indices for quadruplets
-    ``c -> a - b <- d`` where
+    """Compute GemNet-Q / GemNet-OC quadruplet indices.
+
+    Quadruplets have the form ``c -> a - b <- d`` where:
 
     - ``(c -> a)`` and ``(d -> b)`` are edges of the **main** graph (embedding
       cutoff), and
     - ``(b -> a)`` is an edge of the **interaction** graph (``int_cutoff``,
       typically larger).
 
-    Degenerate quadruplets (``c == b``, ``a == d``, ``c == d`` in the same periodic image) are filtered using the path-vector test:
+    Degenerate quadruplets (``c == b``, ``a == d``, ``c == d`` at the same
+    periodic image) are filtered using path-vector tests:
 
-        vec_cb = vec_ca - vec_ba       (pos_b - pos_c)
-        vec_ad = -(vec_ba + vec_db)    (pos_d - pos_a)
-        vec_cd = vec_ca - vec_ba - vec_db  (pos_d - pos_c)
+    - ``vec_cb = vec_ca - vec_ba``  (pos_b - pos_c)
+    - ``vec_ad = -(vec_ba + vec_db)``  (pos_d - pos_a)
+    - ``vec_cd = vec_ca - vec_ba - vec_db``  (pos_d - pos_c)
 
-    For each identity test we also require the atom indices match; otherwise a near-zero vector
-    from two genuinely different atoms would incorrectly be filtered.
+    For each identity test, the atom indices must also match; otherwise a
+    near-zero vector from two genuinely different atoms would be incorrectly
+    filtered.
 
-    Returns
-    -------
-    dict with the standard GemNet index tensors
-    ``{id4_reduce_ca, id4_expand_db, id4_reduce_cab, id4_expand_abd,
-       id4_reduce_intm_ca, id4_expand_intm_db, id4_reduce_intm_ab,
-       id4_expand_intm_ab, Kidx4}``.
+    Args:
+        edge_index: ``(2, E)`` int64 -- main-graph directed edges.
+        edge_vec: ``(E, 3)`` float -- main-graph displacement vectors.
+        int_edge_index: ``(2, E_int)`` int64 -- interaction-graph edges.
+        int_edge_vec: ``(E_int, 3)`` float -- interaction displacement vectors.
+        num_nodes: Total number of nodes.
+        eps: Distance threshold below which two positions are considered
+            identical (used for degeneracy filtering).
+
+    Returns:
+        Dictionary with the standard GemNet index tensors:
+        ``id4_reduce_ca``, ``id4_expand_db``, ``id4_reduce_cab``,
+        ``id4_expand_abd``, ``id4_reduce_intm_ca``, ``id4_expand_intm_db``,
+        ``id4_reduce_intm_ab``, ``id4_expand_intm_ab``, ``Kidx4``.
     """
     device = edge_index.device
     n_edges = edge_index.size(1)
@@ -339,27 +425,31 @@ def compute_mixed_triplets(
     to_outedge: bool,
     eps: float = 1e-4,
 ) -> dict[str, torch.Tensor]:
-    """
-    Mixed triplet indices used by GemNet-OC's atom-edge and edge-atom
-    interactions. For each "output" edge ``(c -> a)`` in ``main_edge_index``,
-    enumerate all "input" edges in ``other_edge_index`` that connect to the
-    same atom (either ``a`` or ``c``, depending on ``to_outedge``).
+    """Compute mixed-triplet indices for GemNet-OC atom-edge / edge-atom interactions.
 
-    Parameters
-    ----------
-    to_outedge:
-        If False (the "ingoing" case, used for atom-edge / edge-atom in OC),
-        match input edges to the target atom ``a`` of the output edge.
-        If True (the GemNet-OC quad "triplet_in" case), match input edges to
-        the source atom ``c`` of the output edge.
+    For each "output" edge ``(c -> a)`` in ``main_edge_index``, enumerates all
+    "input" edges in ``other_edge_index`` that connect to the same atom (either
+    ``a`` or ``c``, depending on ``to_outedge``).
 
-    Returns
-    -------
-    dict with ``in`` (input edge ids), ``out`` (output edge ids),
-    ``out_agg`` (ragged inner index enumerating inputs per output).
+    Degenerate self-loop mixed triplets are removed via path-vector tests
+    (same atom AND path vector near zero implies same periodic image).
 
-    Degenerate self-loop mixed triplets are removed using the path-vector
-    test (same atom AND path vector ~ 0 implies same periodic image).
+    Args:
+        main_edge_index: ``(2, E_out)`` int64 -- output directed edge list.
+        main_edge_vec: ``(E_out, 3)`` float -- output displacement vectors.
+        other_edge_index: ``(2, E_in)`` int64 -- input directed edge list.
+        other_edge_vec: ``(E_in, 3)`` float -- input displacement vectors.
+        num_nodes: Total number of nodes.
+        to_outedge: If ``False`` (atom-edge / edge-atom case), match input
+            edges to the target atom ``a`` of each output edge. If ``True``
+            (GemNet-OC ``triplet_in`` case), match input edges to the source
+            atom ``c`` of each output edge.
+        eps: Distance threshold for degeneracy filtering.
+
+    Returns:
+        Dictionary with keys ``in_`` (input edge ids), ``out`` (output edge
+        ids), and ``out_agg`` (ragged inner index enumerating inputs per
+        output edge).
     """
     device = main_edge_index.device
     n_out = main_edge_index.size(1)

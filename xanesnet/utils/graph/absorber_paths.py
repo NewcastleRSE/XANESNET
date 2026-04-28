@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Absorber-centred 3-body path enumeration for XANESNET graph inputs."""
 
 import numpy as np
 import torch
@@ -24,12 +25,22 @@ def _absorber_neighbors(
     absorber_idx: int,
     cutoff: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Return (neighbor_indices, neighbor_coords) of the absorber within cutoff.
+    """Return the neighbors of the absorber site within ``cutoff``.
 
-    For periodic Structures, uses pymatgen's PBC-aware neighbor search so that
-    neighbor_coords refer to the correct periodic image positions. For
-    molecules, uses Cartesian distances directly.
+    For periodic ``Structure`` objects, uses pymatgen's PBC-aware neighbor
+    search so that ``neighbor_coords`` are the Cartesian coordinates of the
+    correct periodic images. For ``Molecule`` objects, uses plain Euclidean
+    distances.
+
+    Args:
+        pmg_obj: The periodic structure or molecule.
+        absorber_idx: Index of the absorbing atom in ``pmg_obj``.
+        cutoff: Maximum neighbor distance in **angstroms**.
+
+    Returns:
+        A tuple ``(neighbor_indices, neighbor_coords)`` where
+        ``neighbor_indices`` is ``(N,)`` int64 and ``neighbor_coords`` is
+        ``(N, 3)`` float64.
     """
     abs_coord = np.array(pmg_obj.cart_coords[absorber_idx], dtype=np.float64)
 
@@ -59,23 +70,30 @@ def build_absorber_paths(
     cutoff: float,
     max_paths: int,
 ) -> dict[str, torch.Tensor]:
-    """
-    Enumerate absorber-centred 3-body paths (absorber, j, k) with j, k within
-    cutoff of the absorber. For periodic structures, j and k may be periodic
-    images whose scalar geometry is computed from their image Cartesian
-    coordinates (minimum-image distances are implicit in pymatgen's neighbor
-    search).
+    """Enumerate absorber-centred 3-body paths ``(absorber, j, k)``.
 
-    Paths are ordered by ascending (r0j + r0k + 0.5 * rjk) and truncated to
-    ``max_paths`` per structure.
+    Both ``j`` and ``k`` must be within ``cutoff`` of the absorber. For
+    periodic structures, ``j`` and ``k`` may be periodic images; their scalar
+    geometry is computed from pymatgen image Cartesian coordinates. Paths are
+    ordered by ascending ``r0j + r0k + 0.5 * rjk`` (a proxy for path
+    significance) and truncated to ``max_paths`` per structure.
 
-    Returns a dict of tensors:
-        path_j        [P] int64   absorber-local atom index of j
-        path_k        [P] int64   absorber-local atom index of k
-        path_r0j      [P] float32 absorber-j distance
-        path_r0k      [P] float32 absorber-k distance
-        path_rjk      [P] float32 j-k distance
-        path_cosangle [P] float32 cos(angle at the absorber)
+    Args:
+        pmg_obj: The periodic structure or molecule.
+        absorber_idx: Index of the absorbing atom in ``pmg_obj``.
+        cutoff: Neighbor cutoff radius in **angstroms**.
+        max_paths: Maximum number of paths to return.
+
+    Returns:
+        Dictionary with the following ``torch.Tensor`` entries (all ``(P,)``):
+
+                - ``path_j``: int64 -- structure-global atom index of ``j``.
+                - ``path_k``: int64 -- structure-global atom index of ``k``.
+        - ``path_r0j``: float32 -- absorber-j distance in **angstroms**.
+        - ``path_r0k``: float32 -- absorber-k distance in **angstroms**.
+        - ``path_rjk``: float32 -- j-k distance in **angstroms**.
+        - ``path_cosangle``: float32 -- cosine of the angle at the absorber
+          (range ``[-1, 1]``).
     """
     neigh_idx, neigh_coords = _absorber_neighbors(pmg_obj, absorber_idx, cutoff)
     abs_coord = np.array(pmg_obj.cart_coords[absorber_idx], dtype=np.float64)
