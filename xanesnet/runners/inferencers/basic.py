@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Concrete ``BasicInferencer`` implementation for XANESNET."""
 
 import time
 
@@ -28,6 +29,12 @@ from .registry import InferencerRegistry
 
 @InferencerRegistry.register("basic")
 class BasicInferencer(Inferencer):
+    """Basic single-process inferencer.
+
+    Runs model inference over a dataset and optionally writes predictions to
+    an HDF5 file. See :class:`Inferencer` for full parameter documentation.
+    """
+
     def __init__(
         self,
         dataset: Dataset,
@@ -53,8 +60,11 @@ class BasicInferencer(Inferencer):
         )
 
     def _infer_one_epoch(self, writer: PredictionWriter | None) -> None:
-        """
-        Runs a single inference epoch.
+        """Run one inference epoch over the data loader.
+
+        Args:
+            writer: Prediction writer to accumulate results, or ``None`` to
+                discard predictions.
         """
         self.model.eval()
 
@@ -83,11 +93,11 @@ class BasicInferencer(Inferencer):
 
             # Two timing fields, both broadcast to ``[n_absorbers]`` so they
             # follow the writer's per-absorber leading-dim contract:
-            #   * ``forward_time``       – amortized per-absorber cost: the
+            #   * ``forward_time``      -- amortized per-absorber cost: the
             #     wall-clock duration of this forward pass divided by the
             #     number of absorbers with ground truth produced by it.
             #     Useful as the time budget attributable to a single spectrum.
-            #   * ``forward_time_pass``  – raw wall-clock duration of the
+            #   * ``forward_time_pass`` -- raw wall-clock duration of the
             #     forward pass, repeated for every absorber it produced.
             #     Independent of batch size / multi-absorber count.
             # ``predictions`` after ``prediction_preparation`` already contains

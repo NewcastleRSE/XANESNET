@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Abstract base class for all XANESNET inferencers."""
 
 import logging
 from abc import abstractmethod
@@ -28,6 +29,19 @@ from ..base import Runner
 
 
 class Inferencer(Runner):
+    """Abstract base class for all XANESNET inferencers.
+
+    Args:
+        dataset: Dataset to run inference on.
+        model: Model to evaluate.
+        device: Device identifier or :class:`torch.device` instance.
+        batch_size: Number of samples per inference batch.
+        shuffle: Whether to shuffle the data (typically ``False`` for inference).
+        drop_last: Whether to drop the last incomplete batch.
+        num_workers: Number of data-loader worker processes.
+        inferencer_type: Identifier string for the concrete inferencer type.
+    """
+
     def __init__(
         self,
         dataset: Dataset,
@@ -50,8 +64,11 @@ class Inferencer(Runner):
         self.dataloader = self._setup_dataloader()
 
     def infer(self, predictions_save_path: str | Path | None = None) -> None:
-        """
-        Core inference (1 epoch).
+        """Run one full inference pass over the dataset.
+
+        Args:
+            predictions_save_path: Path to write predictions to (HDF5 format).
+                Pass ``None`` to run inference without saving results.
         """
         self.model.to(self.device)
 
@@ -61,16 +78,21 @@ class Inferencer(Runner):
 
         logging.info("Start inference.")
 
-        # Run inference
-        self._infer_one_epoch(writer)
+        try:
+            # Run inference
+            self._infer_one_epoch(writer)
+        finally:
+            if writer is not None:
+                writer.close()
 
         logging.info("Finished inference.")
 
-        writer.close() if writer is not None else None
-
     @abstractmethod
     def _infer_one_epoch(self, writer: PredictionWriter | None) -> None:
-        """
-        Runs a single inference epoch.
+        """Run one inference epoch over the data loader.
+
+        Args:
+            writer: Prediction writer to accumulate results, or ``None`` to
+                discard predictions.
         """
         ...

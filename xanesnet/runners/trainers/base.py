@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Abstract base class for all XANESNET trainers."""
 
 import logging
 from abc import abstractmethod
@@ -34,6 +35,32 @@ from ..base import Runner
 
 
 class Trainer(Runner):
+    """Abstract base class for all XANESNET trainers.
+
+    Args:
+        dataset: Dataset to train on. Must provide ``train_subset``; ``valid_subset`` is optional.
+        model: Model to train.
+        device: Device identifier or :class:`torch.device` instance.
+        checkpointer: Checkpoint manager for saving model states.
+        batch_size: Number of samples per training batch.
+        shuffle: Whether to shuffle training data each epoch.
+        drop_last: Whether to drop the last incomplete training batch.
+        num_workers: Number of data-loader worker processes.
+        loss: Configuration for the loss function.
+        regularizer: Configuration for the regularizer.
+        trainer_type: Identifier string for the concrete trainer type.
+        epochs: Total number of training epochs.
+        learning_rate: Initial learning rate.
+        optimizer: Optimizer name (looked up via :class:`OptimizerRegistry`).
+        max_norm: Maximum gradient norm for clipping, or ``None`` to disable.
+        lr_scheduler: Configuration for the per-epoch learning-rate scheduler.
+        early_stopper: Configuration for the early-stopping criterion.
+        validation_interval: Run validation every this many epochs when a
+            validation subset is present.
+        lr_warmup: Whether to apply a per-step linear warm-up phase.
+        warmup_steps: Number of warm-up steps when ``lr_warmup=True``.
+    """
+
     def __init__(
         self,
         dataset: Dataset,
@@ -90,6 +117,14 @@ class Trainer(Runner):
         self.regularizer = self._setup_regularizer()
 
     def _setup_loss(self) -> Loss:
+        """Instantiate the loss function from configuration.
+
+        Returns:
+            A configured :class:`Loss` instance.
+
+        Raises:
+            ValueError: If the loss configuration is not provided.
+        """
         loss_config = self.loss_config
         if loss_config is None:
             raise ValueError("Loss config is required but was not provided.")
@@ -100,6 +135,14 @@ class Trainer(Runner):
         return loss
 
     def _setup_regularizer(self) -> Regularizer:
+        """Instantiate the regularizer from configuration.
+
+        Returns:
+            A configured :class:`Regularizer` instance.
+
+        Raises:
+            ValueError: If the regularizer configuration is not provided.
+        """
         regularizer_config = self.regularizer_config
         if regularizer_config is None:
             raise ValueError("Regularizer config is required but was not provided.")
@@ -110,8 +153,17 @@ class Trainer(Runner):
         return regularizer
 
     def train(self) -> float | None:
-        """
-        Core training loop.
+        """Run the full training loop.
+
+        Logs metrics to the Python logging system and TensorBoard at each epoch.
+        Applies early stopping, learning-rate scheduling, and checkpointing.
+
+        Returns:
+            Final score used for model selection: the best validation total
+            (when ``early_stopper.restore_best=True``), the last validation
+            total (when a validation set is present), or the last training
+            total otherwise. Returns ``None`` if training did not complete a
+            single epoch.
         """
         self.model.to(self.device)
 
@@ -211,19 +263,31 @@ class Trainer(Runner):
 
     @abstractmethod
     def _train_one_epoch(self) -> tuple[float, float, float]:
-        """
-        Runs a single training epoch.
+        """Run one training epoch.
+
+        Returns:
+            Tuple of ``(mean_loss, mean_regularization, mean_total)`` for the epoch.
         """
         ...
 
     @abstractmethod
     def _validate_one_epoch(self) -> tuple[float, float, float]:
-        """
-        Runs a single validation epoch.
+        """Run one validation epoch.
+
+        Returns:
+            Tuple of ``(mean_loss, mean_regularization, mean_total)`` for the epoch.
         """
         ...
 
     def _setup_train_dataloader(self) -> Any:
+        """Build a data loader over the training subset.
+
+        Returns:
+            A configured data-loader instance.
+
+        Raises:
+            ValueError: If the dataset provides no training subset.
+        """
         if self.dataset.train_subset is None:
             raise ValueError("Training subset is required but was not provided.")
 
@@ -244,8 +308,14 @@ class Trainer(Runner):
         return dataloader
 
     def _setup_valid_dataloader(self) -> Any | None:
+        """Build a data loader over the validation subset.
+
+        Returns:
+            A configured data-loader instance, or ``None`` when the dataset
+            provides no validation subset.
+        """
         if self.dataset.valid_subset is None:
-            raise ValueError("Validation subset is required but was not provided.")
+            return None
 
         dataloader_cls = self.dataset.get_dataloader()
 
@@ -264,21 +334,27 @@ class Trainer(Runner):
         return dataloader
 
     def _setup_optimizer(self) -> torch.optim.Optimizer:
+        """Instantiate the optimizer for the model parameters.
+
+        Returns:
+            A configured :class:`torch.optim.Optimizer` instance.
+        """
         optimizer_cls = OptimizerRegistry.get(self.optimizer_type)
         optimizer = optimizer_cls(self.model.parameters(), lr=self.learning_rate)  # type: ignore
 
         return optimizer
 
     def _setup_epoch_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
-        """
-        Build the main per-epoch learning-rate scheduler.
+        """Build the main per-epoch learning-rate scheduler.
+
+        Returns:
+            A configured :class:`torch.optim.lr_scheduler.LRScheduler` instance.
         """
         lr_scheduler_type = self.lr_scheduler_config.get_str("lr_scheduler_type")
 
-        # We have to remove 'lr_scheduler_type'!
+        # Remove 'lr_scheduler_type' before passing kwargs to the scheduler constructor.
         lr_scheduler_kwargs = self.lr_scheduler_config.as_kwargs()
-        key_to_remove = "lr_scheduler_type"
-        config_wo_type = {k: v for k, v in lr_scheduler_kwargs.items() if k != key_to_remove}
+        config_wo_type = {k: v for k, v in lr_scheduler_kwargs.items() if k != "lr_scheduler_type"}
 
         lr_scheduler_cls = LRSchedulerRegistry.get(lr_scheduler_type)
         lr_scheduler = lr_scheduler_cls(self.optimizer, **config_wo_type)
@@ -286,8 +362,11 @@ class Trainer(Runner):
         return lr_scheduler
 
     def _setup_warmup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler | None:
-        """
-        Build the per-step warmup scheduler (or ``None`` if disabled).
+        """Build the per-step linear warm-up scheduler.
+
+        Returns:
+            A :class:`torch.optim.lr_scheduler.LinearLR` instance when
+            ``lr_warmup=True`` and ``warmup_steps > 0``, otherwise ``None``.
         """
         if not self.lr_warmup or self.warmup_steps <= 0:
             return None
@@ -300,10 +379,10 @@ class Trainer(Runner):
         )
 
     def step_warmup_scheduler(self) -> None:
-        """
-        Advance the per-step warmup scheduler by one optimizer step.
+        """Advance the per-step warm-up scheduler by one optimizer step.
 
-        Should be called by subclasses from inside the training batch loop, after ``optimizer.step()``.
+        Should be called by subclasses inside the training batch loop,
+        after ``optimizer.step()``. Has no effect once warm-up is complete.
         """
         if self.warmup_lr_scheduler is None or self._warmup_complete:
             return
@@ -314,6 +393,11 @@ class Trainer(Runner):
             self._warmup_complete = True
 
     def _setup_early_stopper(self) -> EarlyStopper:
+        """Instantiate the early stopper from configuration.
+
+        Returns:
+            A configured :class:`EarlyStopper` instance.
+        """
         early_stopper_type = self.early_stopper_config.get_str("early_stopper_type")
 
         early_stopper_cls = EarlyStopperRegistry.get(early_stopper_type)

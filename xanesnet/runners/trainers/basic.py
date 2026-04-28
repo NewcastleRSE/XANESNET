@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Concrete ``BasicTrainer`` implementation for XANESNET."""
 
 import torch
 
@@ -27,6 +28,13 @@ from .registry import TrainerRegistry
 
 @TrainerRegistry.register("basic")
 class BasicTrainer(Trainer):
+    """Basic single-process trainer.
+
+    Trains the model for a fixed number of epochs using the configuration
+    supplied via the parent :class:`Trainer`. See :class:`Trainer` for full
+    parameter documentation.
+    """
+
     def __init__(
         self,
         dataset: Dataset,
@@ -76,8 +84,11 @@ class BasicTrainer(Trainer):
         )
 
     def _train_one_epoch(self) -> tuple[float, float, float]:
-        """
-        Runs a single training epoch.
+        """Run one training epoch.
+
+        Returns:
+            Tuple of ``(mean_loss, mean_regularization, mean_total)`` averaged
+            over all batches in the training data loader.
         """
         self.model.train()
 
@@ -98,13 +109,9 @@ class BasicTrainer(Trainer):
             # Target
             targets = self.batchprocessor.target_preparation(batch)
 
-            # Criterion
+            # Loss and regularization
             loss = self.loss(predictions, targets)
-
-            # Regularization
             regularization = self.regularizer(self.model)
-
-            # Gradient computation
             total = loss + regularization
             total.backward()
             if self.max_norm is not None:
@@ -125,8 +132,11 @@ class BasicTrainer(Trainer):
         return epoch_loss, epoch_regularization, epoch_total
 
     def _validate_one_epoch(self) -> tuple[float, float, float]:
-        """
-        Runs a single validation epoch.
+        """Run one validation epoch (no gradient computation).
+
+        Returns:
+            Tuple of ``(mean_loss, mean_regularization, mean_total)`` averaged
+            over all batches in the validation data loader.
         """
         assert self.valid_dataloader is not None
 
@@ -148,13 +158,9 @@ class BasicTrainer(Trainer):
                 # Target
                 targets = self.batchprocessor.target_preparation(batch)
 
-                # Criterion
+                # Loss and regularization
                 loss = self.loss(predictions, targets)
-
-                # Regularization
                 regularization = self.regularizer(self.model)
-
-                # Total
                 total = loss + regularization
 
                 valid_loss += loss.item()
