@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Core analysis pipeline: setup, collection, aggregation, reporting, and plotting."""
 
 import json
 import logging
@@ -43,8 +44,16 @@ from xanesnet.serialization.prediction_readers import (
 
 
 def analyze(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
-    """
-    Main analysis entry point.
+    """Run the complete analysis pipeline.
+
+    Sets up readers, selectors, collectors, aggregators, reporters, and
+    plotters from ``config``; executes the pipeline; and writes all outputs
+    under ``save_dir``.
+
+    Args:
+        config: Validated analysis configuration.
+        args_namespace: Parsed CLI arguments (must contain ``predictions``).
+        save_dir: Root directory for all analysis outputs.
     """
     logging.info("Analysis.")
 
@@ -52,50 +61,50 @@ def analyze(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     logging.info(f"You provided {len(predictions_dirs)} predictions directories:")
 
     predictions_readers = _setup_predictions_readers(predictions_dirs)
-    selectors, selectors_config = _setup_selectors(config, predictions_readers)
-    collectors, collectors_config = _setup_collectors(config)
-    aggregators, aggregators_config = _setup_aggregators(config)
+    try:
+        selectors, selectors_config = _setup_selectors(config, predictions_readers)
+        collectors, collectors_config = _setup_collectors(config)
+        aggregators, aggregators_config = _setup_aggregators(config)
 
-    reporters, reporters_config = _setup_reporters(config)
-    plotters, plotters_config = _setup_plotters(config)
+        reporters, reporters_config = _setup_reporters(config)
+        plotters, plotters_config = _setup_plotters(config)
 
-    selectors_config.save(save_dir / "selectors.yaml")
-    collectors_config.save(save_dir / "collectors.yaml")
-    aggregators_config.save(save_dir / "aggregators.yaml")
-    reporters_config.save(save_dir / "reporters.yaml")
-    plotters_config.save(save_dir / "plotters.yaml")
+        selectors_config.save(save_dir / "selectors.yaml")
+        collectors_config.save(save_dir / "collectors.yaml")
+        aggregators_config.save(save_dir / "aggregators.yaml")
+        reporters_config.save(save_dir / "reporters.yaml")
+        plotters_config.save(save_dir / "plotters.yaml")
 
-    # Run collectors
-    logging.info("Running collectors.")
-    collector_results = _run_collectors(collectors, selectors, save_dir)
+        # Run collectors
+        logging.info("Running collectors.")
+        collector_results = _run_collectors(collectors, selectors, save_dir)
 
-    # Run aggregators
-    logging.info("Running aggregators.")
-    aggregator_results = _run_aggregators(aggregators, selectors, collector_results)
+        # Run aggregators
+        logging.info("Running aggregators.")
+        aggregator_results = _run_aggregators(aggregators, selectors, collector_results)
 
-    results = AnalysisResults(
-        selectors=selectors,
-        collector_results=collector_results,
-        aggregator_results=aggregator_results,
-        selectors_config=[cfg.as_dict() for cfg in selectors_config.get_config_list("selectors")],
-        collectors_config=[cfg.as_dict() for cfg in collectors_config.get_config_list("collectors")],
-        aggregators_config=[cfg.as_dict() for cfg in aggregators_config.get_config_list("aggregators")],
-    )
+        results = AnalysisResults(
+            selectors=selectors,
+            collector_results=collector_results,
+            aggregator_results=aggregator_results,
+            selectors_config=[cfg.as_dict() for cfg in selectors_config.get_config_list("selectors")],
+            collectors_config=[cfg.as_dict() for cfg in collectors_config.get_config_list("collectors")],
+            aggregators_config=[cfg.as_dict() for cfg in aggregators_config.get_config_list("aggregators")],
+        )
 
-    # Run reporters
-    logging.info("Running reporters.")
-    _run_reporters(reporters, results, save_dir)
+        # Run reporters
+        logging.info("Running reporters.")
+        _run_reporters(reporters, results, save_dir)
 
-    # Run plotters
-    logging.info("Running plotters.")
-    _run_plotters(plotters, results, save_dir)
-
-    # Close readers
-    for predictions_reader in predictions_readers:
-        predictions_reader.close()
+        # Run plotters
+        logging.info("Running plotters.")
+        _run_plotters(plotters, results, save_dir)
+    finally:
+        for predictions_reader in predictions_readers:
+            predictions_reader.close()
 
     # Summary
-    logging.info(f"Analysis completed!")
+    logging.info("Analysis completed!")
 
 
 ###############################################################################
@@ -104,8 +113,15 @@ def analyze(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
 
 def _setup_predictions_readers(predictions_dirs: list[str] | list[Path]) -> list[PredictionReader]:
-    """
-    Setup the predictions readers from a list of directories.
+    """Create a prediction reader for each supplied directory.
+
+    Auto-detects the prediction format from the directory layout.
+
+    Args:
+        predictions_dirs: Paths to directories containing prediction files.
+
+    Returns:
+        One ``PredictionReader`` per directory.
     """
     readers: list[PredictionReader] = []
     for predictions_dir in predictions_dirs:
@@ -120,9 +136,19 @@ def _setup_predictions_readers(predictions_dirs: list[str] | list[Path]) -> list
 def _setup_selectors(
     config: Config, predictions_readers: list[PredictionReader]
 ) -> tuple[list[list[Selector]], Config]:
-    """
-    Setup selectors for each predictions reader based on the configuration.
-    Return a list of lists of selectors (one list per predictions reader) and their corresponding configs.
+    """Instantiate selectors for every prediction reader.
+
+    If no selectors are specified in ``config``, an ``'all'`` selector is
+    created for each reader. Otherwise one selector per configured type is
+    instantiated per reader.
+
+    Args:
+        config: Validated analysis configuration.
+        predictions_readers: Readers to attach selectors to.
+
+    Returns:
+        A ``(selectors, selectors_config)`` tuple where ``selectors`` is a
+        list of per-reader selector lists.
     """
     selectors_config = config.get_config_list("selectors")
 
@@ -152,8 +178,13 @@ def _setup_selectors(
 
 
 def _setup_collectors(config: Config) -> tuple[list[Collector], Config]:
-    """
-    Setup collectors based on the configuration.
+    """Instantiate collectors from the configuration.
+
+    Args:
+        config: Validated analysis configuration.
+
+    Returns:
+        A ``(collectors, collectors_config)`` tuple.
     """
     collectors_config = config.get_config_list("collectors")
     assert isinstance(collectors_config, list)
@@ -174,8 +205,13 @@ def _setup_collectors(config: Config) -> tuple[list[Collector], Config]:
 
 
 def _setup_aggregators(config: Config) -> tuple[list[Aggregator], Config]:
-    """
-    Setup aggregators based on the configuration.
+    """Instantiate aggregators from the configuration.
+
+    Args:
+        config: Validated analysis configuration.
+
+    Returns:
+        A ``(aggregators, aggregators_config)`` tuple.
     """
     aggregators_config = config.get_config_list("aggregators")
 
@@ -195,8 +231,13 @@ def _setup_aggregators(config: Config) -> tuple[list[Aggregator], Config]:
 
 
 def _setup_reporters(config: Config) -> tuple[list[Reporter], Config]:
-    """
-    Setup reporters based on the configuration.
+    """Instantiate reporters from the configuration.
+
+    Args:
+        config: Validated analysis configuration.
+
+    Returns:
+        A ``(reporters, reporters_config)`` tuple.
     """
     reporters_config = config.get_config_list("reporters")
 
@@ -216,8 +257,13 @@ def _setup_reporters(config: Config) -> tuple[list[Reporter], Config]:
 
 
 def _setup_plotters(config: Config) -> tuple[list[Plotter], Config]:
-    """
-    Setup plotters based on the configuration.
+    """Instantiate plotters from the configuration.
+
+    Args:
+        config: Validated analysis configuration.
+
+    Returns:
+        A ``(plotters, plotters_config)`` tuple.
     """
     plotters_config = config.get_config_list("plotters")
 
@@ -244,9 +290,19 @@ def _setup_plotters(config: Config) -> tuple[list[Plotter], Config]:
 def _run_collectors(
     collectors: list[Collector], selectors: list[list[Selector]], save_dir: Path
 ) -> list[list[JSONLStream]]:
-    """
-    Run collectors on the selected samples and save results to disk.
-    Return a list of lists of JSONLStream objects containing the collector results for each selector and predictions reader.
+    """Execute all collectors for each selector and persist results to disk.
+
+    Results are written as JSONL files under ``<save_dir>/aux/``. Each sample
+    record contains a ``"sample_id"`` key plus one entry per collector output key.
+
+    Args:
+        collectors: Collector instances to run on each sample.
+        selectors: Per-reader lists of selectors providing sample iterators.
+        save_dir: Root output directory; JSONL files are written under
+            ``aux/predictions_<NNN>/<selector_idx>.jsonl``.
+
+    Returns:
+        Results indexed by ``[predictions_idx][selector_idx]``.
     """
     if not collectors:
         return []
@@ -301,8 +357,16 @@ def _run_collectors(
 def _run_aggregators(
     aggregators: list[Aggregator], selectors: list[list[Selector]], collector_results: list[list[JSONLStream]]
 ) -> list[list[list[AggregatorResult]]]:
-    """
-    Run aggregators on the selected samples and collector results.
+    """Run all aggregators over the per-sample collector results.
+
+    Args:
+        aggregators: Aggregator instances to apply.
+        selectors: Per-reader lists of selectors (used for loop indexing).
+        collector_results: Output of ``_run_collectors``, indexed by
+            ``[predictions_idx][selector_idx]``.
+
+    Returns:
+        Results indexed by ``[predictions_idx][selector_idx][aggregator_idx]``.
     """
     if not aggregators:
         return []
@@ -332,8 +396,13 @@ def _run_aggregators(
 
 
 def _run_reporters(reporters: list[Reporter], results: AnalysisResults, save_dir: Path) -> None:
-    """
-    Run all configured reporters.
+    """Write reports for all configured reporters.
+
+    Args:
+        reporters: Reporter instances to execute.
+        results: Collected and aggregated analysis results.
+        save_dir: Root output directory; reports are written under
+            ``<save_dir>/reports/``.
     """
     if not reporters:
         return
@@ -346,8 +415,13 @@ def _run_reporters(reporters: list[Reporter], results: AnalysisResults, save_dir
 
 
 def _run_plotters(plotters: list[Plotter], results: AnalysisResults, save_dir: Path) -> None:
-    """
-    Run all configured plotters.
+    """Generate plots for all configured plotters.
+
+    Args:
+        plotters: Plotter instances to execute.
+        results: Collected and aggregated analysis results.
+        save_dir: Root output directory; plots are written under
+            ``<save_dir>/plots/``.
     """
     if not plotters:
         return

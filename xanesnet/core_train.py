@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Core training pipeline: dataset setup, strategy initialisation, and model training."""
 
 import logging
 import time
@@ -39,10 +40,17 @@ from xanesnet.strategies import Strategy, StrategyRegistry
 
 
 def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
+    """Run the complete training pipeline.
+
+    Builds the data source, dataset, and strategy from ``config``; runs
+    training; and writes models, checkpoints, and metadata under ``save_dir``.
+
+    Args:
+        config: Validated training configuration.
+        args_namespace: Parsed CLI arguments (must contain ``tensorboard``).
+        save_dir: Root directory for all training outputs.
     """
-    Main training entry
-    """
-    logging.info(f"Training.")
+    logging.info("Training.")
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
@@ -74,7 +82,10 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     # Display model summary and training duration
     logging.info(f"Number of trained models: {len(model_list)}")
     logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
-    _summary_models(model_list, dataset)
+    try:
+        _summary_models(model_list, dataset)
+    except Exception as exc:
+        logging.warning(f"Model summary failed and will be skipped: {exc}")
 
     # Save model(s)
     save_models(save_dir / "models", model_list)
@@ -90,8 +101,13 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
 
 def _setup_datasource(config: Config) -> DataSource:
-    """
-    Setup the data source from config
+    """Instantiate the data source from config.
+
+    Args:
+        config: Validated configuration containing a ``datasource`` section.
+
+    Returns:
+        Initialised data source.
     """
     datasource_config = config.section("datasource")
     datasource_type = datasource_config.get_str("datasource_type")
@@ -102,8 +118,14 @@ def _setup_datasource(config: Config) -> DataSource:
 
 
 def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
-    """
-    Process the dataset using input configuration or load an existing one from disk
+    """Instantiate, prepare, and split the training dataset.
+
+    Args:
+        config: Validated configuration containing a ``dataset`` section.
+        datasource: Data source providing raw data.
+
+    Returns:
+        Dataset with splits set up, ready for training.
     """
     dataset_config = config.section("dataset")
     dataset_type = dataset_config.get_str("dataset_type")
@@ -121,8 +143,18 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
 
 
 def _setup_strategy(config: Config, dataset: Dataset, save_dir: Path, enable_tensorboard: bool) -> Strategy:
-    """
-    Initialises the training strategy.
+    """Instantiate the training strategy from config.
+
+    Args:
+        config: Validated configuration containing ``strategy``, ``model``,
+            and ``trainer`` sections.
+        dataset: Prepared and split dataset.
+        save_dir: Root run directory (used to derive checkpoint and
+            TensorBoard paths).
+        enable_tensorboard: Whether to enable TensorBoard logging.
+
+    Returns:
+        Configured strategy instance (models not yet initialised).
     """
     strategy_config = config.section("strategy")
     strategy_type = strategy_config.get_str("strategy_type")
@@ -149,8 +181,16 @@ def _setup_strategy(config: Config, dataset: Dataset, save_dir: Path, enable_ten
 
 
 def _run_training(strategy: Strategy) -> tuple[list[Model], float]:
-    """
-    Train using the selected training strategy.
+    """Execute training and return trained models with elapsed time.
+
+    Moves all models to CPU after training completes.
+
+    Args:
+        strategy: Fully initialised training strategy.
+
+    Returns:
+        A ``(model_list, train_time)`` tuple where ``train_time`` is elapsed
+        wall-clock time in seconds.
     """
     start_time = time.time()
 
@@ -171,6 +211,12 @@ def _run_training(strategy: Strategy) -> tuple[list[Model], float]:
 
 
 def _summary_models(model_list: list[Model], dataset: Dataset) -> None:
+    """Log a torchinfo summary for each trained model.
+
+    Args:
+        model_list: Trained model instances.
+        dataset: Dataset used during training (for batch input preparation).
+    """
     logging.info("Model Summary")
 
     for idx, model in enumerate(model_list):

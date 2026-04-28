@@ -1,20 +1,20 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
+"""Command-line interface dispatcher for XANESNET (train / infer / analyze)."""
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
-import argparse
 import sys
 
 from xanesnet.utils.exceptions import ConfigError
@@ -88,53 +88,48 @@ ANALYZE = r"""
 
 
 def main(args: list[str]) -> None:
+    """Dispatch to the train, infer, or analyze sub-command.
+
+    Prints the XANESNET logo and routes to the appropriate sub-command entry
+    point based on the first positional argument.
+
+    Args:
+        args: Raw command-line argument strings (typically ``sys.argv[1:]``).
+
+    Raises:
+        ConfigError: If an unrecognised sub-command is supplied.
+    """
     print(LOGO)
 
-    if len(args) == 0 or any(arg in ["-h", "--help"] for arg in args):
+    if len(args) == 0 or args[0] in ["-h", "--help"]:
         print(HELP)
         sys.exit(0)
 
-    parser = argparse.ArgumentParser(add_help=False)
-    sub = parser.add_subparsers(dest="command", required=True)
+    command = args[0]
+    remaining = args[1:]
 
-    sub.add_parser("train", add_help=False)
-    sub.add_parser("infer", add_help=False)
-    sub.add_parser("analyze", add_help=False)
-
-    try:
-        args_namespace, remaining = parser.parse_known_args(args)
-    except argparse.ArgumentError:
-        print("Invalid command. Use -h for help.")
-        sys.exit(1)
-
-    if args_namespace.command == "train":
-        # Dispatching to training mode
-
+    if command == "train":
         from xanesnet.train import main
 
         print(TRAIN)
 
         main(remaining)
 
-    elif args_namespace.command == "infer":
-        # Dispatching to inference mode
-
+    elif command == "infer":
         from xanesnet.infer import main
 
         print(INFER)
 
         main(remaining)
 
-    elif args_namespace.command == "analyze":
-        # Dispatching to analyze mode
-
+    elif command == "analyze":
         from xanesnet.analyze import main
 
         print(ANALYZE)
 
         main(remaining)
     else:
-        raise ConfigError(f"Incorrect mode: {args_namespace.command}.")
+        raise ConfigError(f"Incorrect mode: {command}.")
 
 
 if __name__ == "__main__":

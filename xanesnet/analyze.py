@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Entry point and argument parser for analysis runs."""
 
 import logging
 from argparse import ArgumentParser, Namespace
@@ -46,6 +47,14 @@ setup_logging(logging.INFO)
 
 
 def parse_args(args: list[str]) -> Namespace:
+    """Parse command-line arguments for the analysis entry point.
+
+    Args:
+        args: Raw command-line argument strings.
+
+    Returns:
+        Parsed argument namespace.
+    """
     parser = ArgumentParser()
     parser.add_argument(
         "-i",
@@ -59,7 +68,7 @@ def parse_args(args: list[str]) -> Namespace:
         "--predictions",
         type=str,
         required=True,
-        help="Path to directory containing predictions.Can be specified multiple times.",
+        help="Path to directory containing predictions. Can be specified multiple times.",
         action="append",
     )
     parser.add_argument(
@@ -85,6 +94,14 @@ def parse_args(args: list[str]) -> Namespace:
 
 
 def main(args: list[str]) -> None:
+    """Run the full analysis pipeline.
+
+    Parses arguments, loads configuration, sets up the run directory, and
+    delegates to the ``analyze`` core function.
+
+    Args:
+        args: Raw command-line argument strings.
+    """
     # Registry printing
     logging.debug("REGISTRY:")
     logging.debug(f"\tSelectors: {SelectorRegistry.list()}")
@@ -126,4 +143,4 @@ def main(args: list[str]) -> None:
     logging.info(f"Global seed: {seed}")
 
     # Branching into analyze mode
-    analyze(config, args_namespace, save_dir)  # Run analysis
+    analyze(config, args_namespace, save_dir)

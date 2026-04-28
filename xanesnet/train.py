@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Entry point and argument parser for training runs."""
 
 import logging
 import shutil
@@ -51,6 +52,14 @@ setup_logging(logging.DEBUG)
 
 
 def parse_args(args: list[str]) -> Namespace:
+    """Parse command-line arguments for the training entry point.
+
+    Args:
+        args: Raw command-line argument strings.
+
+    Returns:
+        Parsed argument namespace.
+    """
     parser = ArgumentParser()
     parser.add_argument(
         "-i",
@@ -88,6 +97,14 @@ def parse_args(args: list[str]) -> Namespace:
 
 
 def main(args: list[str]) -> None:
+    """Run the full training pipeline.
+
+    Parses arguments, loads and validates configuration, sets up the run
+    directory, and delegates to the ``train`` core function.
+
+    Args:
+        args: Raw command-line argument strings.
+    """
     # Registry printing
     logging.debug("REGISTRY:")
     logging.debug(f"\tData Sources: {DataSourceRegistry.list()}")
@@ -151,4 +168,4 @@ def main(args: list[str]) -> None:
         logging.info("TensorBoard logging disabled.")
 
     # Branching into training mode
-    train(config, args_namespace, save_dir)  # Run training
+    train(config, args_namespace, save_dir)

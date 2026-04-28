@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Core inference pipeline: dataset setup, model loading, and prediction."""
 
 import logging
 import time
@@ -32,10 +33,18 @@ from xanesnet.strategies import Strategy, StrategyRegistry
 
 
 def infer(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint: Checkpoint) -> None:
+    """Run the complete inference pipeline.
+
+    Builds the data source and dataset from ``config``, restores model
+    weights from ``checkpoint``, and writes predictions under ``save_dir``.
+
+    Args:
+        config: Validated inference configuration.
+        args_namespace: Parsed CLI arguments.
+        save_dir: Root directory for inference outputs.
+        checkpoint: Loaded model checkpoint.
     """
-    Main inference entry
-    """
-    logging.info(f"Inference from checkpoint.")
+    logging.info("Inference from checkpoint.")
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
@@ -59,8 +68,13 @@ def infer(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint:
 
 
 def _setup_datasource(config: Config) -> DataSource:
-    """
-    Setup the data source from config
+    """Instantiate the data source from config.
+
+    Args:
+        config: Validated configuration containing a ``datasource`` section.
+
+    Returns:
+        Initialised data source.
     """
     datasource_config = config.section("datasource")
     datasource_type = datasource_config.get_str("datasource_type")
@@ -71,8 +85,14 @@ def _setup_datasource(config: Config) -> DataSource:
 
 
 def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
-    """
-    Process the dataset using input configuration or load an existing one from disk
+    """Instantiate and prepare the inference dataset.
+
+    Args:
+        config: Validated configuration containing a ``dataset`` section.
+        datasource: Data source providing raw data.
+
+    Returns:
+        Prepared dataset ready for inference.
     """
     dataset_config = config.section("dataset")
     dataset_type = dataset_config.get_str("dataset_type")
@@ -89,6 +109,16 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
 
 
 def _setup_strategy(config: Config, dataset: Dataset) -> Strategy:
+    """Instantiate the inference strategy from config.
+
+    Args:
+        config: Validated configuration containing ``strategy``, ``model``,
+            and ``inferencer`` sections.
+        dataset: Prepared dataset.
+
+    Returns:
+        Configured strategy instance (models not yet loaded).
+    """
     strategy_config = config.section("strategy")
     strategy_type = strategy_config.get_str("strategy_type")
 
@@ -114,8 +144,15 @@ def _setup_strategy(config: Config, dataset: Dataset) -> Strategy:
 
 
 def _run_inference(strategy: Strategy, predictions_save_path: str | Path | None) -> float:
-    """
-    Run inference using the selected inference strategy.
+    """Execute inference and return elapsed wall-clock time.
+
+    Args:
+        strategy: Fully initialised strategy with model weights loaded.
+        predictions_save_path: Directory path for saving predictions, or
+            ``None`` to skip saving.
+
+    Returns:
+        Elapsed inference time in seconds.
     """
     start_time = time.time()
 
