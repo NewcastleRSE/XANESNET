@@ -35,6 +35,7 @@ from .branch_equivariant import (
     EnergyConditionedEquivariantAbsorberHead,
     EnergyIrrepModulation,
 )
+from .branch_fusion import GatedBranchFusion
 from .branch_path import AbsorberPathAggregator, PairElementEnergyScattering
 from .interactions import EquivariantInteractionBlock
 
@@ -52,6 +53,7 @@ __all__ = [
     "EquivariantAtomEncoder",
     "EquivariantInteractionBlock",
     "GaussianRBF",
+    "GatedBranchFusion",
     "IrrepNorm",
     "MLP",
     "PairElementEnergyScattering",

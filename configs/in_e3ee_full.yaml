@@ -56,6 +56,7 @@ model:
   use_eq_conv_branch: True
   use_equivariant_branch: True
   use_path_branch: False
+  fusion_mode: cat
   use_absorber_mask: True
   residual_scale_init: 0.1
   attention_heads: 4

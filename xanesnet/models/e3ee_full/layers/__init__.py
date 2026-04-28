@@ -32,6 +32,7 @@ from .branch_convolution import (
 )
 from .branch_eq_attention import AllAtomEquivariantAtomAttention
 from .branch_equivariant import AllAtomEquivariantHead, EnergyIrrepModulation
+from .branch_fusion import GatedBranchFusion
 from .branch_path import AllAtomPathAggregator, PairElementEnergyScattering
 from .interactions import EquivariantInteractionBlock
 
@@ -49,6 +50,7 @@ __all__ = [
     "EquivariantAtomEncoder",
     "EquivariantInteractionBlock",
     "GaussianRBF",
+    "GatedBranchFusion",
     "IrrepNorm",
     "MLP",
     "PairElementEnergyScattering",

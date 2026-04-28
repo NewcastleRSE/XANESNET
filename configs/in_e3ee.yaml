@@ -11,7 +11,7 @@ dataset:
   dataset_type: e3ee_mp
   root: ./data/omnixas/processed_train_e3ee/  # Where should the processed data be stored
   preload: True                           # Preload dataset into RAM if True; otherwise load on-the-fly
-  skip_prepare: True
+  skip_prepare: False
   split_ratios: [0.8, 0.2]
   # params:
   cutoff: 6.0
@@ -55,6 +55,7 @@ model:
   use_conv_branch: False
   use_eq_conv_branch: False
   use_path_branch: False
+  fusion_mode: cat
   residual_scale_init: 0.1
   attention_heads: 4
   attention_rbf_dim: 16

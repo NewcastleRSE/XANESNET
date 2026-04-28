@@ -34,6 +34,7 @@ from .layers import (
     EnergyConditionedEquivariantAtomConvolution,
     EnergyRBFEmbedding,
     EquivariantAtomEncoder,
+    GatedBranchFusion,
     PairElementEnergyScattering,
 )
 from .utils import invariant_feature_dim, invariant_features_from_irreps
@@ -53,8 +54,10 @@ class E3EE(Model):
     - Branch 3 (optional): late equivariant absorber head
     - Branch 4 (optional): 3-body path scattering
 
-    Each optional branch produces a ``(B, nE, latent_dim)`` tensor which is
-    concatenated and fed into a final MLP head to produce ``(B, nE)`` outputs.
+    Each optional branch produces a ``(B, nE, latent_dim)`` tensor. Active
+    branches are fused according to ``fusion_mode``: ``"cat"`` concatenates
+    them before the final MLP head, while ``"gated"`` combines them with an
+    energy-conditioned :class:`GatedBranchFusion` before the final MLP head.
 
     Args:
         model_type: String identifier stored on the base :class:`Model`.
@@ -68,7 +71,8 @@ class E3EE(Model):
         energy_rbf_dim: Number of Gaussian RBF bases for energy embedding.
         scatter_dim: Intermediate scatter feature dimension for the path branch.
         latent_dim: Output dimension produced by each active branch.
-        head_hidden_dim: Hidden dimension of the final head MLP.
+        head_hidden_dim: Hidden dimension of the final head MLP and gated
+            fusion MLPs.
         e3nn_irreps: Node irreps for the equivariant encoder (e.g. ``"32x0e+16x1o+8x2e"``).
         e3nn_irreps_message: Message irreps inside each interaction block.
         e3nn_lmax: Maximum ``l`` for spherical harmonics in the encoder.
@@ -80,6 +84,9 @@ class E3EE(Model):
         use_conv_branch: Enable the invariant SchNet/PaiNN convolution branch.
         use_eq_conv_branch: Enable the equivariant NequIP/MACE convolution branch.
         use_path_branch: Enable the 3-body path-scattering branch.
+        fusion_mode: Branch fusion strategy. ``"cat"`` preserves the existing
+            concatenate-and-MLP head, while ``"gated"`` uses learned
+            energy-conditioned soft gates before the final head.
         residual_scale_init: Initial value of learnable residual scales.
         attention_heads: Number of attention heads in attention branches.
         attention_rbf_dim: Number of RBF bases for attention-graph distances.
@@ -122,6 +129,7 @@ class E3EE(Model):
         attention_irreps: str,
         att_cutoff: float,
         conv_use_gate: bool = True,
+        fusion_mode: str = "cat",
     ) -> None:
         """Initialize ``E3EE``."""
         super().__init__(model_type)
@@ -155,6 +163,7 @@ class E3EE(Model):
         self.attention_irreps = attention_irreps
         self.att_cutoff = att_cutoff
         self.conv_use_gate = conv_use_gate
+        self.fusion_mode = fusion_mode
 
         # Energy index range for RBF embedding (uses grid indices 0..out_size-1)
         self._energy_min = 0.0
@@ -281,7 +290,7 @@ class E3EE(Model):
                 cutoff=local_cutoff,
             )
 
-        # Final head MLP
+        # Branch fusion and final head MLP.
         n_active = (
             int(self.use_invariant_branch)
             + int(self.use_attention_branch)
@@ -291,7 +300,18 @@ class E3EE(Model):
             + int(self.use_eq_conv_branch)
             + int(self.use_path_branch)
         )
-        head_in_dim = n_active * latent_dim
+        if self.fusion_mode == "gated":
+            self.branch_fusion = GatedBranchFusion(
+                branch_dims=[latent_dim] * n_active,
+                fused_dim=latent_dim,
+                cond_dim=energy_rbf_dim,
+                hidden_dim=head_hidden_dim,
+                use_softmax=True,
+            )
+            head_in_dim = latent_dim
+        else:
+            head_in_dim = n_active * latent_dim
+
         self.head = MLP(
             in_dim=head_in_dim,
             hidden_dim=head_hidden_dim,
@@ -458,7 +478,10 @@ class E3EE(Model):
             )  # [B, nE, latent]
             parts.append(path_lat)
 
-        combined = torch.cat(parts, dim=-1)  # [B, nE, head_in_dim]
+        if self.fusion_mode == "gated":
+            combined = self.branch_fusion(parts, e_feat)  # [B, nE, latent]
+        else:
+            combined = torch.cat(parts, dim=-1)  # [B, nE, head_in_dim]
         out = self.head(combined).squeeze(-1)  # [B, nE]
         return out
 
@@ -483,6 +506,9 @@ class E3EE(Model):
                     bias_init_fn(module.bias)
             elif isinstance(module, nn.Embedding):
                 module.reset_parameters()
+
+        if self.fusion_mode == "gated":
+            self.branch_fusion.reset_gate_logits()
 
     @property
     def signature(self) -> Config:
@@ -512,6 +538,7 @@ class E3EE(Model):
                 "use_conv_branch": self.use_conv_branch,
                 "use_eq_conv_branch": self.use_eq_conv_branch,
                 "use_path_branch": self.use_path_branch,
+                "fusion_mode": self.fusion_mode,
                 "residual_scale_init": self.residual_scale_init,
                 "attention_heads": self.attention_heads,
                 "attention_rbf_dim": self.attention_rbf_dim,
