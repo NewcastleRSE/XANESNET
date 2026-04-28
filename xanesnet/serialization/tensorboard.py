@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Singleton TensorBoard logger for XANESNET training runs."""
 
 import inspect
 import logging
@@ -26,11 +27,14 @@ from xanesnet.serialization.config import Config
 
 
 class _TensorBoardGraphWrapper(torch.nn.Module):
-    """
-    Wrap a model so TensorBoard graph tracing only receives tensor inputs.
+    """Wraps a model so TensorBoard graph tracing receives only tensor inputs.
 
-    Non-tensor inputs are bound once during construction and reused when the
-    wrapper forwards to the original model.
+    Non-tensor inputs are bound once at construction time and injected
+    transparently on each ``forward`` call.
+
+    Args:
+        model: The model to wrap.
+        input_example: A dict mapping forward-argument names to example values.
     """
 
     def __init__(self, model: torch.nn.Module, input_example: dict[str, Any]) -> None:
@@ -72,9 +76,19 @@ class _TensorBoardGraphWrapper(torch.nn.Module):
 
     @property
     def tensor_arg_names(self) -> tuple[str, ...]:
+        """Names of the tensor-valued forward arguments, in call order."""
         return tuple(self._tensor_arg_names)
 
     def forward(self, *tensor_args: torch.Tensor) -> Any:
+        """Forward pass with bound non-tensor arguments re-injected automatically.
+
+        Args:
+            *tensor_args: Tensor inputs in the order returned by
+                ``tensor_arg_names``.
+
+        Returns:
+            The output of the wrapped model.
+        """
         if len(tensor_args) != len(self._tensor_arg_names):
             raise ValueError(
                 f"Expected {len(self._tensor_arg_names)} tensor inputs for TensorBoard graph logging, "
@@ -90,22 +104,15 @@ class _TensorBoardGraphWrapper(torch.nn.Module):
 
 
 class TensorBoardLogger:
-    """
-    Singleton TensorBoard logger for training metrics, hyperparameters, and model diagnostics.
+    """Singleton TensorBoard logger for XANESNET training runs.
 
-    Usage:
-        import tb_logger
-        tb_logger.set_config(config)
-        tb_logger.new_run(save_dir / "tensorboard")
+    Use ``new_run`` to initialise logging for each new training run.  All
+    ``log_*`` methods silently no-op when the logger has not been initialised
+    or when TensorBoard has been disabled.
 
-        # During training:
-        tb_logger.log_epoch_metrics(epoch, train_loss, train_reg, train_total,
-                                 valid_loss, valid_reg, valid_total)
-        tb_logger.log_learning_rate(epoch, lr)
-
-        # At the end:
-        tb_logger.log_final_metrics({"final_score": score})
-        tb_logger.close()
+    Note:
+        Instantiate via ``tb_logger = TensorBoardLogger()`` and import the
+        module-level singleton rather than creating fresh instances.
     """
 
     _instance: "TensorBoardLogger | None" = None
@@ -124,14 +131,27 @@ class TensorBoardLogger:
 
     @property
     def enabled(self) -> bool:
+        """Whether TensorBoard logging is currently active for this process."""
         return self._enabled
 
     def set_config(self, config: Config) -> None:
+        """Attach the run configuration used for later hyperparameter logging.
+
+        Args:
+            config: Validated configuration for the upcoming run.
+        """
         self._config = config
 
     def new_run(self, save_dir: str | Path) -> None:
-        """
-        Initialize a new TensorBoard run in the given directory.
+        """Initialise a new TensorBoard run.
+
+        Closes any previously open writer, creates a new ``SummaryWriter``
+        pointing at ``save_dir``, and logs a hyperparameter table if a config
+        has been set via ``set_config``.
+
+        Args:
+            save_dir: Directory in which TensorBoard event files will be
+                written.
         """
         if self._writer is not None:
             self._writer.close()
@@ -150,9 +170,7 @@ class TensorBoardLogger:
         logging.debug(f"Initialized new TensorBoard SummaryWriter with log_dir: {save_dir}")
 
     def close(self) -> None:
-        """
-        Flush and close the writer.
-        """
+        """Flush pending events and close the underlying ``SummaryWriter``."""
         if self._writer is not None:
             self._writer.flush()
             self._writer.close()
@@ -160,13 +178,19 @@ class TensorBoardLogger:
         self._enabled = False
 
     def _check_initialized(self) -> None:
+        """Raise ``RuntimeError`` if ``new_run`` has not been called yet."""
         if self._writer is None:
             raise RuntimeError("TensorBoardLogger not initialized. Call new_run() first.")
 
     @property
     def writer(self) -> SummaryWriter:
-        """
-        Return the writer, raising if not initialized. Enables type-safe access.
+        """Return the active ``SummaryWriter``.
+
+        Returns:
+            The current ``SummaryWriter`` instance.
+
+        Raises:
+            RuntimeError: If ``new_run()`` has not been called.
         """
         self._check_initialized()
         assert self._writer is not None  # for type narrowing
@@ -182,8 +206,16 @@ class TensorBoardLogger:
         valid_regularization: float | None = None,
         valid_total: float | None = None,
     ) -> None:
-        """
-        Log all per-epoch training (and optional validation) metrics.
+        """Log per-epoch training and optional validation metrics.
+
+        Args:
+            epoch: Current epoch index (used as the global step).
+            train_loss: Training data loss.
+            train_regularization: Training regularization term.
+            train_total: Total training loss (loss + regularization).
+            valid_loss: Validation data loss (``None`` to skip).
+            valid_regularization: Validation regularization term (``None`` to skip).
+            valid_total: Total validation loss (``None`` to skip).
         """
         if not self._enabled:
             return
@@ -202,8 +234,11 @@ class TensorBoardLogger:
             w.add_scalar("total/valid", valid_total, epoch)
 
     def log_learning_rate(self, epoch: int, lr: float) -> None:
-        """
-        Log the current learning rate.
+        """Log the current learning rate at the given epoch.
+
+        Args:
+            epoch: Current epoch index.
+            lr: Learning rate value.
         """
         if not self._enabled:
             return
@@ -211,8 +246,11 @@ class TensorBoardLogger:
         self.writer.add_scalar("other/learning_rate", lr, epoch)
 
     def log_model_weights(self, epoch: int, model: torch.nn.Module) -> None:
-        """
-        Log histograms of model parameter values and gradients.
+        """Log histograms of model parameter values and gradients.
+
+        Args:
+            epoch: Current epoch index (used as the global step).
+            model: The model whose parameters are logged.
         """
         if not self._enabled:
             return
@@ -225,30 +263,35 @@ class TensorBoardLogger:
                 w.add_histogram(f"gradients/{tag}", param.grad.data, epoch)
 
     def log_model_graph(self, model: torch.nn.Module, input_example: dict[str, Any]) -> None:
-        """
-        Log the model computation graph (call once at the start of training).
+        """Log the model computation graph (call once at the start of training).
+
+        Inputs are ordered according to the model's ``forward`` signature.
+        Non-tensor inputs are bound automatically using
+        ``_TensorBoardGraphWrapper``. Failures during tracing are caught and
+        logged as warnings rather than propagated.
+
+        Args:
+            model: The model to trace.
+            input_example: Dict mapping forward-argument names to example
+                values.
         """
         if not self._enabled:
             return
 
         try:
+            graph_model = _TensorBoardGraphWrapper(model, input_example)
+            graph_inputs = tuple(input_example[name] for name in graph_model.tensor_arg_names)
+
+            if not graph_inputs:
+                logging.warning(
+                    "Skipping TensorBoard graph logging because the model has no tensor inputs to trace."
+                )
+                return
+
             non_tensor_input_names = [
-                name for name, value in input_example.items() if not isinstance(value, torch.Tensor)
+                name for name in graph_model._ordered_arg_names if name not in graph_model.tensor_arg_names
             ]
-
-            graph_model: torch.nn.Module = model
-            graph_inputs = tuple(input_example.values())
-
             if non_tensor_input_names:
-                graph_model = _TensorBoardGraphWrapper(model, input_example)
-                graph_inputs = tuple(input_example[name] for name in graph_model.tensor_arg_names)
-
-                if not graph_inputs:
-                    logging.warning(
-                        "Skipping TensorBoard graph logging because the model has no tensor inputs to trace."
-                    )
-                    return
-
                 logging.info(
                     "Binding non-tensor model inputs for TensorBoard graph logging: %s",
                     ", ".join(non_tensor_input_names),
@@ -262,8 +305,12 @@ class TensorBoardLogger:
     # PRIMITIVE LOGGING FUNCTIONS
 
     def log_scalar(self, tag: str, value: float, step: int) -> None:
-        """
-        Log a single scalar value.
+        """Log a single scalar value.
+
+        Args:
+            tag: TensorBoard tag (used as the series name).
+            value: Scalar value to record.
+            step: Global step / epoch index.
         """
         if not self._enabled:
             return
@@ -271,8 +318,12 @@ class TensorBoardLogger:
         self.writer.add_scalar(tag, value, step)
 
     def log_histogram(self, tag: str, values: torch.Tensor, step: int) -> None:
-        """
-        Log a histogram of tensor values.
+        """Log a histogram of tensor values.
+
+        Args:
+            tag: TensorBoard tag.
+            values: Tensor whose distribution is recorded.
+            step: Global step / epoch index.
         """
         if not self._enabled:
             return
@@ -280,8 +331,12 @@ class TensorBoardLogger:
         self.writer.add_histogram(tag, values, step)
 
     def log_text(self, tag: str, text: str, step: int) -> None:
-        """
-        Log a text string.
+        """Log a text string.
+
+        Args:
+            tag: TensorBoard tag.
+            text: The text content to record.
+            step: Global step / epoch index.
         """
         if not self._enabled:
             return
@@ -289,8 +344,12 @@ class TensorBoardLogger:
         self.writer.add_text(tag, text, step)
 
     def log_figure(self, tag: str, figure: Any, step: int) -> None:
-        """
-        Log a matplotlib figure as an image.
+        """Log a matplotlib figure as an image.
+
+        Args:
+            tag: TensorBoard tag.
+            figure: A ``matplotlib.figure.Figure`` instance.
+            step: Global step / epoch index.
         """
         if not self._enabled:
             return
@@ -298,9 +357,13 @@ class TensorBoardLogger:
         self.writer.add_figure(tag, figure, step)
 
     def log_final_metrics(self, metric_dict: dict[str, float]) -> None:
-        """
-        Log final run-level metrics alongside hyperparameters using add_hparams.
-        Call once at the end of training with the final scores.
+        """Log final run-level metrics alongside hyperparameters.
+
+        Uses ``add_hparams`` so that hyperparameters and final metrics appear
+        in the TensorBoard HPARAMS tab.  Call once at the end of training.
+
+        Args:
+            metric_dict: Mapping from metric name to final scalar value.
         """
         if not self._enabled:
             return
@@ -313,16 +376,21 @@ class TensorBoardLogger:
             self.writer.add_hparams(hparams, metric_dict, run_name=".")
 
     def flush(self) -> None:
-        """
-        Flush pending events to disk.
-        """
+        """Flush pending events to disk."""
         if self._writer is not None:
             self._writer.flush()
 
     @staticmethod
     def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> dict[str, Any]:
-        """
-        Flatten a nested dictionary into dot-separated keys.
+        """Flatten a nested dictionary into dot-separated keys.
+
+        Args:
+            d: Dictionary to flatten.
+            parent_key: Prefix prepended to nested keys.
+            sep: Separator inserted between nested key segments.
+
+        Returns:
+            Flat dictionary whose keys encode the original nesting.
         """
         items: list[tuple[str, Any]] = []
         for k, v in d.items():

@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Configuration loading, validation, and type-safe access for XANESNET."""
 
 import copy
 import logging
@@ -48,8 +49,17 @@ ConfigRaw = dict[str, Any]
 
 
 def load_raw_config(file_path: str | Path) -> ConfigRaw:
-    """
-    Load a YAML config file and return the raw data as a dictionary.
+    """Load a YAML configuration file.
+
+    Args:
+        file_path: Path to the ``.yaml`` or ``.yml`` file to load.
+
+    Returns:
+        The parsed configuration as a ``ConfigRaw`` dictionary.
+
+    Raises:
+        ConfigError: If the file does not exist, is not a file, is not a valid
+            YAML document, or does not contain a top-level mapping.
     """
     file_path = Path(file_path)
 
@@ -67,8 +77,18 @@ def load_raw_config(file_path: str | Path) -> ConfigRaw:
 
 
 def save_raw_config(config: ConfigRaw, file_path: str | Path) -> Path:
-    """
-    Save a raw config dictionary to a YAML file.
+    """Write a raw configuration dictionary to a YAML file.
+
+    Args:
+        config: The configuration data to serialize.
+        file_path: Destination path. Must end with ``.yaml`` or ``.yml``.
+
+    Returns:
+        The resolved ``Path`` to the written file.
+
+    Raises:
+        ConfigError: If the extension is wrong, the parent directory does not
+            exist, or the file already exists.
     """
     file_path = Path(file_path)
 
@@ -84,7 +104,7 @@ def save_raw_config(config: ConfigRaw, file_path: str | Path) -> Path:
     with open(file_path, "w") as f:
         yaml.dump(config, f, sort_keys=False)
 
-        return file_path
+    return file_path
 
 
 def copy_raw_config(
@@ -92,15 +112,34 @@ def copy_raw_config(
     dst_dir: str | Path,
     new_name: str | None = None,
 ) -> Path:
-    """
-    Copy a raw config file to a new location.
+    """Copy a YAML configuration file to a destination directory.
+
+    Args:
+        file_path: Source file path.
+        dst_dir: Directory to copy the file into.
+        new_name: Optional new filename (without directory). If ``None``, the
+            original filename is used.
+
+    Returns:
+        The ``Path`` to the copied file.
     """
     return copy_file(file_path, dst_dir, new_name, allowed_suffixes={".yaml", ".yml"})
 
 
 def merge_raw_configs(a: ConfigRaw, b: ConfigRaw) -> ConfigRaw:
-    """
-    Merge two raw configuration dictionaries strictly.
+    """Recursively merge two raw configuration dictionaries.
+
+    Args:
+        a: Base configuration dictionary.
+        b: Overlay configuration dictionary.
+
+    Returns:
+        A new ``ConfigRaw`` with all keys from both dicts.  Nested dicts are
+        merged recursively.
+
+    Raises:
+        ConfigError: If the same key exists in both dicts with conflicting
+            non-dict values.
     """
     merged = a.copy()
 
@@ -122,51 +161,178 @@ def merge_raw_configs(a: ConfigRaw, b: ConfigRaw) -> ConfigRaw:
 
 
 class Config:
-    """
-    A class for accessing configuration values.
-    Type-safe.
+    """Validated, type-safe view over a raw YAML configuration.
+
+    Args:
+        data: A ``ConfigRaw`` dictionary (usually the result of
+            ``load_raw_config``).
     """
 
     def __init__(self, data: ConfigRaw) -> None:
+        """Store a normalized raw configuration mapping.
+
+        Args:
+            data: Raw configuration dictionary, possibly containing nested
+                ``Config`` instances that will be unwrapped.
+        """
         self._data: ConfigRaw = self._normalize_raw(data)
 
     # Getters for config values with type checking
 
     def section(self, section: str) -> "Config":
+        """Return a sub-section as a ``Config``.
+
+        Args:
+            section: Key of the sub-dictionary to wrap.
+
+        Returns:
+            A ``Config`` wrapping the section's dictionary.
+
+        Raises:
+            ConfigError: If the key is missing or is not a dictionary.
+        """
         value = self._get_typed(section, dict)
         return Config(value)
 
     def optional_section(self, section: str) -> "Config | None":
+        """Return a sub-section as a ``Config``, or ``None`` if absent.
+
+        Args:
+            section: Key of the sub-dictionary to wrap.
+
+        Returns:
+            A ``Config`` wrapping the section's dictionary, or ``None``.
+
+        Raises:
+            ConfigError: If the key is present but is not a dictionary.
+        """
         value = self._get_typed(section, dict, optional=True)
         return Config(value) if value is not None else None
 
     def get_str(self, key: str) -> str:
+        """Return the value at ``key`` as a ``str``.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The string value.
+
+        Raises:
+            ConfigError: If the key is missing or the value is not a ``str``.
+        """
         return self._get_typed(key, str)
 
     def get_optional_str(self, key: str) -> str | None:
+        """Return the value at ``key`` as a ``str``, or ``None`` if absent.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The string value, or ``None``.
+
+        Raises:
+            ConfigError: If the key is present but the value is not a ``str``.
+        """
         return self._get_typed(key, str, optional=True)
 
     def get_int(self, key: str) -> int:
+        """Return the value at ``key`` as an ``int``.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The integer value.
+
+        Raises:
+            ConfigError: If the key is missing or the value is not an ``int``.
+        """
         return self._get_typed(key, int)
 
     def get_optional_int(self, key: str) -> int | None:
+        """Return the value at ``key`` as an ``int``, or ``None`` if absent.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The integer value, or ``None``.
+
+        Raises:
+            ConfigError: If the key is present but the value is not an ``int``.
+        """
         return self._get_typed(key, int, optional=True)
 
     def get_float(self, key: str) -> float:
+        """Return the value at ``key`` as a ``float``.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The float value.
+
+        Raises:
+            ConfigError: If the key is missing or the value is not a ``float``.
+        """
         return self._get_typed(key, float)
 
     def get_optional_float(self, key: str) -> float | None:
+        """Return the value at ``key`` as a ``float``, or ``None`` if absent.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The float value, or ``None``.
+
+        Raises:
+            ConfigError: If the key is present but the value is not a ``float``.
+        """
         return self._get_typed(key, float, optional=True)
 
     def get_bool(self, key: str) -> bool:
+        """Return the value at ``key`` as a ``bool``.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The boolean value.
+
+        Raises:
+            ConfigError: If the key is missing or the value is not a ``bool``.
+        """
         return self._get_typed(key, bool)
 
     def get_optional_bool(self, key: str) -> bool | None:
+        """Return the value at ``key`` as a ``bool``, or ``None`` if absent.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The boolean value, or ``None``.
+
+        Raises:
+            ConfigError: If the key is present but the value is not a ``bool``.
+        """
         return self._get_typed(key, bool, optional=True)
 
     def get_config_list(self, key: str) -> list["Config"]:
-        """
-        Get a list of Config objects from a list of dictionaries in the config.
+        """Return a list of ``Config`` objects from a list of dicts.
+
+        Args:
+            key: Config key that maps to a list of dicts.
+
+        Returns:
+            List of ``Config`` objects, one per dict entry.
+
+        Raises:
+            ConfigError: If the key is missing, the value is not a list, or
+                any element is not a dictionary.
         """
         value = self._get_typed(key, list)
         if not all(isinstance(v, dict) for v in value):
@@ -174,6 +340,20 @@ class Config:
         return [Config(v) for v in value]
 
     def _get_typed(self, key: str, expected_type: type, optional: bool = False) -> Any:
+        """Retrieve a value from the config data with optional type enforcement.
+
+        Args:
+            key: Config key to look up.
+            expected_type: The ``type`` the value must be an instance of.
+            optional: If ``True``, return ``None`` when the key is absent.
+
+        Returns:
+            The typed value, or ``None`` when ``optional=True`` and the key is missing.
+
+        Raises:
+            ConfigError: If the key is missing (and ``optional=False``) or the
+                value is not an instance of ``expected_type``.
+        """
         value = self._data.get(key, None)
         if value is None:
             if optional:
@@ -185,8 +365,19 @@ class Config:
         return value
 
     def get(self, key: str) -> Any:
-        """
-        Not type-safe. Not recommended.
+        """Return the raw value for ``key``.
+
+        Note:
+            Not type-safe. Prefer the typed ``get_*`` accessors where possible.
+
+        Args:
+            key: Config key to look up.
+
+        Returns:
+            The raw value associated with ``key``.
+
+        Raises:
+            ConfigError: If the key is missing.
         """
         if key not in self._data:
             raise ConfigError(f"Key '{key}' is missing.")
@@ -195,17 +386,21 @@ class Config:
     # Other functions
 
     def as_dict(self) -> ConfigRaw:
-        """
-        Return a deep copy of the config as a raw dictionary.
+        """Return a deep copy of the underlying raw config dictionary.
+
+        Returns:
+            A ``ConfigRaw`` deep-copy of the internal data.
         """
         return copy.deepcopy(self._data)
 
     def as_kwargs(self) -> dict[str, Any]:
-        """
-        Convert the config into a dictionary suitable for function/class calls.
-        - Nested dictionaries are converted into new Config objects.
-        - Lists of dictionaries are converted to lists of Config objects recursively.
-        - All returned data is a deep copy; modifying it will not affect the original config.
+        """Convert the config into keyword arguments suitable for a class or function call.
+
+        Nested dicts are wrapped in ``Config``; lists of dicts become lists of
+        ``Config``; all other values are returned as deep copies.
+
+        Returns:
+            Dict mapping config keys to converted values.
         """
 
         def convert(value: Any) -> Any:
@@ -219,27 +414,55 @@ class Config:
         return {key: convert(val) for key, val in self._data.items()}
 
     def save(self, file_path: str | Path) -> Path:
-        """
-        Save the config to a YAML file.
+        """Save this config to a YAML file.
+
+        Args:
+            file_path: Destination path. Must end with ``.yaml`` or ``.yml``.
+
+        Returns:
+            The resolved ``Path`` to the written file.
+
+        Raises:
+            ConfigError: Propagated from ``save_raw_config``.
         """
         return save_raw_config(self._data, file_path)
 
     def update(self, other: "Config") -> None:
-        """
-        Update this config with values from another config.
+        """Merge another ``Config`` into this one.
+
+        Args:
+            other: The ``Config`` whose values are overlaid onto this one.
+
+        Raises:
+            ConfigError: If any key has conflicting non-dict values.
         """
         normalized_other = self._normalize_raw(other.as_dict())
         self._data = merge_raw_configs(self._data, normalized_other)
 
     def update_with_dict(self, other: ConfigRaw) -> None:
-        """
-        Update this config with values from a raw config dictionary.
+        """Merge a raw dictionary into this config.
+
+        Args:
+            other: Raw config dictionary whose values are overlaid onto this one.
+
+        Raises:
+            ConfigError: If any key has conflicting non-dict values.
         """
         normalized_other = self._normalize_raw(other)
         self._data = merge_raw_configs(self._data, normalized_other)
 
     @staticmethod
     def _normalize_raw(value: ConfigRaw) -> ConfigRaw:
+        """Recursively unwrap any nested ``Config`` objects to plain dicts.
+
+        Args:
+            value: A raw config value, possibly containing nested ``Config``
+                instances.
+
+        Returns:
+            The same structure with all ``Config`` instances replaced by their
+            underlying raw dictionaries.
+        """
         if isinstance(value, Config):
             return Config._normalize_raw(value._data)
         if isinstance(value, dict):
@@ -255,21 +478,57 @@ class Config:
 
 
 def validate_config_train(config: ConfigRaw) -> Config:
+    """Validate a config dict for a training run.
+
+    Args:
+        config: Raw configuration dictionary.
+
+    Returns:
+        A validated ``Config`` object.
+    """
     # TODO writing better train validation
     return validate_config(config)
 
 
 def validate_config_infer(config: ConfigRaw) -> Config:
+    """Validate a config dict for an inference run.
+
+    Args:
+        config: Raw configuration dictionary.
+
+    Returns:
+        A validated ``Config`` object.
+    """
     # TODO writing better infer validation
     return validate_config(config)
 
 
 def validate_config_analyze(config: ConfigRaw) -> Config:
+    """Validate a config dict for an analysis run.
+
+    Args:
+        config: Raw configuration dictionary.
+
+    Returns:
+        A ``Config`` object (minimal validation applied).
+    """
     # TODO writing better analyze validation
     return Config(config)
 
 
 def validate_config(config: ConfigRaw) -> Config:
+    """Run full config validation and fill in defaults.
+
+    Args:
+        config: Raw configuration dictionary to validate and mutate in-place.
+
+    Returns:
+        A ``Config`` object wrapping the validated and defaulted data.
+
+    Raises:
+        ConfigError: If any required key is missing, a type key is absent, or
+            mutually exclusive sections coexist.
+    """
     logging.info("Validating the raw input config file...")
 
     # Global settings
@@ -308,6 +567,17 @@ def _validate_global(
     default: Any = None,
     required: bool = False,
 ) -> None:
+    """Validate or assign a top-level global config key.
+
+    Args:
+        config: The raw config dictionary (mutated in-place when setting defaults).
+        key: The top-level key to check.
+        default: Default value assigned when the key is absent and not required.
+        required: If ``True``, raise ``ConfigError`` when the key is absent.
+
+    Raises:
+        ConfigError: If ``required=True`` and the key is missing.
+    """
     value = config.get(key, None)
     if value is None:
         if required:
@@ -325,6 +595,21 @@ def _validate_section(
     required_by_type: dict[str, list[str]],
     required: bool = True,
 ) -> None:
+    """Validate a config section against a registry of required keys.
+
+    Args:
+        config: The raw config dictionary.
+        section: The section name (top-level key whose value is a sub-dict).
+        type_key: Key inside the section that identifies the component type.
+        required_by_type: Mapping from component type name to the list of
+            required dot-separated key paths.
+        required: If ``True`` (default), raise ``ConfigError`` when the section
+            is absent.
+
+    Raises:
+        ConfigError: If the section is missing (and required), the type key is
+            absent, the type is unknown, or any required key path is absent.
+    """
     section_config = config.get(section, None)
     if section_config is None:
         if required:
@@ -351,6 +636,16 @@ def _validate_section(
 
 
 def _validate_mutually_exclusive(config: ConfigRaw, section_a: str, section_b: str) -> None:
+    """Ensure exactly one of two mutually exclusive sections is present.
+
+    Args:
+        config: The raw config dictionary.
+        section_a: Name of the first section.
+        section_b: Name of the second section.
+
+    Raises:
+        ConfigError: If neither or both sections are present.
+    """
     section_a_config = config.get(section_a, None)
     section_b_config = config.get(section_b, None)
 
@@ -367,6 +662,18 @@ def _assign_defaults(
     type_key: str,
     defaults_by_type: dict[str, ConfigRaw],
 ) -> None:
+    """Fill in default values for a config section based on its component type.
+
+    Missing keys (or keys set to ``None``) are populated from the defaults
+    registry.  The operation is applied in-place on ``config``.
+
+    Args:
+        config: The raw config dictionary (mutated in-place).
+        section: The section name to process.
+        type_key: Key inside the section that identifies the component type.
+        defaults_by_type: Mapping from component type name to a flat dict of
+            dot-separated key paths and their default values.
+    """
     section_config = config[section]
     section_type = section_config[type_key]
 

@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Prediction reader classes for XANESNET inference outputs."""
 
 import json
 import logging
@@ -33,12 +34,11 @@ from .prediction_writers import PredictionBatch
 
 
 class PredictionSample(TypedDict):
-    """
-    PredictionSample to be returned by PredictionReader.
+    """Single-absorber prediction record returned by ``PredictionReader``.
 
-    Represents a single absorber site. All values are numpy arrays or torch
-    tensors with no leading absorber dimension (the shape matches a single row
-    of the corresponding ``PredictionBatch`` field).
+    All values are numpy arrays or torch tensors with no leading absorber
+    dimension — each field corresponds to a single row of the equivalent
+    ``PredictionBatch`` field.
     """
 
     # Required:
@@ -57,14 +57,22 @@ class PredictionSample(TypedDict):
 
 
 class PredictionReader(ABC):
-    """
-    Abstract base class for prediction readers.
+    """Abstract base class for reading saved XANESNET inference results.
 
-    Implements the Iterator protocol for iterating over saved predictions, one
-    absorber at a time.
+    Implements the ``Iterator`` protocol so that callers can iterate over
+    predictions one absorber at a time.
+
+    Args:
+        path: Directory (or file) containing the saved prediction data.
     """
 
     def __init__(self, path: str | Path):
+        """Initialize a prediction reader for a saved predictions location.
+
+        Args:
+            path: Directory (or file container) holding persisted prediction
+                outputs.
+        """
         self.path = Path(path)
         self._length: int | None = None
         self._current_index: int = 0
@@ -73,35 +81,48 @@ class PredictionReader(ABC):
 
     @abstractmethod
     def _validate_path(self) -> None:
-        """
-        Validate that the path contains valid prediction data.
+        """Validate that ``self.path`` contains valid prediction data.
+
+        Raises:
+            FileNotFoundError: If the path or expected files do not exist.
+            ValueError: If the data at the path is not valid.
         """
         ...
 
     @abstractmethod
     def __len__(self) -> int:
-        """
-        Return the total number of absorbers.
-        """
+        """Return the total number of absorber records in the dataset."""
         ...
 
     @abstractmethod
     def __getitem__(self, index: int) -> PredictionSample:
-        """
-        Get a single absorber by index.
+        """Return the ``PredictionSample`` at position ``index``.
+
+        Args:
+            index: Zero-based absorber index.
+
+        Returns:
+            A ``PredictionSample`` for the requested absorber.
         """
         ...
 
     def __iter__(self) -> Iterator[PredictionSample]:
-        """
-        Return iterator over all absorbers.
+        """Reset the iteration cursor and return ``self`` as the iterator.
+
+        Returns:
+            This reader instance, positioned at the first sample.
         """
         self._current_index = 0
         return self
 
     def __next__(self) -> PredictionSample:
-        """
-        Get the next absorber.
+        """Return the next ``PredictionSample`` and advance the cursor.
+
+        Returns:
+            The next absorber record.
+
+        Raises:
+            StopIteration: When all absorbers have been yielded.
         """
         if self._current_index >= len(self):
             raise StopIteration
@@ -111,14 +132,12 @@ class PredictionReader(ABC):
         return sample
 
     def get_all(self) -> PredictionBatch:
-        """
-        Load all predictions at once.
+        """Load all predictions at once.
 
-        Returns a PredictionBatch with all absorbers stacked along the leading
-        absorber dimension.
+        Returns:
+            A ``PredictionBatch`` with all absorbers stacked along the leading
+            absorber dimension.
         """
-
-        # TODO not tested !
 
         all_data: dict[str, list[Any]] = {}
 
@@ -175,17 +194,32 @@ class PredictionReader(ABC):
         return value
 
     def close(self) -> None:
-        """
-        Close any open resources. Override in subclasses if needed.
-        """
+        """Close any open resources.  No-op by default; override in subclasses."""
         pass
 
     # for use in 'with' statements
     def __enter__(self) -> "PredictionReader":
+        """Enter the context manager and return ``self``.
+
+        Returns:
+            This reader instance.
+        """
         return self
 
     # for use in 'with' statements
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit the context manager and close open resources.
+
+        Args:
+            exc_type: Exception type raised inside the context, if any.
+            exc_val: Exception instance raised inside the context, if any.
+            exc_tb: Traceback associated with the exception, if any.
+        """
         self.close()
 
 
@@ -195,13 +229,18 @@ class PredictionReader(ABC):
 
 
 class HDF5Reader(PredictionReader):
-    """
-    HDF5-backed prediction reader.
+    """Prediction reader backed by an HDF5 file written by ``HDF5Writer``.
 
-    Reads predictions saved by HDF5Writer.
+    Args:
+        path: Directory containing the ``predictions.h5`` file.
     """
 
     def __init__(self, path: str | Path):
+        """Open an HDF5-backed predictions directory.
+
+        Args:
+            path: Directory containing ``predictions.h5``.
+        """
         self._h5: h5py.File | None = None
         self._group: h5py.Group | None = None
         super().__init__(path)
@@ -211,19 +250,31 @@ class HDF5Reader(PredictionReader):
         if not h5_file.exists():
             raise FileNotFoundError(f"HDF5 file not found: {h5_file}")
 
-        self._h5 = h5py.File(h5_file, "r")
+        h5: h5py.File | None = None
+        try:
+            h5 = h5py.File(h5_file, "r")
 
-        if "predictions" not in self._h5:
-            raise ValueError(f"No 'predictions' group found in {h5_file}")
+            if "predictions" not in h5:
+                raise ValueError(f"No 'predictions' group found in {h5_file}")
 
-        group = self._h5["predictions"]
+            group = h5["predictions"]
 
-        if not isinstance(group, h5py.Group):
-            raise TypeError(f"Expected Group, got {type(group).__name__}")
+            if not isinstance(group, h5py.Group):
+                raise TypeError(f"Expected Group, got {type(group).__name__}")
 
-        self._group = group
+            self._h5 = h5
+            self._group = group
+        except Exception:
+            if h5 is not None:
+                h5.close()
+            raise
 
     def __len__(self) -> int:
+        """Return the number of absorber records stored in the HDF5 file.
+
+        Returns:
+            Number of persisted absorber rows.
+        """
         if self._length is not None:
             return self._length
 
@@ -243,6 +294,14 @@ class HDF5Reader(PredictionReader):
         return self._length
 
     def __getitem__(self, index: int) -> PredictionSample:
+        """Return a single absorber record from the HDF5 dataset.
+
+        Args:
+            index: Zero-based absorber index.
+
+        Returns:
+            Decoded prediction sample for ``index``.
+        """
         if self._group is None:
             raise RuntimeError("Reader not properly initialized")
 
@@ -262,6 +321,11 @@ class HDF5Reader(PredictionReader):
         return cast(PredictionSample, sample)
 
     def get_all(self) -> PredictionBatch:
+        """Load every HDF5 dataset into a single stacked prediction batch.
+
+        Returns:
+            Mapping from field names to full absorber-major numpy arrays.
+        """
         if self._group is None:
             raise RuntimeError("Reader not properly initialized")
 
@@ -280,6 +344,7 @@ class HDF5Reader(PredictionReader):
         return cast(PredictionBatch, batch)
 
     def close(self) -> None:
+        """Close the underlying HDF5 file handle if it is still open."""
         if self._h5 is not None:
             self._h5.close()
             self._h5 = None
@@ -292,13 +357,20 @@ class HDF5Reader(PredictionReader):
 
 
 class NumpyReader(PredictionReader):
-    """
-    Reads .npz files saved by NumpyWriter.
+    """Prediction reader for ``.npz`` files written by ``NumpyWriter``.
 
-    Expects files named sample_XXXXXX.npz in the given directory.
+    Expects files named ``sample_XXXXXX.npz`` in the given directory.
+
+    Args:
+        path: Directory containing the ``sample_*.npz`` files.
     """
 
     def __init__(self, path: str | Path):
+        """Index a directory of per-sample ``.npz`` prediction files.
+
+        Args:
+            path: Directory containing ``sample_*.npz`` files.
+        """
         self._sample_files: list[Path] = []
         super().__init__(path)
 
@@ -318,9 +390,22 @@ class NumpyReader(PredictionReader):
         logging.debug(f"Found {len(self._sample_files)} sample files in {self.path}")
 
     def __len__(self) -> int:
+        """Return the number of discovered ``.npz`` sample files.
+
+        Returns:
+            Number of readable prediction samples.
+        """
         return len(self._sample_files)
 
     def __getitem__(self, index: int) -> PredictionSample:
+        """Load a single prediction sample from disk.
+
+        Args:
+            index: Zero-based absorber index.
+
+        Returns:
+            Decoded prediction sample for ``index``.
+        """
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range [0, {len(self)})")
 
@@ -338,13 +423,20 @@ class NumpyReader(PredictionReader):
 
 
 class JSONReader(PredictionReader):
-    """
-    Reads JSON files saved by JSONWriter.
+    """Prediction reader for ``.json`` files written by ``JSONWriter``.
 
-    Expects files named sample_XXXXXX.json in the given directory.
+    Expects files named ``sample_XXXXXX.json`` in the given directory.
+
+    Args:
+        path: Directory containing the ``sample_*.json`` files.
     """
 
     def __init__(self, path: str | Path):
+        """Index a directory of per-sample JSON prediction files.
+
+        Args:
+            path: Directory containing ``sample_*.json`` files.
+        """
         self._sample_files: list[Path] = []
         super().__init__(path)
 
@@ -364,9 +456,22 @@ class JSONReader(PredictionReader):
         logging.debug(f"Found {len(self._sample_files)} sample files in {self.path}")
 
     def __len__(self) -> int:
+        """Return the number of discovered JSON sample files.
+
+        Returns:
+            Number of readable prediction samples.
+        """
         return len(self._sample_files)
 
     def __getitem__(self, index: int) -> PredictionSample:
+        """Load a single prediction sample from a JSON file.
+
+        Args:
+            index: Zero-based absorber index.
+
+        Returns:
+            Decoded prediction sample for ``index``.
+        """
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range [0, {len(self)})")
 
@@ -391,8 +496,18 @@ class JSONReader(PredictionReader):
 
 
 def detect_prediction_format(path: str | Path) -> type[PredictionReader]:
-    """
-    Detect prediction format from directory structure and return appropriate reader class.
+    """Infer the prediction format from directory contents.
+
+    Args:
+        path: Path to the predictions directory.
+
+    Returns:
+        The appropriate ``PredictionReader`` subclass
+        (``HDF5Reader``, ``NumpyReader``, or ``JSONReader``).
+
+    Raises:
+        FileNotFoundError: If ``path`` does not exist.
+        ValueError: If no recognisable prediction files are found.
     """
     predictions_path = Path(path)
 

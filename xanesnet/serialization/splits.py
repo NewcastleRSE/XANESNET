@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Dataset split index loading and saving for XANESNET."""
 
 import json
 from pathlib import Path
@@ -21,6 +22,24 @@ from xanesnet.utils.exceptions import ResourceError
 
 
 def load_split_indices(filepath: str | Path) -> list[list[int]]:
+    """Load dataset split indices from a JSON file.
+
+    The file must have an ``indices`` dict at the top level.  Keys can be the
+    string literals ``"train"`` and ``"valid"`` (mapped to positions 0 and 1
+    respectively) or integer strings.
+
+    Args:
+        filepath: Path to the JSON split-index file.
+
+    Returns:
+        An ordered ``list[list[int]]`` where each inner list contains the
+        dataset indices for that split position.
+
+    Raises:
+        ResourceError: If the file format is invalid, required keys are missing,
+            duplicate or conflicting key definitions are present, or any split's
+            indices are not a list of integers.
+    """
     filepath = Path(filepath)
 
     with filepath.open("r", encoding="utf-8") as f:
@@ -82,8 +101,15 @@ def save_split_indices(
     split_indices_list: list[list[int]],
     train_valid_keys: bool = True,
 ) -> None:
-    """
-    Save split indices in a human-readable JSON format.
+    """Save dataset split indices to a JSON file.
+
+    Args:
+        filepath: Destination path for the JSON file.  Parent directories are
+            created automatically.
+        split_indices_list: Ordered list of index lists, one per split.
+        train_valid_keys: If ``True`` (default), positions 0 and 1 are written
+            with the human-readable keys ``"train"`` and ``"valid"`` instead of
+            ``"0"`` and ``"1"``.
     """
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
