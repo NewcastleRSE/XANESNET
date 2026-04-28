@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Collector for loss-based prediction error metrics."""
 
 from typing import Any
 
@@ -28,8 +29,12 @@ from .registry import CollectorRegistry
 
 @CollectorRegistry.register("error_metric")
 class ErrorMetrics(Collector):
-    """
-    Compute loss values between predictions and targets using xanesnet.losses.
+    """Compute a configured loss between prediction and target spectra.
+
+    Args:
+        collector_type: Registered collector name from the analysis configuration.
+        loss_type: Registered loss name from ``xanesnet.losses``.
+        **loss_kwargs: Keyword arguments forwarded to the configured loss class.
     """
 
     def __init__(
@@ -38,19 +43,27 @@ class ErrorMetrics(Collector):
         loss_type: str,
         **loss_kwargs: Any,
     ) -> None:
+        """Initialize the configured loss function."""
         super().__init__(collector_type)
 
         self.loss_type = loss_type
 
-        # Initialize loss function
         loss_class = LossRegistry.get(loss_type)
         self.loss_fn = loss_class(loss_type=loss_type, **loss_kwargs)
 
     def process(self, sample: PredictionSample) -> dict[str, float]:
+        """Compute the configured loss for one prediction sample.
+
+        Args:
+            sample: Prediction sample with ``prediction`` and ``target`` spectra. One-dimensional
+                spectra are treated as ``(N,)`` and batched to ``(1, N)`` before loss evaluation.
+
+        Returns:
+            Mapping from ``loss_type`` to the scalar loss value.
+        """
         pred = sample["prediction"]
         target = sample["target"]
 
-        # Convert to torch tensors
         if isinstance(pred, np.ndarray):
             pred_torch = torch.from_numpy(pred)
         elif isinstance(pred, torch.Tensor):
@@ -65,7 +78,6 @@ class ErrorMetrics(Collector):
         else:
             target_torch = torch.tensor(target, dtype=torch.float32)
 
-        # Ensure float32
         pred_torch = pred_torch.float()
         target_torch = target_torch.float()
 
@@ -75,7 +87,6 @@ class ErrorMetrics(Collector):
         if target_torch.ndim == 1:
             target_torch = target_torch.unsqueeze(0)
 
-        # Compute loss
         loss_value = self.loss_fn(pred_torch, target_torch)
 
         return {self.loss_type: float(loss_value.item())}

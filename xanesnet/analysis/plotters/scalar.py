@@ -1,22 +1,23 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Plotter for scalar value distributions."""
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,20 +35,30 @@ from .utils import collect_scalar_values
 
 @PlotterRegistry.register("scalar")
 class ScalarPlotter(Plotter):
-    """
-    Distribution plots for every scalar value key.
+    """Create distribution plots for each scalar value key.
 
     For each (predictions_reader, selector) combination a per-key directory is
     created containing a histogram, box plot, and violin plot.
+
+    Args:
+        plotter_type: Registered plotter name from the analysis configuration.
+        bins: Number of histogram bins. Defaults to ``DEFAULT_BINS``.
     """
 
-    DEFAULT_BINS = 50
+    DEFAULT_BINS: ClassVar[int] = 50
 
     def __init__(self, plotter_type: str, bins: int | None = None) -> None:
+        """Initialize a scalar distribution plotter."""
         super().__init__(plotter_type)
         self.bins = bins if bins is not None else self.DEFAULT_BINS
 
     def plot(self, results: AnalysisResults, output_dir: Path) -> None:
+        """Create histogram, box, and violin PDFs for scalar values.
+
+        Args:
+            results: Analysis pipeline outputs to plot.
+            output_dir: Directory where the ``scalar_plots`` tree should be written.
+        """
         root = output_dir / "scalar_plots"
 
         for reader_idx, reader_selectors in enumerate(results.selectors):
@@ -68,7 +79,7 @@ class ScalarPlotter(Plotter):
 
                 combo_label = f"pred_{reader_idx:03d}__sel_{sel_idx:03d}_{sel_label_str}"
                 combo_dir = root / combo_label
-                subtitle = _subtitle(combo_label, sel_cfg, reader_idx)
+                subtitle = _subtitle(sel_cfg, reader_idx)
 
                 for key, vals in values_by_key.items():
                     key_dir = combo_dir / key
@@ -80,6 +91,14 @@ class ScalarPlotter(Plotter):
                     self._violin(arr, key, subtitle, key_dir)
 
     def _histogram(self, arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        """Write a histogram PDF for one scalar key.
+
+        Args:
+            arr: One-dimensional scalar values with shape ``(N,)``.
+            key: Scalar value key used for labels and output path context.
+            subtitle: Plot subtitle text describing prediction and selector context.
+            out: Directory where ``histogram.pdf`` should be written.
+        """
         fig, ax = plt.subplots(figsize=(7, 4.5))
         ax.hist(arr, bins=self.bins, edgecolor="black", alpha=0.75)
         ax.set_xlabel(key)
@@ -93,6 +112,14 @@ class ScalarPlotter(Plotter):
 
     @staticmethod
     def _boxplot(arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        """Write a box plot PDF for one scalar key.
+
+        Args:
+            arr: One-dimensional scalar values with shape ``(N,)``.
+            key: Scalar value key used for labels and output path context.
+            subtitle: Plot subtitle text describing prediction and selector context.
+            out: Directory where ``boxplot.pdf`` should be written.
+        """
         fig, ax = plt.subplots(figsize=(5, 4.5))
         bp = ax.boxplot(arr, vert=True, patch_artist=True)
         bp["boxes"][0].set_facecolor("#005186")
@@ -107,6 +134,14 @@ class ScalarPlotter(Plotter):
 
     @staticmethod
     def _violin(arr: np.ndarray, key: str, subtitle: str, out: Path) -> None:
+        """Write a violin plot PDF for one scalar key.
+
+        Args:
+            arr: One-dimensional scalar values with shape ``(N,)``.
+            key: Scalar value key used for labels and output path context.
+            subtitle: Plot subtitle text describing prediction and selector context.
+            out: Directory where ``violin.pdf`` should be written.
+        """
         fig, ax = plt.subplots(figsize=(5, 4.5))
         vp = ax.violinplot(arr, showmedians=True, showextrema=True)
         bodies = vp["bodies"]
@@ -124,7 +159,16 @@ class ScalarPlotter(Plotter):
         plt.close(fig)
 
 
-def _subtitle(combo_label: str, sel_cfg: dict[str, Any], reader_idx: int) -> str:
+def _subtitle(sel_cfg: dict[str, Any], reader_idx: int) -> str:
+    """Build the scalar plot subtitle for one prediction-reader/selector pair.
+
+    Args:
+        sel_cfg: Selector configuration dictionary for this selector index.
+        reader_idx: Zero-based prediction reader index.
+
+    Returns:
+        Human-readable subtitle string.
+    """
     parts = [f"predictions={reader_idx}"]
     sel_type = sel_cfg.get("selector_type", "?")
     parts.append(f"selector={sel_type}")
@@ -135,10 +179,22 @@ def _subtitle(combo_label: str, sel_cfg: dict[str, Any], reader_idx: int) -> str
 
 
 def _add_subtitle(fig: Figure, text: str) -> None:
+    """Add centered subtitle text below a figure.
+
+    Args:
+        fig: Matplotlib figure to annotate.
+        text: Subtitle text.
+    """
     fig.text(0.5, -0.01, text, ha="center", va="top", fontsize=7, color="gray")
 
 
 def _add_stats_text(ax: Axes, arr: np.ndarray) -> None:
+    """Add sample count and summary statistics to a plot axis.
+
+    Args:
+        ax: Matplotlib axis to annotate.
+        arr: One-dimensional scalar values with shape ``(N,)``.
+    """
     text = f"n={len(arr)}\n" f"mean={np.mean(arr):.4g}\n" f"std={np.std(arr):.4g}\n" f"median={np.median(arr):.4g}"
     ax.text(
         0.97,
