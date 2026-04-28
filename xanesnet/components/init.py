@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Weight and bias initialisation registries for XANESNET model layers."""
 
 from collections.abc import Callable
 from typing import Protocol
@@ -20,24 +21,36 @@ from typing import Protocol
 import torch
 from torch import nn
 
-###############################################################################
-################################### WEIGHTS ###################################
-###############################################################################
-
 
 class WeightInitFn(Protocol):
+    """Protocol for in-place weight initialisation callables."""
+
     def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
 
 
 class WeightInitRegistry:
+    """Class-level registry mapping weight initialisation names to initialiser callables."""
+
     _registry: dict[str, WeightInitFn] = {}
 
     @staticmethod
     def _noop(tensor: torch.Tensor, **_) -> torch.Tensor:
+        """Return ``tensor`` unchanged (identity/default initialiser)."""
         return tensor
 
     @classmethod
     def register(cls, name: str) -> Callable[[WeightInitFn], WeightInitFn]:
+        """Return a decorator that registers a weight initialiser under ``name``.
+
+        Args:
+            name: Unique lower-case identifier for the initialiser.
+
+        Returns:
+            A decorator that registers and returns the callable unchanged.
+
+        Raises:
+            KeyError: If ``name`` is already registered.
+        """
         name = name.lower()
 
         def decorator(fn: WeightInitFn) -> WeightInitFn:
@@ -50,6 +63,18 @@ class WeightInitRegistry:
 
     @classmethod
     def get(cls, name: str, **kwargs) -> Callable[[torch.Tensor], torch.Tensor]:
+        """Look up a weight initialiser and return a partially-applied callable.
+
+        Args:
+            name: Initialiser identifier (case-insensitive).
+            **kwargs: Extra keyword arguments forwarded to the underlying initialiser.
+
+        Returns:
+            A single-argument callable ``(tensor) -> tensor`` with ``kwargs`` bound.
+
+        Raises:
+            KeyError: If ``name`` is not found in the registry.
+        """
         name = name.lower()
 
         if name not in cls._registry:
@@ -64,6 +89,11 @@ class WeightInitRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
+        """Return all registered weight initialiser name strings.
+
+        Returns:
+            List of registered weight-initialiser identifiers.
+        """
         return list(cls._registry.keys())
 
 
@@ -76,20 +106,31 @@ WeightInitRegistry.register("kaiming_uniform")(nn.init.kaiming_uniform_)
 WeightInitRegistry.register("kaiming_normal")(nn.init.kaiming_normal_)
 WeightInitRegistry.register("default")(WeightInitRegistry._noop)
 
-###############################################################################
-####################################  BIAS ####################################
-###############################################################################
-
 
 class BiasInitFn(Protocol):
+    """Protocol for in-place bias initialisation callables."""
+
     def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
 
 
 class BiasInitRegistry:
+    """Class-level registry mapping bias initialisation names to initialiser callables."""
+
     _registry: dict[str, BiasInitFn] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[BiasInitFn], BiasInitFn]:
+        """Return a decorator that registers a bias initialiser under ``name``.
+
+        Args:
+            name: Unique lower-case identifier for the initialiser.
+
+        Returns:
+            A decorator that registers and returns the callable unchanged.
+
+        Raises:
+            KeyError: If ``name`` is already registered.
+        """
         name = name.lower()
 
         def decorator(fn: BiasInitFn) -> BiasInitFn:
@@ -102,6 +143,17 @@ class BiasInitRegistry:
 
     @classmethod
     def get(cls, name: str) -> BiasInitFn:
+        """Look up and return a registered bias initialiser callable.
+
+        Args:
+            name: Initialiser identifier (case-insensitive).
+
+        Returns:
+            The registered bias initialiser callable.
+
+        Raises:
+            KeyError: If ``name`` is not found in the registry.
+        """
         name = name.lower()
 
         if name not in cls._registry:
@@ -110,6 +162,11 @@ class BiasInitRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
+        """Return all registered bias initialiser name strings.
+
+        Returns:
+            List of registered bias-initialiser identifiers.
+        """
         return list(cls._registry.keys())
 
 
