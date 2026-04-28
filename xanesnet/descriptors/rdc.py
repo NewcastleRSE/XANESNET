@@ -1,19 +1,19 @@
-"""
-XANESNET
-Copyright (C) 2021  Conor D. Rankine
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Radial distribution curve (RDC) descriptor for XANESNET."""
 
 import numpy as np
 from ase import Atoms
@@ -22,19 +22,24 @@ from ase.neighborlist import neighbor_list
 from .base import Descriptor
 from .registry import DescriptorRegistry
 
-###############################################################################
-################################## CLASSES ####################################
-###############################################################################
-
 
 @DescriptorRegistry.register("rdc")
 class RDC(Descriptor):
-    """
-    A class for transforming a molecular system into a radial (or 'pair')
-    distribution curve (RDC). The RDC is a histogram of pairwise internuclear
-    distances discretised over an auxiliary real-space grid and smoothed using
-    Gaussians; pairs are made between a given site and all atoms within a
-    defined radial cutoff.
+    """Radial distribution curve (RDC) descriptor.
+
+    Transforms an atomic system into a histogram of pairwise internuclear
+    distances, discretised over an auxiliary real-space grid and smoothed
+    with Gaussians. Pairs are formed between a target site and all atoms
+    within the radial cutoff.
+
+    Args:
+        descriptor_type: Identifier string for this descriptor type.
+        r_min: Minimum radial grid distance. **A**. Defaults to ``0.0``.
+        r_max: Maximum radial cutoff distance. **A**. Defaults to ``8.0``.
+        dr: Grid spacing of the auxiliary real-space grid. **A**. Defaults to ``0.01``.
+        alpha: Gaussian exponent (smoothing parameter). Defaults to ``10.0``.
+        use_charge: Append the charge state scalar to the descriptor. Defaults to ``False``.
+        use_spin: Append the spin state scalar to the descriptor. Defaults to ``False``.
     """
 
     def __init__(
@@ -46,23 +51,27 @@ class RDC(Descriptor):
         alpha: float = 10.0,
         use_charge: bool = False,
         use_spin: bool = False,
-    ):
-        """
+    ) -> None:
+        """Initialise the RDC descriptor.
+
         Args:
-            r_min (float): The minimum radial cutoff distance (in A).
-                Defaults to 0.0.
-            r_max (float): The maximum radial cutoff distance (in A).
-                Defaults to 8.0.
-            dr (float): The step size (in A) for the auxiliary real-space grid.
-                Defaults to 0.01.
-            alpha (float): A smoothing parameter for the Gaussian exponent.
-                Defaults to 10.0.
-            use_charge (bool): If True, appends the charge state to the descriptor.
-                Defaults to False.
-            use_spin (bool): If True, appends the spin state to the descriptor.
-                Defaults to False.
+            descriptor_type: Identifier string for this descriptor type.
+            r_min: Minimum radial grid distance. **A**. Defaults to ``0.0``.
+            r_max: Maximum radial cutoff distance. **A**. Defaults to ``8.0``.
+            dr: Grid spacing of the auxiliary real-space grid. **A**. Defaults to ``0.01``.
+            alpha: Gaussian exponent (smoothing parameter). Defaults to ``10.0``.
+            use_charge: Append the charge state scalar to the descriptor. Defaults to ``False``.
+            use_spin: Append the spin state scalar to the descriptor. Defaults to ``False``.
+
+        Raises:
+            ValueError: If ``dr <= 0`` or ``r_max < r_min``.
         """
         super().__init__(descriptor_type)
+
+        if dr <= 0:
+            raise ValueError(f"dr must be positive, got {dr}")
+        if r_max < r_min:
+            raise ValueError(f"r_max must be greater than or equal to r_min, got r_min={r_min}, r_max={r_max}")
 
         self.r_min = float(r_min)
         self.r_max = float(r_max)
@@ -75,6 +84,18 @@ class RDC(Descriptor):
         self.r_aux = np.linspace(self.r_min, self.r_max, nr_aux)
 
     def transform(self, system: Atoms, site_index: int | list[int] | None = 0) -> np.ndarray:
+        """Compute RDC descriptors for one or more sites.
+
+        Args:
+            system: The atomic system.
+            site_index: Site index, list of site indices, or ``None`` for all sites.
+                Defaults to ``0`` (the absorber site).
+
+        Returns:
+            Descriptor array ``(S, G)`` where ``S`` is the number of selected sites
+            and ``G`` is the number of grid points (plus optional spin/charge scalars
+            appended in that order).
+        """
         if isinstance(site_index, int):
             site_index = [site_index]
 
@@ -94,7 +115,22 @@ class RDC(Descriptor):
         j_arr: np.ndarray,
         d_arr: np.ndarray,
     ) -> np.ndarray:
-        """Compute the RDC for a single site."""
+        """Compute the RDC fingerprint for a single absorber site.
+
+        Args:
+            system: The atomic system.
+            site_index: Index of the absorber site.
+            i_arr: Source atom indices from the neighbor list ``(P,)``.
+            j_arr: Target atom indices from the neighbor list ``(P,)``.
+            d_arr: Pairwise distances from the neighbor list ``(P,)``. **A**.
+
+        Returns:
+            RDC feature vector ``(G,)`` extended by optional spin/charge scalars
+            appended in that order.
+
+        Raises:
+            RuntimeError: If no atoms lie within ``r_max`` of ``site_index``.
+        """
         mask = i_arr == site_index
 
         if mask.sum() < 1:
@@ -112,9 +148,9 @@ class RDC(Descriptor):
         rdc = np.sum((zi * zj)[:, np.newaxis] * exp, axis=0)
 
         if self.use_spin:
-            rdc = np.append(system.info["S"], rdc)
+            rdc = np.append(rdc, system.info["S"])
 
         if self.use_charge:
-            rdc = np.append(system.info["q"], rdc)
+            rdc = np.append(rdc, system.info["q"])
 
         return rdc

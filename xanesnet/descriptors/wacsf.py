@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Weighted atom-centered symmetry function (WACSF) descriptor for XANESNET."""
 
 import numpy as np
 from ase import Atoms
@@ -21,21 +22,32 @@ from ase.neighborlist import neighbor_list
 from .base import Descriptor
 from .registry import DescriptorRegistry
 
-###############################################################################
-################################## CLASSES ####################################
-###############################################################################
-
 
 @DescriptorRegistry.register("wacsf")
 class WACSF(Descriptor):
-    """
-    A class for transforming a molecular system into a weighted atom-centered
-    symmetry function (WACSF) descriptor. WACSFs encode the local geometry
-    around a site using parameterised radial and angular components.
+    """Weighted atom-centered symmetry function (WACSF) descriptor.
+
+    Encodes the local geometry around a site using parameterised radial (G2)
+    and angular (G4) symmetry functions with atom-type weighting.
 
     References:
-        J. Chem. Phys., 2018, 148, 241709 (10.1063/1.5019667)
-        J. Chem. Phys., 2011, 134, 074106 (10.1063/1.3553717)
+        J. Chem. Phys., 2018, 148, 241709 (DOI: 10.1063/1.5019667)
+        J. Chem. Phys., 2011, 134, 074106 (DOI: 10.1063/1.3553717)
+
+    Args:
+        descriptor_type: Identifier string for this descriptor type.
+        r_min: Minimum radial distance. **A**. Defaults to ``1.0``.
+        r_max: Maximum radial cutoff distance. **A**. Defaults to ``6.0``.
+        n_g2: Number of G2 (radial) symmetry functions. Defaults to ``16``.
+        n_g4: Number of G4 (angular) symmetry functions. Defaults to ``32``.
+        l: Lambda values for G4 encoding. Defaults to ``[1.0, -1.0]``.
+        z: Zeta values for G4 encoding. Defaults to ``[1.0]``.
+        g2_parameterisation: G2 grid strategy — ``'shifted'`` or ``'centred'``.
+            Defaults to ``'shifted'``.
+        g4_parameterisation: G4 grid strategy — ``'shifted'`` or ``'centred'``.
+            Defaults to ``'centred'``.
+        use_charge: Append charge state scalar to the descriptor. Defaults to ``False``.
+        use_spin: Append spin state scalar to the descriptor. Defaults to ``False``.
     """
 
     def __init__(
@@ -51,21 +63,13 @@ class WACSF(Descriptor):
         g4_parameterisation: str = "centred",
         use_charge: bool = False,
         use_spin: bool = False,
-    ):
-        """
-        Args:
-            r_min (float): Minimum radial cutoff distance (in A). Defaults to 1.0.
-            r_max (float): Maximum radial cutoff distance (in A). Defaults to 6.0.
-            n_g2 (int): Number of G2 symmetry functions. Defaults to 16.
-            n_g4 (int): Number of G4 symmetry functions. Defaults to 32.
-            l (list[float] | None): Lambda values for G4 encoding. Defaults to [1.0, -1.0].
-            z (list[float] | None): Zeta values for G4 encoding. Defaults to [1.0].
-            g2_parameterisation (str): G2 parameterisation strategy ('shifted' or 'centred').
-            g4_parameterisation (str): G4 parameterisation strategy ('shifted' or 'centred').
-            use_charge (bool): Append charge state to descriptor. Defaults to False.
-            use_spin (bool): Append spin state to descriptor. Defaults to False.
-        """
+    ) -> None:
         super().__init__(descriptor_type)
+
+        if n_g2 < 0:
+            raise ValueError(f"n_g2 must be non-negative, got {n_g2}")
+        if n_g4 < 0:
+            raise ValueError(f"n_g4 must be non-negative, got {n_g4}")
 
         self.r_min = r_min
         self.r_max = r_max
@@ -112,6 +116,17 @@ class WACSF(Descriptor):
         system: Atoms,
         site_index: int | list[int] | None = 0,
     ) -> np.ndarray:
+        """Compute WACSF descriptors for one or more sites.
+
+        Args:
+            system: The atomic system.
+            site_index: Site index, list of site indices, or ``None`` for all sites.
+                Defaults to ``0`` (the absorber site).
+
+        Returns:
+            Descriptor array ``(S, F)`` where ``S`` is the number of selected sites
+            and ``F = 1 + n_g2 + n_g4 + use_charge + use_spin``.
+        """
         # Use ASE neighbor_list for correct periodic image enumeration.
         # get_all_distances(mic=True) only finds the closest image per atom,
         # which is wrong for small unit cells where r_max exceeds cell dimensions.
@@ -132,13 +147,31 @@ class WACSF(Descriptor):
         d_arr: np.ndarray,
         D_arr: np.ndarray,
     ) -> np.ndarray:
-        """Compute the WACSF for a single site."""
+        """Compute the WACSF fingerprint for a single absorber site.
+
+        Args:
+            system: The atomic system.
+            site_index: Index of the absorber site.
+            i_arr: Source atom indices from the neighbor list ``(P,)``.
+            j_arr: Target atom indices from the neighbor list ``(P,)``.
+            d_arr: Pairwise distances from the neighbor list ``(P,)``. **A**.
+            D_arr: Displacement vectors from the neighbor list ``(P, 3)``. **A**.
+
+        Returns:
+            WACSF feature vector ``(F,)`` where ``F = 1 + n_g2 + n_g4 + use_charge + use_spin``.
+            If no neighbours are found within ``r_max``, the geometric terms are
+            zero while optional spin and charge scalars are still preserved.
+        """
         mask = i_arr == site_index
 
-        # If no neighbours, return zeros
+        # If no neighbours, return zeroed geometric terms but preserve optional global scalars.
         if mask.sum() == 0:
-            base_size = 1 + self.n_g2 + self.n_g4 + self.use_charge + self.use_spin
-            return np.zeros(base_size)
+            features: list[np.ndarray] = [np.zeros(1 + self.n_g2 + self.n_g4)]
+            if self.use_spin:
+                features.append(np.array([system.info["S"]]))
+            if self.use_charge:
+                features.append(np.array([system.info["q"]]))
+            return np.concatenate(features)
 
         Z = 0.1 * system.get_atomic_numbers()
 
@@ -214,29 +247,41 @@ class WACSF(Descriptor):
         return np.concatenate(features)
 
 
-###############################################################################
-################################## HELPERS ####################################
-###############################################################################
-
-
 class _SymFuncParams:
-    """
-    Parameter container for symmetry function parameterisation.
+    """Precomputed eta (``h``) and mu (``m``) grids for G2 / G4 symmetry functions.
 
-    Computes eta (h) and mu (m) grids based on the 'shifted' or 'centred'
-    strategy from Marquetand et al.; J. Chem. Phys., 2018, 148, 241709.
+    Computes parameter grids based on the ``'shifted'`` or ``'centred'``
+    parameterisation from Marquetand et al.;
+    J. Chem. Phys., 2018, 148, 241709 (DOI: 10.1063/1.5019667).
+
+    Args:
+        n: Number of symmetry functions.
+        r_min: Minimum radial distance. **A**.
+        r_max: Maximum radial distance. **A**.
+        parameterisation: Grid strategy — ``'shifted'`` or ``'centred'``.
+
+    Raises:
+        ValueError: If ``n < 1`` or ``parameterisation`` is unsupported.
     """
 
-    def __init__(self, n: int, r_min: float, r_max: float, parameterisation: str):
+    def __init__(self, n: int, r_min: float, r_max: float, parameterisation: str) -> None:
+        if n < 1:
+            raise ValueError(f"n must be positive, got {n}")
+
         self.n = n
         self.r_min = r_min
         self.r_max = r_max
 
         if parameterisation == "shifted":
-            r_aux = np.linspace(r_min + 0.5, r_max - 0.5, n)
-            dr = np.diff(r_aux)[0]
-            self.h = np.full(n, 1.0 / (2.0 * dr**2))
-            self.m = r_aux.copy()
+            if n == 1:
+                dr = max(r_max - r_min, np.finfo(float).eps)
+                self.h = np.array([1.0 / (2.0 * dr**2)])
+                self.m = np.array([(r_min + r_max) / 2.0])
+            else:
+                r_aux = np.linspace(r_min + 0.5, r_max - 0.5, n)
+                dr = np.diff(r_aux)[0]
+                self.h = np.full(n, 1.0 / (2.0 * dr**2))
+                self.m = r_aux.copy()
         elif parameterisation == "centred":
             r_aux = np.linspace(r_min + 1.0, r_max - 0.5, n)
             self.h = np.array([1.0 / (2.0 * r**2) for r in r_aux])
@@ -249,5 +294,19 @@ class _SymFuncParams:
 
 
 def _cosine_cutoff(r: np.ndarray, r_max: float) -> np.ndarray:
-    """Cosine cutoff function. See Behler; J. Chem. Phys., 2011, 134, 074106."""
-    return (np.cos((np.pi * r) / r_max) + 1.0) / 2.0
+    """Cosine cutoff function.
+
+    Returns the standard Behler cosine cutoff inside ``[0, r_max]`` and zero
+    outside the cutoff radius.
+
+    Args:
+        r: Distances at which to evaluate the cutoff.
+        r_max: Cutoff radius.
+
+    Returns:
+        Cutoff values with the same shape as ``r``.
+    """
+    values = np.zeros_like(r, dtype=float)
+    mask = r <= r_max
+    values[mask] = (np.cos((np.pi * r[mask]) / r_max) + 1.0) / 2.0
+    return values
