@@ -1,24 +1,27 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Abstract dataset infrastructure shared by all dataset implementations."""
 
 import logging
 import os
 import shutil
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import torch
@@ -33,15 +36,9 @@ from xanesnet.utils.exceptions import ConfigError
 
 SavePathFn = Callable[[int], str]
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
 
 class Dataset(TorchDataset, ABC):
-    """
-    Abstract base class for datasets.
-    """
+    """Abstract base class for prepared on-disk datasets."""
 
     def __init__(
         self,
@@ -53,6 +50,17 @@ class Dataset(TorchDataset, ABC):
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
+        """Initialize shared dataset state.
+
+        Args:
+            dataset_type: Registered dataset type name.
+            datasource: Raw data source that yields structures, spectra, and metadata.
+            root: Directory that stores processed ``.pth`` files.
+            preload: Whether to load processed samples into memory after preparation.
+            skip_prepare: Whether to reuse existing processed files.
+            split_ratios: Optional train/validation/test split ratios.
+            split_indexfile: Optional path to serialized split indices.
+        """
         self.dataset_type = dataset_type
         self.datasource = datasource
         self.root = root
@@ -71,17 +79,19 @@ class Dataset(TorchDataset, ABC):
         self._subsets: list[Subset] = []
 
     def prepare(self) -> bool:
-        """
-        Process the raw data and prepare it for use in the model.
+        """Process raw datasource items sequentially.
+
+        Returns:
+            ``True`` when preparation or reuse of existing files succeeded.
         """
         return self._prepare_sequential()
 
     def _prepare_processed_dir(self) -> bool:
-        """
-        Prepare the processed data directory.
+        """Prepare the processed data directory.
 
-        Returns ``True`` when existing processed files should be used and no
-        processing should run, otherwise ``False``.
+        Returns:
+            ``True`` when existing processed files should be used and no
+            processing should run, otherwise ``False``.
         """
         if self.skip_prepare:
             logging.info("skip_prepare is True. Skipping data preparation.")
@@ -107,18 +117,23 @@ class Dataset(TorchDataset, ABC):
 
     @abstractmethod
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
-        """
-        Process one raw datasource item and save all processed samples.
+        """Process one raw datasource item and save all processed samples.
 
-        ``save_path_fn`` receives the per-item output sequence number and
-        returns the path where that output should be written. The return value
-        is the number of processed files written for ``idx``.
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that maps a per-item sequence number to the
+                output path for that processed sample.
+
+        Returns:
+            Number of processed files written for ``idx``.
         """
         ...
 
     def _prepare_sequential(self) -> bool:
-        """
-        Process all datasource items sequentially using ``_prepare_single``.
+        """Process all datasource items sequentially using ``_prepare_single``.
+
+        Returns:
+            ``True`` when processing completed or existing files were reused.
         """
         skip_processing = self._prepare_processed_dir()
         if skip_processing:
@@ -128,6 +143,7 @@ class Dataset(TorchDataset, ABC):
         for idx in tqdm(range(len(self.datasource)), desc="Processing data", total=len(self.datasource)):
 
             def save_path_fn(seq: int, offset: int = counter) -> str:
+                """Return the canonical path for one per-item output."""
                 return os.path.join(self.processed_dir, f"{offset + seq}.pth")
 
             counter += self._prepare_single(idx, save_path_fn)
@@ -136,8 +152,10 @@ class Dataset(TorchDataset, ABC):
         return True
 
     def check_preload(self) -> bool:
-        """
-        Preload the entire dataset into memory.
+        """Load processed samples into memory when preloading is enabled.
+
+        Returns:
+            Whether the dataset is configured for in-memory preloading.
         """
         if self.preload:
             logging.info(f"Preloading entire dataset into memory. (# Samples: {len(self)})")
@@ -148,9 +166,7 @@ class Dataset(TorchDataset, ABC):
         return self.preload
 
     def setup_splits(self) -> None:
-        """
-        Create multiple subsets based on the split_indexfile or by generating them from split_ratios.
-        """
+        """Create subsets from an index file or configured split ratios."""
         subsets: list[Subset] = []
 
         if self._split_indexfile is not None:
@@ -185,8 +201,13 @@ class Dataset(TorchDataset, ABC):
         self._subsets = subsets
 
     def get_subset_indices(self, index: int) -> list[int] | None:
-        """
-        Return the indices for a specific subset.
+        """Return indices for one configured subset.
+
+        Args:
+            index: Subset position in ``self.subsets``.
+
+        Returns:
+            Subset indices, or ``None`` when ``index`` is out of range.
         """
         subset = self.get_subset(index)
         if subset is not None:
@@ -194,14 +215,21 @@ class Dataset(TorchDataset, ABC):
         return None
 
     def get_all_subset_indices(self) -> list[list[int]]:
-        """
-        Return the indices for all subsets.
+        """Return indices for all configured subsets.
+
+        Returns:
+            A list of subset index lists.
         """
         return [self.get_subset_indices(i) or [] for i in range(len(self._subsets))]
 
     def get_subset(self, index: int) -> Subset | None:
-        """
-        Return the subset at the given index.
+        """Return one configured subset.
+
+        Args:
+            index: Subset position in ``self.subsets``.
+
+        Returns:
+            The requested subset, or ``None`` when ``index`` is out of range.
         """
         if 0 <= index < len(self._subsets):
             return self._subsets[index]
@@ -209,56 +237,69 @@ class Dataset(TorchDataset, ABC):
 
     @property
     def subsets(self) -> list[Subset]:
-        """
-        Return all subsets.
-        """
+        """Configured dataset subsets."""
         return self._subsets
 
     @property
     def train_subset(self) -> Subset | None:
-        """
-        Return the training subset.
-        """
+        """Training subset, when configured."""
         return self.get_subset(0)
 
     @property
     def valid_subset(self) -> Subset | None:
-        """
-        Return the validation subset.
-        """
+        """Validation subset, when configured."""
         return self.get_subset(1)
 
     def get_dataloader(self) -> type[torch.utils.data.DataLoader]:
-        """
-        Returns the dataloader class that should be used.
+        """Return the dataloader class for this dataset.
+
+        Returns:
+            The dataloader class expected by training and inference code.
         """
         return torch.utils.data.DataLoader
 
     @abstractmethod
     def collate_fn(self, batch: list[Any]) -> Any:
-        """
-        Collate function for the dataloader.
+        """Collate raw items into one dataloader batch.
+
+        Args:
+            batch: Samples loaded by ``__getitem__``.
+
+        Returns:
+            A framework-specific batch object.
         """
         ...
 
     @abstractmethod
     def _load_item(self, path: str) -> Any:
-        """
-        Load a single item from the given path.
+        """Load one processed sample from disk.
+
+        Args:
+            path: Path to a processed ``.pth`` file.
+
+        Returns:
+            Loaded sample object.
         """
         ...
 
     def __len__(self) -> int:
-        """
-        Return the number of processed samples in the dataset.
+        """Return the number of processed samples.
+
+        Returns:
+            Number of processed samples available on disk or in memory.
         """
         if self._length < 0:
             raise ValueError("Dataset length not set. Make sure to call prepare() before using the dataset.")
         return self._length
 
     def __getitem__(self, idx: int) -> Any:
-        """
-        Return the sample at the given index.
+        """Return one processed sample.
+
+        Args:
+            idx: Processed sample index.
+
+        Returns:
+            Loaded sample from memory or disk.
         """
         if self.preload:
             return self.inmemory_dataset[idx]
@@ -268,8 +309,10 @@ class Dataset(TorchDataset, ABC):
     @property
     @abstractmethod
     def signature(self) -> Config:
-        """
-        Return dataset signature as a dictionary.
+        """Dataset configuration signature.
+
+        Returns:
+            Configuration values that identify this dataset instance.
         """
         signature = Config(
             {
@@ -280,14 +323,10 @@ class Dataset(TorchDataset, ABC):
 
     @property
     def processed_dir(self) -> str:
-        """
-        Path to the processed data directory.
-        """
+        """Path to the processed data directory."""
         return self.root
 
     @property
     def processed_files(self) -> list[str]:
-        """
-        List of processed data files according to datasource length.
-        """
+        """Processed file paths in canonical sample order."""
         return [os.path.join(self.processed_dir, f"{i}.pth") for i in range(len(self))]

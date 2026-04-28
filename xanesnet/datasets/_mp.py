@@ -1,22 +1,20 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
-###############################################################################
-####################### MULTIPROCESSING PREPARE HELPERS #######################
-###############################################################################
+"""Multiprocessing preparation support for datasets."""
 
 import logging
 import multiprocessing as mp
@@ -45,23 +43,37 @@ _FORKSERVER_PRELOAD = [
 
 
 class _MpDataset(Protocol):
-    """
-    Protocol for datasets that can be prepared with multiprocessing. Each
-    such dataset must implement ``_prepare_single(idx, save_path_fn)`` which
-    processes one datasource item and writes processed samples using the save
-    path callback.
-    """
+    """Structural type for datasets prepared by ``MpDatasetMixin``."""
 
     @property
-    def processed_dir(self) -> str: ...
+    def processed_dir(self) -> str:
+        """Directory that receives processed ``.pth`` files."""
+        ...
 
     datasource: Any
     num_workers: int | None
     _length: int
 
-    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int: ...
+    def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """Process one datasource item and save processed samples.
 
-    def _process_range(self, start: int, end: int) -> None: ...
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that returns output paths for per-item sample indices.
+
+        Returns:
+            Number of processed files written for ``idx``.
+        """
+        ...
+
+    def _process_range(self, start: int, end: int) -> None:
+        """Process the half-open datasource range ``[start, end)``.
+
+        Args:
+            start: First datasource index to process.
+            end: Stop index, exclusive.
+        """
+        ...
 
 
 class MpDatasetMixin:
@@ -70,6 +82,11 @@ class MpDatasetMixin:
     num_workers: int | None
 
     def prepare(self) -> bool:
+        """Process raw datasource items with worker processes.
+
+        Returns:
+            ``True`` when preparation or reuse of existing files succeeded.
+        """
         dataset = cast(_MpDataset, self)
         skip_processing = _BaseDataset._prepare_processed_dir(cast(_BaseDataset, self))
         if skip_processing:
@@ -79,21 +96,31 @@ class MpDatasetMixin:
         return True
 
     def _process_range(self, start: int, end: int) -> None:
+        """Process one worker-owned slice of datasource indices.
+
+        Args:
+            start: First datasource index to process.
+            end: Stop index, exclusive.
+        """
         dataset = cast(_MpDataset, self)
         for idx in range(start, end):
 
             def save_path_fn(seq: int, global_idx: int = idx) -> str:
+                """Return the worker temporary path for one per-item output."""
                 return self._mp_save_path(dataset.processed_dir, global_idx, seq)
 
             dataset._prepare_single(idx, save_path_fn)
 
     @staticmethod
     def _resolve_num_workers(num_workers: int | None) -> int:
-        """
-        Return the number of worker processes to use.
+        """Return the number of worker processes to use.
 
-        ``None`` or any non-positive value falls back to ``os.cpu_count()``
-        (with a final fallback of 1 if that is unavailable).
+        Args:
+            num_workers: Requested worker count. ``None`` and non-positive
+                values fall back to ``os.cpu_count()``.
+
+        Returns:
+            Worker count with a minimum of one.
         """
         if num_workers is None or num_workers <= 0:
             return os.cpu_count() or 1
@@ -101,11 +128,14 @@ class MpDatasetMixin:
 
     @staticmethod
     def _split_index_ranges(total: int, num_chunks: int) -> list[tuple[int, int]]:
-        """
-        Split ``[0, total)`` into at most ``num_chunks`` (start, end) tuples.
+        """Split ``[0, total)`` into at most ``num_chunks`` ranges.
 
-        Empty ranges are dropped so the worker pool only receives chunks that
-        actually have work to do.
+        Args:
+            total: Number of datasource items.
+            num_chunks: Maximum number of chunks to create.
+
+        Returns:
+            Non-empty ``(start, end)`` ranges for worker assignment.
         """
         if total <= 0:
             return []
@@ -123,16 +153,27 @@ class MpDatasetMixin:
 
     @staticmethod
     def _mp_save_path(processed_dir: str, global_idx: int, seq: int) -> str:
-        """
-        Build a temporary save path for a sample produced by a worker.
+        """Build a temporary save path for a worker-produced sample.
 
-        Lexicographic sorting of the resulting filenames recovers the original
-        datasource ordering during the post-processing rename pass.
+        Args:
+            processed_dir: Directory that receives temporary worker outputs.
+            global_idx: Datasource index processed by the worker.
+            seq: Per-datasource-item output sequence number.
+
+        Returns:
+            Lexicographically sortable temporary ``.pth`` path.
         """
         return os.path.join(processed_dir, f"{global_idx:010d}_{seq:06d}.pth")
 
     @staticmethod
     def _worker_entry(dataset: _MpDataset, start: int, end: int) -> None:
+        """Run one worker range on a pickled dataset instance.
+
+        Args:
+            dataset: Dataset instance received by the worker process.
+            start: First datasource index to process.
+            end: Stop index, exclusive.
+        """
         dataset._process_range(start, end)
 
     def _run_mp_prepare(
@@ -141,16 +182,20 @@ class MpDatasetMixin:
         total: int,
         num_workers: int | None,
     ) -> int:
-        """
-        Run ``prepare`` for ``dataset`` over ``total`` datasource items using
-        a pool of worker processes.
+        """Prepare ``dataset`` over ``total`` items with worker processes.
 
         Each worker handles a disjoint slice and writes files using
         ``_mp_save_path``. After all workers finish, the files are sorted
         lexicographically and renamed to the canonical ``{counter}.pth`` form
         so that the on-disk layout is identical to sequential preparation.
 
-        Returns the number of files written.
+        Args:
+            dataset: Dataset object that implements ``_prepare_single``.
+            total: Number of datasource items to process.
+            num_workers: Requested worker count.
+
+        Returns:
+            Number of processed files written.
         """
         n_workers = self._resolve_num_workers(num_workers)
         ranges = self._split_index_ranges(total, n_workers)

@@ -1,18 +1,20 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""GemNet and GemNet-OC PyTorch Geometric dataset implementation."""
 
 import logging
 from typing import Any, Protocol
@@ -38,14 +40,8 @@ from ..registry import DatasetRegistry
 SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more central?
 
 
-###############################################################################
-################################ DATA CONTAINER ###############################
-###############################################################################
-
-
 class GemNetData(Data):
-    """
-    PyG ``Data`` subclass for GemNet / GemNet-OC.
+    """PyG ``Data`` subclass for GemNet and GemNet-OC samples.
 
     The custom ``__inc__`` is critical for correct PyG batching of all edge /
     triplet / quadruplet / intermediate indices across multiple graphs.
@@ -90,6 +86,17 @@ class GemNetData(Data):
     _NO_INC_KEYS = {"Kidx3", "Kidx4", "trip_e2e_out_agg", "trip_a2e_out_agg", "trip_e2a_out_agg"}
 
     def __inc__(self, key: str, value: Any, *args: Any, **kwargs: Any) -> Any:
+        """Return PyG batching increments for GemNet index fields.
+
+        Args:
+            key: Data attribute currently being batched.
+            value: Attribute value currently being batched.
+            *args: Additional PyG arguments.
+            **kwargs: Additional PyG keyword arguments.
+
+        Returns:
+            Increment used by PyG for ``key``.
+        """
         if (
             key in {"edge_index", "int_edge_index", "a2ee2a_edge_index", "a2a_edge_index", "qint_edge_index"}
             or key in self._NODE_KEYS
@@ -121,14 +128,25 @@ class GemNetData(Data):
         return super().__inc__(key, value, *args, **kwargs)
 
     def __cat_dim__(self, key: str, value: Any, *args: Any, **kwargs: Any) -> Any:
-        # 2xE edge indices concatenate along dim=1 (default for edge_index).
+        """Return the concatenation dimension for GemNet graph fields.
+
+        Args:
+            key: Data attribute currently being batched.
+            value: Attribute value currently being batched.
+            *args: Additional PyG arguments.
+            **kwargs: Additional PyG keyword arguments.
+
+        Returns:
+            Concatenation dimension used by PyG for ``key``.
+        """
         if key in {"edge_index", "int_edge_index", "a2ee2a_edge_index", "a2a_edge_index", "qint_edge_index"}:
             return 1
         return super().__cat_dim__(key, value, *args, **kwargs)
 
 
-# for typing
 class GemNetBatch(Protocol):
+    """Protocol for batches emitted by ``GemNetDataset.collate_fn``."""
+
     x: torch.Tensor
     pos: torch.Tensor
     batch: torch.Tensor
@@ -147,58 +165,10 @@ class GemNetBatch(Protocol):
     file_name: list[str]
 
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
-
 @DatasetRegistry.register("gemnet")
 @DatasetRegistry.register("gemnet_oc")
 class GemNetDataset(TorchGeometricDataset):
-    """
-    Dataset for GemNet and GemNet-OC.
-
-    Parameters
-    ----------
-    cutoff:
-        Embedding cutoff for the main graph (Å).
-    max_num_neighbors:
-        Maximum outgoing neighbours per source in the main graph.
-    graph_method / min_facet_area / cov_radii_scale:
-        Passed to ``build_edges`` for the **main** graph (same semantics as
-        ``GeometryGraphDataset``).
-    oc_mode:
-        If True, additionally precompute all graphs and indices required by
-        GemNet-OC (interaction graph, quadruplet indices; optional a2a and
-        a2ee2a graphs; mixed triplets).
-    int_cutoff:
-        Interaction cutoff used by GemNet quadruplets and by GemNet-OC's
-        ``qint`` graph. Must be ``>= cutoff`` for GemNet-OC quadruplets.
-    int_max_neighbors:
-        Per-source neighbour cap for the interaction graph. Defaults to
-        ``None`` meaning "fall back to ``max_num_neighbors``".
-    int_graph_method / int_min_facet_area / int_cov_radii_scale:
-        Per-graph overrides for the interaction graph. Each defaults to
-        ``None`` meaning "fall back to the corresponding main-graph value",
-        so a plain ``int_cutoff`` override changes only the cutoff while
-        keeping the same construction method.
-    oc_cutoff_aeaint / oc_cutoff_aint:
-        Only used when ``oc_mode=True``. Cutoffs for the atom-edge-atom and
-        atom-atom graphs respectively. Default to ``cutoff`` (= disables the
-        feature at the dataset level; the model's toggles still control use).
-    oc_max_neighbors_aeaint / oc_max_neighbors_aint:
-        Per-source neighbour caps for the OC auxiliary graphs.
-    oc_graph_method_aeaint / oc_min_facet_area_aeaint /
-    oc_cov_radii_scale_aeaint:
-        Per-graph overrides for the OC ``a2ee2a`` graph. Each defaults to
-        ``None`` meaning "fall back to the main-graph value".
-    oc_graph_method_aint / oc_min_facet_area_aint / oc_cov_radii_scale_aint:
-        Per-graph overrides for the OC ``a2a`` graph. Each defaults to
-        ``None`` meaning "fall back to the main-graph value".
-    quadruplets:
-        If True, compute quadruplet indices (required for GemNet-Q and
-        GemNet-OC when ``quad_interaction=True``). Must be True when
-        ``oc_mode=True`` and the model uses quad interactions.
+    """Dataset for GemNet and GemNet-OC graph inputs.
 
     Mixing graph methods is supported (e.g. ``graph_method="voronoi"`` for a
     compact main graph paired with ``int_graph_method="radius"`` for a larger
@@ -240,6 +210,39 @@ class GemNetDataset(TorchGeometricDataset):
         oc_min_facet_area_aint: float | str | None = None,
         oc_cov_radii_scale_aint: float | None = None,
     ) -> None:
+        """Initialize the GemNet dataset.
+
+        Args:
+            dataset_type: Registered dataset type name.
+            datasource: Raw datasource of pymatgen structures or molecules.
+            root: Directory that stores processed ``.pth`` files.
+            preload: Whether to preload processed samples.
+            skip_prepare: Whether to reuse existing processed files.
+            split_ratios: Optional split ratios.
+            split_indexfile: Optional path to split indices.
+            cutoff: Main graph cutoff in **Angstrom**.
+            max_num_neighbors: Main graph per-source neighbor cap.
+            graph_method: Main graph construction method.
+            min_facet_area: Optional Voronoi facet-area threshold for the main graph.
+            cov_radii_scale: Covalent-radii scale for the main graph.
+            quadruplets: Whether to compute quadruplet indices.
+            int_cutoff: Interaction graph cutoff in **Angstrom**.
+            int_max_neighbors: Optional interaction graph per-source neighbor cap.
+            int_graph_method: Optional interaction graph construction method.
+            int_min_facet_area: Optional interaction Voronoi facet-area threshold.
+            int_cov_radii_scale: Optional interaction covalent-radii scale.
+            oc_mode: Whether to precompute GemNet-OC auxiliary graphs and mixed triplets.
+            oc_cutoff_aeaint: Atom-edge-atom graph cutoff in **Angstrom**.
+            oc_cutoff_aint: Atom-atom graph cutoff in **Angstrom**.
+            oc_max_neighbors_aeaint: Atom-edge-atom graph per-source neighbor cap.
+            oc_max_neighbors_aint: Atom-atom graph per-source neighbor cap.
+            oc_graph_method_aeaint: Atom-edge-atom graph construction method override.
+            oc_min_facet_area_aeaint: Atom-edge-atom Voronoi facet-area threshold.
+            oc_cov_radii_scale_aeaint: Atom-edge-atom covalent-radii scale.
+            oc_graph_method_aint: Atom-atom graph construction method override.
+            oc_min_facet_area_aint: Atom-atom Voronoi facet-area threshold.
+            oc_cov_radii_scale_aint: Atom-atom covalent-radii scale.
+        """
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff
@@ -284,6 +287,15 @@ class GemNetDataset(TorchGeometricDataset):
             )
 
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """Process one datasource item into one GemNet graph sample.
+
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that maps sample sequence numbers to output paths.
+
+        Returns:
+            ``1`` when the graph was saved, otherwise ``0`` when skipped.
+        """
         pmg_obj = self.datasource[idx]
         for key in SPECTRUM_KEYS:
             if key in pmg_obj.site_properties.keys():
@@ -521,6 +533,14 @@ class GemNetDataset(TorchGeometricDataset):
         return 1
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
+        """Collate GemNet graph samples into one PyG batch.
+
+        Args:
+            batch: GemNet graph samples loaded by ``__getitem__``.
+
+        Returns:
+            PyG batch with target tensors concatenated over absorber sites.
+        """
         fields_to_cat = ["energies", "intensities", "absorber_mask"]
         batched = Batch.from_data_list(batch, exclude_keys=fields_to_cat)
         for field in fields_to_cat:
@@ -529,14 +549,33 @@ class GemNetDataset(TorchGeometricDataset):
 
     @staticmethod
     def _save_data(data: GemNetData, path: str) -> None:
+        """Save one GemNet data object as a tensor dictionary.
+
+        Args:
+            data: Data object to serialize.
+            path: Destination ``.pth`` path.
+        """
         torch.save(data.to_dict(), path)
 
     def _load_item(self, path: str) -> GemNetData:
+        """Load one processed GemNet graph sample.
+
+        Args:
+            path: Path to a processed ``.pth`` file.
+
+        Returns:
+            Reconstructed GemNet data object.
+        """
         tensor_dict = torch.load(path, weights_only=True)
         return GemNetData(**tensor_dict)
 
     @property
     def signature(self) -> Config:
+        """Dataset configuration signature.
+
+        Returns:
+            Configuration values that identify this GemNet dataset.
+        """
         signature = super().signature
         signature.update_with_dict(
             {

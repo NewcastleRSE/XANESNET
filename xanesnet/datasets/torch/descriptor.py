@@ -1,18 +1,20 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Descriptor-based tensor dataset implementation."""
 
 import logging
 from dataclasses import dataclass
@@ -35,15 +37,33 @@ SPECTRUM_KEYS = ["XANES", "XANES_K"]  # TODO maybe put this somewhere more centr
 
 @dataclass
 class DescriptorData:
+    """Container for one descriptor dataset sample or batch.
+
+    Attributes:
+        x: Model input tensor, commonly ``(n_features,)`` or ``(batch, n_features)``.
+        y: Model target tensor, commonly ``(n_energies,)`` or ``(batch, n_energies)``.
+        energies: Energy grid tensor with shape ``(n_energies,)`` or ``(batch, n_energies)``.
+        fourier: Optional Fourier feature tensor.
+        c_star: Optional Gaussian basis coefficient tensor.
+        file_name: Source file name metadata for one sample or a batch.
+    """
+
     x: torch.Tensor | None = None
     y: torch.Tensor | None = None
     energies: torch.Tensor | None = None
     fourier: torch.Tensor | None = None
     c_star: torch.Tensor | None = None
-    file_name: str | list[str] | None = None
+    file_name: str | list[Any] | None = None
 
     def to(self, device: str | torch.device) -> "DescriptorData":
-        # send batch do device
+        """Move tensor attributes to ``device`` in place.
+
+        Args:
+            device: Target device accepted by ``torch.Tensor.to``.
+
+        Returns:
+            This data object after moving tensor attributes.
+        """
         for attr in ["x", "y", "fourier", "c_star", "energies"]:
             val = getattr(self, attr)
             if val is not None:
@@ -51,6 +71,11 @@ class DescriptorData:
         return self
 
     def to_state_dict(self) -> dict[str, Any]:
+        """Serialize this sample to a torch-saveable state dictionary.
+
+        Returns:
+            Dictionary containing tensor and metadata fields.
+        """
         return {
             "x": self.x,
             "y": self.y,
@@ -62,6 +87,14 @@ class DescriptorData:
 
     @classmethod
     def from_state_dict(cls, state: dict[str, Any]) -> "DescriptorData":
+        """Create data from a state dictionary.
+
+        Args:
+            state: State dictionary produced by ``to_state_dict``.
+
+        Returns:
+            Reconstructed descriptor data object.
+        """
         return cls(
             x=state.get("x"),
             y=state.get("y"),
@@ -72,22 +105,35 @@ class DescriptorData:
         )
 
     def save(self, path: str) -> str:
+        """Save this data object to disk.
+
+        Args:
+            path: Destination ``.pth`` path.
+
+        Returns:
+            The destination path.
+        """
         torch.save(self.to_state_dict(), path)
         return path
 
     @classmethod
     def load(cls, path: str) -> "DescriptorData":
+        """Load descriptor data from disk.
+
+        Args:
+            path: Source ``.pth`` path.
+
+        Returns:
+            Loaded descriptor data object.
+        """
         state = torch.load(path, weights_only=True)
         return cls.from_state_dict(state)
 
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
-
 @DatasetRegistry.register("descriptor")
 class DescriptorDataset(TorchDataset):
+    """Dataset that converts structures to descriptor tensors."""
+
     def __init__(
         self,
         dataset_type: str,
@@ -108,6 +154,25 @@ class DescriptorDataset(TorchDataset):
         # descriptors
         descriptors: list[Config],
     ) -> None:
+        """Initialize the descriptor dataset.
+
+        Args:
+            dataset_type: Registered dataset type name.
+            datasource: Raw datasource of pymatgen structures or molecules.
+            root: Directory that stores processed ``.pth`` files.
+            preload: Whether to preload processed samples.
+            skip_prepare: Whether to reuse existing processed files.
+            split_ratios: Optional split ratios.
+            split_indexfile: Optional path to split indices.
+            mode: ``forward`` for descriptor-to-spectrum or ``reverse`` for spectrum-to-descriptor.
+            fourier: Whether to add Fourier-transformed spectra.
+            fourier_concat: Whether Fourier features concatenate real and imaginary components.
+            gaussian: Whether to fit spectra to a Gaussian basis.
+            widths_eV: Gaussian basis widths in **eV**.
+            basis_stride: Energy-grid stride used when creating a Gaussian basis.
+            basis_path: Optional serialized spectral basis path.
+            descriptors: Descriptor configuration objects.
+        """
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.mode = mode
@@ -141,6 +206,15 @@ class DescriptorDataset(TorchDataset):
             self._setup_spectral_basis()
 
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """Process one datasource item into descriptor samples.
+
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that maps per-item sample sequence numbers to output paths.
+
+        Returns:
+            Number of processed absorber samples written.
+        """
         pmg_obj = self.datasource[idx]
         for key in SPECTRUM_KEYS:
             if key in pmg_obj.site_properties.keys():
@@ -207,12 +281,11 @@ class DescriptorDataset(TorchDataset):
         return seq
 
     def _setup_spectral_basis(self) -> None:
-        # Load directly from file
+        """Load or create the spectral basis used by Gaussian target features."""
         if self.basis_path is not None:
             # TODO never tested this.
             self.basis = torch.load(self.basis_path)  # TODO: still uses torch.load without weights_only=True
             logging.info(f"Loaded spectral basis from file @ {self.basis_path}")
-        # Create from datasource
         else:
             logging.info("Creating spectral basis from datasource")
             first_data = next(iter(self.datasource))
@@ -234,14 +307,20 @@ class DescriptorDataset(TorchDataset):
             )
 
     def collate_fn(self, batch: list[DescriptorData]) -> DescriptorData:
-        """
-        Collates a list of Data objects into a single Data object with batched tensors.
+        """Collate descriptor samples into a batch.
+
+        Args:
+            batch: Descriptor samples loaded by ``__getitem__``.
+
+        Returns:
+            Batched descriptor data with stacked tensor fields.
         """
 
-        def _stack(tensors):
+        def _stack(tensors: list[torch.Tensor | None]) -> torch.Tensor | None:
+            """Stack tensors unless any field is absent for the batch."""
             if any(t is None for t in tensors):
                 return None
-            return torch.stack(tensors)
+            return torch.stack([tensor for tensor in tensors if tensor is not None])
 
         return DescriptorData(
             x=_stack([b.x for b in batch]),
@@ -249,16 +328,26 @@ class DescriptorDataset(TorchDataset):
             energies=_stack([b.energies for b in batch]),
             fourier=_stack([b.fourier for b in batch]),
             c_star=_stack([b.c_star for b in batch]),
-            file_name=[b.file_name for b in batch],  # type: ignore[list-item, misc]
+            file_name=[b.file_name for b in batch],
         )
 
     def _load_item(self, path: str) -> DescriptorData:
+        """Load one processed descriptor sample.
+
+        Args:
+            path: Path to a processed ``.pth`` file.
+
+        Returns:
+            Loaded descriptor data object.
+        """
         return DescriptorData.load(path)
 
     @property
     def signature(self) -> Config:
-        """
-        Return dataset signature as a dictionary.
+        """Dataset configuration signature.
+
+        Returns:
+            Configuration values that identify this descriptor dataset.
         """
         signature = super().signature
         signature.update_with_dict(

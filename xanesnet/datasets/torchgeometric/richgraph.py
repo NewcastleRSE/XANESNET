@@ -1,24 +1,20 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
-"""
-! ---
-! This Dataset is currently a work in progress and not yet fully implemented.
-! ---
-"""
+"""Work-in-progress rich graph dataset implementation."""
 
 import torch
 from torch_geometric.data import Data
@@ -30,13 +26,10 @@ from xanesnet.serialization.config import Config
 from ..base import SavePathFn, TorchGeometricDataset
 from ..registry import DatasetRegistry
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
 
 @DatasetRegistry.register("richgraph")
 class RichGraphDataset(TorchGeometricDataset):
+    """Work-in-progress graph dataset with radius-graph connectivity."""
 
     def __init__(
         self,
@@ -48,9 +41,29 @@ class RichGraphDataset(TorchGeometricDataset):
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
+        """Initialize the rich graph dataset.
+
+        Args:
+            dataset_type: Registered dataset type name.
+            datasource: Raw datasource of pymatgen structures or molecules.
+            root: Directory that stores processed ``.pth`` files.
+            preload: Whether to preload processed samples.
+            skip_prepare: Whether to reuse existing processed files.
+            split_ratios: Optional split ratios.
+            split_indexfile: Optional path to split indices.
+        """
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """Process one datasource item into one rich graph sample.
+
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that maps sample sequence numbers to output paths.
+
+        Returns:
+            Number of processed graph samples written.
+        """
         pmg_obj = self.datasource[idx]
         file_name = pmg_obj.properties["file_name"]
         atomic_symbols = pmg_obj.labels
@@ -97,17 +110,33 @@ class RichGraphDataset(TorchGeometricDataset):
 
     @staticmethod
     def _save_data(data: Data, path: str) -> None:
+        """Save one PyG data object as a tensor dictionary.
+
+        Args:
+            data: Data object to serialize.
+            path: Destination ``.pth`` path.
+        """
         tensor_dict = data.to_dict()
         torch.save(tensor_dict, path)
 
     def _load_item(self, path: str) -> Data:
+        """Load one processed rich graph sample.
+
+        Args:
+            path: Path to a processed ``.pth`` file.
+
+        Returns:
+            Reconstructed PyG data object.
+        """
         tensor_dict = torch.load(path, weights_only=True)
         return Data(**tensor_dict)
 
     @property
     def signature(self) -> Config:
-        """
-        Return dataset signature as a dictionary.
+        """Dataset configuration signature.
+
+        Returns:
+            Configuration values that identify this rich graph dataset.
         """
         signature = super().signature
         signature.update_with_dict({})

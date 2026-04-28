@@ -1,21 +1,23 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either Version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Full-structure E3EE PyTorch Geometric dataset implementation."""
 
 import logging
-from typing import Protocol
+from typing import Any, Protocol
 
 import numpy as np
 import torch
@@ -33,8 +35,13 @@ from ..registry import DatasetRegistry
 SPECTRUM_KEYS = ["XANES", "XANES_K"]
 
 
-# for typing
 class E3EEFullBatch(Protocol):
+    """Protocol for batches emitted by ``E3EEFullDataset.collate_fn``.
+
+    Node fields are padded to ``(batch, max_nodes, ...)``. Targets are
+    concatenated over absorber sites across the batch.
+    """
+
     # Padded per-sample node fields [B, N_max, ...]
     x: torch.Tensor
     mask: torch.Tensor
@@ -64,18 +71,12 @@ class E3EEFullBatch(Protocol):
     file_name: list[str]
 
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
-
 @DatasetRegistry.register("e3ee_full")
 class E3EEFullDataset(TorchGeometricDataset):
-    """
-    Full-structure E3EE dataset.
+    """Full-structure E3EE dataset that emits one graph per structure.
 
-    Emits one sample per structure (periodic or non-periodic) and predicts a
-    spectrum for every atom. Atoms that carry a ground-truth spectrum are
+    The dataset supports periodic and non-periodic structures and predicts a
+    spectrum for every atom. Atoms with a ground-truth spectrum are
     flagged in ``absorber_mask``; the training loop selects those rows via the
     mask (same pattern as SchNet / DimeNet).
 
@@ -109,6 +110,30 @@ class E3EEFullDataset(TorchGeometricDataset):
         att_cov_radii_scale: float,
         use_absorber_mask: bool,
     ) -> None:
+        """Initialize the full-structure E3EE dataset.
+
+        Args:
+            dataset_type: Registered dataset type name.
+            datasource: Raw datasource of pymatgen structures or molecules.
+            root: Directory that stores processed ``.pth`` files.
+            preload: Whether to preload processed samples.
+            skip_prepare: Whether to reuse existing processed files.
+            split_ratios: Optional split ratios.
+            split_indexfile: Optional path to split indices.
+            cutoff: Main graph cutoff in **Angstrom**.
+            max_num_neighbors: Main graph per-source neighbor cap.
+            use_path_branch: Whether to precompute site-centered paths.
+            max_paths_per_site: Maximum paths saved per site.
+            graph_method: Main graph construction method.
+            min_facet_area: Optional Voronoi facet-area threshold.
+            cov_radii_scale: Covalent-radii scale for graph construction.
+            att_cutoff: Attention graph cutoff in **Angstrom**.
+            att_max_num_neighbors: Attention graph per-source neighbor cap.
+            att_graph_method: Attention graph construction method.
+            att_min_facet_area: Optional attention Voronoi facet-area threshold.
+            att_cov_radii_scale: Attention graph covalent-radii scale.
+            use_absorber_mask: Whether attention/path data are limited to absorber sites.
+        """
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff
@@ -126,6 +151,15 @@ class E3EEFullDataset(TorchGeometricDataset):
         self.use_absorber_mask = use_absorber_mask
 
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
+        """Process one datasource item into one full-structure graph sample.
+
+        Args:
+            idx: Datasource index to process.
+            save_path_fn: Callback that maps sample sequence numbers to output paths.
+
+        Returns:
+            ``1`` when the structure was saved, otherwise ``0`` when skipped.
+        """
         pmg_obj = self.datasource[idx]
         for key in SPECTRUM_KEYS:
             if key in pmg_obj.site_properties.keys():
@@ -210,7 +244,7 @@ class E3EEFullDataset(TorchGeometricDataset):
                 dim=0,
             )
 
-        data_kwargs: dict = {
+        data_kwargs: dict[str, Any] = {
             "x": atomic_numbers,
             "absorber_mask": absorber_mask,
             "edge_src": edge_index[0],
@@ -276,10 +310,17 @@ class E3EEFullDataset(TorchGeometricDataset):
         return 1
 
     def collate_fn(self, batch: list[BaseData]) -> Batch:
-        """
-        Pad node tensors to ``[B, N_max, ...]`` and offset flat edge/path
-        atom indices (including ``path_center``) by ``b * N_max`` so they
-        index into the padded layout used by the model.
+        """Collate full-structure graph samples into one padded batch.
+
+        Node tensors are padded to ``(batch, max_nodes, ...)`` and flat
+        edge/path indices, including ``path_center``, are offset by
+        ``batch_index * max_nodes``.
+
+        Args:
+            batch: PyG graph samples loaded by ``__getitem__``.
+
+        Returns:
+            PyG batch with full-structure E3EE tensors attached.
         """
         bsz = len(batch)
 
@@ -411,15 +452,34 @@ class E3EEFullDataset(TorchGeometricDataset):
 
     @staticmethod
     def _save_data(data: Data, path: str) -> None:
+        """Save one PyG data object as a tensor dictionary.
+
+        Args:
+            data: Data object to serialize.
+            path: Destination ``.pth`` path.
+        """
         tensor_dict = data.to_dict()
         torch.save(tensor_dict, path)
 
     def _load_item(self, path: str) -> Data:
+        """Load one processed full-structure E3EE graph sample.
+
+        Args:
+            path: Path to a processed ``.pth`` file.
+
+        Returns:
+            Reconstructed PyG data object.
+        """
         tensor_dict = torch.load(path, weights_only=True)
         return Data(**tensor_dict)
 
     @property
     def signature(self) -> Config:
+        """Dataset configuration signature.
+
+        Returns:
+            Configuration values that identify this full-structure E3EE dataset.
+        """
         signature = super().signature
         signature.update_with_dict(
             {
