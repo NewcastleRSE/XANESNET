@@ -23,20 +23,27 @@ from pathlib import Path
 ###############################################################################
 
 
-def list_files(path: Path, with_ext: bool = True) -> list[Path]:
+def list_files(path: Path, with_ext: bool = True, suffixes: str | tuple[str, ...] | None = None) -> list[Path]:
     # returns a list of files (as POSIX paths) found in a directory (`d`);
     # 'hidden' files are always omitted and, if with_ext == False, file
-    # extensions are also omitted
+    # extensions are also omitted. If suffixes is provided, only files with
+    # a matching suffix are included.
+
+    if isinstance(suffixes, str):
+        suffixes = (suffixes,)
 
     return [
-        (f if with_ext else f.with_suffix("")) for f in path.iterdir() if f.is_file() and not f.stem.startswith(".")
+        (f if with_ext else f.with_suffix(""))
+        for f in path.iterdir()
+        if f.is_file() and not f.stem.startswith(".") and (suffixes is None or f.suffix in suffixes)
     ]
 
 
-def list_filestems(d: Path) -> list[str]:
+def list_filestems(d: Path, suffixes: str | tuple[str, ...] | None = None) -> list[str]:
     # returns a list of file stems (as strings) found in a directory (`d`);
-    # 'hidden' files are always omitted
-    return [f.stem for f in list_files(d)]
+    # 'hidden' files are always omitted. If suffixes is provided, only files
+    # with a matching suffix are included.
+    return [f.stem for f in list_files(d, suffixes=suffixes)]
 
 
 def list_subdirs(path: Path) -> list[Path]:

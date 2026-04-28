@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Datasource for multiple paired XYZ coordinate files and XANES spectra across subdirectories."""
 
 import logging
 from collections.abc import Iterator
@@ -27,17 +28,18 @@ from xanesnet.utils.filesystem import list_filestems, list_subdir_stems
 from .base import DataSource
 from .registry import DataSourceRegistry
 
-###############################################################################
-#################################### CLASS ####################################
-###############################################################################
-
 
 @DataSourceRegistry.register("multixyzspec")
 class MultiXYZSpecSource(DataSource):
-    """
-    Datasource for multiple paired XYZ coordinate files and XANES spectra.
-    Expects a directory containing multiple subdirectories, each containing an xyz/ and a spectra/ subdirectory.
-    The file names (without extensions) must match between the .xyz and .txt files within each directory.
+    """Datasource for multiple paired XYZ coordinate files and XANES spectra.
+
+    Expects a root directory containing subdirectories, each with an ``xyz/``
+    and a ``spectra/`` subdirectory. Within each subdirectory, ``.xyz`` and
+    ``.txt`` file stems must match one-to-one.
+
+    Args:
+        datasource_type: Identifier string for this datasource type.
+        root_path: Path to the root directory containing the subdirectories.
     """
 
     def __init__(
@@ -55,13 +57,24 @@ class MultiXYZSpecSource(DataSource):
         ]
 
     def __iter__(self) -> Iterator[Molecule]:
+        """Iterate over all molecule entries in the datasource."""
         for i in range(len(self._flat_index)):
             yield self[i]
 
     def __len__(self) -> int:
+        """Return the total number of entries across all subdirectories."""
         return len(self._flat_index)
 
     def __getitem__(self, idx: int) -> Molecule:
+        """Return the molecule at the given flat index.
+
+        Args:
+            idx: Zero-based flat index across all subdirectories.
+
+        Returns:
+            A ``Molecule`` with ``XANES`` site property and ``file_name``
+            stored in ``properties``.
+        """
         subdir, file = self._flat_index[idx]
         xyz_file = Path(self.root_path) / subdir / "xyz" / f"{file}.xyz"
         spectra_file = Path(self.root_path) / subdir / "spectra" / f"{file}.txt"
@@ -78,24 +91,38 @@ class MultiXYZSpecSource(DataSource):
         return molecule
 
     def _get_file_dictionary(self) -> dict[str, list[str]]:
+        """Build a mapping from subdirectory names to their matched file stems.
+
+        Only stems that have both a ``.xyz`` file in ``xyz/`` and a ``.txt``
+        file in ``spectra/`` are included. Unrelated files are ignored.
+
+        Returns:
+            Mapping from subdirectory name to sorted list of matched file stems.
+
+        Raises:
+            ResourceError: If the root path does not exist, no subdirectories
+                are found, a subdirectory is missing the expected ``xyz/`` or
+                ``spectra/`` sub-folders, or no valid file pairs are found
+                across all subdirectories.
         """
-        Get a dictionary mapping each subdirectory to a list of file stems.
-        Only stems that have both a .xyz and a .txt file in the respective subdirectories are included.
-        """
-        subdirectories = list_subdir_stems(Path(self.root_path))
+        root_path = Path(self.root_path)
+        if not root_path.is_dir():
+            raise ResourceError(f"Root path does not exist: {root_path}")
+
+        subdirectories = list_subdir_stems(root_path)
         if not subdirectories:
             raise ResourceError(f"No subdirectories found in root path: {self.root_path}")
 
         files_dict: dict[str, list[str]] = {}
         for subdir in subdirectories:
-            xyz_dir = Path(self.root_path) / subdir / "xyz"
-            spectra_dir = Path(self.root_path) / subdir / "spectra"
+            xyz_dir = root_path / subdir / "xyz"
+            spectra_dir = root_path / subdir / "spectra"
 
             if not xyz_dir.is_dir() or not spectra_dir.is_dir():
                 raise ResourceError(f"Subdirectory {subdir} must contain 'xyz' and 'spectra' subdirectories.")
 
-            xyz_files = set(list_filestems(xyz_dir))
-            spectra_files = set(list_filestems(spectra_dir))
+            xyz_files = set(list_filestems(xyz_dir, suffixes=".xyz"))
+            spectra_files = set(list_filestems(spectra_dir, suffixes=".txt"))
             file_names = sorted(list(xyz_files & spectra_files))
 
             if not file_names:
@@ -111,8 +138,15 @@ class MultiXYZSpecSource(DataSource):
 
     @staticmethod
     def load_xanes(file_path: Path) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Load XANES spectrum from a file.
+        """Load a XANES spectrum from an FDMNES output text file.
+
+        Skips the two-line FDMNES header block at the top of the file.
+
+        Args:
+            file_path: Path to the ``.txt`` spectra file.
+
+        Returns:
+            Tuple of ``(energies, intensities)`` as float32 arrays.
         """
         with open(file_path, "r") as f:
             lines = f.readlines()
@@ -129,8 +163,13 @@ class MultiXYZSpecSource(DataSource):
 
     @staticmethod
     def load_xyz(file_path: Path) -> Molecule:
-        """
-        Load XYZ coordinates from a file.
+        """Load an XYZ coordinate file into a pymatgen ``Molecule``.
+
+        Args:
+            file_path: Path to the ``.xyz`` file.
+
+        Returns:
+            A ``Molecule`` with the ``comment`` line stored in ``properties``.
         """
         with open(file_path, "r") as f:
             lines = f.readlines()
