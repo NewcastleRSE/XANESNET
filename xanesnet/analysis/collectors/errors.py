@@ -69,6 +69,12 @@ class ErrorMetrics(Collector):
         pred_torch = pred_torch.float()
         target_torch = target_torch.float()
 
+        # Losses operate on batched spectral tensors with shape (B, N).
+        if pred_torch.ndim == 1:
+            pred_torch = pred_torch.unsqueeze(0)
+        if target_torch.ndim == 1:
+            target_torch = target_torch.unsqueeze(0)
+
         # Compute loss
         loss_value = self.loss_fn(pred_torch, target_torch)
 
