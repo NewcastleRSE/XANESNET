@@ -38,6 +38,7 @@ from xanesnet.serialization.config import (
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
+from xanesnet.utils.prompts import auto_yes
 from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
@@ -87,6 +88,12 @@ def parse_args(args: list[str]) -> Namespace:
         type=str,
         help="Optional name for the inference run.",
     )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Automatically answer yes to confirmation prompts.",
+    )
 
     args_namespace = parser.parse_args(args)
     return args_namespace
@@ -100,8 +107,9 @@ def parse_args(args: list[str]) -> Namespace:
 def main(args: list[str]) -> None:
     """Run the full inference pipeline.
 
-    Parses arguments, loads configuration and checkpoint, sets up the run
-    directory, and delegates to the ``infer`` core function.
+    Parses arguments, configures prompt behavior, loads configuration and
+    checkpoint, sets up the run directory, and delegates to the ``infer`` core
+    function.
 
     Args:
         args: Raw command-line argument strings.
@@ -118,43 +126,44 @@ def main(args: list[str]) -> None:
     # Parsing command line arguments
     args_namespace = parse_args(args)
 
-    # Loading configuration file
-    logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
-    config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
+    with auto_yes(args_namespace.yes):
+        # Loading configuration file
+        logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
+        config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
-    # Loading model/signature for inference
-    logging.info(f"Loading trained model checkpoint @ {args_namespace.in_model}")
-    checkpoint = Checkpoint.load(args_namespace.in_model)
+        # Loading model/signature for inference
+        logging.info(f"Loading trained model checkpoint @ {args_namespace.in_model}")
+        checkpoint = Checkpoint.load(args_namespace.in_model)
 
-    # Get saving directory
-    out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
-    save_dir = create_run_dir(out_dir, name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
-    logging.info(f"Run directory: {save_dir}")
-    create_subfolders(save_dir, subfolder_names=["predictions"])
+        # Get saving directory
+        out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
+        save_dir = create_run_dir(out_dir, name=f"infer_{args_namespace.name}" if args_namespace.name else "infer")
+        logging.info(f"Run directory: {save_dir}")
+        create_subfolders(save_dir, subfolder_names=["predictions"])
 
-    # Setup file logging
-    setup_file_logging(save_dir)
+        # Setup file logging
+        setup_file_logging(save_dir)
 
-    # Copy raw config file
-    config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
-    logging.info(f"Configuration file saved to: {config_save_path}")
+        # Copy raw config file
+        config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="infer_config.yaml")
+        logging.info(f"Configuration file saved to: {config_save_path}")
 
-    # Merge inference config and checkpoint config
-    config_raw = merge_raw_configs(config_raw, checkpoint.signature.as_dict())
-    merged_config_save_path = save_raw_config(config_raw, save_dir / "merged_infer_config.yaml")
-    logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
+        # Merge inference config and checkpoint config
+        config_raw = merge_raw_configs(config_raw, checkpoint.signature.as_dict())
+        merged_config_save_path = save_raw_config(config_raw, save_dir / "merged_infer_config.yaml")
+        logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
 
-    # Config validation
-    config: Config = validate_config_infer(config_raw)
-    validate_config_save_path = config.save(save_dir / "validated_infer_config.yaml")
-    logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+        # Config validation
+        config: Config = validate_config_infer(config_raw)
+        validate_config_save_path = config.save(save_dir / "validated_infer_config.yaml")
+        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
-    # Setting global seed for reproducibility
-    seed = config.get_optional_int("seed")
-    if seed is None:
-        logging.warning("No global seed specified in configuration file. Choosing random seed.")
-    seed = set_global_seed(seed)
-    logging.info(f"Global seed: {seed}")
+        # Setting global seed for reproducibility
+        seed = config.get_optional_int("seed")
+        if seed is None:
+            logging.warning("No global seed specified in configuration file. Choosing random seed.")
+        seed = set_global_seed(seed)
+        logging.info(f"Global seed: {seed}")
 
-    # Branching into inference mode
-    infer(config, args_namespace, save_dir, checkpoint)
+        # Branching into inference mode
+        infer(config, args_namespace, save_dir, checkpoint)

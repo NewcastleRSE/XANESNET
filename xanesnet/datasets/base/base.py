@@ -33,6 +33,7 @@ from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.splits import load_split_indices
 from xanesnet.utils.exceptions import ConfigError
+from xanesnet.utils.prompts import confirm_yes_no
 
 SavePathFn = Callable[[int], str]
 
@@ -105,8 +106,7 @@ class Dataset(TorchDataset, ABC):
             return False
         if os.listdir(self.processed_dir):
             logging.warning("Processed data directory is not empty! Make sure this is intentional.")
-            response = input("INPUT NEEDED \t- Empty processed data directory? [Y/n]: ").strip().lower()
-            if response in ("y", ""):
+            if confirm_yes_no("INPUT NEEDED \t- Empty processed data directory?", default_yes=True):
                 shutil.rmtree(self.processed_dir)
                 os.makedirs(self.processed_dir)
                 logging.info(f"Cleared processed data directory: {self.processed_dir}")

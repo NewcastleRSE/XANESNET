@@ -33,6 +33,7 @@ from xanesnet.serialization.config import (
 )
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
+from xanesnet.utils.prompts import auto_yes
 from xanesnet.utils.random import set_global_seed
 
 ###############################################################################
@@ -83,6 +84,12 @@ def parse_args(args: list[str]) -> Namespace:
         type=str,
         help="Optional name for the analysis run.",
     )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Automatically answer yes to confirmation prompts.",
+    )
 
     args_namespace = parser.parse_args(args)
     return args_namespace
@@ -96,8 +103,8 @@ def parse_args(args: list[str]) -> Namespace:
 def main(args: list[str]) -> None:
     """Run the full analysis pipeline.
 
-    Parses arguments, loads configuration, sets up the run directory, and
-    delegates to the ``analyze`` core function.
+    Parses arguments, configures prompt behavior, loads configuration, sets up
+    the run directory, and delegates to the ``analyze`` core function.
 
     Args:
         args: Raw command-line argument strings.
@@ -113,34 +120,35 @@ def main(args: list[str]) -> None:
     # Parsing command line arguments
     args_namespace = parse_args(args)
 
-    # Loading configuration file
-    logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
-    config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
+    with auto_yes(args_namespace.yes):
+        # Loading configuration file
+        logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
+        config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
-    # Get saving directory
-    out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
-    save_dir = create_run_dir(out_dir, name=f"analyze_{args_namespace.name}" if args_namespace.name else "analyze")
-    logging.info(f"Run directory: {save_dir}")
-    create_subfolders(save_dir, subfolder_names=["plots", "reports", "aux"])
+        # Get saving directory
+        out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
+        save_dir = create_run_dir(out_dir, name=f"analyze_{args_namespace.name}" if args_namespace.name else "analyze")
+        logging.info(f"Run directory: {save_dir}")
+        create_subfolders(save_dir, subfolder_names=["plots", "reports", "aux"])
 
-    # Setup file logging
-    setup_file_logging(save_dir)
+        # Setup file logging
+        setup_file_logging(save_dir)
 
-    # Copy raw config file
-    config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="analyze_config.yaml")
-    logging.info(f"Configuration file saved to: {config_save_path}")
+        # Copy raw config file
+        config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="analyze_config.yaml")
+        logging.info(f"Configuration file saved to: {config_save_path}")
 
-    # Config validation
-    config: Config = validate_config_analyze(config_raw)
-    validate_config_save_path = config.save(save_dir / "validated_analyze_config.yaml")
-    logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+        # Config validation
+        config: Config = validate_config_analyze(config_raw)
+        validate_config_save_path = config.save(save_dir / "validated_analyze_config.yaml")
+        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
-    # Setting global seed for reproducibility
-    seed = config.get_optional_int("seed")
-    if seed is None:
-        logging.warning("No global seed specified in configuration file. Choosing random seed.")
-    seed = set_global_seed(seed)
-    logging.info(f"Global seed: {seed}")
+        # Setting global seed for reproducibility
+        seed = config.get_optional_int("seed")
+        if seed is None:
+            logging.warning("No global seed specified in configuration file. Choosing random seed.")
+        seed = set_global_seed(seed)
+        logging.info(f"Global seed: {seed}")
 
-    # Branching into analyze mode
-    analyze(config, args_namespace, save_dir)
+        # Branching into analyze mode
+        analyze(config, args_namespace, save_dir)
