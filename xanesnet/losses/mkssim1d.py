@@ -60,7 +60,7 @@ class MultiKernel_SSIM_1D(Loss):
         fractions: list[float] | tuple[float, ...] = (0.01, 0.05, 0.10, 0.15, 0.2, 0.25),
         data_range: float = 1.0,  # max - min
         K: tuple[float, float] = (0.01, 0.03),
-        device: str | torch.device = "cpu",
+        device: str | torch.device = "cpu",  # TODO do we still need this argument?
         use_weighted_sum: bool = False,
         weights: list[float] | None = None,
         final_combine: bool = True,
@@ -108,6 +108,7 @@ class MultiKernel_SSIM_1D(Loss):
         Returns:
             Tuple of ``(kernel_sizes, gaussian_sigmas)`` as long and float tensors.
         """
+
         def make_odd(x: torch.Tensor) -> torch.Tensor:
             x = torch.round(x).long()
             return x + (1 - x % 2)
@@ -173,6 +174,7 @@ class MultiKernel_SSIM_1D(Loss):
 
         return mask
 
+    # TODO what is the mask for?
     def forward(self, preds: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """Compute the multi-kernel 1-D SSIM loss.
 
