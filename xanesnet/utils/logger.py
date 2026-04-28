@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Logging configuration and utilities for XANESNET."""
 
 import logging
 import sys
@@ -22,8 +23,15 @@ from typing import Any
 
 
 def setup_logging(log_level: int = logging.INFO) -> None:
-    """
-    Set up logging with different formats for various levels.
+    """Configure the root logger with per-level formatters and console handlers.
+
+    Clears any existing handlers on the root logger before installing new
+    ones. Each log level (DEBUG through CRITICAL) gets a dedicated
+    ``StreamHandler`` with its own format string.
+
+    Args:
+        log_level: Minimum log level to capture. Defaults to
+            ``logging.INFO``.
     """
     # Remove all existing handlers from the root logger.
     root_logger = logging.getLogger()
@@ -75,6 +83,16 @@ def setup_logging(log_level: int = logging.INFO) -> None:
 
 
 def setup_file_logging(out_dir: str | Path) -> None:
+    """Add file-based log handlers and redirect stdout/stderr to a log file.
+
+    Opens ``<out_dir>/out.txt`` in append mode and registers file handlers
+    for all log levels (DEBUG through CRITICAL). Additionally replaces
+    ``sys.stdout`` and ``sys.stderr`` with a ``TeeLogger`` that writes to
+    both the original stream and the log file.
+
+    Args:
+        out_dir: Directory in which to create ``out.txt``.
+    """
     log_file = join(out_dir, "out.txt")
 
     root_logger = logging.getLogger()
@@ -120,38 +138,60 @@ def setup_file_logging(out_dir: str | Path) -> None:
     root_logger.addHandler(critical_handler)
 
     # Redirect stdout and stderr to write to both console and file.
-    tee = TeeLogger(log_file, sys.stdout)
-    sys.stdout = tee
-    sys.stderr = tee
+    stdout_tee = TeeLogger(log_file, sys.stdout)
+    stderr_tee = TeeLogger(log_file, sys.stderr)
+    sys.stdout = stdout_tee
+    sys.stderr = stderr_tee
 
 
 class LevelFilter(logging.Filter):
-    """
-    Only pass log records that match the specified level.
-    """
+    """Logging filter that passes only records at exactly the specified level."""
 
     def __init__(self, level: int) -> None:
+        """Initialise the level filter.
+
+        Args:
+            level: The exact log level to pass through (e.g. ``logging.INFO``).
+        """
         self.level = level
         super().__init__()
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Return ``True`` only if the record's level matches the filter level.
+
+        Args:
+            record: Log record being evaluated.
+
+        Returns:
+            ``True`` when ``record.levelno == self.level``, else ``False``.
+        """
         return record.levelno == self.level
 
 
 class TeeLogger:
-    """
-    Redirects stdout and stderr to both console and a file.
-    """
+    """Duplicates writes to both a stream (e.g. stdout) and a file."""
 
     def __init__(self, filename: str | Path, stream: Any) -> None:
+        """Open ``filename`` in append mode alongside ``stream``.
+
+        Args:
+            filename: Path to the log file (opened in append mode).
+            stream: Original stream to also write to (e.g. ``sys.stdout``).
+        """
         self.file = open(filename, "a")
         self.stream = stream
 
     def write(self, message: str) -> None:
+        """Write ``message`` to both the stream and the file.
+
+        Args:
+            message: Text chunk to append to both outputs.
+        """
         self.stream.write(message)
         self.file.write(message)
         self.file.flush()
 
     def flush(self) -> None:
+        """Flush both the stream and the file."""
         self.stream.flush()
         self.file.flush()
