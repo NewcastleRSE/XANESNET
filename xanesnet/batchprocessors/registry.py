@@ -21,31 +21,29 @@ from .base import BatchProcessor
 
 
 class BatchProcessorRegistry:
-    """Class-level registry mapping (dataset_type, model_type) pairs to batch processor classes.
-
-    All name strings are normalised to lower-case on registration and look-up.
-    """
+    """Registry for batch processor classes keyed by dataset and model type."""
 
     _registry: dict[tuple[str, str], type[BatchProcessor]] = {}
 
     @classmethod
     def register(cls, dataset_type: str, model_type: str) -> Callable[[type[BatchProcessor]], type[BatchProcessor]]:
-        """Return a decorator that registers a batch processor class.
+        """Register a batch processor class for a dataset/model pair.
 
         Args:
-            dataset_type: Dataset identifier (case-insensitive).
-            model_type: Model identifier (case-insensitive).
+            dataset_type: Dataset registry key. Matching is case-insensitive.
+            model_type: Model registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
-            KeyError: If (dataset_type, model_type) is already registered.
+            KeyError: If the dataset/model pair is already registered.
         """
         dataset_type = dataset_type.lower()
         model_type = model_type.lower()
 
         def decorator(adapter_cls: type[BatchProcessor]) -> type[BatchProcessor]:
+            """Register and return the decorated class unchanged."""
             key = (dataset_type, model_type)
             if key in cls._registry:
                 raise KeyError(f"BatchProcessor for {dataset_type}, {model_type} already registered")
@@ -56,17 +54,17 @@ class BatchProcessorRegistry:
 
     @classmethod
     def get(cls, dataset_type: str, model_type: str) -> type[BatchProcessor]:
-        """Look up and return a registered batch processor class.
+        """Return the batch processor class registered for a dataset/model pair.
 
         Args:
-            dataset_type: Dataset identifier (case-insensitive).
-            model_type: Model identifier (case-insensitive).
+            dataset_type: Dataset registry key. Matching is case-insensitive.
+            model_type: Model registry key. Matching is case-insensitive.
 
         Returns:
-            The registered batch processor class.
+            Registered batch processor class.
 
         Raises:
-            KeyError: If no processor is registered for the given (dataset_type, model_type) pair.
+            KeyError: If no processor is registered for the pair.
         """
         key = (dataset_type.lower(), model_type.lower())
         if key not in cls._registry:
@@ -75,9 +73,9 @@ class BatchProcessorRegistry:
 
     @classmethod
     def list(cls) -> list[tuple[str, str]]:
-        """Return all registered (dataset_type, model_type) key pairs.
+        """Return all registered dataset/model key pairs.
 
         Returns:
-            List of registered (dataset_type, model_type) tuples.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

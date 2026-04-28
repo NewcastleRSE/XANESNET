@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""Weight-initialisation utilities for GemNet-OC layers.
+"""Weight-initialization utilities for GemNet-OC layers.
 
 Ported from the fairchem reference (MIT License).
 """
@@ -36,7 +36,7 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
 
 
 def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
-    """He-orthogonal initialisation (Saxe / He / Kaiming hybrid)."""
+    """He-orthogonal initialization (Saxe / He / Kaiming hybrid)."""
     tensor = torch.nn.init.orthogonal_(tensor)
     fan_in = math.prod(tensor.shape[:-1]) if len(tensor.shape) == 3 else tensor.shape[1]
     with torch.no_grad():
@@ -49,12 +49,12 @@ def grid_init(tensor: torch.Tensor, start: int = -1, end: int = 1) -> torch.Tens
     """Fill ``tensor`` with linearly spaced values from ``start`` to ``end``.
 
     Args:
-        tensor: Parameter tensor to initialise in-place, shape ``(out, in)``.
+        tensor: Parameter tensor to initialize in-place, shape ``(out, in)``.
         start: Start value of the linear grid. Default ``-1``.
         end: End value of the linear grid. Default ``1``.
 
     Returns:
-        The initialised ``tensor``.
+        The initialized ``tensor``.
     """
     fan_in = tensor.shape[1]
     with torch.no_grad():
@@ -67,12 +67,12 @@ def log_grid_init(tensor: torch.Tensor, start: int = -4, end: int = 0) -> torch.
     """Fill ``tensor`` with logarithmically spaced values from ``10**start`` to ``10**end``.
 
     Args:
-        tensor: Parameter tensor to initialise in-place, shape ``(out, in)``.
+        tensor: Parameter tensor to initialize in-place, shape ``(out, in)``.
         start: Log10 of the start value. Default ``-4``.
         end: Log10 of the end value. Default ``0``.
 
     Returns:
-        The initialised ``tensor``.
+        The initialized ``tensor``.
     """
     fan_in = tensor.shape[1]
     with torch.no_grad():
@@ -82,15 +82,15 @@ def log_grid_init(tensor: torch.Tensor, start: int = -4, end: int = 0) -> torch.
 
 
 def get_initializer(name: str, **init_kwargs) -> Callable[..., torch.Tensor]:
-    """Return an initialiser callable by name, pre-bound with ``init_kwargs``.
+    """Return an initializer callable by name, pre-bound with ``init_kwargs``.
 
     Args:
-        name: Initialiser name (case-insensitive). Supported values:
+        name: Initializer name (case-insensitive). Supported values:
             ``"heorthogonal"``, ``"zeros"``, ``"grid"``, ``"loggrid"``.
-        **init_kwargs: Keyword arguments forwarded to the chosen initialiser.
+        **init_kwargs: Keyword arguments forwarded to the chosen initializer.
 
     Returns:
-        A callable that accepts a :class:`torch.Tensor` and initialises it
+        A callable that accepts a :class:`torch.Tensor` and initializes it
         in-place.
 
     Raises:

@@ -23,7 +23,7 @@ import torch.nn as nn
 class ActivationRegistry:
     """Class-level registry mapping activation function names to their ``nn.Module`` classes.
 
-    All names are normalised to lower-case on registration and look-up.
+    All names are normalized to lower-case on registration and look-up.
     """
 
     _registry: dict[str, type[nn.Module]] = {}
@@ -44,6 +44,7 @@ class ActivationRegistry:
         name = name.lower()
 
         def decorator(act_cls: type[nn.Module]) -> type[nn.Module]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Activation '{name}' already registered")
             cls._registry[name] = act_cls

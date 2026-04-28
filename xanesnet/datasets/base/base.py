@@ -38,7 +38,17 @@ SavePathFn = Callable[[int], str]
 
 
 class Dataset(TorchDataset, ABC):
-    """Abstract base class for prepared on-disk datasets."""
+    """Abstract base class for prepared on-disk datasets.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw data source that yields structures, spectra, and metadata.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to load processed samples into memory after preparation.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional train/validation/test split ratios.
+        split_indexfile: Optional path to serialized split indices.
+    """
 
     def __init__(
         self,
@@ -50,17 +60,7 @@ class Dataset(TorchDataset, ABC):
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        """Initialize shared dataset state.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw data source that yields structures, spectra, and metadata.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to load processed samples into memory after preparation.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional train/validation/test split ratios.
-            split_indexfile: Optional path to serialized split indices.
-        """
+        """Initialize shared dataset state."""
         self.dataset_type = dataset_type
         self.datasource = datasource
         self.root = root

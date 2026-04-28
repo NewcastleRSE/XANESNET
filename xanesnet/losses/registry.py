@@ -21,19 +21,19 @@ from .base import Loss
 
 
 class LossRegistry:
-    """Class-level registry mapping loss names to their ``Loss`` subclasses."""
+    """Name-based registry for loss classes."""
 
     _registry: dict[str, type[Loss]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Loss]], type[Loss]]:
-        """Return a decorator that registers a loss class under ``name``.
+        """Register a loss class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the loss type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,6 +41,7 @@ class LossRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[Loss]) -> type[Loss]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Loss '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -50,16 +51,16 @@ class LossRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Loss]:
-        """Look up and return a registered loss class.
+        """Return the loss class registered as ``name``.
 
         Args:
-            name: Loss identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Loss`` subclass.
+            Registered loss class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no loss is registered under ``name``.
         """
         name = name.lower()
 
@@ -69,9 +70,9 @@ class LossRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered loss name strings.
+        """Return all registered loss names.
 
         Returns:
-            List of registered loss identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

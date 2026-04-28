@@ -34,6 +34,7 @@ class L1Loss(Loss):
         self,
         loss_type: str,
     ) -> None:
+        """Initialize ``L1Loss``."""
         super().__init__(loss_type)
 
         self.loss = nn.L1Loss()

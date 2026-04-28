@@ -102,7 +102,7 @@ class GemNetOC(Model):
             envelope: Config for the cutoff envelope applied to radial bases.
             cbf: Config for the circular basis.
             sbf: Config for the spherical basis.
-            output_init: Initialiser name for the final linear output layer.
+            output_init: Initializer name for the final linear output layer.
             activation: Activation name used in dense and residual layers.
             quad_interaction: Whether to enable quadruplet interactions.
             atom_edge_interaction: Whether to enable atom-to-edge interactions.
@@ -158,7 +158,7 @@ class GemNetOC(Model):
         num_elements: int,
         scale_file: str | None = None,
     ) -> None:
-        """Initialise the GemNet-OC XANES model."""
+        """Initialize the GemNet-OC XANES model."""
         super().__init__(model_type)
         self.num_blocks = num_blocks
         self.num_targets = num_targets
@@ -442,26 +442,26 @@ class GemNetOC(Model):
             quad_idx: Quadruplet index dictionary.
 
         Returns:
-            Tuple ``(cosφ_cab, cosφ_abd, angle_cabd)`` where ``cosφ_cab`` and
-            ``cosφ_abd`` are cosine angles and ``angle_cabd`` is a dihedral
+            Tuple ``(cos_phi_cab, cos_phi_abd, angle_cabd)`` where ``cos_phi_cab`` and
+            ``cos_phi_abd`` are cosine angles and ``angle_cabd`` is a dihedral
             angle in **radians**, all of shape ``(nQuadruplets,)``.
         """
         V_ba = V_qint_st[quad_idx["triplet_in"]["out"]]
         V_db = V_st[quad_idx["triplet_in"]["in"]]
-        cosφ_abd = inner_product_clamped(V_ba, V_db)
+        cos_phi_abd = inner_product_clamped(V_ba, V_db)
 
         V_db_cross = torch.cross(V_db, V_ba, dim=-1)
         V_db_cross = V_db_cross[quad_idx["trip_in_to_quad"]]
 
         V_ca = V_st[quad_idx["triplet_out"]["out"]]
         V_ba = V_qint_st[quad_idx["triplet_out"]["in"]]
-        cosφ_cab = inner_product_clamped(V_ca, V_ba)
+        cos_phi_cab = inner_product_clamped(V_ca, V_ba)
 
         V_ca_cross = torch.cross(V_ca, V_ba, dim=-1)
         V_ca_cross = V_ca_cross[quad_idx["trip_out_to_quad"]]
 
         angle_cabd = get_angle(V_ca_cross, V_db_cross)
-        return cosφ_cab, cosφ_abd, angle_cabd
+        return cos_phi_cab, cos_phi_abd, angle_cabd
 
     def _get_bases(
         self,
@@ -513,11 +513,11 @@ class GemNetOC(Model):
         basis_output = self.mlp_rbf_out(basis_rad_main_raw)
 
         # Edge -> edge (triplet) bases: always required.
-        cosφ_cab = inner_product_clamped(
+        cos_phi_cab = inner_product_clamped(
             main_graph["vector"][trip_idx_e2e["out"]],
             main_graph["vector"][trip_idx_e2e["in"]],
         )
-        rad_cir_e2e, cir_e2e = self.cbf_basis_tint(main_graph["distance"], cosφ_cab)
+        rad_cir_e2e, cir_e2e = self.cbf_basis_tint(main_graph["distance"], cos_phi_cab)
         bases_e2e = {
             "rad": self.mlp_rbf_tint(basis_rad_main_raw),
             "cir": self.mlp_cbf_tint(
@@ -531,12 +531,12 @@ class GemNetOC(Model):
         # Quadruplet interaction (optional).
         bases_qint: dict[str, torch.Tensor] = {}
         if self.quad_interaction:
-            cosφ_cab_q, cosφ_abd, angle_cabd = self._calculate_quad_angles(
+            cos_phi_cab_q, cos_phi_abd, angle_cabd = self._calculate_quad_angles(
                 main_graph["vector"], qint_graph["vector"], quad_idx
             )
-            rad_cir_q, cir_q = self.cbf_basis_qint(qint_graph["distance"], cosφ_abd)
+            rad_cir_q, cir_q = self.cbf_basis_qint(qint_graph["distance"], cos_phi_abd)
             rad_sph_q, sph_q = self.sbf_basis_qint(
-                main_graph["distance"], cosφ_cab_q[quad_idx["trip_out_to_quad"]], angle_cabd
+                main_graph["distance"], cos_phi_cab_q[quad_idx["trip_out_to_quad"]], angle_cabd
             )
             bases_qint = {
                 "rad": self.mlp_rbf_qint(basis_rad_main_raw),
@@ -557,11 +557,11 @@ class GemNetOC(Model):
         bases_a2e: dict[str, torch.Tensor] = {}
         if self.atom_edge_interaction:
             rad_a2ee2a = self.radial_basis_aeaint(a2ee2a_graph["distance"])
-            cosφ_cab_a2e = inner_product_clamped(
+            cos_phi_cab_a2e = inner_product_clamped(
                 main_graph["vector"][trip_idx_a2e["out"]],
                 a2ee2a_graph["vector"][trip_idx_a2e["in"]],
             )
-            rad_cir_a2e, cir_a2e = self.cbf_basis_aeint(main_graph["distance"], cosφ_cab_a2e)
+            rad_cir_a2e, cir_a2e = self.cbf_basis_aeint(main_graph["distance"], cos_phi_cab_a2e)
             bases_a2e = {
                 "rad": self.mlp_rbf_aeint(rad_a2ee2a),
                 "cir": self.mlp_cbf_aeint(
@@ -575,11 +575,11 @@ class GemNetOC(Model):
         # Edge -> atom (mixed triplet) interaction (optional).
         bases_e2a: dict[str, torch.Tensor] = {}
         if self.edge_atom_interaction:
-            cosφ_cab_e2a = inner_product_clamped(
+            cos_phi_cab_e2a = inner_product_clamped(
                 a2ee2a_graph["vector"][trip_idx_e2a["out"]],
                 main_graph["vector"][trip_idx_e2a["in"]],
             )
-            rad_cir_e2a, cir_e2a = self.cbf_basis_eaint(a2ee2a_graph["distance"], cosφ_cab_e2a)
+            rad_cir_e2a, cir_e2a = self.cbf_basis_eaint(a2ee2a_graph["distance"], cos_phi_cab_e2a)
             bases_e2a = {
                 "rad": self.mlp_rbf_eaint(basis_rad_main_raw),
                 "cir": self.mlp_cbf_eaint(
@@ -834,9 +834,9 @@ class GemNetOC(Model):
         """No-op: GemNet-OC uses its own He-orthogonal init scheme.
 
         Args:
-            weights_init: Unused generic weight-initialiser selector.
-            bias_init: Unused generic bias-initialiser selector.
-            **kwargs: Ignored extra initialisation options.
+            weights_init: Unused generic weight-initializer selector.
+            bias_init: Unused generic bias-initializer selector.
+            **kwargs: Ignored extra initialization options.
 
         Note:
             GemNet-OC layer constructors call ``reset_parameters`` internally;

@@ -48,6 +48,7 @@ class BasicInferencer(Inferencer):
         # inferencer params:
         inferencer_type: str,
     ) -> None:
+        """Initialize ``BasicInferencer``."""
         super().__init__(
             dataset,
             model,

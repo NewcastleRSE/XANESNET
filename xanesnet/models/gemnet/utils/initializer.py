@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""He-orthogonal weight initialisation for GemNet layers."""
+"""He-orthogonal weight initialization for GemNet layers."""
 
 import math
 
@@ -48,20 +48,20 @@ def _standardize(kernel: torch.Tensor) -> torch.Tensor:
 
 
 def he_orthogonal_init(tensor: torch.Tensor) -> torch.Tensor:
-    """Initialise a weight tensor with He-variance using a random orthogonal matrix.
+    """Initialize a weight tensor with He-variance using a random orthogonal matrix.
 
-    Applies orthogonal initialisation and then rescales to achieve variance
+    Applies orthogonal initialization and then rescales to achieve variance
     ``1 / fan_in``, following He et al. ("Delving deep into rectifiers").
-    Using a (semi-)orthogonal initialisation decorrelates features, which has
+    Using a (semi-)orthogonal initialization decorrelates features, which has
     been found to improve training.
 
     Args:
-        tensor: Weight tensor to initialise in-place. Supported shapes:
+        tensor: Weight tensor to initialize in-place. Supported shapes:
             ``(out_features, in_features)`` or
             ``(dim_a, dim_b, out_features)`` for the efficient-interaction weights.
 
     Returns:
-        The initialised ``tensor`` (same object, modified in-place).
+        The initialized ``tensor`` (same object, modified in-place).
     """
     tensor = torch.nn.init.orthogonal_(tensor)
 

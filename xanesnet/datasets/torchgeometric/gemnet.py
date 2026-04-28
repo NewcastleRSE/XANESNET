@@ -175,6 +175,37 @@ class GemNetDataset(TorchGeometricDataset):
     interaction graph). A derived graph is reused from a previously-built one
     only when *all* of ``(cutoff, max_num_neighbors, method, min_facet_area,
     cov_radii_scale)`` match; otherwise it is built from scratch.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        cutoff: Main graph cutoff in **Angstrom**.
+        max_num_neighbors: Main graph per-source neighbor cap.
+        graph_method: Main graph construction method.
+        min_facet_area: Optional Voronoi facet-area threshold for the main graph.
+        cov_radii_scale: Covalent-radii scale for the main graph.
+        quadruplets: Whether to compute quadruplet indices.
+        int_cutoff: Interaction graph cutoff in **Angstrom**.
+        int_max_neighbors: Optional interaction graph per-source neighbor cap.
+        int_graph_method: Optional interaction graph construction method.
+        int_min_facet_area: Optional interaction Voronoi facet-area threshold.
+        int_cov_radii_scale: Optional interaction covalent-radii scale.
+        oc_mode: Whether to precompute GemNet-OC auxiliary graphs and mixed triplets.
+        oc_cutoff_aeaint: Atom-edge-atom graph cutoff in **Angstrom**.
+        oc_cutoff_aint: Atom-atom graph cutoff in **Angstrom**.
+        oc_max_neighbors_aeaint: Atom-edge-atom graph per-source neighbor cap.
+        oc_max_neighbors_aint: Atom-atom graph per-source neighbor cap.
+        oc_graph_method_aeaint: Atom-edge-atom graph construction method override.
+        oc_min_facet_area_aeaint: Atom-edge-atom Voronoi facet-area threshold.
+        oc_cov_radii_scale_aeaint: Atom-edge-atom covalent-radii scale.
+        oc_graph_method_aint: Atom-atom graph construction method override.
+        oc_min_facet_area_aint: Atom-atom Voronoi facet-area threshold.
+        oc_cov_radii_scale_aint: Atom-atom covalent-radii scale.
     """
 
     def __init__(
@@ -210,39 +241,7 @@ class GemNetDataset(TorchGeometricDataset):
         oc_min_facet_area_aint: float | str | None = None,
         oc_cov_radii_scale_aint: float | None = None,
     ) -> None:
-        """Initialize the GemNet dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            cutoff: Main graph cutoff in **Angstrom**.
-            max_num_neighbors: Main graph per-source neighbor cap.
-            graph_method: Main graph construction method.
-            min_facet_area: Optional Voronoi facet-area threshold for the main graph.
-            cov_radii_scale: Covalent-radii scale for the main graph.
-            quadruplets: Whether to compute quadruplet indices.
-            int_cutoff: Interaction graph cutoff in **Angstrom**.
-            int_max_neighbors: Optional interaction graph per-source neighbor cap.
-            int_graph_method: Optional interaction graph construction method.
-            int_min_facet_area: Optional interaction Voronoi facet-area threshold.
-            int_cov_radii_scale: Optional interaction covalent-radii scale.
-            oc_mode: Whether to precompute GemNet-OC auxiliary graphs and mixed triplets.
-            oc_cutoff_aeaint: Atom-edge-atom graph cutoff in **Angstrom**.
-            oc_cutoff_aint: Atom-atom graph cutoff in **Angstrom**.
-            oc_max_neighbors_aeaint: Atom-edge-atom graph per-source neighbor cap.
-            oc_max_neighbors_aint: Atom-atom graph per-source neighbor cap.
-            oc_graph_method_aeaint: Atom-edge-atom graph construction method override.
-            oc_min_facet_area_aeaint: Atom-edge-atom Voronoi facet-area threshold.
-            oc_cov_radii_scale_aeaint: Atom-edge-atom covalent-radii scale.
-            oc_graph_method_aint: Atom-atom graph construction method override.
-            oc_min_facet_area_aint: Atom-atom Voronoi facet-area threshold.
-            oc_cov_radii_scale_aint: Atom-atom covalent-radii scale.
-        """
+        """Initialize the GemNet dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff

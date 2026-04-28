@@ -21,19 +21,19 @@ from .base import Inferencer
 
 
 class InferencerRegistry:
-    """Class-level registry mapping inferencer names to their ``Inferencer`` subclasses."""
+    """Name-based registry for inferencer classes."""
 
     _registry: dict[str, type[Inferencer]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Inferencer]], type[Inferencer]]:
-        """Return a decorator that registers an inferencer class under ``name``.
+        """Register an inferencer class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the inferencer type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,6 +41,7 @@ class InferencerRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[Inferencer]) -> type[Inferencer]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Inferencer '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -50,16 +51,16 @@ class InferencerRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Inferencer]:
-        """Look up and return a registered inferencer class.
+        """Return the inferencer class registered as ``name``.
 
         Args:
-            name: Inferencer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Inferencer`` subclass.
+            Registered inferencer class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no inferencer is registered under ``name``.
         """
         name = name.lower()
 
@@ -69,9 +70,9 @@ class InferencerRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered inferencer name strings.
+        """Return all registered inferencer names.
 
         Returns:
-            List of registered inferencer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

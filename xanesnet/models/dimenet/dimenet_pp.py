@@ -80,6 +80,7 @@ class DimeNetPlusPlus(DimeNet):
         act: str,
         output_initializer: str,
     ) -> None:
+        """Initialize ``DimeNetPlusPlus``."""
         super().__init__(
             model_type,
             hidden_channels,
@@ -167,6 +168,7 @@ class InteractionBlock(torch.nn.Module):
         num_after_skip: int,
         act: Callable,
     ) -> None:
+        """Initialize ``InteractionBlock``."""
         super().__init__()
         self.act = act
 
@@ -277,6 +279,7 @@ class ResidualLayer(torch.nn.Module):
     """
 
     def __init__(self, hidden_channels: int, act: Callable) -> None:
+        """Initialize ``ResidualLayer``."""
         super().__init__()
         self.act = act
         self.lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
@@ -328,6 +331,7 @@ class OutputBlock(torch.nn.Module):
         act: Callable,
         output_initializer: str = "zeros",
     ) -> None:
+        """Initialize ``OutputBlock``."""
         assert output_initializer in {"zeros", "glorot_orthogonal"}
 
         super().__init__()

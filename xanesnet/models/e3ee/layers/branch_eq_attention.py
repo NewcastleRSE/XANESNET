@@ -37,10 +37,10 @@ class EnergyConditionedEquivariantAtomAttention(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
-        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
+        att_cutoff: Radius of the attention neighborhood graph in Angstrom.
         attention_lmax: Maximum spherical-harmonics order for bond directions.
         attention_irreps: Target irreps of the equivariant values (e.g. ``"32x0e+16x1o"``).
-        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        rbf_dim: Number of Gaussian RBF bases for the absorber->atom distance.
         max_z: Maximum atomic number supported by the element embedding.
         z_emb_dim: Embedding dimension for atomic numbers.
         n_heads: Number of attention heads used for invariant scoring.
@@ -61,6 +61,7 @@ class EnergyConditionedEquivariantAtomAttention(nn.Module):
         z_emb_dim: int = 32,
         n_heads: int = 4,
     ) -> None:
+        """Initialize ``EnergyConditionedEquivariantAtomAttention``."""
         super().__init__()
         if latent_dim % n_heads != 0:
             raise ValueError("latent_dim must be divisible by n_heads")
@@ -156,8 +157,8 @@ class EnergyConditionedEquivariantAtomAttention(nn.Module):
             e_feat: Energy RBF features, shape ``(nE, dE)``.
             absorber_index: Absorber index per sample, shape ``(B,)``.
             att_dst: Flat destination indices into ``B*N``, shape ``(E_att,)``.
-            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
-            att_vec: Absorber→atom displacement vectors in **Å**, shape ``(E_att, 3)``.
+            att_dist: Absorber-to-atom distances in **Angstrom**, shape ``(E_att,)``.
+            att_vec: Absorber-to-atom displacement vectors in **Angstrom**, shape ``(E_att, 3)``.
 
         Returns:
             Latent tensor of shape ``(B, nE, latent_dim)``.

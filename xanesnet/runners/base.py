@@ -50,6 +50,7 @@ class Runner(ABC):
         drop_last: bool,
         num_workers: int,
     ) -> None:
+        """Initialize ``Runner``."""
         self.dataset = dataset
         self.model = model
         self.device = device

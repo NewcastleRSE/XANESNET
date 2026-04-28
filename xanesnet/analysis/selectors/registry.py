@@ -21,19 +21,19 @@ from .base import Selector
 
 
 class SelectorRegistry:
-    """Class-level mapping from selector names to selector classes."""
+    """Name-based registry for selector classes."""
 
     _registry: dict[str, type[Selector]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Selector]], type[Selector]]:
-        """Create a decorator that registers a selector class.
+        """Register a selector class under ``name``.
 
         Args:
             name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the selector class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,14 +41,7 @@ class SelectorRegistry:
         name = name.lower()
 
         def decorator(selector_cls: type[Selector]) -> type[Selector]:
-            """Register ``selector_cls`` under the normalized name.
-
-            Args:
-                selector_cls: Selector class to register.
-
-            Returns:
-                The unmodified selector class.
-            """
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Selector '{name}' already registered")
             cls._registry[name] = selector_cls

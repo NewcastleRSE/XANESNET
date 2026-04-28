@@ -21,19 +21,19 @@ from .base import Trainer
 
 
 class TrainerRegistry:
-    """Class-level registry mapping trainer names to their ``Trainer`` subclasses."""
+    """Name-based registry for trainer classes."""
 
     _registry: dict[str, type[Trainer]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Trainer]], type[Trainer]]:
-        """Return a decorator that registers a trainer class under ``name``.
+        """Register a trainer class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the trainer type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,6 +41,7 @@ class TrainerRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[Trainer]) -> type[Trainer]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Trainer '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -50,16 +51,16 @@ class TrainerRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Trainer]:
-        """Look up and return a registered trainer class.
+        """Return the trainer class registered as ``name``.
 
         Args:
-            name: Trainer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Trainer`` subclass.
+            Registered trainer class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no trainer is registered under ``name``.
         """
         name = name.lower()
 
@@ -69,9 +70,9 @@ class TrainerRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered trainer name strings.
+        """Return all registered trainer names.
 
         Returns:
-            List of registered trainer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

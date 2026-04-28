@@ -26,7 +26,24 @@ from ..geometrygraph import GeometryGraphDataset
 
 @DatasetRegistry.register("geometrygraph_mp")
 class GeometryGraphDatasetMp(MpDatasetMixin, GeometryGraphDataset):
-    """Multiprocessing variant of :class:`GeometryGraphDataset`."""
+    """Multiprocessing variant of :class:`GeometryGraphDataset`.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource used during preparation.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        cutoff: Graph cutoff in **Angstrom**.
+        max_num_neighbors: Per-source neighbor cap.
+        compute_angles: Whether to precompute triplet angles.
+        graph_method: Graph construction method.
+        min_facet_area: Optional Voronoi facet-area threshold.
+        cov_radii_scale: Covalent-radii scale for graph construction.
+        num_workers: Requested worker process count.
+    """
 
     def __init__(
         self,
@@ -46,24 +63,7 @@ class GeometryGraphDatasetMp(MpDatasetMixin, GeometryGraphDataset):
         cov_radii_scale: float,
         num_workers: int | None,
     ) -> None:
-        """Initialize a multiprocessing geometry graph dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource used during preparation.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            cutoff: Graph cutoff in **Angstrom**.
-            max_num_neighbors: Per-source neighbor cap.
-            compute_angles: Whether to precompute triplet angles.
-            graph_method: Graph construction method.
-            min_facet_area: Optional Voronoi facet-area threshold.
-            cov_radii_scale: Covalent-radii scale for graph construction.
-            num_workers: Requested worker process count.
-        """
+        """Initialize a multiprocessing geometry graph dataset."""
         super().__init__(
             dataset_type=dataset_type,
             datasource=datasource,

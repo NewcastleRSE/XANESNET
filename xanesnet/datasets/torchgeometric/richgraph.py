@@ -29,7 +29,17 @@ from ..registry import DatasetRegistry
 
 @DatasetRegistry.register("richgraph")
 class RichGraphDataset(TorchGeometricDataset):
-    """Work-in-progress graph dataset with radius-graph connectivity."""
+    """Work-in-progress graph dataset with radius-graph connectivity.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+    """
 
     def __init__(
         self,
@@ -41,17 +51,7 @@ class RichGraphDataset(TorchGeometricDataset):
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        """Initialize the rich graph dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-        """
+        """Initialize the rich graph dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:

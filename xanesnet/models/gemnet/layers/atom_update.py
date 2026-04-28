@@ -46,6 +46,7 @@ class AtomUpdateBlock(torch.nn.Module):
         scale_file: str | None,
         name: str,
     ) -> None:
+        """Initialize ``AtomUpdateBlock``."""
         super().__init__()
 
         self.name = name
@@ -76,7 +77,7 @@ class AtomUpdateBlock(torch.nn.Module):
         return torch.nn.ModuleList(mlp)
 
     def reset_parameters(self) -> None:
-        """Re-initialise all sub-layer weights."""
+        """Re-initialize all sub-layer weights."""
         self.dense_rbf.reset_parameters()
         for layer in self.layers:
             layer.reset_parameters()
@@ -126,7 +127,7 @@ class OutputBlock(AtomUpdateBlock):
         nHidden: Number of residual layers in the shared MLP.
         num_targets: Output dimension per atom.
         activation: Activation function name.
-        output_init: Initialisation strategy for the output weight matrix.
+        output_init: Initialization strategy for the output weight matrix.
             Either ``"HeOrthogonal"`` or ``"zeros"``.
         scale_file: Path to JSON scale-factor file, or ``None``.
         name: Block name (used to look up scale factors).
@@ -145,6 +146,7 @@ class OutputBlock(AtomUpdateBlock):
         name: str,
     ) -> None:
 
+        """Initialize ``OutputBlock``."""
         super().__init__(
             name=name,
             emb_size_atom=emb_size_atom,
@@ -165,7 +167,7 @@ class OutputBlock(AtomUpdateBlock):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise all weights, applying the configured output initialiser."""
+        """Re-initialize all weights, applying the configured output initializer."""
         super().reset_parameters()
         if self.output_init.lower() == "heorthogonal":
             he_orthogonal_init(self.out_energy.weight)

@@ -48,6 +48,7 @@ class XYZSpecSource(DataSource):
         xyz_path: str,
         xanes_path: str,
     ) -> None:
+        """Initialize ``XYZSpecSource``."""
         super().__init__(datasource_type)
 
         # TODO Currently the paths cannot be None!

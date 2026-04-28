@@ -21,19 +21,19 @@ from .base import Plotter
 
 
 class PlotterRegistry:
-    """Class-level mapping from plotter names to plotter classes."""
+    """Name-based registry for plotter classes."""
 
     _registry: dict[str, type[Plotter]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Plotter]], type[Plotter]]:
-        """Create a decorator that registers a plotter class.
+        """Register a plotter class under ``name``.
 
         Args:
             name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the plotter class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,14 +41,7 @@ class PlotterRegistry:
         name = name.lower()
 
         def decorator(plotter_cls: type[Plotter]) -> type[Plotter]:
-            """Register ``plotter_cls`` under the normalized name.
-
-            Args:
-                plotter_cls: Plotter class to register.
-
-            Returns:
-                The unmodified plotter class.
-            """
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Plotter '{name}' already registered")
             cls._registry[name] = plotter_cls

@@ -132,7 +132,25 @@ class DescriptorData:
 
 @DatasetRegistry.register("descriptor")
 class DescriptorDataset(TorchDataset):
-    """Dataset that converts structures to descriptor tensors."""
+    """Dataset that converts structures to descriptor tensors.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        mode: ``forward`` for descriptor-to-spectrum or ``reverse`` for spectrum-to-descriptor.
+        fourier: Whether to add Fourier-transformed spectra.
+        fourier_concat: Whether Fourier features concatenate real and imaginary components.
+        gaussian: Whether to fit spectra to a Gaussian basis.
+        widths_eV: Gaussian basis widths in **eV**.
+        basis_stride: Energy-grid stride used when creating a Gaussian basis.
+        basis_path: Optional serialized spectral basis path.
+        descriptors: Descriptor configuration objects.
+    """
 
     def __init__(
         self,
@@ -154,25 +172,7 @@ class DescriptorDataset(TorchDataset):
         # descriptors
         descriptors: list[Config],
     ) -> None:
-        """Initialize the descriptor dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            mode: ``forward`` for descriptor-to-spectrum or ``reverse`` for spectrum-to-descriptor.
-            fourier: Whether to add Fourier-transformed spectra.
-            fourier_concat: Whether Fourier features concatenate real and imaginary components.
-            gaussian: Whether to fit spectra to a Gaussian basis.
-            widths_eV: Gaussian basis widths in **eV**.
-            basis_stride: Energy-grid stride used when creating a Gaussian basis.
-            basis_path: Optional serialized spectral basis path.
-            descriptors: Descriptor configuration objects.
-        """
+        """Initialize the descriptor dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.mode = mode
@@ -194,7 +194,7 @@ class DescriptorDataset(TorchDataset):
         self.descriptor_configs = descriptors
         self.descriptor_list: list[Descriptor] = []
         descriptor_types = ", ".join(d.get_str("descriptor_type") for d in descriptors)
-        logging.info(f"Initialising descriptors: {descriptor_types}")
+        logging.info(f"Initializing descriptors: {descriptor_types}")
         for descriptor_config in descriptors:
             descriptor_type = descriptor_config.get_str("descriptor_type")
             descriptor = DescriptorRegistry.get(descriptor_type)(**descriptor_config.as_kwargs())

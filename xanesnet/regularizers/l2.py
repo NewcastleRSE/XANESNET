@@ -37,6 +37,7 @@ class L2Reg(Regularizer):
         regularizer_type: str,
         weight: float,
     ) -> None:
+        """Initialize ``L2Reg``."""
         super().__init__(regularizer_type, weight)
 
     def forward(self, model: Model) -> torch.Tensor:

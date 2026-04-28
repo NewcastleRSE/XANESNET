@@ -84,6 +84,28 @@ class E3EEFullDataset(TorchGeometricDataset):
     are computed for every site independently (with ``max_paths_per_site``
     paths each) and tagged with ``path_center`` so that the model can scatter
     them into the per-atom layout.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        cutoff: Main graph cutoff in **Angstrom**.
+        max_num_neighbors: Main graph per-source neighbor cap.
+        use_path_branch: Whether to precompute site-centered paths.
+        max_paths_per_site: Maximum paths saved per site.
+        graph_method: Main graph construction method.
+        min_facet_area: Optional Voronoi facet-area threshold.
+        cov_radii_scale: Covalent-radii scale for graph construction.
+        att_cutoff: Attention graph cutoff in **Angstrom**.
+        att_max_num_neighbors: Attention graph per-source neighbor cap.
+        att_graph_method: Attention graph construction method.
+        att_min_facet_area: Optional attention Voronoi facet-area threshold.
+        att_cov_radii_scale: Attention graph covalent-radii scale.
+        use_absorber_mask: Whether attention/path data are limited to absorber sites.
     """
 
     def __init__(
@@ -110,30 +132,7 @@ class E3EEFullDataset(TorchGeometricDataset):
         att_cov_radii_scale: float,
         use_absorber_mask: bool,
     ) -> None:
-        """Initialize the full-structure E3EE dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            cutoff: Main graph cutoff in **Angstrom**.
-            max_num_neighbors: Main graph per-source neighbor cap.
-            use_path_branch: Whether to precompute site-centered paths.
-            max_paths_per_site: Maximum paths saved per site.
-            graph_method: Main graph construction method.
-            min_facet_area: Optional Voronoi facet-area threshold.
-            cov_radii_scale: Covalent-radii scale for graph construction.
-            att_cutoff: Attention graph cutoff in **Angstrom**.
-            att_max_num_neighbors: Attention graph per-source neighbor cap.
-            att_graph_method: Attention graph construction method.
-            att_min_facet_area: Optional attention Voronoi facet-area threshold.
-            att_cov_radii_scale: Attention graph covalent-radii scale.
-            use_absorber_mask: Whether attention/path data are limited to absorber sites.
-        """
+        """Initialize the full-structure E3EE dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff

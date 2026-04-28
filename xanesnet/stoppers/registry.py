@@ -21,20 +21,19 @@ from .base import EarlyStopper
 
 
 class EarlyStopperRegistry:
-    """Class-level registry mapping string keys to ``EarlyStopper`` subclasses."""
+    """Name-based registry for early stopper classes."""
 
     _registry: dict[str, type[EarlyStopper]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[EarlyStopper]], type[EarlyStopper]]:
-        """Return a class decorator that registers an ``EarlyStopper`` under ``name``.
+        """Register an early stopper class under ``name``.
 
         Args:
-            name: Registry key (lowercased automatically).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers the decorated class and returns it
-            unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -42,6 +41,7 @@ class EarlyStopperRegistry:
         name = name.lower()
 
         def decorator(stopper_cls: type[EarlyStopper]) -> type[EarlyStopper]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"EarlyStopper '{name}' already registered")
             cls._registry[name] = stopper_cls
@@ -51,16 +51,16 @@ class EarlyStopperRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[EarlyStopper]:
-        """Look up an ``EarlyStopper`` class by name.
+        """Return the early stopper class registered as ``name``.
 
         Args:
-            name: Registry key (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``EarlyStopper`` subclass.
+            Registered early stopper class.
 
         Raises:
-            KeyError: If ``name`` is not in the registry.
+            KeyError: If no early stopper is registered under ``name``.
         """
         name = name.lower()
 
@@ -70,9 +70,9 @@ class EarlyStopperRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return the names of all registered early stoppers.
+        """Return all registered early stopper names.
 
         Returns:
-            List of registered registry keys.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

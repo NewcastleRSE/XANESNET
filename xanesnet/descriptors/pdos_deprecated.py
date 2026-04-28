@@ -16,7 +16,7 @@
 """Projected density of states (pDOS) descriptor.
 
 Note:
-    Deprecated — this descriptor is not actively maintained and may produce incorrect results.
+    Deprecated - this descriptor is not actively maintained and may produce incorrect results.
 """
 
 import numpy as np
@@ -41,7 +41,7 @@ class PDOS(Descriptor):
     contributions on the absorber site.
 
     Note:
-        Deprecated — this descriptor is not actively maintained and may produce
+        Deprecated - this descriptor is not actively maintained and may produce
         incorrect results.
 
     Args:
@@ -112,6 +112,7 @@ class PDOS(Descriptor):
         temperature: float = 9.5e-4,
         verbosity: int = 0,
     ) -> None:
+        """Initialize ``PDOS``."""
         super().__init__(descriptor_type)
 
         self.code = code
@@ -203,7 +204,7 @@ class PDOS(Descriptor):
 
         numbers = system.get_atomic_numbers()
         nelectron = int(np.sum(numbers))
-        positions = system.get_positions() * 1.8897259886  # Å -> bohr
+        positions = system.get_positions() * 1.8897259886  # Angstrom -> bohr
 
         # charge / spin
         if self.use_spin and self.use_charge:
@@ -328,6 +329,7 @@ class PDOS(Descriptor):
 
         def build_channel_mask(substr: str) -> np.ndarray:
             # match if substr (e.g., "p" or "d") appears in AO type string like "2px", "3dxy"
+            """Build a channel mask for the selected orbital channels."""
             return np.array([substr in t for t in ao_types])
 
         p_mask = ao_on_site & build_channel_mask(self.orb_type)

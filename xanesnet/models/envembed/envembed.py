@@ -71,6 +71,7 @@ class EnvEmbed(Model):
         head_depth: int,
         dropout: float,
     ) -> None:
+        """Initialize ``EnvEmbed``."""
         super().__init__(model_type)
 
         self.in_size = in_size
@@ -126,18 +127,18 @@ class EnvEmbed(Model):
         return gaussian_inverse(basis=basis, coeffs=coeff)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise model weights and biases.
+        """Initialize model weights and biases.
 
-        Applies the given initialisation to ``nn.Linear`` layers in the encoder.
+        Applies the given initialization to ``nn.Linear`` layers in the encoder.
         For the coefficient head, :class:`~xanesnet.models.envembed.layers.ResidualPreLNBlock`
-        inner layers are initialised while group head layers retain their zero initialisation.
+        inner layers are initialized while group head layers retain their zero initialization.
 
         Args:
-            weights_init: Name of the weight initialiser registered in
+            weights_init: Name of the weight initializer registered in
                 :class:`~xanesnet.components.WeightInitRegistry`.
-            bias_init: Name of the bias initialiser registered in
+            bias_init: Name of the bias initializer registered in
                 :class:`~xanesnet.components.BiasInitRegistry`.
-            **kwargs: Additional keyword arguments forwarded to the weight initialiser.
+            **kwargs: Additional keyword arguments forwarded to the weight initializer.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)

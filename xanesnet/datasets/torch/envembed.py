@@ -150,7 +150,22 @@ class EnvEmbedData:
 
 @DatasetRegistry.register("envembed")
 class EnvEmbedDataset(TorchDataset):
-    """Dataset that creates absorber-centered environment embeddings."""
+    """Dataset that creates absorber-centered environment embeddings.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        widths_eV: Gaussian basis widths in **eV**.
+        basis_stride: Energy-grid stride used when creating a Gaussian basis.
+        basis_path: Optional serialized spectral basis path.
+        env_radius: Periodic-neighbor cutoff in **Angstrom** for structures.
+        descriptors: Descriptor configuration objects.
+    """
 
     def __init__(
         self,
@@ -169,22 +184,7 @@ class EnvEmbedDataset(TorchDataset):
         # descriptors
         descriptors: list[Config],
     ) -> None:
-        """Initialize the environment-embedding dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            widths_eV: Gaussian basis widths in **eV**.
-            basis_stride: Energy-grid stride used when creating a Gaussian basis.
-            basis_path: Optional serialized spectral basis path.
-            env_radius: Periodic-neighbor cutoff in **Angstrom** for structures.
-            descriptors: Descriptor configuration objects.
-        """
+        """Initialize the environment-embedding dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.widths_eV = widths_eV
@@ -196,7 +196,7 @@ class EnvEmbedDataset(TorchDataset):
         self.descriptor_configs = descriptors
         self.descriptor_list: list[Descriptor] = []
         descriptor_types = ", ".join(d.get_str("descriptor_type") for d in descriptors)
-        logging.info(f"Initialising descriptors: {descriptor_types}")
+        logging.info(f"Initializing descriptors: {descriptor_types}")
         for descriptor_config in descriptors:
             descriptor_type = descriptor_config.get_str("descriptor_type")
             descriptor = DescriptorRegistry.get(descriptor_type)(**descriptor_config.as_kwargs())

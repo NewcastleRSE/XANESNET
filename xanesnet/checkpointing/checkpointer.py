@@ -49,6 +49,7 @@ class Checkpointer:
         save_interval: int | None,
         model_signature: Config | None,
     ) -> None:
+        """Initialize ``Checkpointer``."""
         self.active = save_dir is not None and save_interval is not None
 
         if self.active:
@@ -81,7 +82,7 @@ class Checkpointer:
             optimizer: Optimizer whose ``state_dict`` will be persisted.
 
         Returns:
-            ``(saved, checkpoint_name)`` — ``saved`` is ``True`` when a file
+            ``(saved, checkpoint_name)`` - ``saved`` is ``True`` when a file
             was written; ``checkpoint_name`` is the file basename or ``""``
             when nothing was saved.
         """

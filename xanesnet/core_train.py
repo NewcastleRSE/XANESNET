@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""Core training pipeline: dataset setup, strategy initialisation, and model training."""
+"""Core training pipeline: dataset setup, strategy initialization, and model training."""
 
 import logging
 import time
@@ -107,11 +107,11 @@ def _setup_datasource(config: Config) -> DataSource:
         config: Validated configuration containing a ``datasource`` section.
 
     Returns:
-        Initialised data source.
+        Initialized data source.
     """
     datasource_config = config.section("datasource")
     datasource_type = datasource_config.get_str("datasource_type")
-    logging.info(f"Initialising data source: {datasource_type}")
+    logging.info(f"Initializing data source: {datasource_type}")
     datasource = DataSourceRegistry.get(datasource_type)(**datasource_config.as_kwargs())
 
     return datasource
@@ -130,7 +130,7 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     dataset_config = config.section("dataset")
     dataset_type = dataset_config.get_str("dataset_type")
 
-    logging.info(f"Initialising training dataset: {dataset_type}")
+    logging.info(f"Initializing training dataset: {dataset_type}")
     dataset = DatasetRegistry.get(dataset_type)(**dataset_config.as_kwargs(), datasource=datasource)
     dataset.prepare()
     dataset.setup_splits()
@@ -154,7 +154,7 @@ def _setup_strategy(config: Config, dataset: Dataset, save_dir: Path, enable_ten
         enable_tensorboard: Whether to enable TensorBoard logging.
 
     Returns:
-        Configured strategy instance (models not yet initialised).
+        Configured strategy instance (models not yet initialized).
     """
     strategy_config = config.section("strategy")
     strategy_type = strategy_config.get_str("strategy_type")
@@ -162,7 +162,7 @@ def _setup_strategy(config: Config, dataset: Dataset, save_dir: Path, enable_ten
     model_config = config.section("model")
     trainer_config = config.section("trainer")
 
-    logging.info(f"Initialising strategy: {strategy_type}")
+    logging.info(f"Initializing strategy: {strategy_type}")
     strategy = StrategyRegistry.get(strategy_type)(
         **strategy_config.as_kwargs(),
         checkpoint_dir=save_dir / "checkpoints",
@@ -186,7 +186,7 @@ def _run_training(strategy: Strategy) -> tuple[list[Model], float]:
     Moves all models to CPU after training completes.
 
     Args:
-        strategy: Fully initialised training strategy.
+        strategy: Fully initialized training strategy.
 
     Returns:
         A ``(model_list, train_time)`` tuple where ``train_time`` is elapsed

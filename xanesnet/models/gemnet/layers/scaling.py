@@ -41,11 +41,13 @@ class ScaleFactor(torch.nn.Module):
     scale_factor: torch.Tensor
 
     def __init__(self, name: str | None = None) -> None:
+        """Initialize ``ScaleFactor``."""
         super().__init__()
         self.name = name
         self.scale_factor = torch.nn.Parameter(torch.tensor(1.0), requires_grad=False)
 
     def forward(self, x: torch.Tensor, ref: torch.Tensor | None = None) -> torch.Tensor:
+        """Apply the configured scale factor."""
         return x * self.scale_factor
 
 
@@ -56,7 +58,7 @@ class ScalingFactor(ScaleFactor):
 
     The ``scale_file`` and ``device`` constructor arguments are accepted for
     backwards-compat with the pre-existing GemNet layer call sites but are
-    ignored — scales are loaded by the model itself via
+    ignored - scales are loaded by the model itself via
     :func:`load_scales_json` (or via ``state_dict`` round-trip).
     """
 
@@ -66,11 +68,13 @@ class ScalingFactor(ScaleFactor):
         name: str | None = None,
         device: torch.device | None = None,
     ) -> None:
+        """Initialize ``ScalingFactor``."""
         super().__init__(name=name)
         if device is not None:
             self.scale_factor.data = self.scale_factor.data.to(device)
 
     def forward(self, x_ref: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        """Apply the configured scale factor."""
         return super().forward(y, ref=x_ref)
 
 

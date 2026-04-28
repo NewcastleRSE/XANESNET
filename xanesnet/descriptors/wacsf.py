@@ -42,9 +42,9 @@ class WACSF(Descriptor):
         n_g4: Number of G4 (angular) symmetry functions. Defaults to ``32``.
         l: Lambda values for G4 encoding. Defaults to ``[1.0, -1.0]``.
         z: Zeta values for G4 encoding. Defaults to ``[1.0]``.
-        g2_parameterisation: G2 grid strategy — ``'shifted'`` or ``'centred'``.
+        g2_parameterisation: G2 grid strategy - ``'shifted'`` or ``'centred'``.
             Defaults to ``'shifted'``.
-        g4_parameterisation: G4 grid strategy — ``'shifted'`` or ``'centred'``.
+        g4_parameterisation: G4 grid strategy - ``'shifted'`` or ``'centred'``.
             Defaults to ``'centred'``.
         use_charge: Append charge state scalar to the descriptor. Defaults to ``False``.
         use_spin: Append spin state scalar to the descriptor. Defaults to ``False``.
@@ -64,6 +64,7 @@ class WACSF(Descriptor):
         use_charge: bool = False,
         use_spin: bool = False,
     ) -> None:
+        """Initialize ``WACSF``."""
         super().__init__(descriptor_type)
 
         if n_g2 < 0:
@@ -159,12 +160,12 @@ class WACSF(Descriptor):
 
         Returns:
             WACSF feature vector ``(F,)`` where ``F = 1 + n_g2 + n_g4 + use_charge + use_spin``.
-            If no neighbours are found within ``r_max``, the geometric terms are
+            If no neighbors are found within ``r_max``, the geometric terms are
             zero while optional spin and charge scalars are still preserved.
         """
         mask = i_arr == site_index
 
-        # If no neighbours, return zeroed geometric terms but preserve optional global scalars.
+        # If no neighbors, return zeroed geometric terms but preserve optional global scalars.
         if mask.sum() == 0:
             features: list[np.ndarray] = [np.zeros(1 + self.n_g2 + self.n_g4)]
             if self.use_spin:
@@ -258,13 +259,14 @@ class _SymFuncParams:
         n: Number of symmetry functions.
         r_min: Minimum radial distance. **A**.
         r_max: Maximum radial distance. **A**.
-        parameterisation: Grid strategy — ``'shifted'`` or ``'centred'``.
+        parameterisation: Grid strategy - ``'shifted'`` or ``'centred'``.
 
     Raises:
         ValueError: If ``n < 1`` or ``parameterisation`` is unsupported.
     """
 
     def __init__(self, n: int, r_min: float, r_max: float, parameterisation: str) -> None:
+        """Initialize ``_SymFuncParams``."""
         if n < 1:
             raise ValueError(f"n must be positive, got {n}")
 

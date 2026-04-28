@@ -37,6 +37,7 @@ class EMDLoss(Loss):
         self,
         loss_type: str,
     ) -> None:
+        """Initialize ``EMDLoss``."""
         super().__init__(loss_type)
 
     def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:

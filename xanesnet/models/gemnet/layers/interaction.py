@@ -67,6 +67,7 @@ class InteractionBlock(torch.nn.Module):
         scale_file: str | None,
         name: str = "Interaction",
     ) -> None:
+        """Initialize ``InteractionBlock``."""
         super().__init__()
         self.name = name
 
@@ -143,7 +144,7 @@ class InteractionBlock(torch.nn.Module):
         self.inv_sqrt_3 = 1 / (3.0**0.5)
 
     def reset_parameters(self) -> None:
-        """Re-initialise all sub-layer weights."""
+        """Re-initialize all sub-layer weights."""
         self.dense_ca.reset_parameters()
         self.quad_interaction.reset_parameters()
         self.trip_interaction.reset_parameters()
@@ -188,12 +189,12 @@ class InteractionBlock(torch.nn.Module):
                 shape ``(nIntEdges, emb_size_cbf)``.
             sbf4: Down-projected spherical basis for quadruplets
                 (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
-            Kidx4: Neighbour index for the quadruplet sparse dense matrix.
+            Kidx4: Neighbor index for the quadruplet sparse dense matrix.
             rbf3: Down-projected radial basis for triplets,
                 shape ``(nEdges, emb_size_rbf)``.
             cbf3: Down-projected circular basis for triplets
                 (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
-            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            Kidx3: Neighbor index for the triplet sparse dense matrix.
             id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
             id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
             id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.
@@ -304,6 +305,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         # (allows the same constructor call for both GemNet-T and GemNet-Q variants)
         **kwargs: int,
     ) -> None:
+        """Initialize ``InteractionBlockTripletsOnly``."""
         super().__init__()
         self.name = name
 
@@ -366,7 +368,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0**0.5)
 
     def reset_parameters(self) -> None:
-        """Re-initialise all sub-layer weights."""
+        """Re-initialize all sub-layer weights."""
         self.dense_ca.reset_parameters()
         self.trip_interaction.reset_parameters()
         for layer in self.layers_before_skip:
@@ -402,7 +404,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
                 shape ``(nEdges, emb_size_rbf)``.
             cbf3: Down-projected circular basis for triplets
                 (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
-            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            Kidx3: Neighbor index for the triplet sparse dense matrix.
             id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
             id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
             id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.
@@ -487,6 +489,7 @@ class QuadrupletInteraction(torch.nn.Module):
         scale_file: str | None,
         name: str = "QuadrupletInteraction",
     ) -> None:
+        """Initialize ``QuadrupletInteraction``."""
         super().__init__()
         self.name = name
 
@@ -533,7 +536,7 @@ class QuadrupletInteraction(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0**0.5)
 
     def reset_parameters(self) -> None:
-        """Re-initialise all sub-layer weights."""
+        """Re-initialize all sub-layer weights."""
         self.dense_db.reset_parameters()
         self.mlp_rbf.reset_parameters()
         self.mlp_cbf.reset_parameters()
@@ -562,7 +565,7 @@ class QuadrupletInteraction(torch.nn.Module):
             cbf: Projected circular basis, shape ``(nIntEdges, emb_size_cbf)``.
             sbf: Projected spherical basis tuple
                 (from :class:`~.efficient.EfficientInteractionDownProjection`).
-            Kidx4: Neighbour index for the quadruplet sparse dense matrix.
+            Kidx4: Neighbor index for the quadruplet sparse dense matrix.
             id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
             id4_reduce_ca: Quadruplet reduce index c -> a.
             id4_expand_intm_db: Intermediate-triplet expand index d -> b.
@@ -630,6 +633,7 @@ class TripletInteraction(torch.nn.Module):
         scale_file: str | None,
         name: str = "TripletInteraction",
     ) -> None:
+        """Initialize ``TripletInteraction``."""
         super().__init__()
         self.name = name
 
@@ -673,7 +677,7 @@ class TripletInteraction(torch.nn.Module):
         self.inv_sqrt_2 = 1 / (2.0) ** 0.5
 
     def reset_parameters(self) -> None:
-        """Re-initialise all sub-layer weights."""
+        """Re-initialize all sub-layer weights."""
         self.dense_ba.reset_parameters()
         self.mlp_rbf.reset_parameters()
         self.mlp_cbf.reset_parameters()
@@ -699,7 +703,7 @@ class TripletInteraction(torch.nn.Module):
                 shape ``(nEdges, emb_size_rbf)``.
             cbf3: Projected circular basis for triplets
                 (tuple from :class:`~.efficient.EfficientInteractionDownProjection`).
-            Kidx3: Neighbour index for the triplet sparse dense matrix.
+            Kidx3: Neighbor index for the triplet sparse dense matrix.
             id_swap: Index mapping each edge to its reverse, shape ``(nEdges,)``.
             id3_expand_ba: Triplet expand index b -> a, shape ``(nTriplets,)``.
             id3_reduce_ca: Triplet reduce index c -> a, shape ``(nTriplets,)``.

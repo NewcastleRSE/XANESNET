@@ -59,6 +59,7 @@ class MLP(Model):
         shrink_rate: float,
         activation: str,
     ) -> None:
+        """Initialize ``MLP``."""
         super().__init__(model_type)
 
         self.in_size = in_size
@@ -71,7 +72,7 @@ class MLP(Model):
 
         layers: list[nn.Module] = []
 
-        # Initialise input and hidden layers
+        # Initialize input and hidden layers
         current_size = in_size
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
@@ -83,7 +84,7 @@ class MLP(Model):
             layers.append(ActivationRegistry.get(activation))
             current_size = next_size
 
-        # Initialise output layer
+        # Initialize output layer
         layers.append(nn.Linear(current_size, out_size))
 
         self.dense_layers = nn.Sequential(*layers)
@@ -100,19 +101,20 @@ class MLP(Model):
         return self.dense_layers(x)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise all linear layer weights and biases.
+        """Initialize all linear layer weights and biases.
 
         Args:
-            weights_init: Name of the weight initialisation scheme (looked up via
+            weights_init: Name of the weight initialization scheme (looked up via
                 ``WeightInitRegistry``).
-            bias_init: Name of the bias initialisation scheme (looked up via
+            bias_init: Name of the bias initialization scheme (looked up via
                 ``BiasInitRegistry``).
-            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+            **kwargs: Extra keyword arguments forwarded to the weight initializer.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
 
         def _init_layer(m: nn.Module) -> None:
+            """Initialize one linear layer in place."""
             if isinstance(m, (nn.Linear, nn.Conv1d, nn.ConvTranspose1d)):
                 weight_init_fn(m.weight)
                 assert m.bias is not None, "Bias is None, cannot initialize."

@@ -55,6 +55,7 @@ class Inferencer(Runner):
         # inferencer params:
         inferencer_type: str,
     ) -> None:
+        """Initialize ``Inferencer``."""
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
 
         self.inferencer_type = inferencer_type

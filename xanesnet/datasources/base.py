@@ -32,6 +32,7 @@ class DataSource(ABC):
         self,
         datasource_type: str,
     ) -> None:
+        """Initialize ``DataSource``."""
         self.datasource_type = datasource_type
 
     @abstractmethod

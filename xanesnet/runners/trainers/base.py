@@ -86,6 +86,7 @@ class Trainer(Runner):
         lr_warmup: bool,
         warmup_steps: int,
     ) -> None:
+        """Initialize ``Trainer``."""
         super().__init__(dataset, model, device, batch_size, shuffle, drop_last, num_workers)
 
         self.checkpointer = checkpointer

@@ -34,6 +34,7 @@ class MSELoss(Loss):
         self,
         loss_type: str,
     ) -> None:
+        """Initialize ``MSELoss``."""
         super().__init__(loss_type)
 
         self.loss = nn.MSELoss()

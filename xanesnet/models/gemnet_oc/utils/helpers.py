@@ -34,9 +34,9 @@ def inner_product_clamped(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 def get_angle(vec1: torch.Tensor, vec2: torch.Tensor) -> torch.Tensor:
-    """Angle between two unit vectors via ``atan2(|v1 x v2|, v1 · v2)``.
+    """Angle between two unit vectors via ``atan2(|v1 x v2|, v1 dot v2)``.
 
-    More numerically stable than ``acos(v1 · v2)`` near 0 and pi.
+    More numerically stable than ``acos(v1 dot v2)`` near 0 and pi.
 
     Args:
         vec1: First vector tensor, shape ``(N, 3)``.

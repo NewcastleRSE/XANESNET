@@ -43,7 +43,7 @@ def save_models(dst_dir: str | Path, model_list: list[Model]) -> None:
 
     If a single model is provided, its weights are written directly to
     ``dst_dir/model_weights.pth``.  For multiple models, each is saved in its
-    own numbered sub-directory (``model_0/``, ``model_1/``, …).
+    own numbered sub-directory (``model_0/``, ``model_1/``, ...).
 
     Args:
         dst_dir: Destination directory.

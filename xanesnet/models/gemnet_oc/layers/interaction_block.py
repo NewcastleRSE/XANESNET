@@ -81,6 +81,7 @@ class InteractionBlock(torch.nn.Module):
         atom_interaction: bool = False,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``InteractionBlock``."""
         super().__init__()
 
         self.dense_ca = Dense(emb_size_edge, emb_size_edge, activation=activation, bias=False)
@@ -325,6 +326,7 @@ class QuadrupletInteraction(torch.nn.Module):
         symmetric_mp: bool = True,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``QuadrupletInteraction``."""
         super().__init__()
         self.symmetric_mp = symmetric_mp
 
@@ -419,6 +421,7 @@ class TripletInteraction(torch.nn.Module):
         swap_output: bool = True,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``TripletInteraction``."""
         super().__init__()
         self.symmetric_mp = symmetric_mp
         self.swap_output = swap_output
@@ -520,6 +523,7 @@ class PairInteraction(torch.nn.Module):
         emb_size_rbf: int,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``PairInteraction``."""
         super().__init__()
 
         self.bilinear = Dense(emb_size_rbf * emb_size_pair_in, emb_size_pair_out, activation=None, bias=False)
@@ -543,9 +547,9 @@ class PairInteraction(torch.nn.Module):
             h: Atom embeddings, shape ``(nAtoms, emb_size_atom)``.
             rad_basis: Atom-pair radial basis packed per destination atom,
                 shape ``(nAtoms, emb_size_rbf, Kmax)`` where ``Kmax`` is the
-                maximum number of neighbours for any atom in the batch.
+                maximum number of neighbors for any atom in the batch.
             edge_index: Atom-pair edge index, shape ``(2, nEdges)``.
-            target_neighbor_idx: Per-target atom neighbour enumeration,
+            target_neighbor_idx: Per-target atom neighbor enumeration,
                 shape ``(nEdges,)``.
 
         Returns:

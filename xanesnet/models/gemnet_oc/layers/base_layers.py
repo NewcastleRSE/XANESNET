@@ -26,6 +26,7 @@ class ScaledSiLU(torch.nn.Module):
     """SiLU activation scaled by ``1 / 0.6`` to preserve unit variance."""
 
     def __init__(self) -> None:
+        """Initialize ``ScaledSiLU``."""
         super().__init__()
         self.scale_factor = 1 / 0.6
         self._activation = torch.nn.SiLU()
@@ -43,7 +44,7 @@ class ScaledSiLU(torch.nn.Module):
 
 
 class Dense(torch.nn.Module):
-    """Linear layer with optional activation and He-orthogonal initialisation.
+    """Linear layer with optional activation and He-orthogonal initialization.
 
     Args:
         in_features: Input feature dimension.
@@ -60,6 +61,7 @@ class Dense(torch.nn.Module):
         bias: bool = False,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``Dense``."""
         super().__init__()
 
         self.linear = torch.nn.Linear(in_features, out_features, bias=bias)
@@ -75,10 +77,10 @@ class Dense(torch.nn.Module):
             raise NotImplementedError(f"Activation function {activation!r} not implemented for GemNet-OC.")
 
     def reset_parameters(self, initializer=he_orthogonal_init) -> None:
-        """Re-initialise weights; zero the bias if present.
+        """Re-initialize weights; zero the bias if present.
 
         Args:
-            initializer: Weight initialisation callable. Defaults to
+            initializer: Weight initialization callable. Defaults to
                 :func:`~xanesnet.models.gemnet_oc.utils.he_orthogonal_init`.
         """
         initializer(self.linear.weight)
@@ -108,6 +110,7 @@ class ResidualLayer(torch.nn.Module):
     """
 
     def __init__(self, units: int, nLayers: int = 2, layer=Dense, **layer_kwargs) -> None:
+        """Initialize ``ResidualLayer``."""
         super().__init__()
         self.dense_mlp = torch.nn.Sequential(
             *[layer(in_features=units, out_features=units, bias=False, **layer_kwargs) for _ in range(nLayers)]

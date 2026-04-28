@@ -28,6 +28,16 @@ class BasicStopper(EarlyStopper):
     Stops training when no meaningful improvement has been observed for
     ``patience`` consecutive epochs. Only meaningful improvements update the
     tracked best value and the optional restorable model snapshot.
+
+    Args:
+        early_stopper_type: Registry key identifying this stopper type.
+        restore_best: If ``True``, restore the model to its best-seen
+            state when ``restore`` is called.
+        patience: Number of epochs without meaningful improvement after
+            which training is stopped.
+        min_delta: Minimum absolute improvement per epoch required to be
+            counted as meaningful progress. The threshold is scaled by the
+            number of epochs elapsed since the previous best.
     """
 
     def __init__(
@@ -37,18 +47,7 @@ class BasicStopper(EarlyStopper):
         patience: int,
         min_delta: float = 0.0,
     ) -> None:
-        """Initialise the patience-based stopper.
-
-        Args:
-            early_stopper_type: Registry key identifying this stopper type.
-            restore_best: If ``True``, restore the model to its best-seen
-                state when ``restore`` is called.
-            patience: Number of epochs without meaningful improvement after
-                which training is stopped.
-            min_delta: Minimum absolute improvement per epoch required to be
-                counted as meaningful progress. The threshold is scaled by the
-                number of epochs elapsed since the previous best.
-        """
+        """Initialize the patience-based stopper."""
         super().__init__(early_stopper_type, restore_best)
 
         self.patience = patience

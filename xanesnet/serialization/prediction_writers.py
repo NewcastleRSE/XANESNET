@@ -34,7 +34,7 @@ class PredictionBatch(TypedDict):
     """Batch of per-absorber predictions ready to be persisted.
 
     All values are numpy arrays or torch tensors whose first dimension is the
-    absorber dimension — every field carries one row per absorber site.  All
+    absorber dimension - every field carries one row per absorber site.  All
     array-like fields must share the same leading absorber size.
     """
 
@@ -67,13 +67,7 @@ class PredictionWriter(ABC):
     """
 
     def __init__(self, path: str | Path, buffer_size: int):
-        """Initialize a prediction writer and its on-disk storage.
-
-        Args:
-            path: Directory where output data will be written.
-            buffer_size: Number of absorber rows to accumulate before flushing
-                to storage.
-        """
+        """Initialize a prediction writer and its on-disk storage."""
         self.path = Path(path)
         self.buffer_size = buffer_size
 
@@ -193,7 +187,7 @@ class PredictionWriter(ABC):
         raise ValueError(f"Unsupported type: {type(x)}")
 
     def _init_storage(self) -> None:
-        """Initialise output directory and write the ``WRITER_INFO.txt`` descriptor.
+        """Initialize output directory and write the ``WRITER_INFO.txt`` descriptor.
 
         Called once during ``__init__``.  Subclasses should call
         ``super()._init_storage()`` and then set up format-specific resources.
@@ -258,13 +252,7 @@ class HDF5Writer(PredictionWriter):
         buffer_size: int = 100_000,
         compression: str = "gzip",
     ):
-        """Initialize an HDF5-backed prediction writer.
-
-        Args:
-            path: Directory in which ``predictions.h5`` will be created.
-            buffer_size: Number of absorber rows to buffer before flushing.
-            compression: HDF5 compression filter name.
-        """
+        """Initialize an HDF5-backed prediction writer."""
         self.compression = compression
         super().__init__(path, buffer_size)
 
@@ -336,6 +324,7 @@ class NumpyWriter(PredictionWriter):
     """
 
     def _write_batch(self, batch: dict[str, np.ndarray]) -> None:
+        """Write one prediction batch to disk."""
         n_absorbers = next(iter(batch.values())).shape[0]
 
         for i in range(n_absorbers):
@@ -352,6 +341,7 @@ class JSONWriter(PredictionWriter):
     """
 
     def _write_batch(self, batch: dict[str, np.ndarray]) -> None:
+        """Write one prediction batch to disk."""
         n_absorbers = next(iter(batch.values())).shape[0]
 
         for i in range(n_absorbers):

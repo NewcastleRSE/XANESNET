@@ -169,12 +169,7 @@ class Config:
     """
 
     def __init__(self, data: ConfigRaw) -> None:
-        """Store a normalized raw configuration mapping.
-
-        Args:
-            data: Raw configuration dictionary, possibly containing nested
-                ``Config`` instances that will be unwrapped.
-        """
+        """Store a normalized raw configuration mapping."""
         self._data: ConfigRaw = self._normalize_raw(data)
 
     # Getters for config values with type checking
@@ -404,6 +399,7 @@ class Config:
         """
 
         def convert(value: Any) -> Any:
+            """Convert a value into a configuration-friendly representation."""
             if isinstance(value, dict):
                 return Config(copy.deepcopy(value))
             elif isinstance(value, list):

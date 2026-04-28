@@ -24,22 +24,19 @@ ModelType = TypeVar("ModelType", bound=Model)
 
 
 class ModelRegistry:
-    """Class-level registry mapping model name strings to their implementation classes.
-
-    All names are normalised to lower-case on registration and look-up.
-    """
+    """Name-based registry for model classes."""
 
     _registry: dict[str, type[Model]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[ModelType]], type[ModelType]]:
-        """Return a decorator that registers a model class under ``name``.
+        """Register a model class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the model.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -47,6 +44,7 @@ class ModelRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[ModelType]) -> type[ModelType]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Model '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -56,16 +54,16 @@ class ModelRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Model]:
-        """Look up and return a registered model class by name.
+        """Return the model class registered as ``name``.
 
         Args:
-            name: Model identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered model class.
+            Registered model class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no model is registered under ``name``.
         """
         name = name.lower()
 
@@ -75,9 +73,9 @@ class ModelRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered model name strings.
+        """Return all registered model names.
 
         Returns:
-            Sorted list of registered model names.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

@@ -29,6 +29,11 @@ class NoStopper(EarlyStopper):
     Still tracks the best metric value and optionally snapshots model
     weights (when ``restore_best`` is ``True``) so that ``restore`` can
     be used after training completes.
+
+    Args:
+        early_stopper_type: Registry key identifying this stopper type.
+        restore_best: Passed through to ``EarlyStopper``; controls
+            whether model weights are snapshotted on improvement.
     """
 
     def __init__(
@@ -36,13 +41,7 @@ class NoStopper(EarlyStopper):
         early_stopper_type: str,
         restore_best: bool,
     ) -> None:
-        """Initialise the no-op stopper.
-
-        Args:
-            early_stopper_type: Registry key identifying this stopper type.
-            restore_best: Passed through to ``EarlyStopper``; controls
-                whether model weights are snapshotted on improvement.
-        """
+        """Initialize the no-op stopper."""
         super().__init__(early_stopper_type, restore_best)
 
     def step(self, value: float, model: Model, epoch: int) -> bool:

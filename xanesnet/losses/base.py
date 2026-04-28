@@ -32,6 +32,7 @@ class Loss(nn.Module, ABC):
         self,
         loss_type: str,
     ) -> None:
+        """Initialize ``Loss``."""
         super().__init__()
 
         self.loss_type = loss_type

@@ -46,6 +46,7 @@ class PMGJSONSource(DataSource):
         datasource_type: str,
         json_path: str,
     ) -> None:
+        """Initialize ``PMGJSONSource``."""
         super().__init__(datasource_type)
 
         self.json_path = json_path

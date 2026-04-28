@@ -36,6 +36,7 @@ class DIRECT(Descriptor):
         self,
         descriptor_type: str,
     ) -> None:
+        """Initialize ``DIRECT``."""
         super().__init__(descriptor_type)
 
         raise NotImplementedError("DIRECT descriptor not implemented yet.")

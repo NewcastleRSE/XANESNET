@@ -85,7 +85,7 @@ def _build_periodic_supercell(
         dtype=np.float64,
     )
     # Number of images each direction: enough that any central atom's Voronoi
-    # neighbours up to ``cutoff`` are inside the supercell.
+    # neighbors up to ``cutoff`` are inside the supercell.
     n_reps = np.maximum(1, np.ceil(cutoff / perp).astype(int))
 
     coords = np.array(structure.cart_coords, dtype=np.float64)

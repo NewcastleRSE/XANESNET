@@ -63,7 +63,7 @@ class E3EE(Model):
         atom_emb_dim: Element embedding dimension.
         atom_hidden_dim: Hidden dimension in the equivariant encoder.
         atom_layers: Number of equivariant interaction blocks.
-        local_cutoff: Message-passing cutoff radius in Ångström.
+        local_cutoff: Message-passing cutoff radius in Angstrom.
         rbf_dim: Number of Gaussian RBF bases for local edge distances.
         energy_rbf_dim: Number of Gaussian RBF bases for energy embedding.
         scatter_dim: Intermediate scatter feature dimension for the path branch.
@@ -85,7 +85,7 @@ class E3EE(Model):
         attention_rbf_dim: Number of RBF bases for attention-graph distances.
         attention_lmax: Maximum ``l`` for spherical harmonics in attention/conv branches.
         attention_irreps: Output irreps of equivariant attention/conv branches.
-        att_cutoff: Attention-graph cutoff radius in Ångström.
+        att_cutoff: Attention-graph cutoff radius in Angstrom.
         conv_use_gate: If ``True``, use a PaiNN-style scalar gate in conv branches.
     """
 
@@ -123,6 +123,7 @@ class E3EE(Model):
         att_cutoff: float,
         conv_use_gate: bool = True,
     ) -> None:
+        """Initialize ``E3EE``."""
         super().__init__(model_type)
 
         self.out_size = out_size
@@ -328,17 +329,17 @@ class E3EE(Model):
             absorber_index: Absorber atom index per sample, shape ``(B,)``.
             edge_src: Flat source indices into ``B*N``, shape ``(E,)``.
             edge_dst: Flat destination indices into ``B*N``, shape ``(E,)``.
-            edge_weight: Edge lengths in **Å**, shape ``(E,)``.
-            edge_vec: Edge displacement vectors in **Å**, shape ``(E, 3)``.
+            edge_weight: Edge lengths in **Angstrom**, shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **Angstrom**, shape ``(E, 3)``.
             att_dst: Flat destination indices into ``B*N`` (attention graph), shape ``(E_att,)``.
-            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
-            att_vec: Absorber→atom displacement vectors in **Å**, shape ``(E_att, 3)``.
+            att_dist: Absorber-to-atom distances in **Angstrom**, shape ``(E_att,)``.
+            att_vec: Absorber-to-atom displacement vectors in **Angstrom**, shape ``(E_att, 3)``.
             energies: Energy grid, shape ``(B, nE)`` (nE drives RBF embedding).
             path_j: Flat j index into ``B*N``, shape ``(P,)``.
             path_k: Flat k index into ``B*N``, shape ``(P,)``.
-            path_r0j: Absorber→j distance in **Å**, shape ``(P,)``.
-            path_r0k: Absorber→k distance in **Å**, shape ``(P,)``.
-            path_rjk: j→k distance in **Å**, shape ``(P,)``.
+            path_r0j: Absorber-to-j distance in **Angstrom**, shape ``(P,)``.
+            path_r0k: Absorber-to-k distance in **Angstrom**, shape ``(P,)``.
+            path_rjk: j-to-k distance in **Angstrom**, shape ``(P,)``.
             path_cosangle: Cosine of the j-absorber-k angle, shape ``(P,)``.
             path_batch: Batch index per path, shape ``(P,)``.
 
@@ -462,15 +463,15 @@ class E3EE(Model):
         return out
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise all ``Linear`` and ``Embedding`` weights.
+        """Initialize all ``Linear`` and ``Embedding`` weights.
 
         Args:
-            weights_init: Name of the weight initialiser registered in
+            weights_init: Name of the weight initializer registered in
                 :class:`~xanesnet.components.WeightInitRegistry`.
-            bias_init: Name of the bias initialiser registered in
+            bias_init: Name of the bias initializer registered in
                 :class:`~xanesnet.components.BiasInitRegistry`.
             **kwargs: Additional keyword arguments forwarded to the weight
-                initialiser factory.
+                initializer factory.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)

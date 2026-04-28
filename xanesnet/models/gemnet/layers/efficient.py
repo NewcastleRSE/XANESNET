@@ -39,6 +39,7 @@ class EfficientInteractionDownProjection(torch.nn.Module):
         num_radial: int,
         emb_size_interm: int,
     ) -> None:
+        """Initialize ``EfficientInteractionDownProjection``."""
         super().__init__()
 
         self.num_spherical = num_spherical
@@ -52,7 +53,7 @@ class EfficientInteractionDownProjection(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise the weight tensor with He-orthogonal init."""
+        """Re-initialize the weight tensor with He-orthogonal init."""
         he_orthogonal_init(self.weight)
 
     def forward(self, tbf: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
@@ -81,7 +82,7 @@ class EfficientInteractionDownProjection(torch.nn.Module):
 
 
 class EfficientInteractionHadamard(torch.nn.Module):
-    """Efficient Hadamard product and summation over neighbour edge embeddings.
+    """Efficient Hadamard product and summation over neighbor edge embeddings.
 
     Args:
         emb_size_interm: Intermediate (down-projected) embedding size.
@@ -93,6 +94,7 @@ class EfficientInteractionHadamard(torch.nn.Module):
         emb_size_interm: int,
         emb_size: int,
     ) -> None:
+        """Initialize ``EfficientInteractionHadamard``."""
         super().__init__()
         self.emb_size_interm = emb_size_interm
         self.emb_size = emb_size
@@ -101,7 +103,7 @@ class EfficientInteractionHadamard(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise the weight tensor with He-orthogonal init."""
+        """Re-initialize the weight tensor with He-orthogonal init."""
         he_orthogonal_init(self.weight)
 
     def forward(
@@ -120,11 +122,11 @@ class EfficientInteractionHadamard(torch.nn.Module):
                 * ``rbf_W1``: shape ``(nEdges, emb_size_interm, num_spherical)``.
                 * ``sph``: shape ``(nEdges, num_spherical, Kmax)``.
 
-            m: Neighbour edge embeddings (``m_db`` for quadruplets, ``m_ba``
+            m: Neighbor edge embeddings (``m_db`` for quadruplets, ``m_ba``
                 for triplets), shape ``(nTriplets_or_Quadruplets, emb_size)``.
             id_reduce: Index mapping each triplet/quadruplet to its target edge,
                 shape ``(nTriplets_or_Quadruplets,)``.
-            Kidx: Neighbour position within the zero-padded dense matrix,
+            Kidx: Neighbor position within the zero-padded dense matrix,
                 shape ``(nTriplets_or_Quadruplets,)``.
 
         Returns:
@@ -135,7 +137,7 @@ class EfficientInteractionHadamard(torch.nn.Module):
         rbf_W1, sph = basis  # (nEdges, emb_size_interm, num_spherical), (nEdges, num_spherical, Kmax)
         nEdges = rbf_W1.shape[0]
 
-        # Create zero-padded dense matrix of neighbouring edge embeddings.
+        # Create zero-padded dense matrix of neighboring edge embeddings.
         # Kmax is already encoded in the basis tensor layout.
         Kmax = sph.shape[2]
         m2 = torch.zeros(nEdges, Kmax, self.emb_size, device=self.weight.device, dtype=m.dtype)
@@ -154,7 +156,7 @@ class EfficientInteractionHadamard(torch.nn.Module):
 
 
 class EfficientInteractionBilinear(torch.nn.Module):
-    """Efficient bilinear layer and subsequent summation over neighbour edge embeddings.
+    """Efficient bilinear layer and subsequent summation over neighbor edge embeddings.
 
     Args:
         emb_size: Edge embedding size.
@@ -168,6 +170,7 @@ class EfficientInteractionBilinear(torch.nn.Module):
         emb_size_interm: int,
         units_out: int,
     ) -> None:
+        """Initialize ``EfficientInteractionBilinear``."""
         super().__init__()
         self.emb_size = emb_size
         self.emb_size_interm = emb_size_interm
@@ -182,7 +185,7 @@ class EfficientInteractionBilinear(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise the weight tensor with He-orthogonal init."""
+        """Re-initialize the weight tensor with He-orthogonal init."""
         he_orthogonal_init(self.weight)
 
     def forward(
@@ -201,11 +204,11 @@ class EfficientInteractionBilinear(torch.nn.Module):
                 * ``rbf_W1``: shape ``(nEdges, emb_size_interm, num_spherical)``.
                 * ``sph``: shape ``(nEdges, num_spherical, Kmax)``.
 
-            m: Neighbour edge embeddings, shape
+            m: Neighbor edge embeddings, shape
                 ``(nTriplets_or_Quadruplets, emb_size)``.
             id_reduce: Index mapping each triplet/quadruplet to its target edge,
                 shape ``(nTriplets_or_Quadruplets,)``.
-            Kidx: Neighbour position within the zero-padded dense matrix,
+            Kidx: Neighbor position within the zero-padded dense matrix,
                 shape ``(nTriplets_or_Quadruplets,)``.
 
         Returns:
@@ -216,7 +219,7 @@ class EfficientInteractionBilinear(torch.nn.Module):
         rbf_W1, sph = basis  # (nEdges, emb_size_interm, num_spherical), (nEdges, num_spherical, Kmax)
         nEdges = rbf_W1.shape[0]
 
-        # Create zero-padded dense matrix of neighbouring edge embeddings.
+        # Create zero-padded dense matrix of neighboring edge embeddings.
         # Kmax is already encoded in the basis tensor layout.
         Kmax = sph.shape[2]
         m2 = torch.zeros(nEdges, Kmax, self.emb_size, device=self.weight.device, dtype=m.dtype)

@@ -71,6 +71,7 @@ class SchNet(Model):
         cutoff: float,
         mean_spectrum: list[float] | None,
     ) -> None:
+        """Initialize ``SchNet``."""
         super().__init__(model_type)
 
         self.hidden_channels = hidden_channels
@@ -152,15 +153,15 @@ class SchNet(Model):
         return h
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise all learnable layer weights and biases.
+        """Initialize all learnable layer weights and biases.
 
         Args:
-            weights_init: Weight initialisation scheme name (looked up via
+            weights_init: Weight initialization scheme name (looked up via
                 ``WeightInitRegistry``).
-            bias_init: Bias initialisation scheme name (looked up via ``BiasInitRegistry``).
-            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+            bias_init: Bias initialization scheme name (looked up via ``BiasInitRegistry``).
+            **kwargs: Extra keyword arguments forwarded to the weight initializer.
         """
-        # Embedding uses default initialisation (non-linear lookup layer).
+        # Embedding uses default initialization (non-linear lookup layer).
         self.embedding.reset_parameters()
 
         # Init interaction blocks (includes CFConv, MLP sub-networks)
@@ -215,6 +216,7 @@ class InteractionBlock(torch.nn.Module):
         num_filters: int,
         cutoff: float,
     ) -> None:
+        """Initialize ``InteractionBlock``."""
         super().__init__()
 
         # Shallow filter MLP: maps Gaussian-smeared distances to per-edge filter weights.
@@ -234,12 +236,12 @@ class InteractionBlock(torch.nn.Module):
         self.lin = torch.nn.Linear(hidden_channels, hidden_channels)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise weights and biases for all sub-layers.
+        """Initialize weights and biases for all sub-layers.
 
         Args:
-            weights_init: Weight initialisation scheme name.
-            bias_init: Bias initialisation scheme name.
-            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+            weights_init: Weight initialization scheme name.
+            bias_init: Bias initialization scheme name.
+            **kwargs: Extra keyword arguments forwarded to the weight initializer.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
@@ -280,7 +282,7 @@ class CFConv(tgnn.MessagePassing):
     """Continuous-filter convolutional layer (message-passing variant).
 
     Applies a filter network to edge attributes to produce per-edge weights, multiplied
-    by a cosine envelope, and aggregates weighted neighbour features via sum pooling.
+    by a cosine envelope, and aggregates weighted neighbor features via sum pooling.
 
     Args:
         in_channels: Input node feature dimension.
@@ -298,6 +300,7 @@ class CFConv(tgnn.MessagePassing):
         net: torch.nn.Sequential,
         cutoff: float,
     ) -> None:
+        """Initialize ``CFConv``."""
         super().__init__(aggr="add")
         self.lin1 = torch.nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = torch.nn.Linear(num_filters, out_channels)
@@ -305,12 +308,12 @@ class CFConv(tgnn.MessagePassing):
         self.cutoff = cutoff
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise linear layer weights and biases.
+        """Initialize linear layer weights and biases.
 
         Args:
-            weights_init: Weight initialisation scheme name.
-            bias_init: Bias initialisation scheme name.
-            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+            weights_init: Weight initialization scheme name.
+            bias_init: Bias initialization scheme name.
+            **kwargs: Extra keyword arguments forwarded to the weight initializer.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)
@@ -346,7 +349,7 @@ class CFConv(tgnn.MessagePassing):
         return x
 
     def message(self, x_j: torch.Tensor, W: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
-        """Compute messages as element-wise product of neighbour features and filter weights.
+        """Compute messages as element-wise product of neighbor features and filter weights.
 
         Args:
             x_j: Source node features. ``(num_edges, num_filters)``
@@ -376,6 +379,7 @@ class GaussianSmearing(torch.nn.Module):
         stop: float = 5.0,
         num_gaussians: int = 50,
     ) -> None:
+        """Initialize ``GaussianSmearing``."""
         super().__init__()
         if num_gaussians < 2:
             raise ValueError(f"num_gaussians must be at least 2, got {num_gaussians}")
@@ -404,6 +408,7 @@ class ShiftedSoftplus(torch.nn.Module):
     """
 
     def __init__(self) -> None:
+        """Initialize ``ShiftedSoftplus``."""
         super().__init__()
         self.shift = torch.log(torch.tensor(2.0)).item()
 

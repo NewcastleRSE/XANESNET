@@ -38,6 +38,7 @@ class EnergyConditionedAbsorberBranch(nn.Module):
         hidden_dim: int,
         out_dim: int,
     ) -> None:
+        """Initialize ``EnergyConditionedAbsorberBranch``."""
         super().__init__()
         self.mlp = MLP(
             in_dim=atom_dim + e_dim,

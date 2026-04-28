@@ -38,6 +38,22 @@ class Single(Strategy):
 
     Trains or runs inference with exactly one model instance. This is the
     standard strategy for most XANESNET workflows.
+
+    Args:
+        strategy_type: Registry key identifying this strategy type.
+        dataset: Dataset used for training or inference.
+        model_config: Configuration for the managed model.
+        weight_init: Weight initialization scheme name.
+        weight_init_params: Additional parameters for the weight initializer.
+        bias_init: Bias initialization scheme name.
+        checkpoint_dir: Directory for checkpoints, or ``None`` to disable
+            checkpointing.
+        checkpoint_interval: Epoch interval for checkpoint saves, or
+            ``None`` to disable interval-based checkpointing.
+        tensorboard_dir: Directory for TensorBoard event files, or
+            ``None`` to disable TensorBoard logging.
+        trainer_config: Trainer configuration used for training mode.
+        inferencer_config: Inferencer configuration used for inference mode.
     """
 
     def __init__(
@@ -54,24 +70,7 @@ class Single(Strategy):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
-        """Initialise the single-model strategy.
-
-        Args:
-            strategy_type: Registry key identifying this strategy type.
-            dataset: Dataset used for training or inference.
-            model_config: Configuration for the managed model.
-            weight_init: Weight initialisation scheme name.
-            weight_init_params: Additional parameters for the weight initialiser.
-            bias_init: Bias initialisation scheme name.
-            checkpoint_dir: Directory for checkpoints, or ``None`` to disable
-                checkpointing.
-            checkpoint_interval: Epoch interval for checkpoint saves, or
-                ``None`` to disable interval-based checkpointing.
-            tensorboard_dir: Directory for TensorBoard event files, or
-                ``None`` to disable TensorBoard logging.
-            trainer_config: Trainer configuration used for training mode.
-            inferencer_config: Inferencer configuration used for inference mode.
-        """
+        """Initialize the single-model strategy."""
         super().__init__(
             strategy_type,
             dataset,
@@ -93,17 +92,17 @@ class Single(Strategy):
     def setup_models(self) -> None:
         """Instantiate a single model from ``model_config`` and store it as ``self.model``."""
         model_type = self.model_config.get_str("model_type")
-        logging.info(f"Initialising model: {model_type}")
+        logging.info(f"Initializing model: {model_type}")
         model = ModelRegistry.get(model_type)(**self.model_config.as_kwargs())
 
         self.model = model
 
     def init_model_weights(self) -> None:
-        """Apply weight and bias initialisation to ``self.model``."""
+        """Apply weight and bias initialization to ``self.model``."""
         if self.model is None:
-            raise ValueError("Cannot initialise model weights because the model is not initialised.")
+            raise ValueError("Cannot initialize model weights because the model is not initialized.")
 
-        logging.info(f"Initialising weights with '{self.weight_init}' and bias with '{self.bias_init}'")
+        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
         self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
 
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
@@ -117,7 +116,7 @@ class Single(Strategy):
             ValueError: If ``setup_models`` has not been called.
         """
         if self.model is None:
-            raise ValueError("Cannot load state dicts because the model is not initialised.")
+            raise ValueError("Cannot load state dicts because the model is not initialized.")
 
         self.model.load_state_dict(state_dicts[0])
 
@@ -135,7 +134,7 @@ class Single(Strategy):
                 been set up.
         """
         if self.model is None:
-            raise ValueError("Cannot setup trainers because the model is not initialised.")
+            raise ValueError("Cannot setup trainers because the model is not initialized.")
         if self.trainer_config is None:
             raise ValueError("Can not setup trainers because there is no trainer config.")
         if self.checkpointer is None:
@@ -143,7 +142,7 @@ class Single(Strategy):
 
         trainer_type = self.trainer_config.get_str("trainer_type")
 
-        logging.info(f"Initialising trainer: {trainer_type}")
+        logging.info(f"Initializing trainer: {trainer_type}")
 
         trainer = TrainerRegistry.get(trainer_type)(
             **self.trainer_config.as_kwargs(),
@@ -167,9 +166,9 @@ class Single(Strategy):
             ValueError: If ``setup_models`` or ``setup_trainers`` has not been called.
         """
         if self.trainer is None:
-            raise ValueError("Cannot run training because the trainer is not initialised.")
+            raise ValueError("Cannot run training because the trainer is not initialized.")
         if self.model is None:
-            raise ValueError("Cannot run training because the model is not initialised.")
+            raise ValueError("Cannot run training because the model is not initialized.")
 
         super().run_training()
 
@@ -199,13 +198,13 @@ class Single(Strategy):
                 ``inferencer_config`` is ``None``.
         """
         if self.model is None:
-            raise ValueError("Can not setup inferencers because the model is not initialised.")
+            raise ValueError("Can not setup inferencers because the model is not initialized.")
         if self.inferencer_config is None:
             raise ValueError("Can not setup inferencers because there is no inferencer config.")
 
         inferencer_type = self.inferencer_config.get_str("inferencer_type")
 
-        logging.info(f"Initialising inferencer: {inferencer_type}")
+        logging.info(f"Initializing inferencer: {inferencer_type}")
 
         inferencer = InferencerRegistry.get(inferencer_type)(
             **self.inferencer_config.as_kwargs(),
@@ -229,7 +228,7 @@ class Single(Strategy):
             ValueError: If ``setup_inferencers`` has not been called.
         """
         if self.inferencer is None:
-            raise ValueError("Cannot run inference because the Inferencer is not initialised.")
+            raise ValueError("Cannot run inference because the Inferencer is not initialized.")
 
         super().run_inference(predictions_save_path)
 

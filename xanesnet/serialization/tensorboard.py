@@ -38,6 +38,7 @@ class _TensorBoardGraphWrapper(torch.nn.Module):
     """
 
     def __init__(self, model: torch.nn.Module, input_example: dict[str, Any]) -> None:
+        """Initialize ``_TensorBoardGraphWrapper``."""
         super().__init__()
         self.model = model
         self._ordered_arg_names: list[str] = []
@@ -106,8 +107,8 @@ class _TensorBoardGraphWrapper(torch.nn.Module):
 class TensorBoardLogger:
     """Singleton TensorBoard logger for XANESNET training runs.
 
-    Use ``new_run`` to initialise logging for each new training run.  All
-    ``log_*`` methods silently no-op when the logger has not been initialised
+    Use ``new_run`` to initialize logging for each new training run.  All
+    ``log_*`` methods silently no-op when the logger has not been initialized
     or when TensorBoard has been disabled.
 
     Note:
@@ -122,6 +123,7 @@ class TensorBoardLogger:
     _enabled: bool
 
     def __new__(cls) -> "TensorBoardLogger":
+        """Create or return the shared TensorBoard writer."""
         if cls._instance is None:
             cls._instance = super(TensorBoardLogger, cls).__new__(cls)
             cls._instance._writer = None
@@ -143,7 +145,7 @@ class TensorBoardLogger:
         self._config = config
 
     def new_run(self, save_dir: str | Path) -> None:
-        """Initialise a new TensorBoard run.
+        """Initialize a new TensorBoard run.
 
         Closes any previously open writer, creates a new ``SummaryWriter``
         pointing at ``save_dir``, and logs a hyperparameter table if a config

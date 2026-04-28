@@ -38,6 +38,7 @@ class Dense(torch.nn.Module):
         bias: bool = False,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``Dense``."""
         super().__init__()
 
         self.linear = torch.nn.Linear(in_features, out_features, bias=bias)
@@ -57,7 +58,7 @@ class Dense(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise linear weights with He-orthogonal init and zero bias."""
+        """Re-initialize linear weights with He-orthogonal init and zero bias."""
         he_orthogonal_init(self.linear.weight)
         if self.linear.bias is not None:
             self.linear.bias.data.fill_(0)
@@ -80,6 +81,7 @@ class ScaledSiLU(torch.nn.Module):
     """SiLU (Swish) activation scaled by ``1 / 0.6`` for variance preservation."""
 
     def __init__(self) -> None:
+        """Initialize ``ScaledSiLU``."""
         super().__init__()
         self.scale_factor = 1 / 0.6
         self._activation = torch.nn.SiLU()
@@ -111,6 +113,7 @@ class ResidualLayer(torch.nn.Module):
         activation: str,
         nLayers: int = 2,
     ) -> None:
+        """Initialize ``ResidualLayer``."""
         super().__init__()
         self.dense_mlp = torch.nn.Sequential(
             *[Dense(units, units, activation=activation, bias=False) for _ in range(nLayers)]
@@ -120,7 +123,7 @@ class ResidualLayer(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise all inner :class:`Dense` layers."""
+        """Re-initialize all inner :class:`Dense` layers."""
         for layer in self.dense_mlp:
             layer.reset_parameters()
 

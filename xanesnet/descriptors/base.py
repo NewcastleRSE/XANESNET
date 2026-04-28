@@ -34,6 +34,7 @@ class Descriptor(ABC):
         self,
         descriptor_type: str,
     ) -> None:
+        """Initialize ``Descriptor``."""
         self.descriptor_type = descriptor_type
 
     def transform_pmg(

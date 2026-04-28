@@ -42,6 +42,7 @@ class PairElementEnergyScattering(nn.Module):
         hidden_dim: int,
         out_dim: int,
     ) -> None:
+        """Initialize ``PairElementEnergyScattering``."""
         super().__init__()
         self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
         self.mlp = MLP(
@@ -104,6 +105,7 @@ class AbsorberPathAggregator(nn.Module):
         out_dim: int,
         cutoff: float,
     ) -> None:
+        """Initialize ``AbsorberPathAggregator``."""
         super().__init__()
         self.cutoff = cutoff
         self.out_dim = out_dim
@@ -149,9 +151,9 @@ class AbsorberPathAggregator(nn.Module):
             e_feat: Energy RBF features, shape ``(nE, e_dim)``.
             path_j: Flat atom indices for leg j (into B*N), shape ``(P,)``.
             path_k: Flat atom indices for leg k (into B*N), shape ``(P,)``.
-            path_r0j: Absorber→j distance in **Å**, shape ``(P,)``.
-            path_r0k: Absorber→k distance in **Å**, shape ``(P,)``.
-            path_rjk: j→k distance in **Å**, shape ``(P,)``.
+            path_r0j: Absorber-to-j distance in **Angstrom**, shape ``(P,)``.
+            path_r0k: Absorber-to-k distance in **Angstrom**, shape ``(P,)``.
+            path_rjk: j-to-k distance in **Angstrom**, shape ``(P,)``.
             path_cosangle: Cosine of the j-absorber-k angle, shape ``(P,)``.
             path_batch: Batch index per path (0..B-1), shape ``(P,)``.
             bsz: Batch size.

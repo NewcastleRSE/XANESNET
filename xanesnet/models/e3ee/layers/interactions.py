@@ -50,6 +50,7 @@ class EquivariantInteractionBlock(nn.Module):
         cutoff: float,
         residual_scale_init: float = 0.1,
     ) -> None:
+        """Initialize ``EquivariantInteractionBlock``."""
         super().__init__()
 
         self.irreps_node = cast(o3.Irreps, o3.Irreps(irreps_node))
@@ -112,7 +113,7 @@ class EquivariantInteractionBlock(nn.Module):
             edge_dst: Destination flat indices into ``B*N``, shape ``(E,)``.
             edge_sh: Spherical harmonics on each edge, shape ``(E, irreps_sh.dim)``.
             edge_rbf: RBF-encoded edge lengths, shape ``(E, rbf_dim)``.
-            edge_len: Raw edge lengths in **Å**, shape ``(E,)``.
+            edge_len: Raw edge lengths in **Angstrom**, shape ``(E,)``.
 
         Returns:
             Updated node features of shape ``(B*N, irreps_node.dim)``.

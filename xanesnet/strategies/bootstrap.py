@@ -34,6 +34,19 @@ class Bootstrap(Strategy):
     Note:
         Not yet implemented.
         TODO: implement bootstrap sampling for model ensembling.
+
+    Args:
+        strategy_type: Strategy identifier.
+        dataset: Dataset used for training or inference.
+        model_config: Configuration for the model.
+        weight_init: Weight initialization scheme name.
+        weight_init_params: Additional weight-initializer parameters.
+        bias_init: Bias initialization scheme name.
+        checkpoint_dir: Directory for checkpoints, or ``None``.
+        checkpoint_interval: Epoch interval between checkpoints, or ``None``.
+        tensorboard_dir: Directory for TensorBoard event files, or ``None``.
+        trainer_config: Trainer configuration for training mode.
+        inferencer_config: Inferencer configuration for inference mode.
     """
 
     def __init__(
@@ -50,21 +63,7 @@ class Bootstrap(Strategy):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
-        """Initialise the placeholder bootstrap strategy.
-
-        Args:
-            strategy_type: Strategy identifier.
-            dataset: Dataset used for training or inference.
-            model_config: Configuration for the model.
-            weight_init: Weight initialisation scheme name.
-            weight_init_params: Additional weight-initialiser parameters.
-            bias_init: Bias initialisation scheme name.
-            checkpoint_dir: Directory for checkpoints, or ``None``.
-            checkpoint_interval: Epoch interval between checkpoints, or ``None``.
-            tensorboard_dir: Directory for TensorBoard event files, or ``None``.
-            trainer_config: Trainer configuration for training mode.
-            inferencer_config: Inferencer configuration for inference mode.
-        """
+        """Initialize the placeholder bootstrap strategy."""
         super().__init__(
             strategy_type,
             dataset,
@@ -88,7 +87,7 @@ class Bootstrap(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def init_model_weights(self) -> None:
-        """Raise because bootstrap weight initialisation is not implemented.
+        """Raise because bootstrap weight initialization is not implemented.
 
         Raises:
             NotImplementedError: Always.

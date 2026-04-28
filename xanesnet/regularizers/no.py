@@ -41,6 +41,7 @@ class NoReg(Regularizer):
         regularizer_type: str,
         weight: float = 1.0,
     ) -> None:
+        """Initialize ``NoReg``."""
         super().__init__(regularizer_type, weight=weight)
 
     def forward(self, model: Model) -> torch.Tensor:

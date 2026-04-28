@@ -21,19 +21,19 @@ from .base import Regularizer
 
 
 class RegularizerRegistry:
-    """Class-level registry mapping regularizer names to their ``Regularizer`` subclasses."""
+    """Name-based registry for regularizer classes."""
 
     _registry: dict[str, type[Regularizer]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Regularizer]], type[Regularizer]]:
-        """Return a decorator that registers a regularizer class under ``name``.
+        """Register a regularizer class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the regularizer type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,6 +41,7 @@ class RegularizerRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[Regularizer]) -> type[Regularizer]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Regularizer '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -50,16 +51,16 @@ class RegularizerRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Regularizer]:
-        """Look up and return a registered regularizer class.
+        """Return the regularizer class registered as ``name``.
 
         Args:
-            name: Regularizer identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Regularizer`` subclass.
+            Registered regularizer class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no regularizer is registered under ``name``.
         """
         name = name.lower()
 
@@ -69,9 +70,9 @@ class RegularizerRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered regularizer name strings.
+        """Return all registered regularizer names.
 
         Returns:
-            List of registered regularizer identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

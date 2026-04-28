@@ -24,19 +24,19 @@ _T = TypeVar("_T", bound=Descriptor)
 
 
 class DescriptorRegistry:
-    """Class-level registry mapping descriptor names to their ``Descriptor`` subclasses."""
+    """Name-based registry for descriptor classes."""
 
     _registry: dict[str, type[Descriptor]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[_T]], type[_T]]:
-        """Return a decorator that registers a descriptor class under ``name``.
+        """Register a descriptor class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the descriptor type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -44,6 +44,7 @@ class DescriptorRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[_T]) -> type[_T]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Descriptor '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -53,16 +54,16 @@ class DescriptorRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Descriptor]:
-        """Look up and return a registered descriptor class.
+        """Return the descriptor class registered as ``name``.
 
         Args:
-            name: Descriptor identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Descriptor`` subclass.
+            Registered descriptor class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no descriptor is registered under ``name``.
         """
         name = name.lower()
 
@@ -72,9 +73,9 @@ class DescriptorRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered descriptor name strings.
+        """Return all registered descriptor names.
 
         Returns:
-            List of registered descriptor identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

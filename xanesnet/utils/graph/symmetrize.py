@@ -126,7 +126,7 @@ def symmetrize_directed_edges(
 
     Coordinates are rounded to ``round_decimals`` decimal places to tolerate
     small numerical differences between forward and reverse vectors produced
-    by independent neighbour searches.
+    by independent neighbor searches.
 
     Args:
         edge_index: ``(2, E)`` int64 -- source/destination node indices.

@@ -46,6 +46,7 @@ class EnergyConditionedEquivariantAbsorberHead(nn.Module):
         hidden_dim: int,
         out_dim: int,
     ) -> None:
+        """Initialize ``EnergyConditionedEquivariantAbsorberHead``."""
         super().__init__()
         self.irreps_node = cast(o3.Irreps, o3.Irreps(irreps_node))
         self.mod = EnergyIrrepModulation(self.irreps_node, e_dim=e_dim, hidden_dim=hidden_dim)
@@ -88,6 +89,7 @@ class EnergyIrrepModulation(nn.Module):
     """
 
     def __init__(self, irreps: o3.Irreps, e_dim: int, hidden_dim: int) -> None:
+        """Initialize ``EnergyIrrepModulation``."""
         super().__init__()
         self.irreps = cast(o3.Irreps, o3.Irreps(irreps))
         self.n_copies = sum(mul for mul, _ in self.irreps)

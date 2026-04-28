@@ -76,7 +76,7 @@ class AllAtomAtomAttention(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
-        att_cutoff: Attention neighbourhood radius in **A**.
+        att_cutoff: Attention neighborhood radius in **A**.
         rbf_dim: Number of Gaussian RBF bases for distance encoding.
         max_z: Maximum atomic number supported by the element embedding.
         z_emb_dim: Embedding dimension for atomic numbers.
@@ -95,6 +95,7 @@ class AllAtomAtomAttention(nn.Module):
         z_emb_dim: int = 32,
         n_heads: int = 4,
     ) -> None:
+        """Initialize ``AllAtomAtomAttention``."""
         super().__init__()
         if latent_dim % n_heads != 0:
             raise ValueError(f"latent_dim ({latent_dim}) must be divisible by n_heads ({n_heads})")

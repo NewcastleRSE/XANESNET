@@ -47,6 +47,7 @@ class MultiXYZSpecSource(DataSource):
         datasource_type: str,
         root_path: str,
     ) -> None:
+        """Initialize ``MultiXYZSpecSource``."""
         super().__init__(datasource_type)
 
         self.root_path = root_path

@@ -29,6 +29,13 @@ class TimeStopper(EarlyStopper):
 
     Stops training once the elapsed time since construction exceeds
     ``time_limit_seconds``.
+
+    Args:
+        early_stopper_type: Registry key identifying this stopper type.
+        restore_best: If ``True``, restore the model to its best-seen
+            state when ``restore`` is called.
+        time_limit_seconds: Maximum wall-clock training time in
+            **seconds**.
     """
 
     def __init__(
@@ -37,15 +44,7 @@ class TimeStopper(EarlyStopper):
         restore_best: bool,
         time_limit_seconds: float,
     ) -> None:
-        """Initialise the time-based stopper.
-
-        Args:
-            early_stopper_type: Registry key identifying this stopper type.
-            restore_best: If ``True``, restore the model to its best-seen
-                state when ``restore`` is called.
-            time_limit_seconds: Maximum wall-clock training time in
-                **seconds**.
-        """
+        """Initialize the time-based stopper."""
         super().__init__(early_stopper_type, restore_best)
 
         self.time_limit_seconds = time_limit_seconds

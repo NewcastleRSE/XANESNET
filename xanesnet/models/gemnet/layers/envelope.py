@@ -29,6 +29,7 @@ class Envelope(torch.nn.Module):
     """
 
     def __init__(self, p: int) -> None:
+        """Initialize ``Envelope``."""
         super().__init__()
         assert p > 0
         self.p = p

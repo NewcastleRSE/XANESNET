@@ -145,14 +145,14 @@ def setup_file_logging(out_dir: str | Path) -> None:
 
 
 class LevelFilter(logging.Filter):
-    """Logging filter that passes only records at exactly the specified level."""
+    """Logging filter that passes only records at exactly the specified level.
+
+    Args:
+        level: The exact log level to pass through (e.g. ``logging.INFO``).
+    """
 
     def __init__(self, level: int) -> None:
-        """Initialise the level filter.
-
-        Args:
-            level: The exact log level to pass through (e.g. ``logging.INFO``).
-        """
+        """Initialize the level filter."""
         self.level = level
         super().__init__()
 
@@ -169,15 +169,15 @@ class LevelFilter(logging.Filter):
 
 
 class TeeLogger:
-    """Duplicates writes to both a stream (e.g. stdout) and a file."""
+    """Duplicates writes to both a stream (e.g. stdout) and a file.
+
+    Args:
+        filename: Path to the log file (opened in append mode).
+        stream: Original stream to also write to (e.g. ``sys.stdout``).
+    """
 
     def __init__(self, filename: str | Path, stream: Any) -> None:
-        """Open ``filename`` in append mode alongside ``stream``.
-
-        Args:
-            filename: Path to the log file (opened in append mode).
-            stream: Original stream to also write to (e.g. ``sys.stdout``).
-        """
+        """Open ``filename`` in append mode alongside ``stream``."""
         self.file = open(filename, "a")
         self.stream = stream
 

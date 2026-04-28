@@ -24,19 +24,19 @@ _T = TypeVar("_T", bound=DataSource)
 
 
 class DataSourceRegistry:
-    """Class-level registry mapping datasource type names to their ``DataSource`` classes."""
+    """Name-based registry for datasource classes."""
 
     _registry: dict[str, type[DataSource]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[_T]], type[_T]]:
-        """Return a decorator that registers a datasource class under ``name``.
+        """Register a datasource class under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the datasource type.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers and returns the decorated class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -44,6 +44,7 @@ class DataSourceRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[_T]) -> type[_T]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"DataSource '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -53,16 +54,16 @@ class DataSourceRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[DataSource]:
-        """Look up and return a registered datasource class.
+        """Return the datasource class registered as ``name``.
 
         Args:
-            name: Datasource identifier (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``DataSource`` subclass.
+            Registered datasource class.
 
         Raises:
-            KeyError: If ``name`` is not found in the registry.
+            KeyError: If no datasource is registered under ``name``.
         """
         name = name.lower()
 
@@ -72,9 +73,9 @@ class DataSourceRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered datasource name strings.
+        """Return all registered datasource names.
 
         Returns:
-            List of registered datasource identifiers.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

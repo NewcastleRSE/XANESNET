@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""Weight and bias initialisation registries for XANESNET model layers."""
+"""Weight and bias initialization registries for XANESNET model layers."""
 
 from collections.abc import Callable
 from typing import Protocol
@@ -23,27 +23,29 @@ from torch import nn
 
 
 class WeightInitFn(Protocol):
-    """Protocol for in-place weight initialisation callables."""
+    """Protocol for in-place weight initialization callables."""
 
-    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
+    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        """Initialize ``tensor`` in place and return it."""
+        ...
 
 
 class WeightInitRegistry:
-    """Class-level registry mapping weight initialisation names to initialiser callables."""
+    """Class-level registry mapping weight initialization names to initializer callables."""
 
     _registry: dict[str, WeightInitFn] = {}
 
     @staticmethod
     def _noop(tensor: torch.Tensor, **_) -> torch.Tensor:
-        """Return ``tensor`` unchanged (identity/default initialiser)."""
+        """Return ``tensor`` unchanged (identity/default initializer)."""
         return tensor
 
     @classmethod
     def register(cls, name: str) -> Callable[[WeightInitFn], WeightInitFn]:
-        """Return a decorator that registers a weight initialiser under ``name``.
+        """Return a decorator that registers a weight initializer under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the initialiser.
+            name: Unique lower-case identifier for the initializer.
 
         Returns:
             A decorator that registers and returns the callable unchanged.
@@ -54,6 +56,7 @@ class WeightInitRegistry:
         name = name.lower()
 
         def decorator(fn: WeightInitFn) -> WeightInitFn:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Weight initializer '{name}' already registered")
             cls._registry[name] = fn
@@ -63,11 +66,11 @@ class WeightInitRegistry:
 
     @classmethod
     def get(cls, name: str, **kwargs) -> Callable[[torch.Tensor], torch.Tensor]:
-        """Look up a weight initialiser and return a partially-applied callable.
+        """Look up a weight initializer and return a partially-applied callable.
 
         Args:
-            name: Initialiser identifier (case-insensitive).
-            **kwargs: Extra keyword arguments forwarded to the underlying initialiser.
+            name: Initializer identifier (case-insensitive).
+            **kwargs: Extra keyword arguments forwarded to the underlying initializer.
 
         Returns:
             A single-argument callable ``(tensor) -> tensor`` with ``kwargs`` bound.
@@ -83,16 +86,17 @@ class WeightInitRegistry:
         fn = cls._registry[name]
 
         def wrapped(tensor: torch.Tensor) -> torch.Tensor:
+            """Apply the registered weight initializer."""
             return fn(tensor, **kwargs)
 
         return wrapped
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered weight initialiser name strings.
+        """Return all registered weight initializer name strings.
 
         Returns:
-            List of registered weight-initialiser identifiers.
+            List of registered weight-initializer identifiers.
         """
         return list(cls._registry.keys())
 
@@ -108,22 +112,24 @@ WeightInitRegistry.register("default")(WeightInitRegistry._noop)
 
 
 class BiasInitFn(Protocol):
-    """Protocol for in-place bias initialisation callables."""
+    """Protocol for in-place bias initialization callables."""
 
-    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor: ...
+    def __call__(self, tensor: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        """Initialize ``tensor`` in place and return it."""
+        ...
 
 
 class BiasInitRegistry:
-    """Class-level registry mapping bias initialisation names to initialiser callables."""
+    """Class-level registry mapping bias initialization names to initializer callables."""
 
     _registry: dict[str, BiasInitFn] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[BiasInitFn], BiasInitFn]:
-        """Return a decorator that registers a bias initialiser under ``name``.
+        """Return a decorator that registers a bias initializer under ``name``.
 
         Args:
-            name: Unique lower-case identifier for the initialiser.
+            name: Unique lower-case identifier for the initializer.
 
         Returns:
             A decorator that registers and returns the callable unchanged.
@@ -134,6 +140,7 @@ class BiasInitRegistry:
         name = name.lower()
 
         def decorator(fn: BiasInitFn) -> BiasInitFn:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Bias initializer '{name}' already registered")
             cls._registry[name] = fn
@@ -143,13 +150,13 @@ class BiasInitRegistry:
 
     @classmethod
     def get(cls, name: str) -> BiasInitFn:
-        """Look up and return a registered bias initialiser callable.
+        """Look up and return a registered bias initializer callable.
 
         Args:
-            name: Initialiser identifier (case-insensitive).
+            name: Initializer identifier (case-insensitive).
 
         Returns:
-            The registered bias initialiser callable.
+            The registered bias initializer callable.
 
         Raises:
             KeyError: If ``name`` is not found in the registry.
@@ -162,10 +169,10 @@ class BiasInitRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return all registered bias initialiser name strings.
+        """Return all registered bias initializer name strings.
 
         Returns:
-            List of registered bias-initialiser identifiers.
+            List of registered bias-initializer identifiers.
         """
         return list(cls._registry.keys())
 

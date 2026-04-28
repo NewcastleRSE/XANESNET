@@ -34,6 +34,7 @@ class BCEWithLogitsLoss(Loss):
         self,
         loss_type: str,
     ) -> None:
+        """Initialize ``BCEWithLogitsLoss``."""
         super().__init__(loss_type)
 
         self.loss = nn.BCEWithLogitsLoss()
@@ -42,7 +43,7 @@ class BCEWithLogitsLoss(Loss):
         """Compute binary cross-entropy loss with logits.
 
         Args:
-            preds: Raw (unnormalised) model logits ``(B, N)``.
+            preds: Raw (unnormalized) model logits ``(B, N)``.
             targets: Binary target labels in ``[0, 1]`` with shape ``(B, N)``.
 
         Returns:

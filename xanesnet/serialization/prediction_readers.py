@@ -37,7 +37,7 @@ class PredictionSample(TypedDict):
     """Single-absorber prediction record returned by ``PredictionReader``.
 
     All values are numpy arrays or torch tensors with no leading absorber
-    dimension — each field corresponds to a single row of the equivalent
+    dimension - each field corresponds to a single row of the equivalent
     ``PredictionBatch`` field.
     """
 
@@ -67,12 +67,7 @@ class PredictionReader(ABC):
     """
 
     def __init__(self, path: str | Path):
-        """Initialize a prediction reader for a saved predictions location.
-
-        Args:
-            path: Directory (or file container) holding persisted prediction
-                outputs.
-        """
+        """Initialize a prediction reader for a saved predictions location."""
         self.path = Path(path)
         self._length: int | None = None
         self._current_index: int = 0
@@ -153,6 +148,7 @@ class PredictionReader(ABC):
 
     @staticmethod
     def _stack_values(values: list[Any]) -> np.ndarray:
+        """Stack prediction field values into one array."""
         if not values:
             return np.array([])
 
@@ -166,11 +162,11 @@ class PredictionReader(ABC):
     def _normalize_sample_value(value: Any) -> Any:
         """Normalize a single per-absorber value to a Python primitive or ndarray.
 
-        - bytes → str
-        - np.generic (e.g. np.float64, np.bool_) → Python primitive via .item()
-        - 0-d ndarray (scalar stored as array) → Python primitive via .item()
-        - 1-d+ string/bytes ndarray → error (not supported)
-        - 1-d+ numeric ndarray → returned as-is
+        - bytes -> str
+        - np.generic (e.g. np.float64, np.bool_) -> Python primitive via .item()
+        - 0-d ndarray (scalar stored as array) -> Python primitive via .item()
+        - 1-d+ string/bytes ndarray -> error (not supported)
+        - 1-d+ numeric ndarray -> returned as-is
         """
         if isinstance(value, bytes):
             return value.decode("utf-8")
@@ -179,7 +175,7 @@ class PredictionReader(ABC):
             return value.item()
 
         if isinstance(value, np.ndarray):
-            # 0-d arrays represent per-sample scalars → unwrap to Python primitive
+            # 0-d arrays represent per-sample scalars -> unwrap to Python primitive
             if value.ndim == 0:
                 if value.dtype.kind in {"S", "U"}:
                     return value.astype("U").item()
@@ -236,16 +232,13 @@ class HDF5Reader(PredictionReader):
     """
 
     def __init__(self, path: str | Path):
-        """Open an HDF5-backed predictions directory.
-
-        Args:
-            path: Directory containing ``predictions.h5``.
-        """
+        """Open an HDF5-backed predictions directory."""
         self._h5: h5py.File | None = None
         self._group: h5py.Group | None = None
         super().__init__(path)
 
     def _validate_path(self) -> None:
+        """Validate the prediction storage path."""
         h5_file = self.path / "predictions.h5"
         if not h5_file.exists():
             raise FileNotFoundError(f"HDF5 file not found: {h5_file}")
@@ -366,15 +359,12 @@ class NumpyReader(PredictionReader):
     """
 
     def __init__(self, path: str | Path):
-        """Index a directory of per-sample ``.npz`` prediction files.
-
-        Args:
-            path: Directory containing ``sample_*.npz`` files.
-        """
+        """Index a directory of per-sample ``.npz`` prediction files."""
         self._sample_files: list[Path] = []
         super().__init__(path)
 
     def _validate_path(self) -> None:
+        """Validate the prediction storage path."""
         if not self.path.exists():
             raise FileNotFoundError(f"Directory not found: {self.path}")
 
@@ -432,15 +422,12 @@ class JSONReader(PredictionReader):
     """
 
     def __init__(self, path: str | Path):
-        """Index a directory of per-sample JSON prediction files.
-
-        Args:
-            path: Directory containing ``sample_*.json`` files.
-        """
+        """Index a directory of per-sample JSON prediction files."""
         self._sample_files: list[Path] = []
         super().__init__(path)
 
     def _validate_path(self) -> None:
+        """Validate the prediction storage path."""
         if not self.path.exists():
             raise FileNotFoundError(f"Directory not found: {self.path}")
 

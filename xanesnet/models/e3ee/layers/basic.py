@@ -32,6 +32,7 @@ class GaussianRBF(nn.Module):
     """
 
     def __init__(self, start: float, stop: float, n_rbf: int, gamma: float | None = None) -> None:
+        """Initialize ``GaussianRBF``."""
         super().__init__()
         centers = torch.linspace(start, stop, n_rbf)
         self.register_buffer("centers", centers)
@@ -58,10 +59,11 @@ class CosineCutoff(nn.Module):
     Smoothly decays from 1 at ``r = 0`` to 0 at ``r = cutoff``.
 
     Args:
-        cutoff: Cutoff radius in **Å** beyond which the envelope is zero.
+        cutoff: Cutoff radius in **Angstrom** beyond which the envelope is zero.
     """
 
     def __init__(self, cutoff: float) -> None:
+        """Initialize ``CosineCutoff``."""
         super().__init__()
         self.cutoff = float(cutoff)
 
@@ -69,7 +71,7 @@ class CosineCutoff(nn.Module):
         """Evaluate cosine envelope.
 
         Args:
-            r: Interatomic distances of arbitrary shape ``(...)`` in **Å**.
+            r: Interatomic distances of arbitrary shape ``(...)`` in **Angstrom**.
 
         Returns:
             Envelope values in ``[0, 1]`` with the same shape as ``r``.
@@ -90,6 +92,7 @@ class EnergyRBFEmbedding(nn.Module):
     """
 
     def __init__(self, e_min: float, e_max: float, n_rbf: int) -> None:
+        """Initialize ``EnergyRBFEmbedding``."""
         super().__init__()
         self.rbf = GaussianRBF(e_min, e_max, n_rbf)
 
@@ -128,6 +131,7 @@ class MLP(nn.Module):
         dropout: float = 0.0,
         layer_norm: bool = False,
     ) -> None:
+        """Initialize ``MLP``."""
         super().__init__()
         layers: list[nn.Module] = []
         d = in_dim
@@ -164,6 +168,7 @@ class RadialMLP(nn.Module):
     """
 
     def __init__(self, in_dim: int, hidden_dim: int, out_dim: int) -> None:
+        """Initialize ``RadialMLP``."""
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
@@ -199,6 +204,7 @@ class IrrepNorm(nn.Module):
     """
 
     def __init__(self, irreps: o3.Irreps, eps: float = 1e-8, affine: bool = True) -> None:
+        """Initialize ``IrrepNorm``."""
         super().__init__()
         self.irreps = o3.Irreps(irreps)
         self.eps = eps

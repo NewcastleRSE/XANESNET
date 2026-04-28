@@ -43,6 +43,7 @@ class BesselBasisLayer(torch.nn.Module):
         cutoff: float,
         envelope_exponent: int,
     ) -> None:
+        """Initialize ``BesselBasisLayer``."""
         super().__init__()
         self.num_radial = num_radial
         self.inv_cutoff = 1 / cutoff
@@ -57,7 +58,7 @@ class BesselBasisLayer(torch.nn.Module):
         )
 
     def reset_parameters(self) -> None:
-        """Re-initialise frequencies to their canonical values ``pi * [1, ..., num_radial]``."""
+        """Re-initialize frequencies to their canonical values ``pi * [1, ..., num_radial]``."""
         with torch.no_grad():
             self.frequencies.copy_(torch.tensor(np.pi * np.arange(1, self.num_radial + 1, dtype=np.float32)))
 
@@ -96,6 +97,7 @@ class SphericalBasisLayer(torch.nn.Module):
         envelope_exponent: int,
         efficient: bool = False,
     ) -> None:
+        """Initialize ``SphericalBasisLayer``."""
         super().__init__()
 
         assert num_radial <= 64
@@ -141,7 +143,7 @@ class SphericalBasisLayer(torch.nn.Module):
             D_ca: Edge distances c -> a in **A**, shape ``(nEdges,)``.
             Angle_cab: Triplet angles at atom a (c-a-b), shape ``(nTriplets,)``.
             id3_reduce_ca: Edge index c -> a for each triplet, shape ``(nTriplets,)``.
-            Kidx: Neighbour index within the sparse dense matrix, shape ``(nTriplets,)``.
+            Kidx: Neighbor index within the sparse dense matrix, shape ``(nTriplets,)``.
 
         Returns:
             If ``efficient=False``: dense basis of shape
@@ -211,6 +213,7 @@ class TensorBasisLayer(torch.nn.Module):
         envelope_exponent: int,
         efficient: bool = False,
     ) -> None:
+        """Initialize ``TensorBasisLayer``."""
         super().__init__()
 
         assert num_radial <= 64
@@ -263,7 +266,7 @@ class TensorBasisLayer(torch.nn.Module):
                 ``(nQuadruplets,)``.
             id4_reduce_ca: Quadruplet reduce index c -> a, shape
                 ``(nQuadruplets,)``.
-            Kidx: Neighbour index within the sparse dense matrix, shape
+            Kidx: Neighbor index within the sparse dense matrix, shape
                 ``(nQuadruplets,)``.
 
         Returns:
@@ -375,7 +378,7 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
         List of ``n`` sympy expressions in ``x``.
     """
     x = sp.symbols("x")
-    # j_i = (-x)^i * (1/x * d/dx)^î * sin(x)/x
+    # j_i = (-x)^i * (1/x * d/dx)^i * sin(x)/x
     j = [sp.sin(x) / x]  # j_0
     a = sp.sin(x) / x
     for i in range(1, n):
@@ -386,7 +389,7 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
 
 
 def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
-    """Compute sympy formulas for the normalised, rescaled spherical Bessel basis.
+    """Compute sympy formulas for the normalized, rescaled spherical Bessel basis.
 
     Args:
         n: Maximum order (exclusive).
@@ -394,7 +397,7 @@ def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
 
     Returns:
         Nested list of shape ``(n, k)`` containing sympy expressions in ``x``
-        representing the normalised basis functions.
+        representing the normalized basis functions.
     """
     zeros = Jn_zeros(n, k)
     normalizer = []

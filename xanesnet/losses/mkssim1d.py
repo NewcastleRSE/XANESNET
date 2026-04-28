@@ -66,6 +66,7 @@ class MultiKernel_SSIM_1D(Loss):
         final_combine: bool = True,
         final_mean: bool = True,
     ) -> None:
+        """Initialize ``MultiKernel_SSIM_1D``."""
         super().__init__(loss_type)
         self.DR = data_range
         self.C1 = (K[0] * data_range) ** 2
@@ -110,6 +111,7 @@ class MultiKernel_SSIM_1D(Loss):
         """
 
         def make_odd(x: torch.Tensor) -> torch.Tensor:
+            """Return an odd window size derived from the input value."""
             x = torch.round(x).long()
             return x + (1 - x % 2)
 
@@ -121,14 +123,14 @@ class MultiKernel_SSIM_1D(Loss):
         return kernel_sizes, gaussian_sigmas
 
     def _fspecial_gauss_1d(self, size: int, sigma: float) -> torch.Tensor:
-        """Create a normalised 1-D Gaussian kernel.
+        """Create a normalized 1-D Gaussian kernel.
 
         Args:
             size: Kernel length (number of points).
             sigma: Standard deviation of the Gaussian.
 
         Returns:
-            Normalised Gaussian kernel ``(size,)``.
+            Normalized Gaussian kernel ``(size,)``.
         """
         coords = torch.arange(size, dtype=torch.float32)
         coords -= size // 2

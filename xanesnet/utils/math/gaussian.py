@@ -30,6 +30,18 @@ class SpectralBasis(nn.Module):
     Gaussian centred at a strided grid point with one of the specified widths.
     Both ``Phi`` and the ``centers`` vector are registered as non-trainable
     buffers.
+
+    Args:
+        energies: ``(N,)`` float -- uniformly spaced energy grid in
+            **eV**.
+        widths_eV: Gaussian standard deviations in **eV** for each basis
+            family. The total number of basis functions is
+            ``len(widths_eV) * ceil(N / stride)``.
+        normalize_atoms: If ``True`` (default), each Gaussian column is
+            normalized so that its discrete integral (sum * dE) is
+            approximately 1.
+        stride: Spacing between Gaussian centres in grid steps. A stride
+            of 1 places a centre at every energy point.
     """
 
     def __init__(
@@ -39,20 +51,7 @@ class SpectralBasis(nn.Module):
         normalize_atoms: bool = True,
         stride: int = 1,
     ) -> None:
-        """Initialise the Gaussian spectral basis.
-
-        Args:
-            energies: ``(N,)`` float -- uniformly spaced energy grid in
-                **eV**.
-            widths_eV: Gaussian standard deviations in **eV** for each basis
-                family. The total number of basis functions is
-                ``len(widths_eV) * ceil(N / stride)``.
-            normalize_atoms: If ``True`` (default), each Gaussian column is
-                normalised so that its discrete integral (sum * dE) is
-                approximately 1.
-            stride: Spacing between Gaussian centres in grid steps. A stride
-                of 1 places a centre at every energy point.
-        """
+        """Initialize the Gaussian spectral basis."""
         super().__init__()
 
         self.register_buffer("E", energies.detach().clone())
@@ -102,6 +101,12 @@ class SpectralPost(nn.Module):
     Computes ``y = Phi @ c`` (optionally clamped to non-negative values).
     Contains no learnable parameters; intended as a post-processing stage
     after a coefficient-predicting network.
+
+    Args:
+        basis: Pre-built ``SpectralBasis`` whose ``Phi`` matrix is used
+            for synthesis.
+        nonneg_output: If ``True``, synthesised spectra are clamped to
+            non-negative values.
     """
 
     def __init__(
@@ -109,14 +114,7 @@ class SpectralPost(nn.Module):
         basis: "SpectralBasis",
         nonneg_output: bool = False,
     ) -> None:
-        """Initialise the synthesis module.
-
-        Args:
-            basis: Pre-built ``SpectralBasis`` whose ``Phi`` matrix is used
-                for synthesis.
-            nonneg_output: If ``True``, synthesised spectra are clamped to
-                non-negative values.
-        """
+        """Initialize the synthesis module."""
         super().__init__()
         self.basis = basis
         self.nonneg_output = bool(nonneg_output)

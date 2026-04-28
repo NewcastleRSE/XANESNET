@@ -59,8 +59,8 @@ class EnergyConditionedAtomConvolution(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension.
-        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
-        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        att_cutoff: Radius of the attention neighborhood graph in Angstrom.
+        rbf_dim: Number of Gaussian RBF bases for the absorber->atom distance.
         max_z: Maximum atomic number supported by the element embedding.
         z_emb_dim: Embedding dimension for atomic numbers.
         use_gate: If ``True``, apply a PaiNN-style learned scalar edge gate.
@@ -78,6 +78,7 @@ class EnergyConditionedAtomConvolution(nn.Module):
         z_emb_dim: int = 32,
         use_gate: bool = True,
     ) -> None:
+        """Initialize ``EnergyConditionedAtomConvolution``."""
         super().__init__()
         self.atom_dim = atom_dim
         self.e_dim = e_dim
@@ -140,8 +141,8 @@ class EnergyConditionedAtomConvolution(nn.Module):
             mask: Valid-atom mask, shape ``(B, N)``.
             e_feat: Energy RBF features, shape ``(nE, dE)``.
             absorber_index: Absorber index per sample, shape ``(B,)``.
-            att_dst: Flat destination indices into ``B*N`` (absorber's neighbours), shape ``(E_att,)``.
-            att_dist: Absorber→atom distances in **Å**, shape ``(E_att,)``.
+            att_dst: Flat destination indices into ``B*N`` (absorber's neighbors), shape ``(E_att,)``.
+            att_dist: Absorber-to-atom distances in **Angstrom**, shape ``(E_att,)``.
 
         Returns:
             Latent tensor of shape ``(B, nE, latent_dim)``.
@@ -215,10 +216,10 @@ class EnergyConditionedEquivariantAtomConvolution(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension.
-        att_cutoff: Radius of the attention neighbourhood graph in Ångström.
+        att_cutoff: Radius of the attention neighborhood graph in Angstrom.
         attention_lmax: Maximum spherical-harmonics order for bond directions.
         attention_irreps: Target irreps of the equivariant message (e.g. ``"32x0e+16x1o"``).
-        rbf_dim: Number of Gaussian RBF bases for the absorber→atom distance.
+        rbf_dim: Number of Gaussian RBF bases for the absorber->atom distance.
         max_z: Maximum atomic number supported by the element embedding.
         z_emb_dim: Embedding dimension for atomic numbers.
         use_gate: If ``True``, apply a PaiNN-style learned scalar edge gate.
@@ -239,6 +240,7 @@ class EnergyConditionedEquivariantAtomConvolution(nn.Module):
         z_emb_dim: int = 32,
         use_gate: bool = True,
     ) -> None:
+        """Initialize ``EnergyConditionedEquivariantAtomConvolution``."""
         super().__init__()
         self.atom_dim = atom_dim
         self.e_dim = e_dim
@@ -306,9 +308,9 @@ class EnergyConditionedEquivariantAtomConvolution(nn.Module):
             mask: Valid-atom mask ``(B, N)``.
             e_feat: Energy RBF embedding ``(nE, e_dim)``.
             absorber_index: Absorber index per sample ``(B,)``.
-            att_dst: Flat destination indices into ``B*N`` for the attention neighbourhood ``(E_att,)``.
-            att_dist: Absorber→atom distances ``(E_att,)``.
-            att_vec: Absorber→atom displacement vectors ``(E_att, 3)``.
+            att_dst: Flat destination indices into ``B*N`` for the attention neighborhood ``(E_att,)``.
+            att_dist: Absorber-to-atom distances ``(E_att,)``.
+            att_vec: Absorber-to-atom displacement vectors ``(E_att, 3)``.
 
         Returns:
             Latent tensor of shape ``(B, nE, latent_dim)``.

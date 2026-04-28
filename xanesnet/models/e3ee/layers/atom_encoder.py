@@ -31,7 +31,7 @@ class EquivariantAtomEncoder(nn.Module):
 
     Args:
         max_z: Maximum atomic number (inclusive).
-        cutoff: Message-passing cutoff radius in Ångström.
+        cutoff: Message-passing cutoff radius in Angstrom.
         num_interactions: Number of equivariant interaction blocks.
         rbf_dim: Number of Gaussian RBF basis functions for edge distances.
         lmax: Maximum spherical-harmonics order.
@@ -58,6 +58,7 @@ class EquivariantAtomEncoder(nn.Module):
         irreps_message: str,
         residual_scale_init: float,
     ) -> None:
+        """Initialize ``EquivariantAtomEncoder``."""
         super().__init__()
         self.cutoff = cutoff
         self.rbf_dim = rbf_dim
@@ -110,8 +111,8 @@ class EquivariantAtomEncoder(nn.Module):
             absorber_index: Absorber atom index per sample (0..N-1), shape ``(B,)``.
             edge_src: Source flat indices into ``B*N``, shape ``(E,)``.
             edge_dst: Destination flat indices into ``B*N``, shape ``(E,)``.
-            edge_weight: Edge lengths in **Å** (PBC-correct), shape ``(E,)``.
-            edge_vec: Edge displacement vectors in **Å** (PBC-correct), shape ``(E, 3)``.
+            edge_weight: Edge lengths in **Angstrom** (PBC-correct), shape ``(E,)``.
+            edge_vec: Edge displacement vectors in **Angstrom** (PBC-correct), shape ``(E, 3)``.
 
         Returns:
             Equivariant atom features of shape ``(B, N, irreps_dim)``.

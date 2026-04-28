@@ -26,7 +26,17 @@ from .base import Dataset
 
 
 class TorchDataset(Dataset):
-    """Dataset base class for standard PyTorch dataloaders."""
+    """Dataset base class for standard PyTorch dataloaders.
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw data source used during preparation.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+    """
 
     def __init__(
         self,
@@ -38,17 +48,7 @@ class TorchDataset(Dataset):
         split_ratios: list[float] | None,
         split_indexfile: str | None,
     ) -> None:
-        """Initialize a standard PyTorch dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw data source used during preparation.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-        """
+        """Initialize a standard PyTorch dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
     def collate_fn(self, batch: list[Any]) -> Any:

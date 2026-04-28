@@ -34,6 +34,7 @@ class PolynomialEnvelope(torch.nn.Module):
     """
 
     def __init__(self, exponent: int) -> None:
+        """Initialize ``PolynomialEnvelope``."""
         super().__init__()
         assert exponent > 0
         self.p = float(exponent)
@@ -87,6 +88,7 @@ class GaussianBasis(torch.nn.Module):
         num_gaussians: int = 50,
         trainable: bool = False,
     ) -> None:
+        """Initialize ``GaussianBasis``."""
         super().__init__()
         offset = torch.linspace(start, stop, num_gaussians)
         if trainable:
@@ -117,6 +119,7 @@ class SphericalBesselBasis(torch.nn.Module):
     """
 
     def __init__(self, num_radial: int, cutoff: float) -> None:
+        """Initialize ``SphericalBesselBasis``."""
         super().__init__()
         self.norm_const = math.sqrt(2 / (cutoff**3))
         self.frequencies = torch.nn.Parameter(
@@ -146,6 +149,7 @@ class BernsteinBasis(torch.nn.Module):
     """
 
     def __init__(self, num_radial: int, pregamma_initial: float = 0.45264) -> None:
+        """Initialize ``BernsteinBasis``."""
         super().__init__()
         prefactor = binom(num_radial - 1, np.arange(num_radial))
         self.register_buffer("prefactor", torch.tensor(prefactor, dtype=torch.float), persistent=False)
@@ -191,6 +195,7 @@ class RadialBasis(torch.nn.Module):
         envelope: Config,
         scale_basis: bool = False,
     ) -> None:
+        """Initialize ``RadialBasis``."""
         super().__init__()
         self.inv_cutoff = 1 / cutoff
 

@@ -41,6 +41,7 @@ class ScaleFactor(torch.nn.Module):
     scale_factor: torch.Tensor
 
     def __init__(self, name: str | None = None) -> None:
+        """Initialize ``ScaleFactor``."""
         super().__init__()
         self.name = name
         self.scale_factor = torch.nn.Parameter(torch.tensor(1.0), requires_grad=False)

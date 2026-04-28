@@ -31,7 +31,7 @@ class AllAtomAtomConvolution(nn.Module):
     """Invariant SchNet/PaiNN-style continuous-filter convolution branch.
 
     For every active receiver atom, computes a SchNet-style continuous-filter
-    message from each neighbour, aggregates by sum, then multiplies with an
+    message from each neighbor, aggregates by sum, then multiplies with an
     energy-dependent gate to produce per-(atom, energy) latent vectors.
 
     Args:
@@ -39,7 +39,7 @@ class AllAtomAtomConvolution(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension.
-        att_cutoff: Attention neighbourhood radius in **A**.
+        att_cutoff: Attention neighborhood radius in **A**.
         rbf_dim: Number of Gaussian RBF bases for distance encoding.
         max_z: Maximum atomic number supported by the element embedding.
         z_emb_dim: Embedding dimension for atomic numbers.
@@ -58,6 +58,7 @@ class AllAtomAtomConvolution(nn.Module):
         z_emb_dim: int = 32,
         use_gate: bool = True,
     ) -> None:
+        """Initialize ``AllAtomAtomConvolution``."""
         super().__init__()
         self.atom_dim = atom_dim
         self.e_dim = e_dim
@@ -214,7 +215,7 @@ class AllAtomEquivariantAtomConvolution(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension.
-        att_cutoff: Attention neighbourhood radius in **A**.
+        att_cutoff: Attention neighborhood radius in **A**.
         attention_lmax: Maximum spherical-harmonics order for bond directions.
         attention_irreps: Target irreps of the equivariant messages (e.g. ``"32x0e+16x1o"``).
         rbf_dim: Number of Gaussian RBF bases for distance encoding.
@@ -238,6 +239,7 @@ class AllAtomEquivariantAtomConvolution(nn.Module):
         z_emb_dim: int = 32,
         use_gate: bool = True,
     ) -> None:
+        """Initialize ``AllAtomEquivariantAtomConvolution``."""
         super().__init__()
         self.atom_dim = atom_dim
         self.e_dim = e_dim

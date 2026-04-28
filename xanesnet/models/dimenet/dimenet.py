@@ -81,6 +81,7 @@ class DimeNet(Model):
         act: str,
         output_initializer: str,
     ) -> None:
+        """Initialize ``DimeNet``."""
         super().__init__(model_type)
 
         if num_spherical < 2:
@@ -188,10 +189,10 @@ class DimeNet(Model):
         return P
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise model weights using DimeNet's custom ``reset_parameters`` scheme.
+        """Initialize model weights using DimeNet's custom ``reset_parameters`` scheme.
 
         The ``weights_init`` and ``bias_init`` arguments are ignored; DimeNet
-        uses Glorot-orthogonal initialisation internally via ``reset_parameters``.
+        uses Glorot-orthogonal initialization internally via ``reset_parameters``.
 
         Args:
             weights_init: Ignored.
@@ -251,6 +252,7 @@ class EmbeddingBlock(torch.nn.Module):
         hidden_channels: int,
         act: Callable,
     ) -> None:
+        """Initialize ``EmbeddingBlock``."""
         super().__init__()
         self.act = act
 
@@ -313,6 +315,7 @@ class InteractionBlock(torch.nn.Module):
         num_after_skip: int,
         act: Callable,
     ) -> None:
+        """Initialize ``InteractionBlock``."""
         super().__init__()
         self.act = act
 
@@ -402,6 +405,7 @@ class ResidualLayer(torch.nn.Module):
         hidden_channels: int,
         act: Callable,
     ) -> None:
+        """Initialize ``ResidualLayer``."""
         super().__init__()
         self.act = act
         self.lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
@@ -448,6 +452,7 @@ class OutputBlock(torch.nn.Module):
         act: Callable,
         output_initializer: str = "zeros",  # 'zeros' or 'glorot_orthogonal'
     ) -> None:
+        """Initialize ``OutputBlock``."""
         assert output_initializer in {"zeros", "glorot_orthogonal"}
 
         super().__init__()
@@ -518,6 +523,7 @@ class SphericalBasisLayer(torch.nn.Module):
         cutoff: float = 5.0,
         envelope_exponent: int = 5,
     ) -> None:
+        """Initialize ``SphericalBasisLayer``."""
         super().__init__()
 
         assert num_radial <= 64
@@ -581,7 +587,7 @@ class BesselBasisLayer(torch.nn.Module):
     """Learnable Bessel radial basis function layer with smooth cutoff envelope.
 
     Encodes interatomic distances as ``num_radial`` enveloped Bessel basis
-    values. The frequencies are learnable parameters initialised as
+    values. The frequencies are learnable parameters initialized as
     ``pi * [1, 2, ..., num_radial]`` and smoothly decayed to zero at the
     cutoff by a polynomial envelope.
 
@@ -597,17 +603,18 @@ class BesselBasisLayer(torch.nn.Module):
         cutoff: float = 5.0,
         envelope_exponent: int = 5,
     ) -> None:
+        """Initialize ``BesselBasisLayer``."""
         super().__init__()
         self.cutoff = cutoff
 
         # Ensures that the basis functions smoothly decay to zero at the cutoff distance.
         self.envelope = Envelope(envelope_exponent)
 
-        # A learnable parameter initialized as π * [1, 2, ..., num_radial].
+        # A learnable parameter initialized as pi * [1, 2, ..., num_radial].
         self.freq = torch.nn.Parameter(torch.empty(num_radial))
 
     def reset_parameters(self) -> None:
-        """Initialise learnable frequencies to ``pi * [1, 2, ..., num_radial]``."""
+        """Initialize learnable frequencies to ``pi * [1, 2, ..., num_radial]``."""
         with torch.no_grad():
             torch.arange(1, self.freq.numel() + 1, out=self.freq).mul_(math.pi)
         self.freq.requires_grad_()
@@ -640,6 +647,7 @@ class Envelope(torch.nn.Module):
     """
 
     def __init__(self, exponent: int) -> None:
+        """Initialize ``Envelope``."""
         super().__init__()
 
         # p = exponent + 1 controls the smoothness.
@@ -651,10 +659,10 @@ class Envelope(torch.nn.Module):
         self.c = -self.p * (self.p + 1) / 2
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Evaluate the envelope at normalised distances ``x = dist / cutoff``.
+        """Evaluate the envelope at normalized distances ``x = dist / cutoff``.
 
         Args:
-            x: Normalised distances in ``[0, 1)``, any shape ``(...)``.
+            x: Normalized distances in ``[0, 1)``, any shape ``(...)``.
 
         Returns:
             Envelope values of shape ``(...)``; zero for ``x >= 1``.
@@ -715,11 +723,11 @@ def spherical_bessel_formulas(n: int) -> list[sp.Expr]:
 
 
 def bessel_basis(n: int, k: int) -> list[list[sp.Expr]]:
-    """Construct normalised Bessel basis function expressions.
+    """Construct normalized Bessel basis function expressions.
 
     Returns:
         Nested list of shape ``(n, k)`` of SymPy expressions, where
-        ``[i][j]`` is the j-th normalised Bessel basis function of order i.
+        ``[i][j]`` is the j-th normalized Bessel basis function of order i.
     """
     zeros = Jn_zeros(n, k)
     normalizer = []

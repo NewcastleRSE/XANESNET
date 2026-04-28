@@ -83,11 +83,26 @@ class GeometryGraphDataset(TorchGeometricDataset):
 
     - ``graph_method="radius"``: distance-cutoff radius graph.
     - ``graph_method="voronoi"``: Voronoi-tessellation graph (still bounded
-      by ``cutoff``; Voronoi neighbours with distances above ``cutoff`` are
+      by ``cutoff``; Voronoi neighbors with distances above ``cutoff`` are
       dropped).
 
     In both cases ``edge_weight`` is the Cartesian edge length, and the
     returned graph is bidirectional (see ``xanesnet.utils.graph``).
+
+    Args:
+        dataset_type: Registered dataset type name.
+        datasource: Raw datasource of pymatgen structures or molecules.
+        root: Directory that stores processed ``.pth`` files.
+        preload: Whether to preload processed samples.
+        skip_prepare: Whether to reuse existing processed files.
+        split_ratios: Optional split ratios.
+        split_indexfile: Optional path to split indices.
+        cutoff: Graph cutoff in **Angstrom**.
+        max_num_neighbors: Per-source neighbor cap.
+        compute_angles: Whether to precompute triplet angles.
+        graph_method: Graph construction method.
+        min_facet_area: Optional Voronoi facet-area threshold.
+        cov_radii_scale: Covalent-radii scale for graph construction.
     """
 
     def __init__(
@@ -107,23 +122,7 @@ class GeometryGraphDataset(TorchGeometricDataset):
         min_facet_area: float | str | None,
         cov_radii_scale: float,
     ) -> None:
-        """Initialize the geometry graph dataset.
-
-        Args:
-            dataset_type: Registered dataset type name.
-            datasource: Raw datasource of pymatgen structures or molecules.
-            root: Directory that stores processed ``.pth`` files.
-            preload: Whether to preload processed samples.
-            skip_prepare: Whether to reuse existing processed files.
-            split_ratios: Optional split ratios.
-            split_indexfile: Optional path to split indices.
-            cutoff: Graph cutoff in **Angstrom**.
-            max_num_neighbors: Per-source neighbor cap.
-            compute_angles: Whether to precompute triplet angles.
-            graph_method: Graph construction method.
-            min_facet_area: Optional Voronoi facet-area threshold.
-            cov_radii_scale: Covalent-radii scale for graph construction.
-        """
+        """Initialize the geometry graph dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self.cutoff = cutoff

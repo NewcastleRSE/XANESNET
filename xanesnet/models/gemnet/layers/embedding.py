@@ -27,11 +27,12 @@ class AtomEmbedding(torch.nn.Module):
     Args:
         emb_size: Atom embedding dimension.
         num_elements: Number of distinct element types in the embedding table.
-            The default of 94 supports atomic numbers 1–94 (up to Pu).
+            The default of 94 supports atomic numbers 1-94 (up to Pu).
             Internally uses ``z - 1`` indexing.
     """
 
     def __init__(self, emb_size: int, num_elements: int = 94) -> None:
+        """Initialize ``AtomEmbedding``."""
         super().__init__()
         self.emb_size = emb_size
         self.num_elements = num_elements
@@ -39,7 +40,7 @@ class AtomEmbedding(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise the embedding table with uniform distribution in ``[-sqrt(3), sqrt(3)]``."""
+        """Re-initialize the embedding table with uniform distribution in ``[-sqrt(3), sqrt(3)]``."""
         torch.nn.init.uniform_(self.embeddings.weight, a=-np.sqrt(3), b=np.sqrt(3))
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -75,12 +76,13 @@ class EdgeEmbedding(torch.nn.Module):
         out_features: int,
         activation: str,
     ) -> None:
+        """Initialize ``EdgeEmbedding``."""
         super().__init__()
         in_features = 2 * atom_features + edge_features
         self.dense = Dense(in_features, out_features, activation=activation, bias=False)
 
     def reset_parameters(self) -> None:
-        """Re-initialise the inner dense layer."""
+        """Re-initialize the inner dense layer."""
         self.dense.reset_parameters()
 
     def forward(

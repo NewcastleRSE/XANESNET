@@ -59,6 +59,7 @@ class EquivariantAtomEncoder(nn.Module):
         irreps_message: str,
         residual_scale_init: float,
     ) -> None:
+        """Initialize ``EquivariantAtomEncoder``."""
         super().__init__()
         self.cutoff = cutoff
         self.rbf_dim = rbf_dim

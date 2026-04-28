@@ -205,7 +205,7 @@ class MpDatasetMixin:
         logging.info(f"Preparing dataset with {len(ranges)} worker process(es) over {total} samples.")
 
         # Use the ``forkserver`` start method. It's the right trade-off between
-        # ``fork`` (which deadlocks when the parent has already initialised
+        # ``fork`` (which deadlocks when the parent has already initialized
         # PyTorch / OpenMP / CUDA state) and ``spawn`` (which re-imports every
         # heavy module in every worker, costing several seconds per worker).
         #

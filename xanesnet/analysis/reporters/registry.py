@@ -21,19 +21,19 @@ from .base import Reporter
 
 
 class ReporterRegistry:
-    """Class-level mapping from reporter names to reporter classes."""
+    """Name-based registry for reporter classes."""
 
     _registry: dict[str, type[Reporter]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Reporter]], type[Reporter]]:
-        """Create a decorator that registers a reporter class.
+        """Register a reporter class under ``name``.
 
         Args:
             name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the reporter class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,14 +41,7 @@ class ReporterRegistry:
         name = name.lower()
 
         def decorator(reporter_cls: type[Reporter]) -> type[Reporter]:
-            """Register ``reporter_cls`` under the normalized name.
-
-            Args:
-                reporter_cls: Reporter class to register.
-
-            Returns:
-                The unmodified reporter class.
-            """
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Reporter '{name}' already registered")
             cls._registry[name] = reporter_cls

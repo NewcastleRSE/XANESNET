@@ -43,6 +43,7 @@ class AtomUpdateBlock(torch.nn.Module):
         nHidden: int,
         activation=None,
     ) -> None:
+        """Initialize ``AtomUpdateBlock``."""
         super().__init__()
 
         self.dense_rbf = Dense(emb_size_rbf, emb_size_edge, activation=None, bias=False)
@@ -129,6 +130,7 @@ class OutputBlock(AtomUpdateBlock):
         nHidden_afteratom: int,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``OutputBlock``."""
         super().__init__(
             emb_size_atom=emb_size_atom,
             emb_size_edge=emb_size_edge,

@@ -28,10 +28,10 @@ class WCCLoss(Loss):
 
     Computes the WCC similarity between predictions and targets using a
     Gaussian weight function centred at zero lag, following the method of
-    Källman et al. [1].
+    Kallman et al. [1].
 
     References:
-        [1] Källman, E., Delcey, M.G., Guo, M., Lindh, R. and Lundberg, M.
+        [1] Kallman, E., Delcey, M.G., Guo, M., Lindh, R. and Lundberg, M.
             (2020). Quantifying similarity for spectra with a large number of
             overlapping transitions: Examples from soft X-ray spectroscopy.
             Chemical Physics, 535, p.110786.
@@ -47,6 +47,7 @@ class WCCLoss(Loss):
         loss_type: str,
         gaussian_hwhm: int = 10,
     ) -> None:
+        """Initialize ``WCCLoss``."""
         super().__init__(loss_type)
 
         if gaussian_hwhm <= 0:

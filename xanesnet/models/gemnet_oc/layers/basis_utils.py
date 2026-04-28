@@ -72,7 +72,7 @@ def spherical_bessel_formulas(n: int) -> list[sym.Expr]:
         List of ``n`` sympy expressions in the variable ``x``.
     """
     x = sym.symbols("x", real=True)
-    # j_i = (-x)^i * (1/x * d/dx)^î * sin(x)/x
+    # j_i = (-x)^i * (1/x * d/dx)^i * sin(x)/x
     j = [sym.sin(x) / x]  # j_0
     a = sym.sin(x) / x
     for i in range(1, n):
@@ -83,7 +83,7 @@ def spherical_bessel_formulas(n: int) -> list[sym.Expr]:
 
 
 def bessel_basis(n: int, k: int) -> list[list[sym.Expr]]:
-    """Compute sympy formulas for the normalised rescaled spherical Bessel basis.
+    """Compute sympy formulas for the normalized rescaled spherical Bessel basis.
 
     Args:
         n: Maximum order (excluded); produces formulas for orders
@@ -314,8 +314,9 @@ def get_sph_harm_basis(L_maxdegree: int, zero_m_only: bool = True):
     sph_funcs = sym.lambdify(variables, Y_lm_flat, modules)
 
     # Return as a single function
-    # args are either [cosφ] or [cosφ, ϑ]
+    # args are either [cos_phi] or [cos_phi, theta]
     def basis_fn(*args) -> torch.Tensor:
+        """Evaluate the generated spherical harmonic basis functions."""
         basis = sph_funcs(*args)
         basis[0] = args[0].new_tensor(basis[0]).expand_as(args[0])
         return torch.stack(basis, dim=1)

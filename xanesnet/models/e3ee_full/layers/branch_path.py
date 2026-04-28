@@ -32,6 +32,7 @@ class PairElementEnergyScattering(nn.Module):
         hidden_dim: int,
         out_dim: int,
     ) -> None:
+        """Initialize ``PairElementEnergyScattering``."""
         super().__init__()
         self.z_emb = nn.Embedding(max_z + 1, z_emb_dim)
         self.mlp = MLP(
@@ -93,6 +94,7 @@ class AllAtomPathAggregator(nn.Module):
         out_dim: int,
         cutoff: float,
     ) -> None:
+        """Initialize ``AllAtomPathAggregator``."""
         super().__init__()
         self.cutoff = cutoff
         self.out_dim = out_dim

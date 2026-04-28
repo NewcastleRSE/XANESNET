@@ -21,20 +21,19 @@ from .base import Strategy
 
 
 class StrategyRegistry:
-    """Class-level registry mapping string keys to ``Strategy`` subclasses."""
+    """Name-based registry for strategy classes."""
 
     _registry: dict[str, type[Strategy]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Strategy]], type[Strategy]]:
-        """Return a class decorator that registers a ``Strategy`` under ``name``.
+        """Register a strategy class under ``name``.
 
         Args:
-            name: Registry key (lowercased automatically).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            A decorator that registers the decorated class and returns it
-            unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -42,6 +41,7 @@ class StrategyRegistry:
         name = name.lower()
 
         def decorator(ds_cls: type[Strategy]) -> type[Strategy]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Strategy '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -51,16 +51,16 @@ class StrategyRegistry:
 
     @classmethod
     def get(cls, name: str) -> type[Strategy]:
-        """Look up a ``Strategy`` class by name.
+        """Return the strategy class registered as ``name``.
 
         Args:
-            name: Registry key (case-insensitive).
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            The registered ``Strategy`` subclass.
+            Registered strategy class.
 
         Raises:
-            KeyError: If ``name`` is not in the registry.
+            KeyError: If no strategy is registered under ``name``.
         """
         name = name.lower()
 
@@ -70,9 +70,9 @@ class StrategyRegistry:
 
     @classmethod
     def list(cls) -> list[str]:
-        """Return the names of all registered strategies.
+        """Return all registered strategy names.
 
         Returns:
-            List of registered registry keys.
+            Registry keys in insertion order.
         """
         return list(cls._registry.keys())

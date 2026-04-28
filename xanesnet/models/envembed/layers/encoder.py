@@ -20,10 +20,10 @@ import torch.nn as nn
 
 
 def init_mlp_weights(module: nn.Module) -> None:
-    """Apply Kaiming-normal initialisation to a ``Linear`` layer.
+    """Apply Kaiming-normal initialization to a ``Linear`` layer.
 
     Args:
-        module: Module to initialise; only ``nn.Linear`` instances are affected.
+        module: Module to initialize; only ``nn.Linear`` instances are affected.
     """
     if isinstance(module, nn.Linear):
         nn.init.kaiming_normal_(module.weight, mode="fan_in", nonlinearity="relu")
@@ -34,9 +34,9 @@ def init_mlp_weights(module: nn.Module) -> None:
 class SoftRadialShellsEncoder(nn.Module):
     """Absorber-centric soft-binning over distance with learnable shell centres and widths.
 
-    For each learnable radial shell, computes Gaussian weights over neighbour
+    For each learnable radial shell, computes Gaussian weights over neighbor
     atoms from the absorber-centric distance distribution. These shell-wise
-    neighbour weights are used to form a weighted average descriptor per shell;
+    neighbor weights are used to form a weighted average descriptor per shell;
     the shell summaries are then concatenated and fused with the absorber's own
     descriptor to produce a fixed-size latent vector.
 
@@ -48,7 +48,7 @@ class SoftRadialShellsEncoder(nn.Module):
         d_input: Descriptor feature dimension ``H``.
         n_shells: Number of learnable radial shells.
         latent_dim: Output latent dimension.
-        max_radius_angs: Radial cutoff in **A**; neighbours beyond this distance are masked out.
+        max_radius_angs: Radial cutoff in **A**; neighbors beyond this distance are masked out.
         init_width: Initial Gaussian shell width in **A**.
         use_gating: If ``True``, modulate the shell summary with Fourier features
             of the distance distribution.
@@ -63,6 +63,7 @@ class SoftRadialShellsEncoder(nn.Module):
         init_width: float,
         use_gating: bool,
     ) -> None:
+        """Initialize ``SoftRadialShellsEncoder``."""
         super().__init__()
         self.max_radius = float(max_radius_angs)
         self.n_shells = int(n_shells)
@@ -106,7 +107,7 @@ class SoftRadialShellsEncoder(nn.Module):
 
         Returns:
             Per-shell soft weights of shape ``(B, N_ctx, n_shells)``.
-            Weights are normalised to sum to 1 along the neighbour dimension.
+            Weights are normalized to sum to 1 along the neighbor dimension.
         """
         centers = self.shell_centers.view(1, 1, -1)
         widths = self.shell_widths.view(1, 1, -1)
@@ -116,12 +117,12 @@ class SoftRadialShellsEncoder(nn.Module):
         return w
 
     def _fourier_feats(self, r: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        """Compute mean Fourier features over neighbours.
+        """Compute mean Fourier features over neighbors.
 
         Args:
             r: Context distances, shape ``(B, N_ctx)``.
-            mask: Optional valid-neighbour mask of shape ``(B, N_ctx)``.
-                When given, only masked-in neighbours contribute to the mean.
+            mask: Optional valid-neighbor mask of shape ``(B, N_ctx)``.
+                When given, only masked-in neighbors contribute to the mean.
 
         Returns:
             Mean Fourier features of shape ``(B, 2 * n_fourier)``.
@@ -170,7 +171,7 @@ class SoftRadialShellsEncoder(nn.Module):
             mask = torch.ones(context.shape[:2], device=x.device)
         mask = mask * (raw_r <= self.max_radius).float()
 
-        # Build shell-wise neighbour weights and compute weighted means.
+        # Build shell-wise neighbor weights and compute weighted means.
         w = self._soft_assign(r)  # (B, N-1, n_shells)
         w = w * mask.unsqueeze(-1)
         wsum = w.sum(dim=1, keepdim=True).clamp(min=1e-6)

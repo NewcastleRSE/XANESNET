@@ -44,6 +44,7 @@ class MACE(Descriptor):
         invariants_only: bool = False,
         num_layers: int = -1,
     ) -> None:
+        """Initialize ``MACE``."""
         super().__init__(descriptor_type)
 
         self.invariants_only = invariants_only

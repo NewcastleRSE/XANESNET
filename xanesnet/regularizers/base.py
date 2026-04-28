@@ -36,6 +36,7 @@ class Regularizer(nn.Module, ABC):
         regularizer_type: str,
         weight: float,
     ) -> None:
+        """Initialize ``Regularizer``."""
         super().__init__()
 
         self.regularizer_type = regularizer_type

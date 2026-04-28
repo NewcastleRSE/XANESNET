@@ -39,18 +39,19 @@ class Model(nn.Module, ABC):
         self,
         model_type: str,
     ) -> None:
+        """Initialize ``Model``."""
         super().__init__()
 
         self.model_type = model_type
 
     @abstractmethod
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise all model weights and biases.
+        """Initialize all model weights and biases.
 
         Args:
-            weights_init: Name of the weight initialisation scheme.
-            bias_init: Name of the bias initialisation scheme.
-            **kwargs: Extra keyword arguments forwarded to the weight initialiser.
+            weights_init: Name of the weight initialization scheme.
+            bias_init: Name of the bias initialization scheme.
+            **kwargs: Extra keyword arguments forwarded to the weight initializer.
         """
         ...
 

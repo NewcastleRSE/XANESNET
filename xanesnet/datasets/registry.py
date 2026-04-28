@@ -34,15 +34,18 @@ class DatasetRegistry:
         """Register a dataset class under ``name``.
 
         Args:
-            name: Registry key used in configuration files.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the dataset class unchanged.
+            Decorator that registers and returns the class unchanged.
+
+        Raises:
+            KeyError: If ``name`` is already registered.
         """
         name = name.lower()
 
         def decorator(ds_cls: _DatasetT) -> _DatasetT:
-            """Register and return ``ds_cls`` unchanged."""
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Dataset '{name}' already registered")
             cls._registry[name] = ds_cls
@@ -55,10 +58,13 @@ class DatasetRegistry:
         """Return the dataset class registered as ``name``.
 
         Args:
-            name: Registry key to resolve.
+            name: Registry key. Matching is case-insensitive.
 
         Returns:
             Registered dataset class.
+
+        Raises:
+            KeyError: If no dataset is registered under ``name``.
         """
         name = name.lower()
 

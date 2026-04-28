@@ -60,6 +60,7 @@ class BasicTrainer(Trainer):
         lr_warmup: bool,
         warmup_steps: int,
     ) -> None:
+        """Initialize ``BasicTrainer``."""
         super().__init__(
             dataset,
             model,

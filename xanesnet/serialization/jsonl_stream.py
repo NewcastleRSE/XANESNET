@@ -35,12 +35,7 @@ class JSONLStream(Iterable[dict[str, Any]]):
     """
 
     def __init__(self, path: Path, count: int | None = None) -> None:
-        """Initialize a lazy JSONL reader.
-
-        Args:
-            path: Path to the ``.jsonl`` file to read.
-            count: Optional precomputed record count.
-        """
+        """Initialize a lazy JSONL reader."""
         self.path = path
         self._count = count
 

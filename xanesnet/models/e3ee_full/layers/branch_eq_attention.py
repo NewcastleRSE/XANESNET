@@ -32,7 +32,7 @@ class AllAtomEquivariantAtomAttention(nn.Module):
     """All-atom equivariant counterpart of :class:`AllAtomAtomAttention`.
 
     Each atom (or just the absorber atoms when ``use_absorber_mask`` is set)
-    queries its attention-graph neighbours. The value carried along each edge is
+    queries its attention-graph neighbors. The value carried along each edge is
     an E(3)-equivariant feature built from spherical harmonics of the
     src->dst unit vector mixed with the dst atom's full equivariant features via
     a FullyConnectedTensorProduct, then modulated per-energy with
@@ -45,7 +45,7 @@ class AllAtomEquivariantAtomAttention(nn.Module):
         e_dim: Dimension of the energy RBF embedding.
         hidden_dim: Hidden dimension of all internal MLPs.
         latent_dim: Output (latent) dimension; must be divisible by ``n_heads``.
-        att_cutoff: Attention neighbourhood radius in **A**.
+        att_cutoff: Attention neighborhood radius in **A**.
         attention_lmax: Maximum spherical-harmonics order for bond directions.
         attention_irreps: Target irreps of the equivariant values (e.g. ``"32x0e+16x1o"``).
         rbf_dim: Number of Gaussian RBF bases for distance encoding.
@@ -69,6 +69,7 @@ class AllAtomEquivariantAtomAttention(nn.Module):
         z_emb_dim: int = 32,
         n_heads: int = 4,
     ) -> None:
+        """Initialize ``AllAtomEquivariantAtomAttention``."""
         super().__init__()
         if latent_dim % n_heads != 0:
             raise ValueError(f"latent_dim ({latent_dim}) must be divisible by n_heads ({n_heads})")

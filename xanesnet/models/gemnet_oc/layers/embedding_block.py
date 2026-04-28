@@ -31,6 +31,7 @@ class AtomEmbedding(torch.nn.Module):
     """
 
     def __init__(self, emb_size: int, num_elements: int = 94) -> None:
+        """Initialize ``AtomEmbedding``."""
         super().__init__()
         self.emb_size = emb_size
 
@@ -67,6 +68,7 @@ class EdgeEmbedding(torch.nn.Module):
         out_features: int,
         activation: str | None = None,
     ) -> None:
+        """Initialize ``EdgeEmbedding``."""
         super().__init__()
         in_features = 2 * atom_features + edge_features
         self.dense = Dense(in_features, out_features, activation=activation, bias=False)

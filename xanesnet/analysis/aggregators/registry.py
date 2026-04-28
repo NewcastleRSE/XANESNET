@@ -21,19 +21,19 @@ from .base import Aggregator
 
 
 class AggregatorRegistry:
-    """Class-level mapping from aggregator names to aggregator classes."""
+    """Name-based registry for aggregator classes."""
 
     _registry: dict[str, type[Aggregator]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Aggregator]], type[Aggregator]]:
-        """Create a decorator that registers an aggregator class.
+        """Register an aggregator class under ``name``.
 
         Args:
             name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the aggregator class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,14 +41,7 @@ class AggregatorRegistry:
         name = name.lower()
 
         def decorator(aggregator_cls: type[Aggregator]) -> type[Aggregator]:
-            """Register ``aggregator_cls`` under the normalized name.
-
-            Args:
-                aggregator_cls: Aggregator class to register.
-
-            Returns:
-                The unmodified aggregator class.
-            """
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Aggregator '{name}' already registered")
             cls._registry[name] = aggregator_cls

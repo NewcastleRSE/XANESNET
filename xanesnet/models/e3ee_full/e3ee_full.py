@@ -126,6 +126,7 @@ class E3EEFull(Model):
         att_cutoff: float,
         conv_use_gate: bool = True,
     ) -> None:
+        """Initialize ``E3EEFull``."""
         super().__init__(model_type)
 
         self.out_size = out_size
@@ -490,15 +491,15 @@ class E3EEFull(Model):
         return out
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise all ``Linear`` and ``Embedding`` weights.
+        """Initialize all ``Linear`` and ``Embedding`` weights.
 
         Args:
-            weights_init: Name of the weight initialiser registered in
+            weights_init: Name of the weight initializer registered in
                 :class:`~xanesnet.components.WeightInitRegistry`.
-            bias_init: Name of the bias initialiser registered in
+            bias_init: Name of the bias initializer registered in
                 :class:`~xanesnet.components.BiasInitRegistry`.
             **kwargs: Additional keyword arguments forwarded to the weight
-                initialiser factory.
+                initializer factory.
         """
         weight_init_fn = WeightInitRegistry.get(weights_init, **kwargs)
         bias_init_fn = BiasInitRegistry.get(bias_init)

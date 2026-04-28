@@ -49,6 +49,7 @@ class EquivariantInteractionBlock(nn.Module):
         cutoff: float,
         residual_scale_init: float = 0.1,
     ) -> None:
+        """Initialize ``EquivariantInteractionBlock``."""
         super().__init__()
 
         self.irreps_node = cast(o3.Irreps, o3.Irreps(irreps_node))

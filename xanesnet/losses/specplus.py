@@ -30,9 +30,9 @@ class SpectralLossPlus(Loss):
 
     The total loss is ``alpha * Lc + beta * Ld + gamma * Lg`` where:
 
-    - ``Lc`` — coarse MSE between Gaussian-blurred ``preds`` and ``targets``.
-    - ``Ld`` — peak-aware weighted MSE on the residual fine detail.
-    - ``Lg`` — Huber loss on first-order gradients (shape consistency).
+    - ``Lc`` - coarse MSE between Gaussian-blurred ``preds`` and ``targets``.
+    - ``Ld`` - peak-aware weighted MSE on the residual fine detail.
+    - ``Lg`` - Huber loss on first-order gradients (shape consistency).
 
     Args:
         loss_type: Identifier string for this loss type.
@@ -56,6 +56,7 @@ class SpectralLossPlus(Loss):
         huber_delta: float = 0.01,
         kappa_peak: float = 0.15,
     ) -> None:
+        """Initialize ``SpectralLossPlus``."""
         super().__init__(loss_type)
 
         self.blur_sigma_bins = blur_sigma_bins
@@ -162,7 +163,7 @@ class SpectralLossPlus(Loss):
             y: Second input tensor (reference).
             delta: Transition point between quadratic and linear regions.
                 Defaults to ``0.01``.
-            reduction: Reduction mode — ``'mean'``, ``'sum'``, or ``'none'``.
+            reduction: Reduction mode - ``'mean'``, ``'sum'``, or ``'none'``.
                 Defaults to ``'mean'``.
 
         Returns:

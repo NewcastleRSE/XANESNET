@@ -26,6 +26,12 @@ class EarlyStopper(ABC):
     Tracks the best observed metric value and optionally snapshots the
     corresponding model weights so they can be restored at the end of
     training.
+
+    Args:
+        early_stopper_type: Registry key identifying this stopper type.
+        restore_best: If ``True``, save a copy of the model weights
+            whenever a new best value is observed so they can be
+            restored later via ``restore``.
     """
 
     def __init__(
@@ -33,14 +39,7 @@ class EarlyStopper(ABC):
         early_stopper_type: str,
         restore_best: bool,
     ) -> None:
-        """Initialise shared early-stopping state.
-
-        Args:
-            early_stopper_type: Registry key identifying this stopper type.
-            restore_best: If ``True``, save a copy of the model weights
-                whenever a new best value is observed so they can be
-                restored later via ``restore``.
-        """
+        """Initialize shared early-stopping state."""
         self.early_stopper_type = early_stopper_type
         self.restore_best = restore_best
 

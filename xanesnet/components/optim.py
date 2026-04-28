@@ -41,6 +41,7 @@ class OptimizerRegistry:
         name = name.lower()
 
         def decorator(optim_cls: type[optim.Optimizer]) -> type[optim.Optimizer]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Optimizer '{name}' already registered")
             cls._registry[name] = optim_cls

@@ -42,6 +42,7 @@ class BasisEmbedding(torch.nn.Module):
         emb_size_interm: int,
         num_spherical: int | None = None,
     ) -> None:
+        """Initialize ``BasisEmbedding``."""
         super().__init__()
         self.num_radial = num_radial
         self.num_spherical = num_spherical
@@ -58,7 +59,7 @@ class BasisEmbedding(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Re-initialise weights with He-orthogonal initialisation."""
+        """Re-initialize weights with He-orthogonal initialization."""
         he_orthogonal_init(self.weight)
 
     def forward(
@@ -182,6 +183,7 @@ class EfficientInteractionBilinear(torch.nn.Module):
         emb_size_interm: int,
         emb_size_out: int,
     ) -> None:
+        """Initialize ``EfficientInteractionBilinear``."""
         super().__init__()
         self.emb_size_in = emb_size_in
         self.emb_size_interm = emb_size_interm

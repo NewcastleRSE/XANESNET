@@ -65,7 +65,7 @@ class GemNet(Model):
         cutoff: Main graph edge cutoff in **A**.
         int_cutoff: Interaction graph edge cutoff in **A** (quadruplet variant only).
         envelope_exponent: Exponent ``p`` for the polynomial cutoff envelope.
-        output_init: Weight initialisation for the final output layer (``"HeOrthogonal"`` or ``"zeros"``).
+        output_init: Weight initialization for the final output layer (``"HeOrthogonal"`` or ``"zeros"``).
         activation: Activation function name (``"swish"`` / ``"silu"``).
         scale_file: Path to a JSON file with pre-fitted variance scale factors, or ``None`` to use the default value of 1.0 for all factors.
         num_elements: Number of distinct element types in the embedding table.
@@ -101,6 +101,7 @@ class GemNet(Model):
         scale_file: str | None,
         num_elements: int,
     ) -> None:
+        """Initialize ``GemNet``."""
         super().__init__(model_type)
 
         self.num_spherical = num_spherical
@@ -414,14 +415,14 @@ class GemNet(Model):
                 shape ``(nTriplets,)``.
             id3_reduce_ca: Edge index of c -> a for each triplet,
                 shape ``(nTriplets,)``.
-            Kidx3: Neighbour index within the sparse dense matrix for triplets,
+            Kidx3: Neighbor index within the sparse dense matrix for triplets,
                 shape ``(nTriplets,)``.
             int_edge_vec: Interaction-graph edge vectors, shape ``(nIntEdges, 3)``.
                 Required when ``triplets_only=False``.
             int_edge_weight: Interaction-graph edge lengths in **A**,
                 shape ``(nIntEdges,)``.
                 Required when ``triplets_only=False``.
-            Kidx4: Neighbour index for the quadruplet sparse dense matrix.
+            Kidx4: Neighbor index for the quadruplet sparse dense matrix.
                 Required when ``triplets_only=False``.
             id4_reduce_ca: Quadruplet edge index c -> a.
                 Required when ``triplets_only=False``.
@@ -531,9 +532,9 @@ class GemNet(Model):
         return E_a  # (nAtoms, num_targets)
 
     def init_weights(self, weights_init: str, bias_init: str, **kwargs) -> None:
-        """Initialise GemNet weights using its built-in He-orthogonal scheme.
+        """Initialize GemNet weights using its built-in He-orthogonal scheme.
 
-        GemNet uses its own weight initialisation (He-orthogonal + variance-
+        GemNet uses its own weight initialization (He-orthogonal + variance-
         preserving scale factors), so the ``weights_init`` and ``bias_init``
         arguments required by the base-class interface are intentionally ignored.
         A warning is emitted when called.

@@ -43,6 +43,7 @@ class LRSchedulerRegistry:
         name = name.lower()
 
         def decorator(lr_scheduler_cls: type[optim.lr_scheduler.LRScheduler]) -> type[optim.lr_scheduler.LRScheduler]:
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"LRScheduler '{name}' already registered")
             cls._registry[name] = lr_scheduler_cls
@@ -82,6 +83,7 @@ class NoOpLRScheduler(optim.lr_scheduler.LRScheduler):
     """Learning rate scheduler that leaves all parameter group learning rates unchanged."""
 
     def __init__(self, optimizer: optim.Optimizer, last_epoch: int = -1) -> None:
+        """Initialize ``NoOpLRScheduler``."""
         super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:  # type: ignore[override]

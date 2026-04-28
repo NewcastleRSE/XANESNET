@@ -34,6 +34,7 @@ class ResidualPreLNBlock(nn.Module):
     """
 
     def __init__(self, dim: int, hidden: int, dropout: float = 0.1) -> None:
+        """Initialize ``ResidualPreLNBlock``."""
         super().__init__()
         self.ln = nn.LayerNorm(dim)
         self.fc1 = nn.Linear(dim, hidden)
@@ -67,7 +68,7 @@ class CoeffHeadGroupedResidualPreLN(nn.Module):
     The trunk consists of ``depth`` :class:`ResidualPreLNBlock` layers followed
     by a final :class:`~torch.nn.LayerNorm`. Each group head is an independent
     ``nn.Linear`` mapping from the trunk output to ``k`` coefficients; group
-    head weights and biases are zero-initialised. The outputs of all heads are
+    head weights and biases are zero-initialized. The outputs of all heads are
     concatenated to produce the final coefficient vector.
 
     Args:
@@ -86,6 +87,7 @@ class CoeffHeadGroupedResidualPreLN(nn.Module):
         depth: int = 3,
         dropout: float = 0.1,
     ) -> None:
+        """Initialize ``CoeffHeadGroupedResidualPreLN``."""
         super().__init__()
         self.latent_dim = latent_dim
         self.k_groups = k_groups

@@ -21,19 +21,19 @@ from .base import Collector
 
 
 class CollectorRegistry:
-    """Class-level mapping from collector names to collector classes."""
+    """Name-based registry for collector classes."""
 
     _registry: dict[str, type[Collector]] = {}
 
     @classmethod
     def register(cls, name: str) -> Callable[[type[Collector]], type[Collector]]:
-        """Create a decorator that registers a collector class.
+        """Register a collector class under ``name``.
 
         Args:
             name: Registry key. Matching is case-insensitive.
 
         Returns:
-            Decorator that registers and returns the collector class unchanged.
+            Decorator that registers and returns the class unchanged.
 
         Raises:
             KeyError: If ``name`` is already registered.
@@ -41,14 +41,7 @@ class CollectorRegistry:
         name = name.lower()
 
         def decorator(module_cls: type[Collector]) -> type[Collector]:
-            """Register ``module_cls`` under the normalized name.
-
-            Args:
-                module_cls: Collector class to register.
-
-            Returns:
-                The unmodified collector class.
-            """
+            """Register and return the decorated class unchanged."""
             if name in cls._registry:
                 raise KeyError(f"Collector '{name}' already registered")
             cls._registry[name] = module_cls

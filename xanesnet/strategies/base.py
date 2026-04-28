@@ -38,6 +38,27 @@ class Strategy(ABC):
     Raises:
         ValueError: If neither ``trainer_config`` nor ``inferencer_config`` is
             provided at construction time.
+
+    Args:
+        strategy_type: Registry key identifying this strategy type.
+        dataset: The dataset used for training or inference.
+        model_config: Configuration for the model.
+        weight_init: Weight initialization scheme name.
+        weight_init_params: Additional parameters passed to the weight initializer.
+        bias_init: Bias initialization scheme name.
+        checkpoint_dir: Directory for saving checkpoint files, or
+            ``None`` to disable checkpointing.
+        checkpoint_interval: Number of epochs between checkpoints, or
+            ``None`` to disable interval-based checkpointing.
+        tensorboard_dir: Directory for TensorBoard event files, or
+            ``None`` to disable TensorBoard logging.
+        trainer_config: Configuration for the trainer. Either this or
+            ``inferencer_config`` must be provided.
+        inferencer_config: Configuration for the inferencer. Either this
+            or ``trainer_config`` must be provided.
+
+    Raises:
+        ValueError: If both ``trainer_config`` and ``inferencer_config`` are ``None``.
     """
 
     def __init__(
@@ -54,29 +75,7 @@ class Strategy(ABC):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
-        """Initialise shared strategy state.
-
-        Args:
-            strategy_type: Registry key identifying this strategy type.
-            dataset: The dataset used for training or inference.
-            model_config: Configuration for the model.
-            weight_init: Weight initialisation scheme name.
-            weight_init_params: Additional parameters passed to the weight initialiser.
-            bias_init: Bias initialisation scheme name.
-            checkpoint_dir: Directory for saving checkpoint files, or
-                ``None`` to disable checkpointing.
-            checkpoint_interval: Number of epochs between checkpoints, or
-                ``None`` to disable interval-based checkpointing.
-            tensorboard_dir: Directory for TensorBoard event files, or
-                ``None`` to disable TensorBoard logging.
-            trainer_config: Configuration for the trainer. Either this or
-                ``inferencer_config`` must be provided.
-            inferencer_config: Configuration for the inferencer. Either this
-                or ``trainer_config`` must be provided.
-
-        Raises:
-            ValueError: If both ``trainer_config`` and ``inferencer_config`` are ``None``.
-        """
+        """Initialize shared strategy state."""
         self.strategy_type = strategy_type
         self.dataset = dataset
         self.model_config = model_config
@@ -105,7 +104,7 @@ class Strategy(ABC):
 
     @abstractmethod
     def init_model_weights(self) -> None:
-        """Apply weight and bias initialisation to the strategy's models.
+        """Apply weight and bias initialization to the strategy's models.
 
         Must be called after ``setup_models``.
         """
@@ -173,7 +172,7 @@ class Strategy(ABC):
         """Instantiate the ``Checkpointer`` for this strategy.
 
         Must be called after ``setup_models`` because the checkpointer is
-        initialised with ``self.model_signature``.
+        initialized with ``self.model_signature``.
         """
         self.checkpointer = Checkpointer(self.checkpoint_dir, self.checkpoint_interval, self.model_signature)
 
