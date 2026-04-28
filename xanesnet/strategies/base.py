@@ -1,18 +1,19 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Abstract base class for XANESNET training and inference strategies."""
 
 import logging
 from abc import ABC, abstractmethod
@@ -27,8 +28,16 @@ from xanesnet.serialization.config import Config
 
 
 class Strategy(ABC):
-    """
-    Abstract base class for strategies.
+    """Abstract base class for training and inference strategies.
+
+    A strategy defines how one or more models are set up, trained, and used for
+    inference (e.g. single model, ensemble, k-fold cross-validation). Subclasses
+    must implement all abstract methods to provide concrete training and inference
+    logic.
+
+    Raises:
+        ValueError: If neither ``trainer_config`` nor ``inferencer_config`` is
+            provided at construction time.
     """
 
     def __init__(
@@ -45,6 +54,29 @@ class Strategy(ABC):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
+        """Initialise shared strategy state.
+
+        Args:
+            strategy_type: Registry key identifying this strategy type.
+            dataset: The dataset used for training or inference.
+            model_config: Configuration for the model.
+            weight_init: Weight initialisation scheme name.
+            weight_init_params: Additional parameters passed to the weight initialiser.
+            bias_init: Bias initialisation scheme name.
+            checkpoint_dir: Directory for saving checkpoint files, or
+                ``None`` to disable checkpointing.
+            checkpoint_interval: Number of epochs between checkpoints, or
+                ``None`` to disable interval-based checkpointing.
+            tensorboard_dir: Directory for TensorBoard event files, or
+                ``None`` to disable TensorBoard logging.
+            trainer_config: Configuration for the trainer. Either this or
+                ``inferencer_config`` must be provided.
+            inferencer_config: Configuration for the inferencer. Either this
+                or ``trainer_config`` must be provided.
+
+        Raises:
+            ValueError: If both ``trainer_config`` and ``inferencer_config`` are ``None``.
+        """
         self.strategy_type = strategy_type
         self.dataset = dataset
         self.model_config = model_config
@@ -65,75 +97,107 @@ class Strategy(ABC):
 
     @abstractmethod
     def setup_models(self) -> None:
-        """
-        Instantiates the models that will be used for training.
+        """Instantiate the models used by this strategy.
+
+        Must be called before ``init_model_weights``, ``setup_trainers``, or ``setup_inferencers``.
         """
         ...
 
     @abstractmethod
     def init_model_weights(self) -> None:
-        """
-        Initialises the model weights.
+        """Apply weight and bias initialisation to the strategy's models.
+
+        Must be called after ``setup_models``.
         """
         ...
 
     @abstractmethod
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
-        """
-        Sets the state dictionaries for the models.
+        """Load model state dicts from a list of previously saved dicts.
+
+        Args:
+            state_dicts: List of state dictionaries, one per model managed by this strategy.
         """
         ...
 
     @abstractmethod
     def setup_trainers(self, device: str | torch.device) -> None:
-        """
-        Instantiates the trainers that will be used for training.
+        """Instantiate the trainers used by this strategy.
+
+        Must be called after ``setup_models`` and ``setup_checkpointer``.
+
+        Args:
+            device: The device on which training will be performed (e.g. ``"cpu"`` or ``"cuda"``).
         """
         ...
 
     @abstractmethod
     def run_training(self) -> list[Model]:
-        """
-        Starts training with strategy and returns a list of trained models.
+        """Execute the training loop and return the trained models.
 
-        Returns a list of trained models.
+        The base implementation logs the run start and returns an empty list.
+        Subclasses must call ``super().run_training()`` and then return their
+        trained models.
+
+        Returns:
+            List of trained ``Model`` instances.
         """
         logging.info("Start strategy...")
         return []
 
     @abstractmethod
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """
-        Instantiates the inferencers that will be used for inference.
+        """Instantiate the inferencers used by this strategy.
+
+        Must be called after ``setup_models``.
+
+        Args:
+            device: The device on which inference will be performed.
         """
         ...
 
     @abstractmethod
     def run_inference(self, predictions_save_path: str | Path | None) -> None:
-        """
-        Starts inference with strategy.
+        """Execute inference and optionally save predictions.
+
+        The base implementation logs the run start. Subclasses must call
+        ``super().run_inference(predictions_save_path)``.
+
+        Args:
+            predictions_save_path: Directory in which to write prediction
+                output, or ``None`` to skip saving.
         """
         logging.info("Start strategy...")
 
     def setup_checkpointer(self) -> None:
-        """
-        Instantiates the Checkpointer.
+        """Instantiate the ``Checkpointer`` for this strategy.
+
+        Must be called after ``setup_models`` because the checkpointer is
+        initialised with ``self.model_signature``.
         """
         self.checkpointer = Checkpointer(self.checkpoint_dir, self.checkpoint_interval, self.model_signature)
 
     @property
     @abstractmethod
     def model_signature(self) -> Config:
-        """
-        Returns model signature as a dictionary.
+        """Return the model's configuration as a ``Config``.
+
+        Returns:
+            A ``Config`` representing the model's configuration signature.
         """
         ...
 
     @property
     @abstractmethod
     def signature(self) -> Config:
-        """
-        Returns strategy signature as a dictionary.
+        """Return the full strategy configuration as a ``Config``.
+
+        The base implementation returns a ``Config`` containing only the
+        ``strategy_type`` key. Subclasses should call ``super().signature``
+        and extend the result.
+
+        Returns:
+            A ``Config`` capturing the strategy configuration.
         """
         signature = Config(
             {
