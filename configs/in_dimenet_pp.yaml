@@ -25,7 +25,7 @@ model:
   model_type: dimenet++
   # params:
   hidden_channels: 128
-  out_channels: 173
+  out_channels: auto
   num_blocks: 6
   int_emb_size: 64
   basis_emb_size: 8

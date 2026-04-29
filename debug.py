@@ -26,6 +26,7 @@ def run_debug_train() -> None:
         "-n",
         "<...>",  # Insert name for training run
         # "--tensorboard",  # Enable TensorBoard logging
+        "--yes",  # Skip all prompts with yes (use with caution!)
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -43,6 +44,7 @@ def run_debug_infer() -> None:
         "./runs/<...>/models/final.pth",  # Insert path to trained model (final.pth)
         "-n",
         "<...>",  # Insert name for inference run
+        "--yes",  # Skip all prompts with yes (use with caution!)
     ]
 
     print("Running in debug mode with the following arguments:")
@@ -62,6 +64,7 @@ def run_debug_analyze() -> None:
         "./runs/<...>/predictions",
         "-n",
         "<...>",  # Insert name for analysis run
+        "--yes",  # Skip all prompts with yes (use with caution!)
     ]
 
     print("Running in debug mode with the following arguments:")

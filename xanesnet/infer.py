@@ -24,7 +24,7 @@ from xanesnet.datasets import DatasetRegistry
 from xanesnet.datasources import DataSourceRegistry
 from xanesnet.descriptors import DescriptorRegistry
 from xanesnet.models import ModelRegistry
-from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import (
     Config,
@@ -119,7 +119,7 @@ def main(args: list[str]) -> None:
     logging.debug(f"\tDatasets: {DatasetRegistry.list()}")
     logging.debug(f"\tDescriptors: {DescriptorRegistry.list()}")
     logging.debug(f"\tModels: {ModelRegistry.list()}")
-    logging.debug(f"\tTrainers: {TrainerRegistry.list()}")
+    logging.debug(f"\tInferencers: {InferencerRegistry.list()}")
     logging.debug(f"\tBatchProcessers: {BatchProcessorRegistry.list()}")
     logging.debug(f"\tStrategies: {StrategyRegistry.list()}")
 

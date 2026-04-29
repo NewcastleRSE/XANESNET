@@ -28,8 +28,8 @@ model:
   # general:
   model_type: envembed
   # params:
-  in_size: 49 # dimensionality of the descriptor features 
-  kgroups: [44, 44, 44, 44] # output gaussian dimensions: len(widths_eV) * [Phi.shape[1] // len(widths_eV)]
+  in_size: auto # dimensionality of the descriptor features
+  kgroups: auto # output gaussian dimensions from the dataset spectral basis
 
 trainer:
   # general:

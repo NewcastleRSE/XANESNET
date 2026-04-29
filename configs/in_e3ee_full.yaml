@@ -34,7 +34,7 @@ model:
   # general:
   model_type: e3ee_full
   # params:
-  out_size: 173
+  out_size: auto
   max_z: 100
   atom_emb_dim: 64
   atom_hidden_dim: 128

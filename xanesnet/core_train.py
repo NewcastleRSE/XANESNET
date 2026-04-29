@@ -28,6 +28,7 @@ from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.models import Model
+from xanesnet.serialization.auto_config import resolve_auto_model_config
 from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.models import save_models
@@ -42,11 +43,14 @@ from xanesnet.strategies import Strategy, StrategyRegistry
 def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     """Run the complete training pipeline.
 
-    Builds the data source, dataset, and strategy from ``config``; runs
-    training; and writes models, checkpoints, and metadata under ``save_dir``.
+    Builds the data source and dataset from ``config``, resolves any automatic
+    model fields from the prepared dataset, builds the strategy from the
+    resolved config, runs training, and writes models, checkpoints, and metadata
+    under ``save_dir``.
 
     Args:
-        config: Validated training configuration.
+        config: Validated training configuration, possibly containing
+            ``"auto"`` model fields supported by the resolver.
         args_namespace: Parsed CLI arguments (must contain ``tensorboard``).
         save_dir: Root directory for all training outputs.
     """
@@ -54,6 +58,11 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
+
+    config = resolve_auto_model_config(config, dataset)
+    resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
+    logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
+
     strategy = _setup_strategy(config, dataset, save_dir, args_namespace.tensorboard)
     strategy.setup_models()
     strategy.setup_checkpointer()

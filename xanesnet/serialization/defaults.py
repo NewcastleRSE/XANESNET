@@ -368,6 +368,21 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
     },
 }
 
+# Model fields that may be resolved from a prepared training dataset by using
+# the registered batch processor for the dataset/model pair.
+MODEL_AUTO_FIELDS: dict[str, set[str]] = {
+    "mlp": {"in_size", "out_size"},
+    "lstm": {"in_size", "out_size"},
+    "envembed": {"in_size", "kgroups"},
+    "schnet": {"reduce_channels_2"},
+    "dimenet": {"out_channels"},
+    "dimenet++": {"out_channels"},
+    "gemnet": {"num_targets"},
+    "gemnet_oc": {"num_targets"},
+    "e3ee": {"out_size"},
+    "e3ee_full": {"out_size"},
+}
+
 TRAINER_DEFAULTS: dict[str, dict[str, Any]] = {
     "basic": {
         "batch_size": 3,

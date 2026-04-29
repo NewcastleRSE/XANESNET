@@ -32,6 +32,7 @@ from .defaults import (
     DATASOURCE_REQUIRED,
     INFERENCER_DEFAULTS,
     INFERENCER_REQUIRED,
+    MODEL_AUTO_FIELDS,
     MODEL_DEFAULTS,
     MODEL_REQUIRED,
     STRATEGY_DEFAULTS,
@@ -476,27 +477,45 @@ class Config:
 def validate_config_train(config: ConfigRaw) -> Config:
     """Validate a config dict for a training run.
 
+    Training configs may set selected top-level model fields to ``"auto"``.
+    Those values are validated here and resolved later, after the dataset has
+    been prepared.
+
     Args:
         config: Raw configuration dictionary.
 
     Returns:
         A validated ``Config`` object.
+
+    Raises:
+        ConfigError: If ``"auto"`` is used for an unsupported model field.
     """
     # TODO writing better train validation
-    return validate_config(config)
+    validated = validate_config(config)
+    _validate_train_model_auto_fields(validated.as_dict())
+    return validated
 
 
 def validate_config_infer(config: ConfigRaw) -> Config:
     """Validate a config dict for an inference run.
 
+    Inference model architecture is restored from the checkpoint signature, so
+    model fields set to ``"auto"`` are rejected instead of being re-detected
+    from the inference dataset.
+
     Args:
         config: Raw configuration dictionary.
 
     Returns:
         A validated ``Config`` object.
+
+    Raises:
+        ConfigError: If any model value is set to ``"auto"``.
     """
     # TODO writing better infer validation
-    return validate_config(config)
+    validated = validate_config(config)
+    _validate_no_infer_model_auto_fields(validated.as_dict())
+    return validated
 
 
 def validate_config_analyze(config: ConfigRaw) -> Config:
@@ -650,6 +669,88 @@ def _validate_mutually_exclusive(config: ConfigRaw, section_a: str, section_b: s
 
     if section_a_config and section_b_config:
         raise ConfigError(f"Section '{section_a}' and section '{section_b}' are mutually exclusive.")
+
+
+def _validate_train_model_auto_fields(config: ConfigRaw) -> None:
+    """Validate training-time ``"auto"`` model fields.
+
+    Args:
+        config: Validated raw training config.
+
+    Raises:
+        ConfigError: If ``"auto"`` appears outside the allowlist for the
+            configured model type.
+    """
+    model_config = config.get("model", {})
+    if not isinstance(model_config, dict):
+        return
+
+    model_type = model_config.get("model_type")
+    if not isinstance(model_type, str):
+        return
+
+    allowed_fields = MODEL_AUTO_FIELDS.get(model_type, set())
+    unsupported_paths = [
+        path
+        for path in _find_model_auto_paths(model_config)
+        if path.count(".") > 0 or path not in allowed_fields
+    ]
+    if unsupported_paths:
+        allowed = ", ".join(f"model.{field}" for field in sorted(allowed_fields)) or "none"
+        unsupported = ", ".join(f"model.{path}" for path in unsupported_paths)
+        raise ConfigError(
+            f"Unsupported automatic model config field(s) for model '{model_type}': {unsupported}. "
+            f"Allowed fields: {allowed}."
+        )
+
+
+def _validate_no_infer_model_auto_fields(config: ConfigRaw) -> None:
+    """Reject ``"auto"`` model values in inference configs.
+
+    Args:
+        config: Validated raw inference config.
+
+    Raises:
+        ConfigError: If any model value is set to ``"auto"``.
+    """
+    model_config = config.get("model", {})
+    if not isinstance(model_config, dict):
+        return
+
+    auto_paths = _find_model_auto_paths(model_config)
+    if auto_paths:
+        joined = ", ".join(f"model.{path}" for path in auto_paths)
+        raise ConfigError(
+            "Automatic model configuration is only supported during training. "
+            f"Inference uses the checkpoint signature; found: {joined}."
+        )
+
+
+def _find_model_auto_paths(value: Any, prefix: str = "") -> list[str]:
+    """Return model-config paths whose value is ``"auto"``.
+
+    Args:
+        value: Raw model config value to inspect.
+        prefix: Dot path prefix used during recursion.
+
+    Returns:
+        List of dot paths relative to the model section.
+    """
+    if isinstance(value, str) and value.lower() == "auto":
+        return [prefix]
+    if isinstance(value, dict):
+        paths: list[str] = []
+        for key, subvalue in value.items():
+            path = str(key) if prefix == "" else f"{prefix}.{key}"
+            paths.extend(_find_model_auto_paths(subvalue, path))
+        return paths
+    if isinstance(value, list):
+        paths = []
+        for idx, subvalue in enumerate(value):
+            path = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
+            paths.extend(_find_model_auto_paths(subvalue, path))
+        return paths
+    return []
 
 
 def _assign_defaults(

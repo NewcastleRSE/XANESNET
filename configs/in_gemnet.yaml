@@ -43,7 +43,7 @@ model:
   # general:
   model_type: gemnet
   # params:
-  num_targets: 173
+  num_targets: auto
   num_spherical: 7
   num_radial: 6
   num_blocks: 4

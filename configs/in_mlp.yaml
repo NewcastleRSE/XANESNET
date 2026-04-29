@@ -8,7 +8,7 @@ datasource:
 dataset:
   # general:
   dataset_type: descriptor
-  root: ./data/omnixas/processed_train/  # Where should the processed data be stored
+  root: ./data/omnixas/processed_train_mlp/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
@@ -31,8 +31,8 @@ model:
   # general:
   model_type: mlp
   # params:
-  in_size: 49
-  out_size: 173
+  in_size: auto
+  out_size: auto
   hidden_size: 256
   dropout: 0.1
   num_hidden_layers: 3

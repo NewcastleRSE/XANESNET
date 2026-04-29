@@ -24,7 +24,7 @@ model:
   # params:
   hidden_channels: 128
   reduce_channels_1: 64
-  reduce_channels_2: 173
+  reduce_channels_2: auto
   num_filters: 128
   num_interactions: 6
   num_gaussians: 50

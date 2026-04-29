@@ -10,7 +10,7 @@ dataset:
   dataset_type: gemnet_oc_mp
   root: ./data/omnixas/processed_train_gemnet_oc/  # Where should the processed data be stored
   preload: True                   # Preload dataset into RAM if True; otherwise load on-the-fly
-  skip_prepare: False
+  skip_prepare: True
   split_ratios: null
   split_indexfile: ./data/scales/split_indices_gemnet_oc.json
   # params:
@@ -45,7 +45,7 @@ model:
   # general:
   model_type: gemnet_oc
   # params:
-  num_targets: 173
+  num_targets: auto
   num_spherical: 7
   num_radial: 128
   num_blocks: 4
