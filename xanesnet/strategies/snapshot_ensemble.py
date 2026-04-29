@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-model ensemble strategy for XANESNET (placeholder)."""
+"""Snapshot ensemble strategy for XANESNET (placeholder)."""
 
 from pathlib import Path
 
@@ -27,13 +27,14 @@ from .base import Strategy
 from .registry import StrategyRegistry
 
 
-@StrategyRegistry.register("ensemble")
-class Ensemble(Strategy):
-    """Multi-model ensemble strategy.
+@StrategyRegistry.register("snapshot_ensemble")
+class SnapshotEnsemble(Strategy):
+    """Snapshot ensemble strategy.
 
     Note:
         Not yet implemented.
-        TODO: implement ensemble training and averaged inference.
+        Will be implemented later (low priority).
+        TODO: implement snapshot ensemble training and inference.
 
     Args:
         strategy_type: Strategy identifier.
@@ -63,7 +64,7 @@ class Ensemble(Strategy):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
-        """Initialize the placeholder ensemble strategy."""
+        """Initialize the placeholder snapshot ensemble strategy."""
         super().__init__(
             strategy_type,
             dataset,
@@ -79,7 +80,7 @@ class Ensemble(Strategy):
         )
 
     def setup_models(self) -> None:
-        """Raise because ensemble model setup is not implemented.
+        """Raise because snapshot ensemble model setup is not implemented.
 
         Raises:
             NotImplementedError: Always.
@@ -87,7 +88,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def init_model_weights(self) -> None:
-        """Raise because ensemble weight initialization is not implemented.
+        """Raise because snapshot ensemble weight initialization is not implemented.
 
         Raises:
             NotImplementedError: Always.
@@ -95,7 +96,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
-        """Raise because ensemble state-dict loading is not implemented.
+        """Raise because snapshot ensemble state-dict loading is not implemented.
 
         Args:
             state_dicts: State dictionaries that would be loaded into managed models.
@@ -106,7 +107,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def setup_trainers(self, device: str | torch.device) -> None:
-        """Raise because ensemble trainer setup is not implemented.
+        """Raise because snapshot ensemble trainer setup is not implemented.
 
         Args:
             device: Target device for training.
@@ -117,7 +118,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def run_training(self) -> list[Model]:
-        """Raise because ensemble training is not implemented.
+        """Raise because snapshot ensemble training is not implemented.
 
         Returns:
             Never returns normally.
@@ -130,7 +131,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """Raise because ensemble inferencer setup is not implemented.
+        """Raise because snapshot ensemble inferencer setup is not implemented.
 
         Args:
             device: Target device for inference.
@@ -141,7 +142,7 @@ class Ensemble(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def run_inference(self, predictions_save_path: str | Path | None) -> None:
-        """Raise because ensemble inference is not implemented.
+        """Raise because snapshot ensemble inference is not implemented.
 
         Args:
             predictions_save_path: Destination directory for prediction output.
@@ -155,7 +156,7 @@ class Ensemble(Strategy):
 
     @property
     def model_signature(self) -> Config:
-        """Raise because ensemble model signatures are not implemented.
+        """Raise because snapshot ensemble model signatures are not implemented.
 
         Returns:
             Never returns normally.
@@ -167,7 +168,7 @@ class Ensemble(Strategy):
 
     @property
     def signature(self) -> Config:
-        """Return the placeholder ensemble strategy configuration.
+        """Return the placeholder snapshot ensemble strategy configuration.
 
         Returns:
             A ``Config`` containing the base strategy signature only.

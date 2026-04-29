@@ -31,9 +31,9 @@ class Strategy(ABC):
     """Abstract base class for training and inference strategies.
 
     A strategy defines how one or more models are set up, trained, and used for
-    inference (e.g. single model, ensemble, k-fold cross-validation). Subclasses
-    must implement all abstract methods to provide concrete training and inference
-    logic.
+    inference (e.g. single model, deep ensemble, snapshot ensemble, bootstrap).
+    Subclasses must implement all abstract methods to provide concrete training
+    and inference logic.
 
     Raises:
         ValueError: If neither ``trainer_config`` nor ``inferencer_config`` is

@@ -427,13 +427,13 @@ STRATEGY_DEFAULTS: dict[str, dict[str, Any]] = {
         "bias_init": "zeros",
         "checkpoint_interval": None,
     },
-    "ensemble": {
+    "deep_ensemble": {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
         "checkpoint_interval": None,
     },
-    "kfold": {
+    "snapshot_ensemble": {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
@@ -494,6 +494,6 @@ INFERENCER_REQUIRED: dict[str, list[str]] = {
 STRATEGY_REQUIRED: dict[str, list[str]] = {
     "single": [],
     "bootstrap": [],
-    "ensemble": [],
-    "kfold": [],
+    "deep_ensemble": [],
+    "snapshot_ensemble": [],
 }

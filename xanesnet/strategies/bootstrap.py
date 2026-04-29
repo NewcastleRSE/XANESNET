@@ -33,6 +33,7 @@ class Bootstrap(Strategy):
 
     Note:
         Not yet implemented.
+        Will be implemented later (low priority).
         TODO: implement bootstrap sampling for model ensembling.
 
     Args:

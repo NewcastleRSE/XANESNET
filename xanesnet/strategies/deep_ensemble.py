@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <https://www.gnu.org/licenses/>.
 
-"""K-fold cross-validation strategy for XANESNET (placeholder)."""
+"""Multi-model ensemble strategy for XANESNET (placeholder)."""
 
 from pathlib import Path
 
@@ -27,13 +27,13 @@ from .base import Strategy
 from .registry import StrategyRegistry
 
 
-@StrategyRegistry.register("kfold")
-class KFold(Strategy):
-    """K-fold cross-validation strategy.
+@StrategyRegistry.register("deep_ensemble")
+class DeepEnsemble(Strategy):
+    """Multi-model deep ensemble strategy.
 
     Note:
         Not yet implemented.
-        TODO: implement k-fold data splitting and per-fold training.
+        TODO: implement deep ensemble training and averaged inference.
 
     Args:
         strategy_type: Strategy identifier.
@@ -63,7 +63,7 @@ class KFold(Strategy):
         trainer_config: Config | None = None,
         inferencer_config: Config | None = None,
     ) -> None:
-        """Initialize the placeholder k-fold strategy."""
+        """Initialize the placeholder deep ensemble strategy."""
         super().__init__(
             strategy_type,
             dataset,
@@ -79,7 +79,7 @@ class KFold(Strategy):
         )
 
     def setup_models(self) -> None:
-        """Raise because k-fold model setup is not implemented.
+        """Raise because deep ensemble model setup is not implemented.
 
         Raises:
             NotImplementedError: Always.
@@ -87,7 +87,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def init_model_weights(self) -> None:
-        """Raise because k-fold weight initialization is not implemented.
+        """Raise because deep ensemble weight initialization is not implemented.
 
         Raises:
             NotImplementedError: Always.
@@ -95,7 +95,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def set_state_dicts(self, state_dicts: list[dict]) -> None:
-        """Raise because k-fold state-dict loading is not implemented.
+        """Raise because deep ensemble state-dict loading is not implemented.
 
         Args:
             state_dicts: State dictionaries that would be loaded into managed models.
@@ -106,7 +106,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def setup_trainers(self, device: str | torch.device) -> None:
-        """Raise because k-fold trainer setup is not implemented.
+        """Raise because deep ensemble trainer setup is not implemented.
 
         Args:
             device: Target device for training.
@@ -117,7 +117,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def run_training(self) -> list[Model]:
-        """Raise because k-fold training is not implemented.
+        """Raise because deep ensemble training is not implemented.
 
         Returns:
             Never returns normally.
@@ -130,7 +130,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """Raise because k-fold inferencer setup is not implemented.
+        """Raise because deep ensemble inferencer setup is not implemented.
 
         Args:
             device: Target device for inference.
@@ -141,7 +141,7 @@ class KFold(Strategy):
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
     def run_inference(self, predictions_save_path: str | Path | None) -> None:
-        """Raise because k-fold inference is not implemented.
+        """Raise because deep ensemble inference is not implemented.
 
         Args:
             predictions_save_path: Destination directory for prediction output.
@@ -155,7 +155,7 @@ class KFold(Strategy):
 
     @property
     def model_signature(self) -> Config:
-        """Raise because k-fold model signatures are not implemented.
+        """Raise because deep ensemble model signatures are not implemented.
 
         Returns:
             Never returns normally.
@@ -167,7 +167,7 @@ class KFold(Strategy):
 
     @property
     def signature(self) -> Config:
-        """Return the placeholder k-fold strategy configuration.
+        """Return the placeholder deep ensemble strategy configuration.
 
         Returns:
             A ``Config`` containing the base strategy signature only.

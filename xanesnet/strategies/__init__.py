@@ -17,16 +17,16 @@
 
 from .base import Strategy
 from .bootstrap import Bootstrap
-from .ensemble import Ensemble
-from .kfold import KFold
+from .deep_ensemble import DeepEnsemble
+from .snapshot_ensemble import SnapshotEnsemble
 from .registry import StrategyRegistry
 from .single import Single
 
 __all__ = [
     "Strategy",
     "Bootstrap",
-    "Ensemble",
-    "KFold",
+    "DeepEnsemble",
+    "SnapshotEnsemble",
     "Single",
     "StrategyRegistry",
 ]
