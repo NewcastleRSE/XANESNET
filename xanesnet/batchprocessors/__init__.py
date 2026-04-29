@@ -16,7 +16,7 @@
 """Public API for all XANESNET batch processors."""
 
 from .base import BatchProcessor
-from .descriptor_mlp import XanesXMLPBatchProcessor
+from .descriptor_mlp import DescriptorMLPBatchProcessor
 from .e3ee import E3EEBatchProcessor
 from .e3ee_full import E3EEFullBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
@@ -29,7 +29,7 @@ from .registry import BatchProcessorRegistry
 __all__ = [
     "BatchProcessor",
     "BatchProcessorRegistry",
-    "XanesXMLPBatchProcessor",
+    "DescriptorMLPBatchProcessor",
     "GemNetBatchProcessor",
     "GemNetOCBatchProcessor",
     "E3EEBatchProcessor",

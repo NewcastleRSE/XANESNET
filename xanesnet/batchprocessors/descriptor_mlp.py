@@ -26,7 +26,7 @@ from .registry import BatchProcessorRegistry
 
 @BatchProcessorRegistry.register("descriptor", "mlp")
 @BatchProcessorRegistry.register("descriptor_mp", "mlp")
-class XanesXMLPBatchProcessor(BatchProcessor):
+class DescriptorMLPBatchProcessor(BatchProcessor):
     """Batch processor for ``DescriptorData`` feeding the MLP model.
 
     Extracts the precomputed descriptor vector ``x`` as model input and the
