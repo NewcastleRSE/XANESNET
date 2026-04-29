@@ -1,0 +1,786 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>xanesnet.core_analyze - XANESNET 0.1.0</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">XANESNET 0.1.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">XANESNET 0.1.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../modules.html">xanesnet</a><input aria-label="Toggle navigation of xanesnet" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../xanesnet.html">xanesnet package</a><input aria-label="Toggle navigation of xanesnet package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../xanesnet.analysis.html">xanesnet.analysis package</a><input aria-label="Toggle navigation of xanesnet.analysis package" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.analysis.aggregators.html">xanesnet.analysis.aggregators package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.analysis.collectors.html">xanesnet.analysis.collectors package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.analysis.plotters.html">xanesnet.analysis.plotters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.analysis.reporters.html">xanesnet.analysis.reporters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.analysis.selectors.html">xanesnet.analysis.selectors package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.batchprocessors.html">xanesnet.batchprocessors package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.checkpointing.html">xanesnet.checkpointing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.components.html">xanesnet.components package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../xanesnet.datasets.html">xanesnet.datasets package</a><input aria-label="Toggle navigation of xanesnet.datasets package" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.datasets.base.html">xanesnet.datasets.base package</a></li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.datasets.torch.html">xanesnet.datasets.torch package</a><input aria-label="Toggle navigation of xanesnet.datasets.torch package" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.datasets.torch.mp.html">xanesnet.datasets.torch.mp package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.datasets.torchgeometric.html">xanesnet.datasets.torchgeometric package</a><input aria-label="Toggle navigation of xanesnet.datasets.torchgeometric package" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.datasets.torchgeometric.mp.html">xanesnet.datasets.torchgeometric.mp package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.datasources.html">xanesnet.datasources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.descriptors.html">xanesnet.descriptors package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.losses.html">xanesnet.losses package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../xanesnet.models.html">xanesnet.models package</a><input aria-label="Toggle navigation of xanesnet.models package" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.models.dimenet.html">xanesnet.models.dimenet package</a></li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.models.e3ee.html">xanesnet.models.e3ee package</a><input aria-label="Toggle navigation of xanesnet.models.e3ee package" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.e3ee.layers.html">xanesnet.models.e3ee.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.e3ee.utils.html">xanesnet.models.e3ee.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.models.e3ee_full.html">xanesnet.models.e3ee_full package</a><input aria-label="Toggle navigation of xanesnet.models.e3ee_full package" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.e3ee_full.layers.html">xanesnet.models.e3ee_full.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.e3ee_full.utils.html">xanesnet.models.e3ee_full.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.models.envembed.html">xanesnet.models.envembed package</a><input aria-label="Toggle navigation of xanesnet.models.envembed package" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.envembed.layers.html">xanesnet.models.envembed.layers package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.models.gemnet.html">xanesnet.models.gemnet package</a><input aria-label="Toggle navigation of xanesnet.models.gemnet package" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.gemnet.layers.html">xanesnet.models.gemnet.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.gemnet.utils.html">xanesnet.models.gemnet.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../xanesnet.models.gemnet_oc.html">xanesnet.models.gemnet_oc package</a><input aria-label="Toggle navigation of xanesnet.models.gemnet_oc package" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.gemnet_oc.layers.html">xanesnet.models.gemnet_oc.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../xanesnet.models.gemnet_oc.utils.html">xanesnet.models.gemnet_oc.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.models.lstm.html">xanesnet.models.lstm package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.models.mlp.html">xanesnet.models.mlp package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.models.schnet.html">xanesnet.models.schnet package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.models.xasnetv2.html">xanesnet.models.xasnetv2 package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.regularizers.html">xanesnet.regularizers package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../xanesnet.runners.html">xanesnet.runners package</a><input aria-label="Toggle navigation of xanesnet.runners package" class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.runners.inferencers.html">xanesnet.runners.inferencers package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.runners.trainers.html">xanesnet.runners.trainers package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.serialization.html">xanesnet.serialization package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.stoppers.html">xanesnet.stoppers package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../xanesnet.strategies.html">xanesnet.strategies package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../xanesnet.utils.html">xanesnet.utils package</a><input aria-label="Toggle navigation of xanesnet.utils package" class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.utils.graph.html">xanesnet.utils.graph package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../xanesnet.utils.math.html">xanesnet.utils.math package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../genindex.html">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../search.html">Search Page</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for xanesnet.core_analyze</h1><div class="highlight"><pre>
+<span></span><span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+<span class="c1">#</span>
+<span class="c1"># XANESNET</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify it under the terms of the</span>
+<span class="c1"># GNU General Public License as published by the Free Software Foundation, either version 3 of the</span>
+<span class="c1"># License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without</span>
+<span class="c1"># even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU</span>
+<span class="c1"># General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License along with this program.</span>
+<span class="c1"># If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+
+<span class="sd">&quot;&quot;&quot;Core analysis pipeline: setup, collection, aggregation, reporting, and plotting.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">argparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">Namespace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.aggregators</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Aggregator</span><span class="p">,</span>
+    <span class="n">AggregatorRegistry</span><span class="p">,</span>
+    <span class="n">AggregatorResult</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.collectors</span><span class="w"> </span><span class="kn">import</span> <span class="n">Collector</span><span class="p">,</span> <span class="n">CollectorRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.plotters</span><span class="w"> </span><span class="kn">import</span> <span class="n">Plotter</span><span class="p">,</span> <span class="n">PlotterRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.reporters</span><span class="w"> </span><span class="kn">import</span> <span class="n">Reporter</span><span class="p">,</span> <span class="n">ReporterRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.result</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalysisResults</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.analysis.selectors</span><span class="w"> </span><span class="kn">import</span> <span class="n">Selector</span><span class="p">,</span> <span class="n">SelectorRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.serialization.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.serialization.jsonl_stream</span><span class="w"> </span><span class="kn">import</span> <span class="n">JSONLStream</span><span class="p">,</span> <span class="n">json_friendly</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xanesnet.serialization.prediction_readers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PredictionReader</span><span class="p">,</span>
+    <span class="n">detect_prediction_format</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1">###############################################################################</span>
+<span class="c1">################################### ANALYZE ###################################</span>
+<span class="c1">###############################################################################</span>
+
+
+<div class="viewcode-block" id="analyze">
+<a class="viewcode-back" href="../../xanesnet.html#xanesnet.core_analyze.analyze">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">analyze</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span> <span class="n">args_namespace</span><span class="p">:</span> <span class="n">Namespace</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run the complete analysis pipeline.</span>
+
+<span class="sd">    Sets up readers, selectors, collectors, aggregators, reporters, and</span>
+<span class="sd">    plotters from ``config``; executes the pipeline; and writes all outputs</span>
+<span class="sd">    under ``save_dir``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+<span class="sd">        args_namespace: Parsed CLI arguments (must contain ``predictions``).</span>
+<span class="sd">        save_dir: Root directory for all analysis outputs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Analysis.&quot;</span><span class="p">)</span>
+
+    <span class="n">predictions_dirs</span> <span class="o">=</span> <span class="n">args_namespace</span><span class="o">.</span><span class="n">predictions</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;You provided </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions_dirs</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions directories:&quot;</span><span class="p">)</span>
+
+    <span class="n">predictions_readers</span> <span class="o">=</span> <span class="n">_setup_predictions_readers</span><span class="p">(</span><span class="n">predictions_dirs</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">selectors</span><span class="p">,</span> <span class="n">selectors_config</span> <span class="o">=</span> <span class="n">_setup_selectors</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">predictions_readers</span><span class="p">)</span>
+        <span class="n">collectors</span><span class="p">,</span> <span class="n">collectors_config</span> <span class="o">=</span> <span class="n">_setup_collectors</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">aggregators</span><span class="p">,</span> <span class="n">aggregators_config</span> <span class="o">=</span> <span class="n">_setup_aggregators</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="n">reporters</span><span class="p">,</span> <span class="n">reporters_config</span> <span class="o">=</span> <span class="n">_setup_reporters</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">plotters</span><span class="p">,</span> <span class="n">plotters_config</span> <span class="o">=</span> <span class="n">_setup_plotters</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="n">selectors_config</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;selectors.yaml&quot;</span><span class="p">)</span>
+        <span class="n">collectors_config</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;collectors.yaml&quot;</span><span class="p">)</span>
+        <span class="n">aggregators_config</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;aggregators.yaml&quot;</span><span class="p">)</span>
+        <span class="n">reporters_config</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;reporters.yaml&quot;</span><span class="p">)</span>
+        <span class="n">plotters_config</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;plotters.yaml&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Run collectors</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running collectors.&quot;</span><span class="p">)</span>
+        <span class="n">collector_results</span> <span class="o">=</span> <span class="n">_run_collectors</span><span class="p">(</span><span class="n">collectors</span><span class="p">,</span> <span class="n">selectors</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run aggregators</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running aggregators.&quot;</span><span class="p">)</span>
+        <span class="n">aggregator_results</span> <span class="o">=</span> <span class="n">_run_aggregators</span><span class="p">(</span><span class="n">aggregators</span><span class="p">,</span> <span class="n">selectors</span><span class="p">,</span> <span class="n">collector_results</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">AnalysisResults</span><span class="p">(</span>
+            <span class="n">selectors</span><span class="o">=</span><span class="n">selectors</span><span class="p">,</span>
+            <span class="n">collector_results</span><span class="o">=</span><span class="n">collector_results</span><span class="p">,</span>
+            <span class="n">aggregator_results</span><span class="o">=</span><span class="n">aggregator_results</span><span class="p">,</span>
+            <span class="n">selectors_config</span><span class="o">=</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">selectors_config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;selectors&quot;</span><span class="p">)],</span>
+            <span class="n">collectors_config</span><span class="o">=</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">collectors_config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;collectors&quot;</span><span class="p">)],</span>
+            <span class="n">aggregators_config</span><span class="o">=</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">aggregators_config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;aggregators&quot;</span><span class="p">)],</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Run reporters</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running reporters.&quot;</span><span class="p">)</span>
+        <span class="n">_run_reporters</span><span class="p">(</span><span class="n">reporters</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run plotters</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running plotters.&quot;</span><span class="p">)</span>
+        <span class="n">_run_plotters</span><span class="p">(</span><span class="n">plotters</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">predictions_reader</span> <span class="ow">in</span> <span class="n">predictions_readers</span><span class="p">:</span>
+            <span class="n">predictions_reader</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="c1"># Summary</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Analysis completed!&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1">###############################################################################</span>
+<span class="c1">############################### SETUP FUNCTIONS ###############################</span>
+<span class="c1">###############################################################################</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_predictions_readers</span><span class="p">(</span><span class="n">predictions_dirs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">PredictionReader</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a prediction reader for each supplied directory.</span>
+
+<span class="sd">    Auto-detects the prediction format from the directory layout.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        predictions_dirs: Paths to directories containing prediction files.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        One ``PredictionReader`` per directory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">readers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PredictionReader</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">predictions_dir</span> <span class="ow">in</span> <span class="n">predictions_dirs</span><span class="p">:</span>
+        <span class="n">reader_class</span> <span class="o">=</span> <span class="n">detect_prediction_format</span><span class="p">(</span><span class="n">predictions_dir</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detected format for </span><span class="si">{</span><span class="n">predictions_dir</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">reader_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">reader_class</span><span class="p">(</span><span class="n">predictions_dir</span><span class="p">)</span>
+        <span class="n">readers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">readers</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_selectors</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span> <span class="n">predictions_readers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PredictionReader</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Selector</span><span class="p">]],</span> <span class="n">Config</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate selectors for every prediction reader.</span>
+
+<span class="sd">    If no selectors are specified in ``config``, an ``&#39;all&#39;`` selector is</span>
+<span class="sd">    created for each reader. Otherwise one selector per configured type is</span>
+<span class="sd">    instantiated per reader.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+<span class="sd">        predictions_readers: Readers to attach selectors to.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ``(selectors, selectors_config)`` tuple where ``selectors`` is a</span>
+<span class="sd">        list of per-reader selector lists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">selectors_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;selectors&quot;</span><span class="p">)</span>
+
+    <span class="c1"># If no selectors are configured, use &#39;all&#39; selector for each predictions reader</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">selectors_config</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No selectors configured, using &#39;all&#39; selector for each predictions reader&quot;</span><span class="p">)</span>
+        <span class="n">selector_config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;selector_type&quot;</span><span class="p">:</span> <span class="s2">&quot;all&quot;</span><span class="p">})</span>
+        <span class="n">selectors</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="n">SelectorRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;all&quot;</span><span class="p">)(</span><span class="o">**</span><span class="n">selector_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">(),</span> <span class="n">data_source</span><span class="o">=</span><span class="n">reader</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">reader</span> <span class="ow">in</span> <span class="n">predictions_readers</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">selectors</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;selectors&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">selector_config</span><span class="p">]})</span>
+
+    <span class="c1"># Initializing configured selectors</span>
+    <span class="n">selectors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Selector</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">selector_config</span> <span class="ow">in</span> <span class="n">selectors_config</span><span class="p">:</span>
+        <span class="n">selector_type</span> <span class="o">=</span> <span class="n">selector_config</span><span class="o">.</span><span class="n">get_str</span><span class="p">(</span><span class="s2">&quot;selector_type&quot;</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initializing selector: </span><span class="si">{</span><span class="n">selector_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">selector_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Selector</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">reader</span> <span class="ow">in</span> <span class="n">predictions_readers</span><span class="p">:</span>
+            <span class="n">selector</span> <span class="o">=</span> <span class="n">SelectorRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">selector_type</span><span class="p">)(</span><span class="o">**</span><span class="n">selector_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">(),</span> <span class="n">data_source</span><span class="o">=</span><span class="n">reader</span><span class="p">)</span>
+            <span class="n">selector_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">selector</span><span class="p">)</span>
+        <span class="n">selectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">selector_list</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">selectors</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;selectors&quot;</span><span class="p">:</span> <span class="n">selectors_config</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_collectors</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Collector</span><span class="p">],</span> <span class="n">Config</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate collectors from the configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ``(collectors, collectors_config)`` tuple.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">collectors_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;collectors&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collectors_config</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collectors_config</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No collectors configured.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;collectors&quot;</span><span class="p">:</span> <span class="p">[]})</span>
+
+    <span class="n">collectors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Collector</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">collector_config</span> <span class="ow">in</span> <span class="n">collectors_config</span><span class="p">:</span>
+        <span class="n">collector_type</span> <span class="o">=</span> <span class="n">collector_config</span><span class="o">.</span><span class="n">get_str</span><span class="p">(</span><span class="s2">&quot;collector_type&quot;</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initializing collector: </span><span class="si">{</span><span class="n">collector_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">collector</span> <span class="o">=</span> <span class="n">CollectorRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">collector_type</span><span class="p">)(</span><span class="o">**</span><span class="n">collector_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">())</span>
+        <span class="n">collectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">collector</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">collectors</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;collectors&quot;</span><span class="p">:</span> <span class="n">collectors_config</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_aggregators</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Aggregator</span><span class="p">],</span> <span class="n">Config</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate aggregators from the configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ``(aggregators, aggregators_config)`` tuple.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aggregators_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;aggregators&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">aggregators_config</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No aggregators configured.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;aggregators&quot;</span><span class="p">:</span> <span class="p">[]})</span>
+
+    <span class="n">aggregators</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Aggregator</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aggregator_config</span> <span class="ow">in</span> <span class="n">aggregators_config</span><span class="p">:</span>
+        <span class="n">aggregator_type</span> <span class="o">=</span> <span class="n">aggregator_config</span><span class="o">.</span><span class="n">get_str</span><span class="p">(</span><span class="s2">&quot;aggregator_type&quot;</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initializing aggregator: </span><span class="si">{</span><span class="n">aggregator_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">aggregator</span> <span class="o">=</span> <span class="n">AggregatorRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">aggregator_type</span><span class="p">)(</span><span class="o">**</span><span class="n">aggregator_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">())</span>
+        <span class="n">aggregators</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">aggregator</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">aggregators</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;aggregators&quot;</span><span class="p">:</span> <span class="n">aggregators_config</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_reporters</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Reporter</span><span class="p">],</span> <span class="n">Config</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate reporters from the configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ``(reporters, reporters_config)`` tuple.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">reporters_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;reporters&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">reporters_config</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No reporters configured.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;reporters&quot;</span><span class="p">:</span> <span class="p">[]})</span>
+
+    <span class="n">reporters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Reporter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">reporter_config</span> <span class="ow">in</span> <span class="n">reporters_config</span><span class="p">:</span>
+        <span class="n">reporter_type</span> <span class="o">=</span> <span class="n">reporter_config</span><span class="o">.</span><span class="n">get_str</span><span class="p">(</span><span class="s2">&quot;reporter_type&quot;</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initializing reporter: </span><span class="si">{</span><span class="n">reporter_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">reporter</span> <span class="o">=</span> <span class="n">ReporterRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">reporter_type</span><span class="p">)(</span><span class="o">**</span><span class="n">reporter_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">())</span>
+        <span class="n">reporters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reporter</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reporters</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;reporters&quot;</span><span class="p">:</span> <span class="n">reporters_config</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_setup_plotters</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Plotter</span><span class="p">],</span> <span class="n">Config</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate plotters from the configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Validated analysis configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ``(plotters, plotters_config)`` tuple.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plotters_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config_list</span><span class="p">(</span><span class="s2">&quot;plotters&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">plotters_config</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No plotters configured.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;plotters&quot;</span><span class="p">:</span> <span class="p">[]})</span>
+
+    <span class="n">plotters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Plotter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">plotter_config</span> <span class="ow">in</span> <span class="n">plotters_config</span><span class="p">:</span>
+        <span class="n">plotter_type</span> <span class="o">=</span> <span class="n">plotter_config</span><span class="o">.</span><span class="n">get_str</span><span class="p">(</span><span class="s2">&quot;plotter_type&quot;</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initializing plotter: </span><span class="si">{</span><span class="n">plotter_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">plotter</span> <span class="o">=</span> <span class="n">PlotterRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">plotter_type</span><span class="p">)(</span><span class="o">**</span><span class="n">plotter_config</span><span class="o">.</span><span class="n">as_kwargs</span><span class="p">())</span>
+        <span class="n">plotters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plotter</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">plotters</span><span class="p">,</span> <span class="n">Config</span><span class="p">({</span><span class="s2">&quot;plotters&quot;</span><span class="p">:</span> <span class="n">plotters_config</span><span class="p">})</span>
+
+
+<span class="c1">###############################################################################</span>
+<span class="c1">############################ ANALYSIS PIPELINE ################################</span>
+<span class="c1">###############################################################################</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_collectors</span><span class="p">(</span>
+    <span class="n">collectors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Collector</span><span class="p">],</span> <span class="n">selectors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Selector</span><span class="p">]],</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">JSONLStream</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Execute all collectors for each selector and persist results to disk.</span>
+
+<span class="sd">    Results are written as JSONL files under ``&lt;save_dir&gt;/aux/``. Each sample</span>
+<span class="sd">    record contains a ``&quot;sample_id&quot;`` key plus one entry per collector output key.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        collectors: Collector instances to run on each sample.</span>
+<span class="sd">        selectors: Per-reader lists of selectors providing sample iterators.</span>
+<span class="sd">        save_dir: Root output directory; JSONL files are written under</span>
+<span class="sd">            ``aux/predictions_&lt;NNN&gt;/&lt;selector_idx&gt;.jsonl``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Results indexed by ``[predictions_idx][selector_idx]``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">collectors</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="n">aux_root</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;aux&quot;</span>
+
+    <span class="c1"># Iterating over predictions selectors</span>
+    <span class="n">all_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">JSONLStream</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">predictions_idx</span><span class="p">,</span> <span class="n">predictions_selectors</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">selectors</span><span class="p">):</span>
+        <span class="c1"># Create auxiliary sub directory for this predictions reader</span>
+        <span class="n">aux_subdir</span> <span class="o">=</span> <span class="n">aux_root</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;predictions_</span><span class="si">{</span><span class="n">predictions_idx</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">aux_subdir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Running all collectors for this predictions</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Predictions </span><span class="si">{</span><span class="n">predictions_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">selectors</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="n">predictions_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">JSONLStream</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">selector_idx</span><span class="p">,</span> <span class="n">selector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">predictions_selectors</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Selector </span><span class="si">{</span><span class="n">selector_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions_selectors</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+            <span class="n">aux_path</span> <span class="o">=</span> <span class="n">aux_subdir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">selector_idx</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">.jsonl&quot;</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">aux_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="c1"># Iterating over all samples in selector</span>
+                <span class="k">for</span> <span class="n">sample_idx</span><span class="p">,</span> <span class="n">sample</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">selector</span><span class="p">):</span>
+                    <span class="n">sample_id</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sample_id&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">sample_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sample </span><span class="si">{</span><span class="n">sample_idx</span><span class="si">}</span><span class="s2"> has no &#39;sample_id&#39;. This is not good!&quot;</span><span class="p">)</span>
+
+                    <span class="c1"># Iterating over all collectors</span>
+                    <span class="n">sample_result</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;sample_id&quot;</span><span class="p">:</span> <span class="n">sample_id</span><span class="p">}</span>
+                    <span class="k">for</span> <span class="n">collector</span> <span class="ow">in</span> <span class="n">collectors</span><span class="p">:</span>
+                        <span class="n">collector_result</span> <span class="o">=</span> <span class="n">collector</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>  <span class="c1"># run collector on the sample</span>
+                        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">collector_result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">sample_result</span><span class="p">:</span>
+                                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Duplicate key &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; for sample </span><span class="si">{</span><span class="n">sample_id</span><span class="si">}</span><span class="s2">. Overwriting!&quot;</span><span class="p">)</span>
+                            <span class="n">sample_result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">json_friendly</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">sample_result</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Save count to meta file for later use when loading the JSONLStream</span>
+            <span class="n">meta_path</span> <span class="o">=</span> <span class="n">aux_subdir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">selector_idx</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">.meta.json&quot;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">meta_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">meta_file</span><span class="p">:</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">({</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">},</span> <span class="n">meta_file</span><span class="p">)</span>
+
+            <span class="n">predictions_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">JSONLStream</span><span class="p">(</span><span class="n">aux_path</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="n">count</span><span class="p">))</span>
+
+        <span class="n">all_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">predictions_results</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">all_results</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_aggregators</span><span class="p">(</span>
+    <span class="n">aggregators</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Aggregator</span><span class="p">],</span> <span class="n">selectors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Selector</span><span class="p">]],</span> <span class="n">collector_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">JSONLStream</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">AggregatorResult</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run all aggregators over the per-sample collector results.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        aggregators: Aggregator instances to apply.</span>
+<span class="sd">        selectors: Per-reader lists of selectors (used for loop indexing).</span>
+<span class="sd">        collector_results: Output of ``_run_collectors``, indexed by</span>
+<span class="sd">            ``[predictions_idx][selector_idx]``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Results indexed by ``[predictions_idx][selector_idx][aggregator_idx]``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">aggregators</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="c1"># Iterating over predictions selectors</span>
+    <span class="n">all_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">AggregatorResult</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">predictions_idx</span><span class="p">,</span> <span class="n">predictions_selectors</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">selectors</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Predictions </span><span class="si">{</span><span class="n">predictions_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">selectors</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Iterating over selectors for this predictions reader</span>
+        <span class="n">predictions_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">AggregatorResult</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">selector_idx</span><span class="p">,</span> <span class="n">selector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">predictions_selectors</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Selector </span><span class="si">{</span><span class="n">selector_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions_selectors</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+            <span class="n">per_sample_values</span> <span class="o">=</span> <span class="n">collector_results</span><span class="p">[</span><span class="n">predictions_idx</span><span class="p">][</span><span class="n">selector_idx</span><span class="p">]</span>
+
+            <span class="n">selector_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AggregatorResult</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">aggregator_idx</span><span class="p">,</span> <span class="n">aggregator</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">aggregators</span><span class="p">):</span>
+                <span class="n">aggregated</span> <span class="o">=</span> <span class="n">aggregator</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="n">selector</span><span class="p">,</span> <span class="n">per_sample_values</span><span class="p">,</span> <span class="n">aggregator_idx</span><span class="p">)</span>
+                <span class="n">selector_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">aggregated</span><span class="p">)</span>
+
+            <span class="n">predictions_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">selector_results</span><span class="p">)</span>
+
+        <span class="n">all_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">predictions_results</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">all_results</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_reporters</span><span class="p">(</span><span class="n">reporters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Reporter</span><span class="p">],</span> <span class="n">results</span><span class="p">:</span> <span class="n">AnalysisResults</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write reports for all configured reporters.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        reporters: Reporter instances to execute.</span>
+<span class="sd">        results: Collected and aggregated analysis results.</span>
+<span class="sd">        save_dir: Root output directory; reports are written under</span>
+<span class="sd">            ``&lt;save_dir&gt;/reports/``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">reporters</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">report_dir</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;reports&quot;</span>
+
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">reporter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reporters</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Reporter </span><span class="si">{</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">reporters</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">reporter</span><span class="o">.</span><span class="n">reporter_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">reporter</span><span class="o">.</span><span class="n">report</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">report_dir</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_plotters</span><span class="p">(</span><span class="n">plotters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Plotter</span><span class="p">],</span> <span class="n">results</span><span class="p">:</span> <span class="n">AnalysisResults</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate plots for all configured plotters.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        plotters: Plotter instances to execute.</span>
+<span class="sd">        results: Collected and aggregated analysis results.</span>
+<span class="sd">        save_dir: Root output directory; plots are written under</span>
+<span class="sd">            ``&lt;save_dir&gt;/plots/``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">plotters</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">plot_dir</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="s2">&quot;plots&quot;</span>
+
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">plotter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">plotters</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Plotter </span><span class="si">{</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">plotters</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">plotter</span><span class="o">.</span><span class="n">plotter_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">plot_dir</span><span class="p">)</span>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, Hendrik Junkawitsch
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/NewcastleRSE/xray-spectroscopy-ml" aria-label="GitHub"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8 c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg></a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=e548382b"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

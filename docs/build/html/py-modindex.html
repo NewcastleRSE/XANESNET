@@ -1,0 +1,1778 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 --><title>Python Module Index - XANESNET 0.1.0</title>
+<link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">XANESNET 0.1.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">XANESNET 0.1.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="modules.html">xanesnet</a><input aria-label="Toggle navigation of xanesnet" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xanesnet.html">xanesnet package</a><input aria-label="Toggle navigation of xanesnet package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xanesnet.analysis.html">xanesnet.analysis package</a><input aria-label="Toggle navigation of xanesnet.analysis package" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.analysis.aggregators.html">xanesnet.analysis.aggregators package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.analysis.collectors.html">xanesnet.analysis.collectors package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.analysis.plotters.html">xanesnet.analysis.plotters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.analysis.reporters.html">xanesnet.analysis.reporters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.analysis.selectors.html">xanesnet.analysis.selectors package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.batchprocessors.html">xanesnet.batchprocessors package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.checkpointing.html">xanesnet.checkpointing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.components.html">xanesnet.components package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xanesnet.datasets.html">xanesnet.datasets package</a><input aria-label="Toggle navigation of xanesnet.datasets package" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.datasets.base.html">xanesnet.datasets.base package</a></li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.datasets.torch.html">xanesnet.datasets.torch package</a><input aria-label="Toggle navigation of xanesnet.datasets.torch package" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.datasets.torch.mp.html">xanesnet.datasets.torch.mp package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.datasets.torchgeometric.html">xanesnet.datasets.torchgeometric package</a><input aria-label="Toggle navigation of xanesnet.datasets.torchgeometric package" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.datasets.torchgeometric.mp.html">xanesnet.datasets.torchgeometric.mp package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.datasources.html">xanesnet.datasources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.descriptors.html">xanesnet.descriptors package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.losses.html">xanesnet.losses package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xanesnet.models.html">xanesnet.models package</a><input aria-label="Toggle navigation of xanesnet.models package" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.models.dimenet.html">xanesnet.models.dimenet package</a></li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.models.e3ee.html">xanesnet.models.e3ee package</a><input aria-label="Toggle navigation of xanesnet.models.e3ee package" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.e3ee.layers.html">xanesnet.models.e3ee.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.e3ee.utils.html">xanesnet.models.e3ee.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.models.e3ee_full.html">xanesnet.models.e3ee_full package</a><input aria-label="Toggle navigation of xanesnet.models.e3ee_full package" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.e3ee_full.layers.html">xanesnet.models.e3ee_full.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.e3ee_full.utils.html">xanesnet.models.e3ee_full.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.models.envembed.html">xanesnet.models.envembed package</a><input aria-label="Toggle navigation of xanesnet.models.envembed package" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.envembed.layers.html">xanesnet.models.envembed.layers package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.models.gemnet.html">xanesnet.models.gemnet package</a><input aria-label="Toggle navigation of xanesnet.models.gemnet package" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.gemnet.layers.html">xanesnet.models.gemnet.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.gemnet.utils.html">xanesnet.models.gemnet.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="xanesnet.models.gemnet_oc.html">xanesnet.models.gemnet_oc package</a><input aria-label="Toggle navigation of xanesnet.models.gemnet_oc package" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.gemnet_oc.layers.html">xanesnet.models.gemnet_oc.layers package</a></li>
+<li class="toctree-l5"><a class="reference internal" href="xanesnet.models.gemnet_oc.utils.html">xanesnet.models.gemnet_oc.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.models.lstm.html">xanesnet.models.lstm package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.models.mlp.html">xanesnet.models.mlp package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.models.schnet.html">xanesnet.models.schnet package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.models.xasnetv2.html">xanesnet.models.xasnetv2 package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.regularizers.html">xanesnet.regularizers package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xanesnet.runners.html">xanesnet.runners package</a><input aria-label="Toggle navigation of xanesnet.runners package" class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.runners.inferencers.html">xanesnet.runners.inferencers package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.runners.trainers.html">xanesnet.runners.trainers package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.serialization.html">xanesnet.serialization package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.stoppers.html">xanesnet.stoppers package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xanesnet.strategies.html">xanesnet.strategies package</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xanesnet.utils.html">xanesnet.utils package</a><input aria-label="Toggle navigation of xanesnet.utils package" class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.utils.graph.html">xanesnet.utils.graph package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xanesnet.utils.math.html">xanesnet.utils.math package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="search.html">Search Page</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          
+<section class="domainindex-section">
+  <h1>Python Module Index</h1>
+  <div class="domainindex-jumpbox"><a href="#cap-x"><strong>x</strong></a></div>
+</section>
+<table class="domainindex-table">
+  <tr class="pcap">
+    <td></td><td>&#160;</td><td></td>
+  </tr>
+  <tr class="cap" id="cap-x">
+    <td></td><td><strong>x</strong></td><td></td>
+  </tr>
+  <tr>
+    <td><img src="_static/minus.png" class="toggler"
+              id="toggle-1" style="display: none" alt="-" /></td>
+    <td>
+        <a href="xanesnet.html#module-xanesnet"><code class="xref">xanesnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.html#module-xanesnet.analysis"><code class="xref">xanesnet.analysis</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.aggregators.html#module-xanesnet.analysis.aggregators"><code class="xref">xanesnet.analysis.aggregators</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.aggregators.html#module-xanesnet.analysis.aggregators.base"><code class="xref">xanesnet.analysis.aggregators.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.aggregators.html#module-xanesnet.analysis.aggregators.registry"><code class="xref">xanesnet.analysis.aggregators.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.aggregators.html#module-xanesnet.analysis.aggregators.scalar"><code class="xref">xanesnet.analysis.aggregators.scalar</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.collectors.html#module-xanesnet.analysis.collectors"><code class="xref">xanesnet.analysis.collectors</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.collectors.html#module-xanesnet.analysis.collectors.base"><code class="xref">xanesnet.analysis.collectors.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.collectors.html#module-xanesnet.analysis.collectors.errors"><code class="xref">xanesnet.analysis.collectors.errors</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.collectors.html#module-xanesnet.analysis.collectors.registry"><code class="xref">xanesnet.analysis.collectors.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters"><code class="xref">xanesnet.analysis.plotters</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.base"><code class="xref">xanesnet.analysis.plotters.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.registry"><code class="xref">xanesnet.analysis.plotters.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.scalar"><code class="xref">xanesnet.analysis.plotters.scalar</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.spectra"><code class="xref">xanesnet.analysis.plotters.spectra</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.stat_table"><code class="xref">xanesnet.analysis.plotters.stat_table</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.plotters.html#module-xanesnet.analysis.plotters.utils"><code class="xref">xanesnet.analysis.plotters.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.reporters.html#module-xanesnet.analysis.reporters"><code class="xref">xanesnet.analysis.reporters</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.reporters.html#module-xanesnet.analysis.reporters.base"><code class="xref">xanesnet.analysis.reporters.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.reporters.html#module-xanesnet.analysis.reporters.registry"><code class="xref">xanesnet.analysis.reporters.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.reporters.html#module-xanesnet.analysis.reporters.scalar"><code class="xref">xanesnet.analysis.reporters.scalar</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.reporters.html#module-xanesnet.analysis.reporters.statistics"><code class="xref">xanesnet.analysis.reporters.statistics</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.html#module-xanesnet.analysis.result"><code class="xref">xanesnet.analysis.result</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors"><code class="xref">xanesnet.analysis.selectors</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.base"><code class="xref">xanesnet.analysis.selectors.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.bernoulli"><code class="xref">xanesnet.analysis.selectors.bernoulli</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.by_index"><code class="xref">xanesnet.analysis.selectors.by_index</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.by_range"><code class="xref">xanesnet.analysis.selectors.by_range</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.identity"><code class="xref">xanesnet.analysis.selectors.identity</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.analysis.selectors.html#module-xanesnet.analysis.selectors.registry"><code class="xref">xanesnet.analysis.selectors.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.analyze"><code class="xref">xanesnet.analyze</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors"><code class="xref">xanesnet.batchprocessors</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.base"><code class="xref">xanesnet.batchprocessors.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.descriptor_lstm"><code class="xref">xanesnet.batchprocessors.descriptor_lstm</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.descriptor_mlp"><code class="xref">xanesnet.batchprocessors.descriptor_mlp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.e3ee"><code class="xref">xanesnet.batchprocessors.e3ee</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.e3ee_full"><code class="xref">xanesnet.batchprocessors.e3ee_full</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.envembed"><code class="xref">xanesnet.batchprocessors.envembed</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.gemnet"><code class="xref">xanesnet.batchprocessors.gemnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.gemnet_oc"><code class="xref">xanesnet.batchprocessors.gemnet_oc</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.geometrygraph_dimenet"><code class="xref">xanesnet.batchprocessors.geometrygraph_dimenet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.geometrygraph_schnet"><code class="xref">xanesnet.batchprocessors.geometrygraph_schnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.batchprocessors.html#module-xanesnet.batchprocessors.registry"><code class="xref">xanesnet.batchprocessors.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.checkpointing.html#module-xanesnet.checkpointing"><code class="xref">xanesnet.checkpointing</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.checkpointing.html#module-xanesnet.checkpointing.checkpointer"><code class="xref">xanesnet.checkpointing.checkpointer</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.cli"><code class="xref">xanesnet.cli</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.components.html#module-xanesnet.components"><code class="xref">xanesnet.components</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.components.html#module-xanesnet.components.activation"><code class="xref">xanesnet.components.activation</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.components.html#module-xanesnet.components.init"><code class="xref">xanesnet.components.init</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.components.html#module-xanesnet.components.lrscheduler"><code class="xref">xanesnet.components.lrscheduler</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.components.html#module-xanesnet.components.optim"><code class="xref">xanesnet.components.optim</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.core_analyze"><code class="xref">xanesnet.core_analyze</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.core_infer"><code class="xref">xanesnet.core_infer</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.core_train"><code class="xref">xanesnet.core_train</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.html#module-xanesnet.datasets"><code class="xref">xanesnet.datasets</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.base.html#module-xanesnet.datasets.base"><code class="xref">xanesnet.datasets.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.base.html#module-xanesnet.datasets.base.base"><code class="xref">xanesnet.datasets.base.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.base.html#module-xanesnet.datasets.base.torch_dataset"><code class="xref">xanesnet.datasets.base.torch_dataset</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.base.html#module-xanesnet.datasets.base.torchgeometric_dataset"><code class="xref">xanesnet.datasets.base.torchgeometric_dataset</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.html#module-xanesnet.datasets.registry"><code class="xref">xanesnet.datasets.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.html#module-xanesnet.datasets.torch"><code class="xref">xanesnet.datasets.torch</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.html#module-xanesnet.datasets.torch.descriptor"><code class="xref">xanesnet.datasets.torch.descriptor</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.html#module-xanesnet.datasets.torch.envembed"><code class="xref">xanesnet.datasets.torch.envembed</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.mp.html#module-xanesnet.datasets.torch.mp"><code class="xref">xanesnet.datasets.torch.mp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.mp.html#module-xanesnet.datasets.torch.mp.descriptor"><code class="xref">xanesnet.datasets.torch.mp.descriptor</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torch.mp.html#module-xanesnet.datasets.torch.mp.envembed"><code class="xref">xanesnet.datasets.torch.mp.envembed</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric"><code class="xref">xanesnet.datasets.torchgeometric</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric.e3ee"><code class="xref">xanesnet.datasets.torchgeometric.e3ee</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric.e3ee_full"><code class="xref">xanesnet.datasets.torchgeometric.e3ee_full</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric.gemnet"><code class="xref">xanesnet.datasets.torchgeometric.gemnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric.geometrygraph"><code class="xref">xanesnet.datasets.torchgeometric.geometrygraph</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.mp.html#module-xanesnet.datasets.torchgeometric.mp"><code class="xref">xanesnet.datasets.torchgeometric.mp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.mp.html#module-xanesnet.datasets.torchgeometric.mp.e3ee"><code class="xref">xanesnet.datasets.torchgeometric.mp.e3ee</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.mp.html#module-xanesnet.datasets.torchgeometric.mp.e3ee_full"><code class="xref">xanesnet.datasets.torchgeometric.mp.e3ee_full</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.mp.html#module-xanesnet.datasets.torchgeometric.mp.gemnet"><code class="xref">xanesnet.datasets.torchgeometric.mp.gemnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.mp.html#module-xanesnet.datasets.torchgeometric.mp.geometrygraph"><code class="xref">xanesnet.datasets.torchgeometric.mp.geometrygraph</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasets.torchgeometric.html#module-xanesnet.datasets.torchgeometric.richgraph"><code class="xref">xanesnet.datasets.torchgeometric.richgraph</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources"><code class="xref">xanesnet.datasources</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources.base"><code class="xref">xanesnet.datasources.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources.multixyzspec"><code class="xref">xanesnet.datasources.multixyzspec</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources.pmgjson"><code class="xref">xanesnet.datasources.pmgjson</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources.registry"><code class="xref">xanesnet.datasources.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.datasources.html#module-xanesnet.datasources.xyzspec"><code class="xref">xanesnet.datasources.xyzspec</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors"><code class="xref">xanesnet.descriptors</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.base"><code class="xref">xanesnet.descriptors.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.direct"><code class="xref">xanesnet.descriptors.direct</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.mace"><code class="xref">xanesnet.descriptors.mace</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.pdos_deprecated"><code class="xref">xanesnet.descriptors.pdos_deprecated</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.rdc"><code class="xref">xanesnet.descriptors.rdc</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.registry"><code class="xref">xanesnet.descriptors.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.descriptors.html#module-xanesnet.descriptors.wacsf"><code class="xref">xanesnet.descriptors.wacsf</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.infer"><code class="xref">xanesnet.infer</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses"><code class="xref">xanesnet.losses</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.base"><code class="xref">xanesnet.losses.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.bcewithlogits"><code class="xref">xanesnet.losses.bcewithlogits</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.emd"><code class="xref">xanesnet.losses.emd</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.l1"><code class="xref">xanesnet.losses.l1</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.mkssim1d"><code class="xref">xanesnet.losses.mkssim1d</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.mse"><code class="xref">xanesnet.losses.mse</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.registry"><code class="xref">xanesnet.losses.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.specplus"><code class="xref">xanesnet.losses.specplus</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.losses.html#module-xanesnet.losses.wcc"><code class="xref">xanesnet.losses.wcc</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.html#module-xanesnet.models"><code class="xref">xanesnet.models</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.html#module-xanesnet.models.base"><code class="xref">xanesnet.models.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.dimenet.html#module-xanesnet.models.dimenet"><code class="xref">xanesnet.models.dimenet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.dimenet.html#module-xanesnet.models.dimenet.dimenet"><code class="xref">xanesnet.models.dimenet.dimenet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.dimenet.html#module-xanesnet.models.dimenet.dimenet_pp"><code class="xref">xanesnet.models.dimenet.dimenet_pp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.html#module-xanesnet.models.e3ee"><code class="xref">xanesnet.models.e3ee</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.html#module-xanesnet.models.e3ee.e3ee"><code class="xref">xanesnet.models.e3ee.e3ee</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers"><code class="xref">xanesnet.models.e3ee.layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.atom_encoder"><code class="xref">xanesnet.models.e3ee.layers.atom_encoder</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.basic"><code class="xref">xanesnet.models.e3ee.layers.basic</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_absorber"><code class="xref">xanesnet.models.e3ee.layers.branch_absorber</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_attention"><code class="xref">xanesnet.models.e3ee.layers.branch_attention</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_convolution"><code class="xref">xanesnet.models.e3ee.layers.branch_convolution</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_eq_attention"><code class="xref">xanesnet.models.e3ee.layers.branch_eq_attention</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_equivariant"><code class="xref">xanesnet.models.e3ee.layers.branch_equivariant</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_fusion"><code class="xref">xanesnet.models.e3ee.layers.branch_fusion</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.branch_path"><code class="xref">xanesnet.models.e3ee.layers.branch_path</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.layers.html#module-xanesnet.models.e3ee.layers.interactions"><code class="xref">xanesnet.models.e3ee.layers.interactions</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.utils.html#module-xanesnet.models.e3ee.utils"><code class="xref">xanesnet.models.e3ee.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee.utils.html#module-xanesnet.models.e3ee.utils.invariants"><code class="xref">xanesnet.models.e3ee.utils.invariants</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.html#module-xanesnet.models.e3ee_full"><code class="xref">xanesnet.models.e3ee_full</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.html#module-xanesnet.models.e3ee_full.e3ee_full"><code class="xref">xanesnet.models.e3ee_full.e3ee_full</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers"><code class="xref">xanesnet.models.e3ee_full.layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.atom_encoder"><code class="xref">xanesnet.models.e3ee_full.layers.atom_encoder</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.basic"><code class="xref">xanesnet.models.e3ee_full.layers.basic</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_absorber"><code class="xref">xanesnet.models.e3ee_full.layers.branch_absorber</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_attention"><code class="xref">xanesnet.models.e3ee_full.layers.branch_attention</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_convolution"><code class="xref">xanesnet.models.e3ee_full.layers.branch_convolution</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_eq_attention"><code class="xref">xanesnet.models.e3ee_full.layers.branch_eq_attention</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_equivariant"><code class="xref">xanesnet.models.e3ee_full.layers.branch_equivariant</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_fusion"><code class="xref">xanesnet.models.e3ee_full.layers.branch_fusion</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.branch_path"><code class="xref">xanesnet.models.e3ee_full.layers.branch_path</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.layers.html#module-xanesnet.models.e3ee_full.layers.interactions"><code class="xref">xanesnet.models.e3ee_full.layers.interactions</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.utils.html#module-xanesnet.models.e3ee_full.utils"><code class="xref">xanesnet.models.e3ee_full.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.e3ee_full.utils.html#module-xanesnet.models.e3ee_full.utils.invariants"><code class="xref">xanesnet.models.e3ee_full.utils.invariants</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.envembed.html#module-xanesnet.models.envembed"><code class="xref">xanesnet.models.envembed</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.envembed.html#module-xanesnet.models.envembed.envembed"><code class="xref">xanesnet.models.envembed.envembed</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.envembed.layers.html#module-xanesnet.models.envembed.layers"><code class="xref">xanesnet.models.envembed.layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.envembed.layers.html#module-xanesnet.models.envembed.layers.coeff_head"><code class="xref">xanesnet.models.envembed.layers.coeff_head</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.envembed.layers.html#module-xanesnet.models.envembed.layers.encoder"><code class="xref">xanesnet.models.envembed.layers.encoder</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.html#module-xanesnet.models.gemnet"><code class="xref">xanesnet.models.gemnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.html#module-xanesnet.models.gemnet.gemnet"><code class="xref">xanesnet.models.gemnet.gemnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers"><code class="xref">xanesnet.models.gemnet.layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.atom_update"><code class="xref">xanesnet.models.gemnet.layers.atom_update</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.base"><code class="xref">xanesnet.models.gemnet.layers.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.basis"><code class="xref">xanesnet.models.gemnet.layers.basis</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.efficient"><code class="xref">xanesnet.models.gemnet.layers.efficient</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.embedding"><code class="xref">xanesnet.models.gemnet.layers.embedding</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.envelope"><code class="xref">xanesnet.models.gemnet.layers.envelope</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.interaction"><code class="xref">xanesnet.models.gemnet.layers.interaction</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.layers.html#module-xanesnet.models.gemnet.layers.scaling"><code class="xref">xanesnet.models.gemnet.layers.scaling</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.utils.html#module-xanesnet.models.gemnet.utils"><code class="xref">xanesnet.models.gemnet.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet.utils.html#module-xanesnet.models.gemnet.utils.initializer"><code class="xref">xanesnet.models.gemnet.utils.initializer</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.html#module-xanesnet.models.gemnet_oc"><code class="xref">xanesnet.models.gemnet_oc</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.html#module-xanesnet.models.gemnet_oc.gemnet_oc"><code class="xref">xanesnet.models.gemnet_oc.gemnet_oc</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers"><code class="xref">xanesnet.models.gemnet_oc.layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.atom_update_block"><code class="xref">xanesnet.models.gemnet_oc.layers.atom_update_block</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.base_layers"><code class="xref">xanesnet.models.gemnet_oc.layers.base_layers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.basis_utils"><code class="xref">xanesnet.models.gemnet_oc.layers.basis_utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.efficient"><code class="xref">xanesnet.models.gemnet_oc.layers.efficient</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.embedding_block"><code class="xref">xanesnet.models.gemnet_oc.layers.embedding_block</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.interaction_block"><code class="xref">xanesnet.models.gemnet_oc.layers.interaction_block</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.radial_basis"><code class="xref">xanesnet.models.gemnet_oc.layers.radial_basis</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.scaling"><code class="xref">xanesnet.models.gemnet_oc.layers.scaling</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.layers.html#module-xanesnet.models.gemnet_oc.layers.spherical_basis"><code class="xref">xanesnet.models.gemnet_oc.layers.spherical_basis</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.utils.html#module-xanesnet.models.gemnet_oc.utils"><code class="xref">xanesnet.models.gemnet_oc.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.utils.html#module-xanesnet.models.gemnet_oc.utils.helpers"><code class="xref">xanesnet.models.gemnet_oc.utils.helpers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.gemnet_oc.utils.html#module-xanesnet.models.gemnet_oc.utils.initializers"><code class="xref">xanesnet.models.gemnet_oc.utils.initializers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.lstm.html#module-xanesnet.models.lstm"><code class="xref">xanesnet.models.lstm</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.lstm.html#module-xanesnet.models.lstm.lstm"><code class="xref">xanesnet.models.lstm.lstm</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.mlp.html#module-xanesnet.models.mlp"><code class="xref">xanesnet.models.mlp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.mlp.html#module-xanesnet.models.mlp.mlp"><code class="xref">xanesnet.models.mlp.mlp</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.html#module-xanesnet.models.registry"><code class="xref">xanesnet.models.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.schnet.html#module-xanesnet.models.schnet"><code class="xref">xanesnet.models.schnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.schnet.html#module-xanesnet.models.schnet.schnet"><code class="xref">xanesnet.models.schnet.schnet</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.models.xasnetv2.html#module-xanesnet.models.xasnetv2"><code class="xref">xanesnet.models.xasnetv2</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers"><code class="xref">xanesnet.regularizers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers.base"><code class="xref">xanesnet.regularizers.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers.l1"><code class="xref">xanesnet.regularizers.l1</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers.l2"><code class="xref">xanesnet.regularizers.l2</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers.no"><code class="xref">xanesnet.regularizers.no</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.regularizers.html#module-xanesnet.regularizers.registry"><code class="xref">xanesnet.regularizers.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.html#module-xanesnet.runners"><code class="xref">xanesnet.runners</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.html#module-xanesnet.runners.base"><code class="xref">xanesnet.runners.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.inferencers.html#module-xanesnet.runners.inferencers"><code class="xref">xanesnet.runners.inferencers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.inferencers.html#module-xanesnet.runners.inferencers.base"><code class="xref">xanesnet.runners.inferencers.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.inferencers.html#module-xanesnet.runners.inferencers.basic"><code class="xref">xanesnet.runners.inferencers.basic</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.inferencers.html#module-xanesnet.runners.inferencers.registry"><code class="xref">xanesnet.runners.inferencers.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.trainers.html#module-xanesnet.runners.trainers"><code class="xref">xanesnet.runners.trainers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.trainers.html#module-xanesnet.runners.trainers.base"><code class="xref">xanesnet.runners.trainers.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.trainers.html#module-xanesnet.runners.trainers.basic"><code class="xref">xanesnet.runners.trainers.basic</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.runners.trainers.html#module-xanesnet.runners.trainers.registry"><code class="xref">xanesnet.runners.trainers.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization"><code class="xref">xanesnet.serialization</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.auto_config"><code class="xref">xanesnet.serialization.auto_config</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.checkpoints"><code class="xref">xanesnet.serialization.checkpoints</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.config"><code class="xref">xanesnet.serialization.config</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.defaults"><code class="xref">xanesnet.serialization.defaults</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.jsonl_stream"><code class="xref">xanesnet.serialization.jsonl_stream</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.models"><code class="xref">xanesnet.serialization.models</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.prediction_readers"><code class="xref">xanesnet.serialization.prediction_readers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.prediction_writers"><code class="xref">xanesnet.serialization.prediction_writers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.splits"><code class="xref">xanesnet.serialization.splits</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.serialization.html#module-xanesnet.serialization.tensorboard"><code class="xref">xanesnet.serialization.tensorboard</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers"><code class="xref">xanesnet.stoppers</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers.base"><code class="xref">xanesnet.stoppers.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers.basic"><code class="xref">xanesnet.stoppers.basic</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers.no"><code class="xref">xanesnet.stoppers.no</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers.registry"><code class="xref">xanesnet.stoppers.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.stoppers.html#module-xanesnet.stoppers.time"><code class="xref">xanesnet.stoppers.time</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies"><code class="xref">xanesnet.strategies</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.base"><code class="xref">xanesnet.strategies.base</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.bootstrap"><code class="xref">xanesnet.strategies.bootstrap</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.ensemble"><code class="xref">xanesnet.strategies.ensemble</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.kfold"><code class="xref">xanesnet.strategies.kfold</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.registry"><code class="xref">xanesnet.strategies.registry</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.strategies.html#module-xanesnet.strategies.single"><code class="xref">xanesnet.strategies.single</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.html#module-xanesnet.train"><code class="xref">xanesnet.train</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils"><code class="xref">xanesnet.utils</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils.exceptions"><code class="xref">xanesnet.utils.exceptions</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils.filesystem"><code class="xref">xanesnet.utils.filesystem</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph"><code class="xref">xanesnet.utils.graph</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.absorber_paths"><code class="xref">xanesnet.utils.graph.absorber_paths</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.edges"><code class="xref">xanesnet.utils.graph.edges</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.gemnet_indices"><code class="xref">xanesnet.utils.graph.gemnet_indices</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.radius"><code class="xref">xanesnet.utils.graph.radius</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.symmetrize"><code class="xref">xanesnet.utils.graph.symmetrize</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.triplets"><code class="xref">xanesnet.utils.graph.triplets</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.graph.html#module-xanesnet.utils.graph.voronoi"><code class="xref">xanesnet.utils.graph.voronoi</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils.logger"><code class="xref">xanesnet.utils.logger</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.math.html#module-xanesnet.utils.math"><code class="xref">xanesnet.utils.math</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.math.html#module-xanesnet.utils.math.fourier"><code class="xref">xanesnet.utils.math.fourier</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.math.html#module-xanesnet.utils.math.gaussian"><code class="xref">xanesnet.utils.math.gaussian</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils.prompts"><code class="xref">xanesnet.utils.prompts</code></a></td><td>
+    <em></em></td>
+  </tr>
+  <tr class="cg-1">
+    <td></td>
+    <td>&#160;&#160;&#160;
+        <a href="xanesnet.utils.html#module-xanesnet.utils.random"><code class="xref">xanesnet.utils.random</code></a></td><td>
+    <em></em></td>
+  </tr>
+</table>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, Hendrik Junkawitsch
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/NewcastleRSE/xray-spectroscopy-ml" aria-label="GitHub"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8 c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg></a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=e548382b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
