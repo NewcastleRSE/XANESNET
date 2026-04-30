@@ -1,49 +1,48 @@
-<table align="center">
-<tr><td align="center" width="10000">
+<div align="center">
 
-<img src = "docs/source/images/xanesnet_graphic.png" width = "380">
+<img src="logo.png" width="420" alt="XANESNET logo">
 
-# <strong> X A N E S N E T </strong>
+# XANESNET
 
-<p>
-    <a href="http://penfoldgroup.co.uk">Penfold Group </a> @ <a href="https://ncl.ac.uk">Newcastle University </a>
-</p>
+Deep learning for theoretical X-ray spectroscopy.
 
-<p>
-    <a href="https://xanesnet.readthedocs.io">User Manual</a> • <a href="#setup">Setup</a> • <a href="#training-quick-guide">Quickstart</a> • <a href="#publications">Publications</a>
-</p>
+[User Manual](https://xanesnet.readthedocs.io) | [Setup](#setup) | [Config UI](#config-ui) | [Usage](#usage) | [People](#people-and-attribution) | [Publications](#publications)
 
-</td></tr></table>
+</div>
 
-#
+<div align="center">
+! This README.md is WORK IN PROGRESS !
+</div>
 
-We think that the theoretical simulation of X-ray spectroscopy (XS) should be fast, affordable, and accessible to all researchers. 
+## Overview
 
-The popularity of XS is on a steep upward trajectory globally, driven by advances at, and widening access to, high-brilliance light sources such as synchrotrons and X-ray free-electron lasers (XFELs). However, the high resolution of modern X-ray spectra, coupled with ever-increasing data acquisition rates, brings into focus the challenge of accurately and cost-effectively analyzing these data. Decoding the dense information content of modern X-ray spectra demands detailed theoretical calculations that are capable of capturing satisfactorily the complexity of the underlying physics but that are - at the same time - fast, affordable, and accessible enough to appeal to researchers. 
+XANESNET is a Python package for machine-learning simulation and analysis of X-ray absorption near edge structure (XANES) spectra. The current Python codebase supports the forward prediction workflow: train models on structures and spectra, run checkpointed inference, and analyze prediction outputs.
 
-This is a tall order - but we're using deep neural networks to make this a reality. 
+- **Supported now:** forward mapping from molecular or periodic structural inputs to spectra.
+- **Planned later:** reverse mapping from spectra back to properties or structural information.
 
-Our XANESNET code address two fundamental challenges: the so-called forward (property/structure-to-spectrum) and reverse (spectrum-to-property/structure) mapping problems. The forward mapping appraoch is similar to the appraoch used by computational researchers in the sense that an input structure is used to generate a spectral observable. In this area the objective of XANESNET is to supplement and support analysis provided by first principles quantum mechnanical simulations. The reverse mapping problem is perhaps the more natural of the two, as it has a clear connection to the problem that X-ray spectroscopists face day-to-day in their work: how can a measurement/observable be interpreted? Here we are seeking to provide methodologies in allow the direct extraction of properties from a recorded spectrum. 
+The project combines descriptor-based neural networks, graph neural networks, YAML-driven workflows, checkpoint signatures, and an interactive configuration editor so that forward XANES experiments are reproducible and easier to share.
 
-XANESNET is under continuous development.
+## Highlights
 
-The original Keras implementation is available at https://gitlab.com/team-xnet/xanesnet_keras.
-
-## Features
-
-- GPLv3 licensed open-source distribution
-- TODO
+- Command-line workflows for forward-model training, checkpointed inference, and prediction analysis.
+- YAML configuration files with validation, defaults, copied raw configs, resolved train configs, checkpoint signatures, and strict inference merging.
+- Model families including MLP, LSTM, SchNet, DimeNet, DimeNet++, GemNet, GemNet-OC, E3EE, E3EEFull, and EnvEmbed.
+- Data sources for XYZ/spectrum files, multi-XYZ/spectrum folders, and pymatgen JSON data.
+- Descriptor, EnvEmbed, geometry graph, GemNet, E3EE, and E3EEFull datasets, including multiprocessing variants where implemented.
+- Interactive browser-based config editor in [tools/config-ui/](tools/config-ui/).
+- GPLv3 licensed open-source distribution.
 
 ## Setup
 
-### Prerequisites
+### Requirements
 
 - Linux (tested on Ubuntu)
 - Python **3.12** (the current known-working environment uses Python **3.12.9**)
 - A C/C++ build toolchain if pip needs to compile native PyTorch Geometric extensions
-- Optional: NVIDIA GPU + CUDA matching your PyTorch build if you want `device: cuda`
+- Optional: NVIDIA GPU and CUDA-compatible PyTorch wheels for `device: cuda`
 
-### Installation
+### Install XANESNET
 
 Install from a local checkout with the project metadata in [pyproject.toml](pyproject.toml):
 
@@ -56,23 +55,23 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .
 ```
 
-For a non-editable install, replace the last command with:
+For a non-editable install, use:
 
 ```bash
 python -m pip install .
 ```
 
-This installs the `xanesnet` Python package and the `xanesnet` command-line entry point:
+After installation, the `xanesnet` command should be available:
 
 ```bash
 xanesnet --help
 ```
 
-#### PyTorch and PyTorch Geometric wheels
+### PyTorch And PyTorch Geometric
 
-The package depends on PyTorch and PyTorch Geometric native extensions. For CPU-only Linux installs, pip may be enough. For CUDA installs, or if `torch-scatter`, `torch-sparse`, or `torch-cluster` cannot find a wheel automatically, install the PyTorch/PyG wheels that match your Python, PyTorch, and CUDA versions first, then install XANESNET.
+XANESNET depends on PyTorch and PyTorch Geometric native extensions. CPU-only Linux installs may work with plain pip resolution. For CUDA installs, or if `torch-scatter`, `torch-sparse`, or `torch-cluster` cannot find wheels automatically, install wheels matching your Python, PyTorch, and CUDA versions first.
 
-Example for a PyTorch 2.5 / CUDA 12.4 environment:
+Example for PyTorch 2.5 with CUDA 12.4:
 
 ```bash
 python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
@@ -80,98 +79,155 @@ python -m pip install torch-scatter torch-sparse torch-cluster -f https://data.p
 python -m pip install -e .
 ```
 
-Adjust the PyTorch and PyG wheel URLs for your target platform. See the official PyTorch and PyTorch Geometric installation guides for the current matrix.
+Adjust the wheel URLs for your target platform. The PyTorch and PyTorch Geometric installation guides are the source of truth for the current compatibility matrix.
 
-#### Optional extras
+### Developer And Docs Extras
 
 ```bash
-python -m pip install -e ".[dev]"   # test/build tooling
+python -m pip install -e ".[dev]"   # build and test tooling
 python -m pip install -e ".[docs]"  # documentation tooling
 ```
 
 [frozen.txt](frozen.txt) is kept as a pinned snapshot of one known-working environment. Use it only when you need to reproduce that exact environment; normal installs should use [pyproject.toml](pyproject.toml).
 
-### Training (quick guide)
+## Config UI
 
-Training is driven by a YAML config in the [configs/](configs/) folder. The most complete example is [configs/in_mlp.yaml](configs/in_mlp.yaml).
+The config UI in [tools/config-ui/](tools/config-ui/) is an interactive React editor for XANESNET `train`, `infer`, and `analyze` YAML files. It is useful both as a guided config builder and as a browsable reference for valid options in the current forward workflow.
 
-Run training
+It provides:
+
+- Mode-specific forms for Train, Infer, and Analyze workflows.
+- YAML import with automatic mode detection.
+- Inference `signature.yaml` import for checkpoint-aware infer configs.
+- Live YAML preview with defaults materialized and top-level sections ordered for readability.
+- Schema-backed compatibility rules for datasource, dataset, model, batch processor, strategy, runner, and analysis choices.
+- Light and dark themes stored in browser state.
+
+Run it locally:
 
 ```bash
-xanesnet train -i configs/in_mlp.yaml -y
+cd tools/config-ui
+npm install
+npm run dev
 ```
 
-You get the outputs of your training run under `./runs/...`.
+Vite prints the local URL, usually `http://127.0.0.1:5173/` or the next free port. Save the generated YAML into [configs/](configs/) or another working directory, then pass it to the CLI.
 
+For supported descriptor workflows, keep `dataset.mode: forward`. Reverse-mode configuration is not part of the current documented workflow and is planned for a later stage.
 
-### Inference (minimal notes; WIP)
+Common config UI commands:
 
---> under development
+```bash
+npm run dev      # Start the Vite development server
+npm run lint     # Run ESLint
+npm run build    # Type-check and build production assets into dist/
+npm run preview  # Preview the production build locally
+```
 
-Current invocation:
+More details are in [tools/config-ui/README.md](tools/config-ui/README.md).
+
+## Usage
+
+XANESNET runs are driven by YAML configuration files. The supported workflow today is forward XANES prediction: prepare structure/spectrum data, train a model, infer spectra with a saved checkpoint, and analyze prediction files. Examples live in [configs/](configs/), including [configs/in_mlp.yaml](configs/in_mlp.yaml), [configs/in_mlp_infer.yaml](configs/in_mlp_infer.yaml), and [configs/analyze_example.yaml](configs/analyze_example.yaml).
+
+### Train
+
+```bash
+xanesnet train \
+    -i configs/in_mlp.yaml \
+    -n mlp_test \
+    -t \
+    -y
+```
+
+Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, checkpoint signatures, checkpoints, final model weights, logs, and optional TensorBoard files.
+
+### Infer
 
 ```bash
 xanesnet infer \
     -i configs/in_mlp_infer.yaml \
-    -m runs/<run_dir>/models/final.pth \
+    -m runs/<train_run>/models/final.pth \
+    -n mlp_infer \
     -y
 ```
 
-How it works:
+Inference configs are strictly merged with the checkpoint signature saved during training. If a user-provided value conflicts with the signature, inference fails early. The merged and validated configs are saved in the new inference run directory, and predictions are written under `predictions/`.
 
-- The inference YAML is **strictly merged** with the checkpoint signature (saved during training). If you specify keys that conflict with the signature, inference will error.
-- The merged config is written to `merged_infer_config.yaml` in the new `runs/` folder.
+### Analyze
 
-The reference inference config is [configs/in_mlp_infer.yaml](configs/in_mlp_infer.yaml).
+```bash
+xanesnet analyze \
+    -i configs/analyze_example.yaml \
+    -p runs/<infer_run>/predictions \
+    -n mlp_analysis \
+    -y
+```
+
+The `-p` option can be supplied multiple times when comparing or aggregating predictions from several inference runs.
+
+### Python Entry Point
+
+For scripts and notebooks, you can call the same dispatcher that backs the CLI:
+
+```python
+from xanesnet.cli import main
+
+main(["train", "-i", "configs/in_mlp.yaml", "-n", "mlp_test", "-y"])
+```
+
+For most workflows, the installed `xanesnet` command is the recommended interface because it keeps command logging and run directories consistent.
 
 ## Configuration
 
-Config validation and defaults are defined in the serialization module:
+Configuration validation and defaults are implemented in:
 
 - [xanesnet/serialization/config.py](xanesnet/serialization/config.py)
 - [xanesnet/serialization/defaults.py](xanesnet/serialization/defaults.py)
 
 At a high level, a config contains:
 
-- `seed` (optional) and `device` (optional; defaults to `cpu`)
-- `datasource`: must include `datasource_type` and its required keys
-- `dataset`: must include `dataset_type` and its required keys
-- `model`: must include `model_type` and its required keys
-- Exactly one of: `trainer` or `inferencer`
-- `strategy`: must include `strategy_type`
+- `seed` and `device`
+- `datasource`: input structure and spectrum source
+- `dataset`: preprocessing, storage, split, and descriptor or graph settings; use `mode: forward` for supported descriptor workflows
+- `model`: model family and hyperparameters
+- exactly one runner section: `trainer`, `inferencer`, or analysis settings depending on workflow
+- `strategy`: single model or ensemble training/inference behavior
 
+The config UI schemas in [tools/config-ui/src/schemas/](tools/config-ui/src/schemas/) mirror this structure for interactive editing.
 
+## People And Attribution
 
-## Contact
+**Main code author and current maintainer:** [Hendrik Junkawitsch](https://www.helmholtz-berlin.de/pubbin/vkart.pl?v=yyqxqn&sprache=de), Helmholtz-Zentrum Berlin.
 
-### Project Team
+**Scientific lead:** [Prof. Thomas Penfold](https://ncl.ac.uk/nes/people/profile/tompenfold.html), Newcastle University.
 
-<a href="https://ncl.ac.uk/nes/people/profile/tompenfold.html">Prof. Thomas Penfold </a>, Newcastle University, (tom.penfold@newcastle.ac.uk)\
-<a href="https://pure.york.ac.uk/portal/en/persons/conor-rankine">Dr. Conor Rankine </a>, York University (conor.rankine@york.ac.uk)
+**Original project team:** [Prof. Thomas Penfold](https://ncl.ac.uk/nes/people/profile/tompenfold.html), Newcastle University, and [Dr. Conor Rankine](https://pure.york.ac.uk/portal/en/persons/conor-rankine), York University.
 
-### RSE Contact
-<a href="https://rse.ncldata.dev/team/bowen-li">Dr. Bowen Li </a>, Newcastle University (bowen.li2@newcastle.ac.uk)\
-<a href="https://rse.ncldata.dev/team/alex-surtees">Dr. Lorenzo Rossi </a>,  Newcastle University (lorenzo.rossi@newcastle.ac.uk)
-
+**Research software engineering contributors:** Dr. Bowen Li and Dr. Lorenzo Rossi, Newcastle University RSE team.
 
 ## License
 
-This project is licensed under the GPL-3.0 License - see [LICENSE](LICENSE) for details.
+This project is licensed under the GPL-3.0 License. See [LICENSE](LICENSE) for details.
 
 ## Publications
 
-### The Program:
+### The Program
+
 *[A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra](https://doi.org/10.1021/acs.jpca.0c03723)* - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, *J. Phys. Chem. A*, 2020, **124**, 4263-4270.
 
-*[Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network](https://doi.org/10.1063/5.0087255)* - C. D. Rankine, and T. J. Penfold, *J. Chem. Phys.*, 2022, **156**, 164102.
- 
-#### Extension to X-ray Emission:
-*[A deep neural network for valence-to-core X-ray emission spectroscopy](https://doi.org/10.1080/00268976.2022.2123406)* - T. J. Penfold, and C. D. Rankine, *Mol. Phys.*, 2022, e2123406.
+*[Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network](https://doi.org/10.1063/5.0087255)* - C. D. Rankine and T. J. Penfold, *J. Chem. Phys.*, 2022, **156**, 164102.
 
-#### The Applications:
+### Extension To X-ray Emission
+
+*[A deep neural network for valence-to-core X-ray emission spectroscopy](https://doi.org/10.1080/00268976.2022.2123406)* - T. J. Penfold and C. D. Rankine, *Mol. Phys.*, 2022, e2123406.
+
+### Applications
+
 *[On the Analysis of X-ray Absorption Spectra for Polyoxometallates](https://doi.org/10.1016/j.cplett.2021.138893)* - E. Falbo, C. D. Rankine, and T. J. Penfold, *Chem. Phys. Lett.*, 2021, **780**, 138893.
 
-*[Enhancing the Anaysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump-X-ray Probe Experiments](https://doi.org/10.1039/D0CP06244H)* - M. M. M. Madkhali, C. D. Rankine, and T. J. Penfold, *Phys. Chem. Chem. Phys.*, 2021, **23**, 9259-9269.
+*[Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump-X-ray Probe Experiments](https://doi.org/10.1039/D0CP06244H)* - M. M. M. Madkhali, C. D. Rankine, and T. J. Penfold, *Phys. Chem. Chem. Phys.*, 2021, **23**, 9259-9269.
 
-#### Miscellaneous:
+### Miscellaneous
+
 *[The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy](https://doi.org/10.3390/molecules25112715)* - M. M. M. Madkhali, C. D. Rankine, and T. J. Penfold, *Molecules*, 2020, **25**, 2715.
