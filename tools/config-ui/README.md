@@ -1,73 +1,67 @@
-# React + TypeScript + Vite
+# XANESNET Config UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interactive React editor for XANESNET `train`, `infer`, and `analyze` YAML configuration files. The form is generated from the JSON Schema files in `src/schemas`, so defaults, allowed variants, and compatibility rules stay close to the Python configuration model.
 
-Currently, two official plugins are available:
+The app is intended for two jobs:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Give users a browsable reference for valid XANESNET configs.
+- Generate complete YAML files for training, inference, and analysis workflows.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Mode-specific forms for Train, Infer, and Analyze configs.
+- YAML import with automatic mode detection.
+- Infer checkpoint `signature.yaml` import that merges signature-provided dataset/model/strategy fields into the Infer form.
+- Signature-origin highlighting while keeping signature-loaded fields editable.
+- YAML output with schema defaults materialized and top-level sections ordered for readability.
+- Light/dark theme toggle stored in local browser state.
 
-## Expanding the ESLint configuration
+## Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Run from this directory:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The development server prints the local URL, usually `http://127.0.0.1:5173/` or the next free Vite port.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Common Commands
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev      # Start the Vite development server
+npm run lint     # Run ESLint
+npm run build    # Type-check and build production assets into dist/
+npm run preview  # Preview the production build locally
 ```
+
+## Project Layout
+
+- `src/App.tsx` contains the React UI, RJSF custom fields/templates, YAML loading, signature loading, and form state handling.
+- `src/configYaml.ts` materializes schema defaults and formats generated YAML.
+- `src/schemaRegistry.ts` loads YAML schemas through Vite, resolves local `$ref`s, and decorates union option labels.
+- `src/schemas/` contains the bundled JSON Schemas for Train, Infer, Analyze, and their component sections.
+- `public/favicon.svg` is the app icon used by `index.html`.
+
+## Schema Notes
+
+Schemas are authored as YAML files and imported with Vite raw imports. Local `$ref`s are resolved in `schemaRegistry.ts`, so schema files can stay split by domain while the app receives dereferenced schema objects.
+
+Infer configs are special: at runtime XANESNET merges user Infer YAML with a checkpoint signature before validation. The UI mirrors that by letting users load `signature.yaml` in Infer mode. User-supplied Infer YAML can stay as a checkpoint overlay without `dataset_type`, `model`, or `strategy`; a loaded signature supplies those fields when available.
+
+When changing schemas, smoke-test at least these flows:
+
+- Train default descriptor/MLP generation.
+- Train graph dataset plus graph model branch switching.
+- Infer overlay generation without a signature.
+- Infer YAML loaded before a signature.
+- Signature loaded before a YAML config.
+- Clear after loading a signature.
+- Analyze empty lists and a populated analysis example.
+
+## Maintenance
+
+Keep generated build output out of source review. `dist/` and `node_modules/` are ignored and can be recreated with `npm run build` and `npm install`.
+
+The app intentionally does not depend on a component framework. Styling lives in `src/App.css` and `src/index.css`; form rendering is handled by `@rjsf/core` and `@rjsf/validator-ajv8`.
