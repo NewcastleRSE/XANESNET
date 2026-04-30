@@ -1316,10 +1316,9 @@ function App() {
   const [formInstanceKey, setFormInstanceKey] = useState(0)
   const [formData, setFormData] = useState<JsonObject>(() => createDefaultFormData('train'))
   const [signatureState, setSignatureState] = useState<SignatureState | null>(null)
-  const [yamlOutput, setYamlOutput] = useState('')
   const [status, setStatus] = useState<Status>({
     tone: 'idle',
-    message: 'Choose a config type, fill the form, then generate the YAML config.',
+    message: 'Choose a config type and edit the form to preview the YAML config.',
   })
 
   useEffect(() => {
@@ -1333,6 +1332,10 @@ function App() {
   )
   const schema = activeOption.schema
   const uiSchema = useMemo(() => buildUiSchema(schema), [schema])
+  const yamlOutput = useMemo(() => {
+    const completeConfig = buildCompleteConfig(schema, formData)
+    return formatYamlConfig(completeConfig, schema, mode)
+  }, [formData, mode, schema])
   const signatureContext = useMemo<SignatureContextValue>(() => {
     if (!signatureState) {
       return EMPTY_SIGNATURE_CONTEXT
@@ -1348,7 +1351,6 @@ function App() {
     setFormInstanceKey((currentKey) => currentKey + 1)
     setFormData(createDefaultFormData(nextMode))
     setSignatureState(null)
-    setYamlOutput('')
     setStatus({ tone: 'idle', message: `Started a new ${nextMode} config.` })
   }
 
@@ -1369,7 +1371,6 @@ function App() {
       setFormInstanceKey((currentKey) => currentKey + 1)
       setFormData(buildCompleteConfig(detectedSchema, parsed))
       setSignatureState(null)
-      setYamlOutput('')
       setStatus({ tone: 'success', message: `Loaded ${file.name} as a ${detectedMode} config.` })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not parse the YAML file.'
@@ -1405,7 +1406,6 @@ function App() {
         leafPaths: sanitizedSignature.loadedLeafPaths,
         schemaExtraLeafPaths: sanitizedSignature.rejectedLeafPaths,
       })
-      setYamlOutput('')
       setStatus({
         tone: sanitizedSignature.rejectedLeafPaths.length > 0 ? 'error' : 'success',
         message:
@@ -1419,11 +1419,8 @@ function App() {
     }
   }
 
-  function generateYaml(data: JsonObject) {
-    const completeConfig = buildCompleteConfig(schema, data)
-    const yaml = formatYamlConfig(completeConfig, schema, mode)
-    setYamlOutput(yaml)
-    setStatus({ tone: 'success', message: 'Generated YAML with schema defaults included.' })
+  function markValidConfig() {
+    setStatus({ tone: 'success', message: 'Config validates against the current schema.' })
   }
 
   function downloadYaml() {
@@ -1544,12 +1541,12 @@ function App() {
                 const nextFormData = (event.formData ?? {}) as JsonObject
                 setFormData(sanitizeFormDataForSchema(schema, nextFormData))
               }}
-              onSubmit={(event: IChangeEvent) => generateYaml((event.formData ?? {}) as JsonObject)}
-              onError={() => setStatus({ tone: 'error', message: 'Fix the validation errors before generating YAML.' })}
+              onSubmit={() => markValidConfig()}
+              onError={() => setStatus({ tone: 'error', message: 'Fix the validation errors before using this YAML.' })}
             >
               <div className="form-actions">
                 <button type="submit" className="primary-action">
-                  Get YAML config
+                  Validate config
                 </button>
                 <button
                   type="button"
@@ -1558,7 +1555,6 @@ function App() {
                     setFormInstanceKey((currentKey) => currentKey + 1)
                     setFormData(createDefaultFormData(mode))
                     setSignatureState(null)
-                    setYamlOutput('')
                     setStatus({ tone: 'idle', message: `Cleared the ${mode} form.` })
                   }}
                 >
@@ -1569,16 +1565,16 @@ function App() {
           </SignatureContext.Provider>
         </section>
 
-        <aside className="output-panel" aria-label="Generated YAML">
+        <aside className="output-panel" aria-label="Live YAML preview">
           <div className="panel-heading">
-            <h2>Generated YAML</h2>
+            <h2>Live YAML</h2>
           </div>
           <textarea
             className="yaml-output"
             value={yamlOutput}
-            onChange={(event) => setYamlOutput(event.currentTarget.value)}
+            readOnly
             spellCheck={false}
-            placeholder="Click Get YAML config to generate a complete YAML config."
+            aria-label="Live YAML config preview"
           />
           <div className="output-actions">
             <button type="button" className="secondary-action" disabled={!yamlOutput} onClick={downloadYaml}>

@@ -13,7 +13,7 @@ The app is intended for two jobs:
 - YAML import with automatic mode detection.
 - Infer checkpoint `signature.yaml` import that merges signature-provided dataset/model/strategy fields into the Infer form.
 - Signature-origin highlighting while keeping signature-loaded fields editable.
-- YAML output with schema defaults materialized and top-level sections ordered for readability.
+- Live YAML preview with schema defaults materialized and top-level sections ordered for readability.
 - Light/dark theme toggle stored in local browser state.
 
 ## Quick Start
