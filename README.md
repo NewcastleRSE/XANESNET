@@ -10,7 +10,7 @@
 </p>
 
 <p>
-    <a href="https://xanesnet.readthedocs.io">User Manual</a> • <a href="#setup">Setup</a> • <a href="#getting">Quickstart</a> • <a href="#publications">Publications</a>
+    <a href="https://xanesnet.readthedocs.io">User Manual</a> • <a href="#setup">Setup</a> • <a href="#training-quick-guide">Quickstart</a> • <a href="#publications">Publications</a>
 </p>
 
 </td></tr></table>
@@ -34,17 +34,62 @@ The original Keras implementation is available at https://gitlab.com/team-xnet/x
 - GPLv3 licensed open-source distribution
 - TODO
 
-## Getting Started
+## Setup
 
 ### Prerequisites
 
 - Linux (tested on Ubuntu)
-- Python **3.12.9**
-- (Optional) NVIDIA GPU + CUDA matching your PyTorch build if you want `device: cuda`
+- Python **3.12** (the current known-working environment uses Python **3.12.9**)
+- A C/C++ build toolchain if pip needs to compile native PyTorch Geometric extensions
+- Optional: NVIDIA GPU + CUDA matching your PyTorch build if you want `device: cuda`
 
 ### Installation
 
-`frozen.txt` is a pinned snapshot of a known-working environment.
+Install from a local checkout with the project metadata in [pyproject.toml](pyproject.toml):
+
+```bash
+git clone https://github.com/NewcastleRSE/xray-spectroscopy-ml.git
+cd xray-spectroscopy-ml
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e .
+```
+
+For a non-editable install, replace the last command with:
+
+```bash
+python -m pip install .
+```
+
+This installs the `xanesnet` Python package and the `xanesnet` command-line entry point:
+
+```bash
+xanesnet --help
+```
+
+#### PyTorch and PyTorch Geometric wheels
+
+The package depends on PyTorch and PyTorch Geometric native extensions. For CPU-only Linux installs, pip may be enough. For CUDA installs, or if `torch-scatter`, `torch-sparse`, or `torch-cluster` cannot find a wheel automatically, install the PyTorch/PyG wheels that match your Python, PyTorch, and CUDA versions first, then install XANESNET.
+
+Example for a PyTorch 2.5 / CUDA 12.4 environment:
+
+```bash
+python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
+python -m pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.5.1+cu124.html
+python -m pip install -e .
+```
+
+Adjust the PyTorch and PyG wheel URLs for your target platform. See the official PyTorch and PyTorch Geometric installation guides for the current matrix.
+
+#### Optional extras
+
+```bash
+python -m pip install -e ".[dev]"   # test/build tooling
+python -m pip install -e ".[docs]"  # documentation tooling
+```
+
+[frozen.txt](frozen.txt) is kept as a pinned snapshot of one known-working environment. Use it only when you need to reproduce that exact environment; normal installs should use [pyproject.toml](pyproject.toml).
 
 ### Training (quick guide)
 
@@ -52,8 +97,8 @@ Training is driven by a YAML config in the [configs/](configs/) folder. The most
 
 Run training
 
-```
-python -m xanesnet.cli train -i configs/in_mlp.yaml --save
+```bash
+xanesnet train -i configs/in_mlp.yaml -y
 ```
 
 You get the outputs of your training run under `./runs/...`.
@@ -65,11 +110,11 @@ You get the outputs of your training run under `./runs/...`.
 
 Current invocation:
 
-```
-python -m xanesnet.cli infer \
+```bash
+xanesnet infer \
     -i configs/in_mlp_infer.yaml \
     -m runs/<run_dir>/models/final.pth \
-    --save
+    -y
 ```
 
 How it works:

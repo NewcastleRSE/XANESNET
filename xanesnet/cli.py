@@ -135,5 +135,10 @@ def main(args: list[str]) -> None:
         raise ConfigError(f"Incorrect mode: {command}.")
 
 
-if __name__ == "__main__":
+def console_main() -> None:
+    """Entry point for the installed ``xanesnet`` console command."""
     main(sys.argv[1:])
+
+
+if __name__ == "__main__":
+    console_main()
