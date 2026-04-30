@@ -35,10 +35,6 @@ class Strategy(ABC):
     Subclasses must implement all abstract methods to provide concrete training
     and inference logic.
 
-    Raises:
-        ValueError: If neither ``trainer_config`` nor ``inferencer_config`` is
-            provided at construction time.
-
     Args:
         strategy_type: Registry key identifying this strategy type.
         dataset: The dataset used for training or inference.

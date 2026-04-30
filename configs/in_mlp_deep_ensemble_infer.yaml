@@ -1,0 +1,20 @@
+# Use with a checkpoint trained from configs/in_mlp_deep_ensemble.yaml.
+
+seed: 2025
+device: cuda
+
+datasource:
+  datasource_type: pmgjson
+  json_path: /media/hendrik/ExternalSSD/final_data/omnixas_test/
+
+dataset:
+  root: ./data/fe/processed_test/ # Where should the processed data be stored
+  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+
+inferencer:
+  inferencer_type: ensemble
+  batch_size: 3
+  shuffle: False
+  drop_last: False
+  num_workers: 0
+  model_device_policy: sequential

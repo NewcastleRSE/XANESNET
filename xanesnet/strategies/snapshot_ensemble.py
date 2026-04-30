@@ -171,7 +171,7 @@ class SnapshotEnsemble(Strategy):
         """Return the placeholder snapshot ensemble strategy configuration.
 
         Returns:
-            A ``Config`` containing the base strategy signature only.
+            A ``Config`` capturing the strategy configuration.
         """
         signature = super().signature
         signature.update_with_dict({})

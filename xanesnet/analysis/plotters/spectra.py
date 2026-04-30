@@ -156,8 +156,9 @@ class SpectraPlotter(Plotter):
         """Create a spectra comparison figure for one prediction sample.
 
         Args:
-            sample: Prediction sample containing ``prediction`` and ``target`` spectra. Values are
-                flattened to one-dimensional arrays with shape ``(N,)``.
+            sample: Prediction sample containing ``prediction`` and ``target`` spectra, and
+                optionally ``prediction_std`` uncertainty. Values are flattened to one-dimensional
+                arrays with shape ``(N,)``.
             col_scalars: Collector scalar values aligned with ``sample``.
             subtitle: Subtitle text describing prediction and selector context.
 
@@ -166,6 +167,8 @@ class SpectraPlotter(Plotter):
         """
         pred = np.asarray(sample["prediction"]).ravel()
         target = np.asarray(sample["target"]).ravel()
+        pred_std_value = sample.get("prediction_std")
+        pred_std = np.asarray(pred_std_value).ravel() if pred_std_value is not None else None
         residual = pred - target
         x = np.arange(len(pred))
         sample_id = sample.get("sample_id", "?")
@@ -179,6 +182,23 @@ class SpectraPlotter(Plotter):
         )
 
         ax_spec.plot(x, target, label="Target", linewidth=2.0, color="#019cd8")
+        if pred_std is not None:
+            if pred_std.shape == pred.shape:
+                ax_spec.fill_between(
+                    x,
+                    pred - pred_std,
+                    pred + pred_std,
+                    label="Prediction +/- 1 std",
+                    color="#005186",
+                    alpha=0.18,
+                    linewidth=0,
+                )
+            else:
+                logging.warning(
+                    "Skipping prediction_std shading because shape %s does not match prediction shape %s.",
+                    pred_std.shape,
+                    pred.shape,
+                )
         ax_spec.plot(x, pred, label="Prediction", linewidth=2.0, color="#005186", linestyle="--")
         ax_spec.set_ylabel("Intensity")
         ax_spec.set_title(f"Sample: {sample_id}")

@@ -85,6 +85,7 @@ class Inferencer(Runner):
         finally:
             if writer is not None:
                 writer.close()
+            self.model.to(torch.device("cpu"))
 
         logging.info("Finished inference.")
 

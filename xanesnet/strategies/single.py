@@ -254,7 +254,7 @@ class Single(Strategy):
         """Return the strategy configuration as a ``Config``.
 
         Returns:
-            A ``Config`` capturing the strategy and model configuration.
+            A ``Config`` capturing the strategy configuration.
         """
         signature = super().signature
         signature.update_with_dict({})

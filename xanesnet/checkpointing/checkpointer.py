@@ -16,7 +16,9 @@
 """Model checkpoint persistence utilities for XANESNET training runs."""
 
 from pathlib import Path
+from typing import Any
 
+import torch
 import torch.optim as optim
 
 from xanesnet.models import Model
@@ -28,7 +30,9 @@ class Checkpointer:
     """Saves periodic model and optimizer checkpoints during training.
 
     When ``save_dir`` or ``save_interval`` is ``None`` the checkpointer is
-    inactive and all methods are no-ops.
+    inactive and all methods are no-ops. Active checkpointers store CPU copies
+    of model and optimizer states so multi-model checkpoints do not retain old
+    GPU tensors in memory.
 
     Args:
         save_dir: Directory where checkpoint files are written.
@@ -118,10 +122,10 @@ class Checkpointer:
 
         self.checkpoint_counter += 1
 
-        self._checkpoint.model_states[-1] = model.state_dict()
+        self._checkpoint.model_states[-1] = _state_to_cpu(model.state_dict())
         assert self._checkpoint.optimizer_states is not None
         assert self._checkpoint.epochs is not None
-        self._checkpoint.optimizer_states[-1] = optimizer.state_dict()
+        self._checkpoint.optimizer_states[-1] = _state_to_cpu(optimizer.state_dict())
         self._checkpoint.epochs[-1] = epoch
 
         checkpoint_name = f"checkpoint_{self.model_counter}_{epoch}.pth"
@@ -154,3 +158,25 @@ class Checkpointer:
         self._checkpoint.epochs.append(-1)
 
         return len(self._checkpoint)
+
+
+def _state_to_cpu(value: Any) -> Any:
+    """Recursively copy tensors in a state object to CPU.
+
+    Args:
+        value: A tensor, mapping, sequence, or scalar value from a model or
+            optimizer state dictionary.
+
+    Returns:
+        A structurally equivalent object with all tensors detached, cloned, and
+        moved to CPU.
+    """
+    if torch.is_tensor(value):
+        return value.detach().cpu().clone()
+    if isinstance(value, dict):
+        return {key: _state_to_cpu(subvalue) for key, subvalue in value.items()}
+    if isinstance(value, list):
+        return [_state_to_cpu(subvalue) for subvalue in value]
+    if isinstance(value, tuple):
+        return tuple(_state_to_cpu(subvalue) for subvalue in value)
+    return value

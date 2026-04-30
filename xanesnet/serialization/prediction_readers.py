@@ -38,7 +38,8 @@ class PredictionSample(TypedDict):
 
     All values are numpy arrays or torch tensors with no leading absorber
     dimension - each field corresponds to a single row of the equivalent
-    ``PredictionBatch`` field.
+    ``PredictionBatch`` field. ``prediction_std`` is present when inference
+    produced an energy/channel-wise uncertainty estimate.
     """
 
     # Required:
@@ -46,6 +47,7 @@ class PredictionSample(TypedDict):
     target: np.ndarray | torch.Tensor
 
     # Optional:
+    prediction_std: NotRequired[np.ndarray | torch.Tensor]
     file_name: NotRequired[str]
     forward_time: NotRequired[float]
     forward_time_pass: NotRequired[float]

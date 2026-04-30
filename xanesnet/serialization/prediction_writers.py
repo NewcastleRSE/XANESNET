@@ -36,6 +36,10 @@ class PredictionBatch(TypedDict):
     All values are numpy arrays or torch tensors whose first dimension is the
     absorber dimension - every field carries one row per absorber site.  All
     array-like fields must share the same leading absorber size.
+    ``prediction`` contains the predicted spectrum, or an aggregate mean
+    spectrum for ensemble inference. ``prediction_std`` may contain an
+    energy/channel-wise uncertainty estimate with the same shape as
+    ``prediction``.
     """
 
     # Required:
@@ -43,6 +47,7 @@ class PredictionBatch(TypedDict):
     target: np.ndarray | torch.Tensor
 
     # Optional:
+    prediction_std: NotRequired[np.ndarray | torch.Tensor]
     file_name: NotRequired[np.ndarray]
     forward_time: NotRequired[np.ndarray | torch.Tensor]
     forward_time_pass: NotRequired[np.ndarray | torch.Tensor]
@@ -107,9 +112,7 @@ class PredictionWriter(ABC):
                 details.append(f"missing keys: {missing}")
             if extra:
                 details.append(f"unexpected keys: {extra}")
-            raise ValueError(
-                "PredictionBatch keys must stay consistent across writes; " + "; ".join(details)
-            )
+            raise ValueError("PredictionBatch keys must stay consistent across writes; " + "; ".join(details))
 
         n_absorbers: int | None = None
 

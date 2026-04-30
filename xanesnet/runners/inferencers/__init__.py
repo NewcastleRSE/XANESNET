@@ -17,10 +17,12 @@
 
 from .base import Inferencer
 from .basic import BasicInferencer
+from .ensemble import EnsembleInferencer
 from .registry import InferencerRegistry
 
 __all__ = [
     "Inferencer",
     "BasicInferencer",
+    "EnsembleInferencer",
     "InferencerRegistry",
 ]

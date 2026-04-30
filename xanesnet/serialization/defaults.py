@@ -412,6 +412,13 @@ INFERENCER_DEFAULTS: dict[str, dict[str, Any]] = {
         "drop_last": False,
         "num_workers": 0,
     },
+    "ensemble": {
+        "batch_size": 1,
+        "shuffle": False,
+        "drop_last": False,
+        "num_workers": 0,
+        "model_device_policy": "all",
+    },
 }
 
 STRATEGY_DEFAULTS: dict[str, dict[str, Any]] = {
@@ -431,6 +438,7 @@ STRATEGY_DEFAULTS: dict[str, dict[str, Any]] = {
         "weight_init": "default",
         "weight_init_params": {},
         "bias_init": "zeros",
+        "n_models": 5,
         "checkpoint_interval": None,
     },
     "snapshot_ensemble": {
@@ -489,6 +497,7 @@ TRAINER_REQUIRED: dict[str, list[str]] = {
 
 INFERENCER_REQUIRED: dict[str, list[str]] = {
     "basic": [],
+    "ensemble": [],
 }
 
 STRATEGY_REQUIRED: dict[str, list[str]] = {
