@@ -1,0 +1,25 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: strategy_types.schema.yaml
+title: XANESNET strategy value types
+$defs:
+  strategyType:
+    type: string
+    enum:
+    - single
+    - deep_ensemble
+    - bootstrap
+    - snapshot_ensemble
+    description: Strategy registry key accepted by ``StrategyRegistry.get``.
+  strategyTypeSingle:
+    const: single
+    description: Registry key definition used by the corresponding XANESNET registry.
+  strategyTypeDeepEnsemble:
+    const: deep_ensemble
+    description: Registry key definition used by the corresponding XANESNET registry.
+  strategyTypeBootstrap:
+    const: bootstrap
+    description: Registry key definition used by the corresponding XANESNET registry.
+  strategyTypeSnapshotEnsemble:
+    const: snapshot_ensemble
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Strategy schemas backed by ``StrategyRegistry`` classes.

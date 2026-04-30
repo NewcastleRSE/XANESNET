@@ -1,0 +1,427 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gemnet_oc.schema.yaml
+title: 'XANESNET model schema: gemnet_oc'
+$defs:
+  modelTrainGemNetOC:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - num_targets
+    properties:
+      num_spherical:
+        type: integer
+        minimum: 1
+        default: 7
+        description: Number of angular basis functions.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Number of radial basis functions.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      emb_size_atom:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Atom embedding dimension.
+      emb_size_edge:
+        type: integer
+        minimum: 1
+        default: 512
+        description: Edge embedding dimension.
+      emb_size_trip_in:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate triplet input dimension.
+      emb_size_trip_out:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate triplet output dimension.
+      emb_size_quad_in:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Intermediate quadruplet input dimension.
+      emb_size_quad_out:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Intermediate quadruplet output dimension.
+      emb_size_aint_in:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate atom-pair input dimension.
+      emb_size_aint_out:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate atom-pair output dimension.
+      emb_size_rbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedded radial-basis dimension.
+      emb_size_cbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedded circular-basis dimension.
+      emb_size_sbf:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Embedded spherical-basis dimension.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers before the edge skip connection inside each interaction block.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers after the edge skip connection inside each interaction block.
+      num_concat:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of residual layers after the atom/edge concat update in each interaction block.
+      num_atom:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of residual layers in atom update and output blocks.
+      num_output_afteratom:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of residual layers applied after the atom skip connection inside each output block.
+      num_atom_emb_layers:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of extra atom residual layers inside each interaction block.
+      num_global_out_layers:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers in the final per-atom output MLP.
+      cutoff:
+        type: number
+        default: 12.0
+        description: Main graph cutoff radius in **angstrom**.
+      cutoff_qint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional quadruplet cutoff radius. Uses ``cutoff`` when ``None`` or when quadruplet interactions are
+          disabled.
+      cutoff_aeaint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional atom-edge / edge-atom cutoff radius. Uses ``cutoff`` when ``None`` or when those interaction
+          paths are disabled.
+      cutoff_aint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional atom-atom cutoff radius. Uses the maximum of the active cutoffs when ``None`` or when atom-pair
+          interactions are disabled.
+      rbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCRBF
+        default:
+          name: gaussian
+        description: Config for the main radial basis.
+      rbf_spherical:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCRBF
+        default:
+          name: gaussian
+        description: Config for the radial basis used together with circular/spherical angular bases.
+      envelope:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCEnvelope
+        default:
+          name: polynomial
+          exponent: 5
+        description: Config for the cutoff envelope applied to radial bases.
+      cbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCCBF
+        default:
+          name: spherical_harmonics
+        description: Config for the circular basis.
+      sbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCSBF
+        default:
+          name: spherical_harmonics
+        description: Config for the spherical basis.
+      output_init:
+        $ref: model_types.schema.yaml#/$defs/gemNetOCOutputInitializer
+        default: HeOrthogonal
+        description: Initializer name for the final linear output layer.
+      activation:
+        $ref: model_types.schema.yaml#/$defs/gemNetActivation
+        default: silu
+        description: Activation name used in dense and residual layers.
+      quad_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable quadruplet interactions.
+      atom_edge_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable atom-to-edge interactions.
+      edge_atom_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable edge-to-atom interactions.
+      atom_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable atom-to-atom interactions.
+      scale_basis:
+        type: boolean
+        default: false
+        description: Whether to apply learnable scale factors to the basis functions.
+      num_elements:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Size of the atomic-number embedding table.
+      scale_file:
+        oneOf:
+        - type: string
+          not:
+            pattern: ^[Aa][Uu][Tt][Oo]$
+        - type: 'null'
+        default: null
+        description: Optional JSON file with pre-fitted scale factors.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeGemNetOC
+        description: Registry/model identifier passed to the base :class:`~xanesnet.models.base.Model`.
+      num_targets:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of output spectral channels predicted per atom.
+    description: GemNet-OC adapted for per-atom XANES spectrum prediction.
+  modelInferGemNetOC:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - num_targets
+    properties:
+      num_spherical:
+        type: integer
+        minimum: 1
+        default: 7
+        description: Number of angular basis functions.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Number of radial basis functions.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      emb_size_atom:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Atom embedding dimension.
+      emb_size_edge:
+        type: integer
+        minimum: 1
+        default: 512
+        description: Edge embedding dimension.
+      emb_size_trip_in:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate triplet input dimension.
+      emb_size_trip_out:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate triplet output dimension.
+      emb_size_quad_in:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Intermediate quadruplet input dimension.
+      emb_size_quad_out:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Intermediate quadruplet output dimension.
+      emb_size_aint_in:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate atom-pair input dimension.
+      emb_size_aint_out:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate atom-pair output dimension.
+      emb_size_rbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedded radial-basis dimension.
+      emb_size_cbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedded circular-basis dimension.
+      emb_size_sbf:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Embedded spherical-basis dimension.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers before the edge skip connection inside each interaction block.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers after the edge skip connection inside each interaction block.
+      num_concat:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of residual layers after the atom/edge concat update in each interaction block.
+      num_atom:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of residual layers in atom update and output blocks.
+      num_output_afteratom:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of residual layers applied after the atom skip connection inside each output block.
+      num_atom_emb_layers:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of extra atom residual layers inside each interaction block.
+      num_global_out_layers:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers in the final per-atom output MLP.
+      cutoff:
+        type: number
+        default: 12.0
+        description: Main graph cutoff radius in **angstrom**.
+      cutoff_qint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional quadruplet cutoff radius. Uses ``cutoff`` when ``None`` or when quadruplet interactions are
+          disabled.
+      cutoff_aeaint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional atom-edge / edge-atom cutoff radius. Uses ``cutoff`` when ``None`` or when those interaction
+          paths are disabled.
+      cutoff_aint:
+        type:
+        - number
+        - 'null'
+        default: 12.0
+        description: Optional atom-atom cutoff radius. Uses the maximum of the active cutoffs when ``None`` or when atom-pair
+          interactions are disabled.
+      rbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCRBF
+        default:
+          name: gaussian
+        description: Config for the main radial basis.
+      rbf_spherical:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCRBF
+        default:
+          name: gaussian
+        description: Config for the radial basis used together with circular/spherical angular bases.
+      envelope:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCEnvelope
+        default:
+          name: polynomial
+          exponent: 5
+        description: Config for the cutoff envelope applied to radial bases.
+      cbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCCBF
+        default:
+          name: spherical_harmonics
+        description: Config for the circular basis.
+      sbf:
+        $ref: gemnet_oc_basis.schema.yaml#/$defs/gemnetOCSBF
+        default:
+          name: spherical_harmonics
+        description: Config for the spherical basis.
+      output_init:
+        $ref: model_types.schema.yaml#/$defs/gemNetOCOutputInitializer
+        default: HeOrthogonal
+        description: Initializer name for the final linear output layer.
+      activation:
+        $ref: model_types.schema.yaml#/$defs/gemNetActivation
+        default: silu
+        description: Activation name used in dense and residual layers.
+      quad_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable quadruplet interactions.
+      atom_edge_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable atom-to-edge interactions.
+      edge_atom_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable edge-to-atom interactions.
+      atom_interaction:
+        type: boolean
+        default: true
+        description: Whether to enable atom-to-atom interactions.
+      scale_basis:
+        type: boolean
+        default: false
+        description: Whether to apply learnable scale factors to the basis functions.
+      num_elements:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Size of the atomic-number embedding table.
+      scale_file:
+        oneOf:
+        - type: string
+          not:
+            pattern: ^[Aa][Uu][Tt][Oo]$
+        - type: 'null'
+        default: null
+        description: Optional JSON file with pre-fitted scale factors.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeGemNetOC
+        description: Registry/model identifier passed to the base :class:`~xanesnet.models.base.Model`.
+      num_targets:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of output spectral channels predicted per atom.
+    description: GemNet-OC adapted for per-atom XANES spectrum prediction.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

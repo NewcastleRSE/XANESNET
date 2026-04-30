@@ -1,0 +1,33 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: basic.schema.yaml
+title: 'XANESNET inferencer schema: basic'
+$defs:
+  inferencerBasic:
+    type: object
+    additionalProperties: false
+    required:
+    - inferencer_type
+    properties:
+      inferencer_type:
+        $ref: ../runner_types.schema.yaml#/$defs/inferencerTypeBasic
+        description: Identifier string for this inferencer type.
+      batch_size:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of samples per inference batch.
+      shuffle:
+        type: boolean
+        default: false
+        description: Whether to shuffle the data (typically ``False`` for inference).
+      drop_last:
+        type: boolean
+        default: false
+        description: Whether to drop the last incomplete batch.
+      num_workers:
+        type: integer
+        minimum: 0
+        default: 0
+        description: Number of data-loader worker processes.
+    description: Basic single-process inferencer.
+description: Runner schemas backed by trainer and inferencer registries.

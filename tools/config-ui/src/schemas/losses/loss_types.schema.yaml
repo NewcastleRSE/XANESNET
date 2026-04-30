@@ -1,0 +1,37 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: loss_types.schema.yaml
+title: XANESNET loss value types
+$defs:
+  lossType:
+    type: string
+    enum:
+    - mse
+    - l1
+    - bce
+    - emd
+    - wcc
+    - specplus
+    - mkssim1d
+    description: Loss registry key accepted by ``LossRegistry.get``.
+  lossTypeMSE:
+    const: mse
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeL1:
+    const: l1
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeBCE:
+    const: bce
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeEMD:
+    const: emd
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeWCC:
+    const: wcc
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeSpecPlus:
+    const: specplus
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lossTypeMKSSIM1D:
+    const: mkssim1d
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

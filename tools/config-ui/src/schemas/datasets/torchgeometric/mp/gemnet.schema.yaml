@@ -1,0 +1,165 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gemnet.schema.yaml
+title: 'XANESNET dataset schema: gemnet'
+$defs:
+  datasetGemNetMP:
+    type: object
+    additionalProperties: false
+    required:
+    - dataset_type
+    - root
+    properties:
+      num_workers:
+        type:
+        - integer
+        - 'null'
+        default: null
+        $comment: null or non-positive means use os.cpu_count() in the multiprocessing mixin.
+        description: Requested worker process count.
+      cutoff:
+        type: number
+        default: 5.0
+        description: Main graph cutoff in **Angstrom**.
+      max_num_neighbors:
+        type: integer
+        minimum: 1
+        default: 50
+        description: Main graph per-source neighbor cap.
+      graph_method:
+        $ref: ../../graph_types.schema.yaml#/$defs/graphMethod
+        default: radius
+        description: Main graph construction method.
+      min_facet_area:
+        $ref: ../../graph_types.schema.yaml#/$defs/minFacetArea
+        default: null
+        description: Numeric area threshold or strings such as "5%".
+      cov_radii_scale:
+        type: number
+        default: 1.5
+        description: Covalent-radii scale for the main graph.
+      quadruplets:
+        type: boolean
+        default: false
+        description: Whether to compute quadruplet indices.
+      int_cutoff:
+        type:
+        - number
+        - 'null'
+        default: 10.0
+        description: Interaction graph cutoff in **Angstrom**.
+      int_max_neighbors:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Optional interaction graph per-source neighbor cap.
+      int_graph_method:
+        oneOf:
+        - $ref: ../../graph_types.schema.yaml#/$defs/graphMethod
+        - type: 'null'
+        default: null
+        description: Optional interaction graph construction method.
+      int_min_facet_area:
+        $ref: ../../graph_types.schema.yaml#/$defs/minFacetArea
+        default: null
+        description: Numeric area threshold or strings such as "5%".
+      int_cov_radii_scale:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Optional interaction covalent-radii scale.
+      oc_mode:
+        type: boolean
+        default: false
+        description: Whether to precompute GemNet-OC auxiliary graphs and mixed triplets.
+      oc_cutoff_aeaint:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Atom-edge-atom graph cutoff in **Angstrom**.
+      oc_max_neighbors_aeaint:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Atom-edge-atom graph per-source neighbor cap.
+      oc_graph_method_aeaint:
+        oneOf:
+        - $ref: ../../graph_types.schema.yaml#/$defs/graphMethod
+        - type: 'null'
+        default: null
+        description: Atom-edge-atom graph construction method override.
+      oc_min_facet_area_aeaint:
+        $ref: ../../graph_types.schema.yaml#/$defs/minFacetArea
+        default: null
+        description: Numeric area threshold or strings such as "5%".
+      oc_cov_radii_scale_aeaint:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Atom-edge-atom covalent-radii scale.
+      oc_cutoff_aint:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Atom-atom graph cutoff in **Angstrom**.
+      oc_max_neighbors_aint:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Atom-atom graph per-source neighbor cap.
+      oc_graph_method_aint:
+        oneOf:
+        - $ref: ../../graph_types.schema.yaml#/$defs/graphMethod
+        - type: 'null'
+        default: null
+        description: Atom-atom graph construction method override.
+      oc_min_facet_area_aint:
+        $ref: ../../graph_types.schema.yaml#/$defs/minFacetArea
+        default: null
+        description: Numeric area threshold or strings such as "5%".
+      oc_cov_radii_scale_aint:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Atom-atom covalent-radii scale.
+      root:
+        type: string
+        description: Directory that stores processed ``.pth`` files.
+      preload:
+        type: boolean
+        default: false
+        description: Whether to preload processed samples.
+      skip_prepare:
+        type: boolean
+        default: false
+        description: Whether to reuse existing processed files.
+      split_ratios:
+        type:
+        - array
+        - 'null'
+        items:
+          type: number
+          minimum: 0
+        minItems: 1
+        default:
+        - 1.0
+        $comment: Runtime requires the values to sum to 1.0 when split_indexfile is null.
+        description: Optional split ratios.
+      split_indexfile:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Optional path to split indices.
+      dataset_type:
+        $ref: ../../dataset_types.schema.yaml#/$defs/datasetTypeGemNetMP
+        description: Registered dataset type name.
+    description: Multiprocessing variant of :class:`GemNetDataset` (covers GemNet and GemNet-OC).
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

@@ -1,0 +1,32 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: linear.schema.yaml
+title: 'XANESNET learning-rate scheduler schema: linear'
+$defs:
+  lrSchedulerLinear:
+    type: object
+    additionalProperties: false
+    required:
+    - lr_scheduler_type
+    properties:
+      lr_scheduler_type:
+        $ref: ../component_types.schema.yaml#/$defs/lrSchedulerTypeLinear
+        description: Registry key passed to ``LRSchedulerRegistry.get``.
+      start_factor:
+        type: number
+        default: 0.3333333333333333
+        description: Initial multiplicative factor forwarded to ``LinearLR``.
+      end_factor:
+        type: number
+        default: 1.0
+        description: Final multiplicative factor forwarded to ``LinearLR``.
+      total_iters:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Number of iterations over which ``LinearLR`` changes the factor.
+      last_epoch:
+        type: integer
+        default: -1
+        description: Last epoch index forwarded to the PyTorch scheduler.
+    description: Learning-rate scheduler registered to ``torch.optim.lr_scheduler.LinearLR``.
+description: Reusable component value schemas backed by activation, optimizer, initializer, and scheduler registries.

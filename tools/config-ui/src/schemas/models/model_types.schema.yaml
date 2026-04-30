@@ -1,0 +1,83 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: model_types.schema.yaml
+title: XANESNET model value types
+$defs:
+  modelType:
+    type: string
+    enum:
+    - mlp
+    - lstm
+    - envembed
+    - schnet
+    - dimenet
+    - dimenet++
+    - gemnet
+    - gemnet_oc
+    - e3ee
+    - e3ee_full
+    description: Model registry key accepted by ``ModelRegistry.get``.
+  dimeNetOutputInitializer:
+    type: string
+    enum:
+    - zeros
+    - glorot_orthogonal
+    description: Final-layer initializer accepted by DimeNet and DimeNet++ constructors.
+  gemNetOutputInitializer:
+    type: string
+    enum:
+    - HeOrthogonal
+    - heorthogonal
+    - zeros
+    description: Final output initializer accepted by GemNet output layers.
+  gemNetOCOutputInitializer:
+    type: string
+    enum:
+    - HeOrthogonal
+    - heorthogonal
+    - zeros
+    - grid
+    - loggrid
+    description: Initializer name accepted by GemNet-OC output initializer utilities.
+  gemNetActivation:
+    type: string
+    enum:
+    - swish
+    - silu
+    description: Activation name accepted by GemNet and GemNet-OC dense/residual layers.
+  e3eeFusionMode:
+    type: string
+    enum:
+    - cat
+    - gated
+    description: Branch fusion mode accepted by E3EE and E3EE-full models.
+  modelTypeMLP:
+    const: mlp
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeLSTM:
+    const: lstm
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeEnvEmbed:
+    const: envembed
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeSchNet:
+    const: schnet
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeDimeNet:
+    const: dimenet
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeDimeNetPP:
+    const: dimenet++
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeGemNet:
+    const: gemnet
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeGemNetOC:
+    const: gemnet_oc
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeE3EE:
+    const: e3ee
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelTypeE3EEFull:
+    const: e3ee_full
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

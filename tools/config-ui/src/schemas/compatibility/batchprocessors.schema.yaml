@@ -1,0 +1,200 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: batchprocessors.schema.yaml
+title: XANESNET dataset/model compatibility schemas
+$comment: Compatibility rules mirror BatchProcessorRegistry registrations used by training and inference.
+$defs:
+  trainDatasetModelCompatibility:
+    allOf:
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/descriptorDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/descriptorModels
+                description: Model type identifier string.
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/envEmbedDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: ../models/model_types.schema.yaml#/$defs/modelTypeEnvEmbed
+                description: Model type string (passed to base class).
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/geometryGraphDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/geometryGraphModels
+                description: Model type string (passed to base class).
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/gemNetDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: ../models/model_types.schema.yaml#/$defs/modelTypeGemNet
+                description: Model type string (passed to base class).
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/gemNetOCDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: ../models/model_types.schema.yaml#/$defs/modelTypeGemNetOC
+                description: Registry/model identifier passed to the base :class:`~xanesnet.models.base.Model`.
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/e3eeDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: ../models/model_types.schema.yaml#/$defs/modelTypeE3EE
+                description: String identifier stored on the base :class:`Model`.
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: batchprocessor_types.schema.yaml#/$defs/e3eeFullDatasets
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then:
+        properties:
+          model:
+            properties:
+              model_type:
+                $ref: ../models/model_types.schema.yaml#/$defs/modelTypeE3EEFull
+                description: Model type string (passed to base class).
+            description: Configuration section used by strategy setup to instantiate the registered model; training schemas
+              allow selected ``"auto"`` fields.
+    - if:
+        required:
+        - dataset
+        - model
+        properties:
+          dataset:
+            required:
+            - dataset_type
+            properties:
+              dataset_type:
+                $ref: ../datasets/dataset_types.schema.yaml#/$defs/datasetTypeRichGraph
+                description: Registered dataset type name.
+            description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+      then: false
+    description: Dataset/model compatibility rules for training derived from registered batch processors.
+  inferModeCompatibility:
+    allOf:
+    - $ref: '#/$defs/trainDatasetModelCompatibility'
+    - if:
+        required:
+        - strategy
+        - inferencer
+        properties:
+          strategy:
+            properties:
+              strategy_type:
+                $ref: ../strategies/strategy_types.schema.yaml#/$defs/strategyTypeDeepEnsemble
+                description: Registry key identifying this strategy type.
+            description: Configuration section used by core setup code to instantiate ``StrategyRegistry.get(strategy_type)``.
+      then:
+        properties:
+          inferencer:
+            properties:
+              inferencer_type:
+                $ref: ../runners/runner_types.schema.yaml#/$defs/inferencerTypeEnsemble
+                description: Identifier string for this inferencer type.
+            description: Inference runner section; mutually exclusive with ``trainer`` in ``validate_config``.
+    description: Inference-only compatibility rules, including deep-ensemble inferencer requirements.
+description: Compatibility schemas derived from ``BatchProcessorRegistry`` dataset/model registrations.

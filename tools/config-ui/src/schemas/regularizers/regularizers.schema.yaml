@@ -1,0 +1,11 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: regularizers.schema.yaml
+title: XANESNET regularizer configuration schemas
+$defs:
+  regularizer:
+    oneOf:
+    - $ref: none.schema.yaml#/$defs/regularizerNone
+    - $ref: l1.schema.yaml#/$defs/regularizerL1
+    - $ref: l2.schema.yaml#/$defs/regularizerL2
+    description: Union of regularizer configuration objects instantiated by ``RegularizerRegistry``.
+description: Regularizer schemas backed by ``RegularizerRegistry`` classes.

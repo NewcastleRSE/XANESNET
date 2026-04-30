@@ -1,0 +1,21 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: datasource_types.schema.yaml
+title: XANESNET datasource value types
+$defs:
+  datasourceType:
+    type: string
+    enum:
+    - xyzspec
+    - multixyzspec
+    - pmgjson
+    description: Datasource registry key accepted by ``DataSourceRegistry.get``.
+  datasourceTypeXYZSpec:
+    const: xyzspec
+    description: Registry key definition used by the corresponding XANESNET registry.
+  datasourceTypeMultiXYZSpec:
+    const: multixyzspec
+    description: Registry key definition used by the corresponding XANESNET registry.
+  datasourceTypePMGJSON:
+    const: pmgjson
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

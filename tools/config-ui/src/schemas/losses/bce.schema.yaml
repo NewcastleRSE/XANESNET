@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: bce.schema.yaml
+title: 'XANESNET loss schema: bce'
+$defs:
+  lossBCE:
+    type: object
+    additionalProperties: false
+    required:
+    - loss_type
+    properties:
+      loss_type:
+        $ref: loss_types.schema.yaml#/$defs/lossTypeBCE
+        description: Identifier string for this loss type.
+    description: Binary cross-entropy loss with logits.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

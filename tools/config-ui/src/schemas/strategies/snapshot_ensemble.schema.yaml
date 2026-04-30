@@ -1,0 +1,37 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: snapshot_ensemble.schema.yaml
+title: 'XANESNET strategy schema: snapshot_ensemble'
+$comment: Registered in defaults, but the implementation currently raises NotImplementedError.
+$defs:
+  strategySnapshotEnsemble:
+    type: object
+    additionalProperties: false
+    required:
+    - strategy_type
+    properties:
+      weight_init:
+        $ref: ../components/component_types.schema.yaml#/$defs/weightInitName
+        default: default
+        description: Weight initialization scheme name.
+      weight_init_params:
+        type: object
+        default: {}
+        additionalProperties: true
+        $comment: Forwarded as kwargs to the selected torch.nn.init weight initializer. Examples include {a,b} for uniform_,
+          {mean,std} for normal_, {gain} for xavier_*, and {a,mode,nonlinearity} for kaiming_*.
+        description: Additional weight-initializer parameters.
+      bias_init:
+        $ref: ../components/component_types.schema.yaml#/$defs/biasInitName
+        default: zeros
+        description: Bias initialization scheme name.
+      checkpoint_interval:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Epoch interval between checkpoints, or ``None``.
+      strategy_type:
+        $ref: strategy_types.schema.yaml#/$defs/strategyTypeSnapshotEnsemble
+        description: Strategy identifier.
+    description: Snapshot ensemble strategy.
+description: Strategy schemas backed by ``StrategyRegistry`` classes.

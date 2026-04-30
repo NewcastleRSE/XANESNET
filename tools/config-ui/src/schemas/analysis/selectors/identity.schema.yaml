@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: identity.schema.yaml
+title: 'XANESNET selector schema: identity'
+$defs:
+  selectorIdentity:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    properties:
+      selector_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/selectorTypeAllOrNone
+        description: Registered selector name from the analysis configuration.
+    description: Yield all source samples unchanged.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

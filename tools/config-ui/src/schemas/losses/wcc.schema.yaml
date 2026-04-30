@@ -1,0 +1,20 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: wcc.schema.yaml
+title: 'XANESNET loss schema: wcc'
+$defs:
+  lossWCC:
+    type: object
+    additionalProperties: false
+    required:
+    - loss_type
+    properties:
+      loss_type:
+        $ref: loss_types.schema.yaml#/$defs/lossTypeWCC
+        description: Identifier string for this loss type.
+      gaussian_hwhm:
+        type: integer
+        minimum: 1
+        default: 10
+        description: Half-width at half-maximum of the Gaussian weight function in spectral bins. Defaults to ``10``.
+    description: Weighted cross-correlation (WCC) loss.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

@@ -1,0 +1,39 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: specplus.schema.yaml
+title: 'XANESNET loss schema: specplus'
+$defs:
+  lossSpecPlus:
+    type: object
+    additionalProperties: false
+    required:
+    - loss_type
+    properties:
+      loss_type:
+        $ref: loss_types.schema.yaml#/$defs/lossTypeSpecPlus
+        description: Identifier string for this loss type.
+      blur_sigma_bins:
+        type: number
+        default: 5.0
+        description: Gaussian blur width in spectral bins for the coarse component. Defaults to ``5.0``.
+      alpha:
+        type: number
+        default: 0.4
+        description: Weight for the coarse loss ``Lc``. Defaults to ``0.4``.
+      beta:
+        type: number
+        default: 0.6
+        description: Weight for the detail loss ``Ld``. Defaults to ``0.6``.
+      gamma:
+        type: number
+        default: 0.2
+        description: Weight for the gradient loss ``Lg``. Defaults to ``0.2``.
+      huber_delta:
+        type: number
+        default: 0.01
+        description: Transition point for the Huber loss. Defaults to ``0.01``.
+      kappa_peak:
+        type: number
+        default: 0.15
+        description: Amplitude of the peak-aware weight boost applied to ``Ld``. Defaults to ``0.15``.
+    description: Multi-component spectral loss combining blurred, detail, and gradient terms.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

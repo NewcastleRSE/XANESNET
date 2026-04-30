@@ -42,7 +42,7 @@ DATASET_DEFAULT: dict[str, dict[str, Any]] = {
         "widths_eV": [0.5, 1.0, 2.0, 4.0],
         "basis_stride": 4,
         "basis_path": None,
-        "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
+        "descriptors": [{"descriptor_type": "wacsf", "r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}],
     },
     "e3ee": {
         "preload": True,
@@ -90,7 +90,7 @@ DATASET_DEFAULT: dict[str, dict[str, Any]] = {
         "basis_stride": 4,
         "basis_path": None,
         "env_radius": None,
-        "descriptors": [{"descriptor_type": "wacsf", "params": {"r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}}],
+        "descriptors": [{"descriptor_type": "wacsf", "r_min": 1.0, "r_max": 6.0, "n_g2": 16, "n_g4": 32}],
     },
     "richgraph": {
         "preload": True,

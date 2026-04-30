@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: scalar.schema.yaml
+title: 'XANESNET reporter schema: scalar'
+$defs:
+  reporterScalar:
+    type: object
+    additionalProperties: false
+    required:
+    - reporter_type
+    properties:
+      reporter_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/analysisTypeScalar
+        description: Registered reporter name from the analysis configuration.
+    description: Write per-sample scalar values from selectors and collectors as CSV files.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

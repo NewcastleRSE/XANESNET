@@ -1,0 +1,115 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: value_types.schema.yaml
+title: XANESNET shared value types
+$comment: Only generic JSON/YAML value types live here. Domain-specific enums stay with their owning component schemas.
+$defs:
+  autoToken:
+    type: string
+    pattern: ^[Aa][Uu][Tt][Oo]$
+    description: Case-insensitive ``auto`` token used by training-time automatic model configuration.
+  nonAutoString:
+    type: string
+    not:
+      pattern: ^[Aa][Uu][Tt][Oo]$
+    description: String value that is not the case-insensitive ``auto`` token.
+  stringValue:
+    type: string
+    description: Generic string value.
+  nullableString:
+    type:
+    - string
+    - 'null'
+    default: null
+    description: String value or ``null``.
+  nullableNonAutoString:
+    default: null
+    oneOf:
+    - title: Text
+      type: string
+      not:
+        pattern: ^[Aa][Uu][Tt][Oo]$
+    - title: Null
+      type: 'null'
+    description: String value other than ``auto``, or ``null``.
+  booleanValue:
+    type: boolean
+    description: Generic boolean value.
+  numberValue:
+    type: number
+    description: Generic numeric value.
+  nullableNumber:
+    type:
+    - number
+    - 'null'
+    default: null
+    description: Numeric value or ``null``.
+  integerValue:
+    type: integer
+    description: Generic integer value.
+  nullableInteger:
+    type:
+    - integer
+    - 'null'
+    default: null
+    description: Integer value or ``null``.
+  nonNegativeInteger:
+    type: integer
+    minimum: 0
+    description: Integer value greater than or equal to zero.
+  positiveInteger:
+    type: integer
+    minimum: 1
+    description: Integer value greater than or equal to one.
+  positiveNumber:
+    type: number
+    exclusiveMinimum: 0
+    description: Numeric value greater than zero.
+  numberArray:
+    type: array
+    items:
+      type: number
+    description: Array of numeric values.
+  integerArray:
+    type: array
+    items:
+      type: integer
+    description: Array of integer values.
+  positiveIntegerArray:
+    type: array
+    items:
+      type: integer
+      minimum: 1
+    description: Array of integer values greater than or equal to one.
+  nullableNumberArray:
+    default: null
+    oneOf:
+    - title: List
+      type: array
+      items:
+        type: number
+    - title: Null
+      type: 'null'
+    description: Array of numeric values or ``null``.
+  autoPositiveInteger:
+    default: auto
+    oneOf:
+    - title: Number
+      type: integer
+      minimum: 1
+    - title: Auto
+      type: string
+      pattern: ^[Aa][Uu][Tt][Oo]$
+    description: Positive integer or training-time ``auto`` token.
+  autoPositiveIntegerArray:
+    default: auto
+    oneOf:
+    - title: List
+      type: array
+      items:
+        type: integer
+        minimum: 1
+    - title: Auto
+      type: string
+      pattern: ^[Aa][Uu][Tt][Oo]$
+    description: Array of positive integers or training-time ``auto`` token.
+description: Generic JSON/YAML value schemas reused by component schemas.

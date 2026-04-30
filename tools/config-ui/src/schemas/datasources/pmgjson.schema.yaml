@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: pmgjson.schema.yaml
+title: 'XANESNET datasource schema: pmgjson'
+$defs:
+  datasourcePMGJSON:
+    type: object
+    additionalProperties: false
+    required:
+    - datasource_type
+    - json_path
+    properties:
+      datasource_type:
+        $ref: datasource_types.schema.yaml#/$defs/datasourceTypePMGJSON
+        description: Identifier string for this datasource type.
+      json_path:
+        type: string
+        description: Path to the directory containing the ``.json`` files.
+    description: Datasource for pymatgen JSON files in a single directory.
+description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

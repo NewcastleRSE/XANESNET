@@ -1,0 +1,24 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: time.schema.yaml
+title: 'XANESNET early-stopper schema: time'
+$defs:
+  earlyStopperTime:
+    type: object
+    additionalProperties: false
+    required:
+    - early_stopper_type
+    - time_limit_seconds
+    properties:
+      early_stopper_type:
+        $ref: ../early_stopper_types.schema.yaml#/$defs/earlyStopperTypeTime
+        description: Registry key identifying this stopper type.
+      restore_best:
+        type: boolean
+        default: true
+        description: If ``True``, restore the model to its best-seen state when ``restore`` is called.
+      time_limit_seconds:
+        type: number
+        exclusiveMinimum: 0
+        description: Maximum wall-clock training time in **seconds**.
+    description: Wall-clock time early stopper.
+description: Early-stopper schemas backed by ``EarlyStopperRegistry`` classes.

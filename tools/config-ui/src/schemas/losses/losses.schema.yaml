@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: losses.schema.yaml
+title: XANESNET loss configuration schemas
+$defs:
+  loss:
+    oneOf:
+    - $ref: mse.schema.yaml#/$defs/lossMSE
+    - $ref: l1.schema.yaml#/$defs/lossL1
+    - $ref: bce.schema.yaml#/$defs/lossBCE
+    - $ref: emd.schema.yaml#/$defs/lossEMD
+    - $ref: wcc.schema.yaml#/$defs/lossWCC
+    - $ref: specplus.schema.yaml#/$defs/lossSpecPlus
+    - $ref: mkssim1d.schema.yaml#/$defs/lossMKSSIM1D
+    description: Union of loss configuration objects instantiated by ``LossRegistry``.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

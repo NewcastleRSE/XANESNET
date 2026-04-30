@@ -1,0 +1,91 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: mlp.schema.yaml
+title: 'XANESNET model schema: mlp'
+$defs:
+  modelTrainMLP:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - out_size
+    properties:
+      hidden_size:
+        type: integer
+        minimum: 1
+        default: 226
+        description: Width of the first hidden layer.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.1
+        description: Dropout probability applied after each hidden linear layer. Range ``[0, 1)``.
+      num_hidden_layers:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of hidden layers (excluding the output layer).
+      shrink_rate:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.5
+        description: Multiplicative factor applied to the layer width at each depth step.
+      activation:
+        $ref: ../components/component_types.schema.yaml#/$defs/activationName
+        default: prelu
+        description: Name of the activation function for hidden layers.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeMLP
+        description: Model type identifier string.
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of input features.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of output features.
+    description: A customisable multi-layer perceptron (MLP) for spectroscopy prediction.
+  modelInferMLP:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - out_size
+    properties:
+      hidden_size:
+        type: integer
+        minimum: 1
+        default: 226
+        description: Width of the first hidden layer.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.1
+        description: Dropout probability applied after each hidden linear layer. Range ``[0, 1)``.
+      num_hidden_layers:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of hidden layers (excluding the output layer).
+      shrink_rate:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.5
+        description: Multiplicative factor applied to the layer width at each depth step.
+      activation:
+        $ref: ../components/component_types.schema.yaml#/$defs/activationName
+        default: prelu
+        description: Name of the activation function for hidden layers.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeMLP
+        description: Model type identifier string.
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of input features.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of output features.
+    description: A customisable multi-layer perceptron (MLP) for spectroscopy prediction.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

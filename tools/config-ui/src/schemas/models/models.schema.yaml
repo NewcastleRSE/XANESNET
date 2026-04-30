@@ -1,0 +1,31 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: models.schema.yaml
+title: XANESNET model configuration schemas
+$defs:
+  modelTrain:
+    oneOf:
+    - $ref: mlp.schema.yaml#/$defs/modelTrainMLP
+    - $ref: lstm.schema.yaml#/$defs/modelTrainLSTM
+    - $ref: envembed.schema.yaml#/$defs/modelTrainEnvEmbed
+    - $ref: schnet.schema.yaml#/$defs/modelTrainSchNet
+    - $ref: dimenet.schema.yaml#/$defs/modelTrainDimeNet
+    - $ref: dimenet_pp.schema.yaml#/$defs/modelTrainDimeNetPP
+    - $ref: gemnet.schema.yaml#/$defs/modelTrainGemNet
+    - $ref: gemnet_oc.schema.yaml#/$defs/modelTrainGemNetOC
+    - $ref: e3ee.schema.yaml#/$defs/modelTrainE3EE
+    - $ref: e3ee_full.schema.yaml#/$defs/modelTrainE3EEFull
+    description: Union of model configuration objects for training, including supported ``auto`` fields.
+  modelInfer:
+    oneOf:
+    - $ref: mlp.schema.yaml#/$defs/modelInferMLP
+    - $ref: lstm.schema.yaml#/$defs/modelInferLSTM
+    - $ref: envembed.schema.yaml#/$defs/modelInferEnvEmbed
+    - $ref: schnet.schema.yaml#/$defs/modelInferSchNet
+    - $ref: dimenet.schema.yaml#/$defs/modelInferDimeNet
+    - $ref: dimenet_pp.schema.yaml#/$defs/modelInferDimeNetPP
+    - $ref: gemnet.schema.yaml#/$defs/modelInferGemNet
+    - $ref: gemnet_oc.schema.yaml#/$defs/modelInferGemNetOC
+    - $ref: e3ee.schema.yaml#/$defs/modelInferE3EE
+    - $ref: e3ee_full.schema.yaml#/$defs/modelInferE3EEFull
+    description: Union of model configuration objects for inference, where ``auto`` model values are rejected.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

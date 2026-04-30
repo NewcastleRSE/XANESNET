@@ -1,0 +1,26 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: by_range.schema.yaml
+title: 'XANESNET selector schema: by_range'
+$defs:
+  selectorIndexRange:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    - start
+    - end
+    properties:
+      selector_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/selectorTypeIndexRange
+        description: Registered selector name from the analysis configuration.
+      start:
+        type: integer
+        minimum: 0
+        description: Inclusive zero-based start index.
+      end:
+        type:
+        - integer
+        - 'null'
+        description: Exclusive zero-based end index. ``None`` keeps samples through the source end.
+    description: Select samples from ``start`` up to, but excluding, ``end``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

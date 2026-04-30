@@ -1,0 +1,73 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: common.schema.yaml
+title: XANESNET shared schema index
+$comment: Compatibility index. Editable variant schemas live in project-structured subfolders; reusable enum/value types live
+  next to their owning concepts.
+$defs:
+  nullableInteger:
+    $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
+    description: Re-export of the shared integer-or-null value schema.
+  datasource:
+    $ref: datasources/datasources.schema.yaml#/$defs/datasource
+    description: Union of datasource configuration objects instantiated by ``DataSourceRegistry``.
+  datasourceType:
+    $ref: datasources/datasource_types.schema.yaml#/$defs/datasourceType
+    description: Datasource registry key accepted by ``DataSourceRegistry.get``.
+  descriptor:
+    $ref: descriptors/descriptors.schema.yaml#/$defs/descriptor
+    description: Union of descriptor configuration objects instantiated by ``DescriptorRegistry``.
+  descriptorList:
+    $ref: descriptors/descriptors.schema.yaml#/$defs/descriptorList
+    description: Array of descriptor configuration objects used by descriptor-based datasets.
+  descriptorType:
+    $ref: descriptors/descriptor_types.schema.yaml#/$defs/descriptorType
+    description: Descriptor registry key accepted by ``DescriptorRegistry.get``.
+  dataset:
+    $ref: datasets/datasets.schema.yaml#/$defs/dataset
+    description: Union of dataset configuration objects instantiated by ``DatasetRegistry`` for training.
+  datasetInferUser:
+    $ref: datasets/datasets.schema.yaml#/$defs/datasetInferUser
+    description: Inference dataset union for user YAML before checkpoint signature fields are merged.
+  datasetType:
+    $ref: datasets/dataset_types.schema.yaml#/$defs/datasetType
+    description: Dataset registry key accepted by ``DatasetRegistry.get``.
+  modelTrain:
+    $ref: models/models.schema.yaml#/$defs/modelTrain
+    description: Union of model configuration objects for training, including supported ``auto`` fields.
+  modelInfer:
+    $ref: models/models.schema.yaml#/$defs/modelInfer
+    description: Union of model configuration objects for inference, where ``auto`` model values are rejected.
+  modelType:
+    $ref: models/model_types.schema.yaml#/$defs/modelType
+    description: Model registry key accepted by ``ModelRegistry.get``.
+  trainer:
+    $ref: runners/trainers.schema.yaml#/$defs/trainer
+    description: Union of trainer configuration objects instantiated by ``TrainerRegistry``.
+  inferencer:
+    $ref: runners/inferencers.schema.yaml#/$defs/inferencer
+    description: Union of inferencer configuration objects instantiated by ``InferencerRegistry``.
+  strategy:
+    $ref: strategies/strategies.schema.yaml#/$defs/strategy
+    description: Union of strategy configuration objects instantiated by ``StrategyRegistry``.
+  trainDatasetModelCompatibility:
+    $ref: compatibility/batchprocessors.schema.yaml#/$defs/trainDatasetModelCompatibility
+    description: Dataset/model compatibility rules for training derived from registered batch processors.
+  inferModeCompatibility:
+    $ref: compatibility/batchprocessors.schema.yaml#/$defs/inferModeCompatibility
+    description: Inference-only compatibility rules, including deep-ensemble inferencer requirements.
+  selector:
+    $ref: analysis/analysis.schema.yaml#/$defs/selector
+    description: Union of selector configuration objects instantiated by ``SelectorRegistry`` in ``core_analyze``.
+  collector:
+    $ref: analysis/analysis.schema.yaml#/$defs/collector
+    description: Union of collector configuration objects instantiated by ``CollectorRegistry`` in ``core_analyze``.
+  aggregator:
+    $ref: analysis/analysis.schema.yaml#/$defs/aggregator
+    description: Union of aggregator configuration objects instantiated by ``AggregatorRegistry`` in ``core_analyze``.
+  reporter:
+    $ref: analysis/analysis.schema.yaml#/$defs/reporter
+    description: Union of reporter configuration objects instantiated by ``ReporterRegistry`` in ``core_analyze``.
+  plotter:
+    $ref: analysis/analysis.schema.yaml#/$defs/plotter
+    description: Union of plotter configuration objects instantiated by ``PlotterRegistry`` in ``core_analyze``.
+description: Reference index re-exporting schema entry points and reusable type definitions.

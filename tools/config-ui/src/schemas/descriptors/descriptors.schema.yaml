@@ -1,0 +1,24 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: descriptors.schema.yaml
+title: XANESNET descriptor configuration schemas
+$defs:
+  descriptor:
+    oneOf:
+    - $ref: wacsf.schema.yaml#/$defs/descriptorWACSF
+    - $ref: rdc.schema.yaml#/$defs/descriptorRDC
+    - $ref: mace.schema.yaml#/$defs/descriptorMACE
+    - $ref: direct.schema.yaml#/$defs/descriptorDirect
+    description: Union of descriptor configuration objects instantiated by ``DescriptorRegistry``.
+  descriptorList:
+    type: array
+    minItems: 1
+    items:
+      $ref: descriptors.schema.yaml#/$defs/descriptor
+    default:
+    - descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
+    description: Array of descriptor configuration objects used by descriptor-based datasets.
+description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: none.schema.yaml
+title: 'XANESNET regularizer schema: none'
+$defs:
+  regularizerNone:
+    type: object
+    additionalProperties: false
+    required:
+    - regularizer_type
+    properties:
+      regularizer_type:
+        $ref: regularizer_types.schema.yaml#/$defs/regularizerTypeNoneOrNo
+        description: Identifier string for this regularizer type.
+      weight:
+        type: number
+        default: 1.0
+        description: Unused; present for interface consistency. Defaults to ``1.0``.
+    description: No-op regularizer that always returns zero.
+description: Regularizer schemas backed by ``RegularizerRegistry`` classes.

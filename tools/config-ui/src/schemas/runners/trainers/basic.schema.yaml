@@ -1,0 +1,89 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: basic.schema.yaml
+title: XANESNET basic trainer schema
+$defs:
+  trainerBasic:
+    type: object
+    additionalProperties: false
+    required:
+    - trainer_type
+    properties:
+      trainer_type:
+        $ref: ../runner_types.schema.yaml#/$defs/trainerTypeBasic
+        description: Identifier string for this trainer type.
+      batch_size:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of samples per training batch.
+      shuffle:
+        type: boolean
+        default: true
+        description: Whether to shuffle training data each epoch.
+      drop_last:
+        type: boolean
+        default: false
+        description: Whether to drop the last incomplete training batch.
+      num_workers:
+        type: integer
+        minimum: 0
+        default: 0
+        description: Number of data-loader worker processes.
+      loss:
+        $ref: ../../losses/losses.schema.yaml#/$defs/loss
+        default:
+          loss_type: mse
+        description: Configuration for the loss function.
+      regularizer:
+        $ref: ../../regularizers/regularizers.schema.yaml#/$defs/regularizer
+        default:
+          regularizer_type: none
+          weight: 1.0
+        description: Configuration for the regularizer.
+      epochs:
+        type: integer
+        minimum: 1
+        default: 10
+        description: Total number of training epochs.
+      learning_rate:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.001
+        description: Initial learning rate.
+      optimizer:
+        $ref: ../../components/component_types.schema.yaml#/$defs/optimizerName
+        default: Adam
+        description: Optimizer name looked up via :class:`~xanesnet.components.OptimizerRegistry`.
+      max_norm:
+        type:
+        - number
+        - 'null'
+        default: null
+        description: Maximum gradient norm for clipping, or ``None`` to disable.
+      validation_interval:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Run validation every this many epochs when a validation subset is present.
+      lr_scheduler:
+        $ref: ../../components/lr_schedulers.schema.yaml#/$defs/lrScheduler
+        default:
+          lr_scheduler_type: none
+        description: Configuration for the per-epoch learning-rate scheduler.
+      lr_warmup:
+        type: boolean
+        default: true
+        description: Whether to apply a per-step linear warm-up phase.
+      warmup_steps:
+        type: integer
+        minimum: 0
+        default: 500
+        description: Number of warm-up steps when ``lr_warmup=True``.
+      early_stopper:
+        $ref: ../../stoppers/early_stoppers.schema.yaml#/$defs/earlyStopper
+        default:
+          early_stopper_type: none
+          restore_best: true
+        description: Configuration for the early-stopping criterion.
+    description: Basic single-process trainer.
+description: Runner schemas backed by trainer and inferencer registries.

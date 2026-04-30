@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: l1.schema.yaml
+title: 'XANESNET loss schema: l1'
+$defs:
+  lossL1:
+    type: object
+    additionalProperties: false
+    required:
+    - loss_type
+    properties:
+      loss_type:
+        $ref: loss_types.schema.yaml#/$defs/lossTypeL1
+        description: Identifier string for this loss type.
+    description: L1 (mean absolute error) loss.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

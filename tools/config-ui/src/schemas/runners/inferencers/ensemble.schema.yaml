@@ -1,0 +1,37 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ensemble.schema.yaml
+title: 'XANESNET inferencer schema: ensemble'
+$defs:
+  inferencerEnsemble:
+    type: object
+    additionalProperties: false
+    required:
+    - inferencer_type
+    properties:
+      inferencer_type:
+        $ref: ../runner_types.schema.yaml#/$defs/inferencerTypeEnsemble
+        description: Identifier string for this inferencer type.
+      batch_size:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of samples per inference batch.
+      shuffle:
+        type: boolean
+        default: false
+        description: Whether to shuffle the data.
+      drop_last:
+        type: boolean
+        default: false
+        description: Whether to drop the last incomplete batch.
+      num_workers:
+        type: integer
+        minimum: 0
+        default: 0
+        description: Number of data-loader worker processes.
+      model_device_policy:
+        $ref: ../runner_types.schema.yaml#/$defs/modelDevicePolicy
+        default: all
+        description: Device-placement policy for ensemble members. Supported values are ``"all"`` and ``"sequential"``.
+    description: Inferencer for multiple independently trained models.
+description: Runner schemas backed by trainer and inferencer registries.

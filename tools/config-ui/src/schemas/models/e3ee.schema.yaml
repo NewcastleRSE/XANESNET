@@ -1,0 +1,315 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: e3ee.schema.yaml
+title: 'XANESNET model schema: e3ee'
+$defs:
+  modelTrainE3EE:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - out_size
+    properties:
+      max_z:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Maximum atomic number (inclusive).
+      atom_emb_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Element embedding dimension.
+      atom_hidden_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden dimension in the equivariant encoder.
+      atom_layers:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of equivariant interaction blocks.
+      local_cutoff:
+        type: number
+        default: 6.0
+        description: Message-passing cutoff radius in Angstrom.
+      rbf_dim:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Number of Gaussian RBF bases for local edge distances.
+      energy_rbf_dim:
+        type: integer
+        minimum: 1
+        default: 48
+        description: Number of Gaussian RBF bases for energy embedding.
+      scatter_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Intermediate scatter feature dimension for the path branch.
+      latent_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Output dimension produced by each active branch.
+      head_hidden_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden dimension of the final head MLP and gated fusion MLPs.
+      e3nn_irreps:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 64x0e + 32x1o + 16x2e
+        description: Node irreps for the equivariant encoder (e.g. ``"32x0e+16x1o+8x2e"``).
+      e3nn_irreps_message:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 16x0e + 8x1o + 4x2e
+        description: Message irreps inside each interaction block.
+      e3nn_lmax:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Maximum ``l`` for spherical harmonics in the encoder.
+      out_mlp_layers:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of layers in the final head MLP.
+      use_invariant_branch:
+        type: boolean
+        default: true
+        description: Enable the invariant absorber branch.
+      use_attention_branch:
+        type: boolean
+        default: true
+        description: Enable the invariant atom-attention branch.
+      use_equivariant_branch:
+        type: boolean
+        default: true
+        description: Enable the late equivariant absorber head.
+      use_eq_attention_branch:
+        type: boolean
+        default: false
+        description: Enable the equivariant atom-attention branch.
+      use_conv_branch:
+        type: boolean
+        default: false
+        description: Enable the invariant SchNet/PaiNN convolution branch.
+      use_eq_conv_branch:
+        type: boolean
+        default: false
+        description: Enable the equivariant NequIP/MACE convolution branch.
+      use_path_branch:
+        type: boolean
+        default: false
+        description: Enable the 3-body path-scattering branch.
+      fusion_mode:
+        $ref: model_types.schema.yaml#/$defs/e3eeFusionMode
+        default: cat
+        description: Branch fusion strategy. ``"cat"`` preserves the existing concatenate-and-MLP head, while ``"gated"``
+          uses learned energy-conditioned soft gates before the final head.
+      residual_scale_init:
+        type: number
+        default: 0.1
+        description: Initial value of learnable residual scales.
+      attention_heads:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of attention heads in attention branches.
+      attention_rbf_dim:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Number of RBF bases for attention-graph distances.
+      attention_lmax:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Maximum ``l`` for spherical harmonics in attention/conv branches.
+      attention_irreps:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 32x0e + 16x1o + 8x2e
+        description: Output irreps of equivariant attention/conv branches.
+      att_cutoff:
+        type: number
+        default: 10.0
+        description: Attention-graph cutoff radius in Angstrom.
+      conv_use_gate:
+        type: boolean
+        default: true
+        description: If ``True``, use a PaiNN-style scalar gate in conv branches.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeE3EE
+        description: String identifier stored on the base :class:`Model`.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of energy-grid points (output length).
+    description: 'Absorber-centred E3-equivariant model. Architecture: - Equivariant atom encoder (e3nn spherical harmonics
+      message passing) - Branch 1 (optional): invariant absorber features + energy - Branch 2a (optional): energy-conditioned
+      atom attention - Branch 2b (optional): energy-conditioned equivariant atom attention - Branch 2c (optional): energy-conditioned
+      invariant convolution (SchNet/PaiNN-style) - Branch 2d (optional): energy-conditioned equivariant convolution (NequIP/MACE-style)
+      - Branch 3 (optional): late equivariant absorber head - Branch 4 (optional): 3-body path scattering'
+  modelInferE3EE:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - out_size
+    properties:
+      max_z:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Maximum atomic number (inclusive).
+      atom_emb_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Element embedding dimension.
+      atom_hidden_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden dimension in the equivariant encoder.
+      atom_layers:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of equivariant interaction blocks.
+      local_cutoff:
+        type: number
+        default: 6.0
+        description: Message-passing cutoff radius in Angstrom.
+      rbf_dim:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Number of Gaussian RBF bases for local edge distances.
+      energy_rbf_dim:
+        type: integer
+        minimum: 1
+        default: 48
+        description: Number of Gaussian RBF bases for energy embedding.
+      scatter_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Intermediate scatter feature dimension for the path branch.
+      latent_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Output dimension produced by each active branch.
+      head_hidden_dim:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden dimension of the final head MLP and gated fusion MLPs.
+      e3nn_irreps:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 64x0e + 32x1o + 16x2e
+        description: Node irreps for the equivariant encoder (e.g. ``"32x0e+16x1o+8x2e"``).
+      e3nn_irreps_message:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 16x0e + 8x1o + 4x2e
+        description: Message irreps inside each interaction block.
+      e3nn_lmax:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Maximum ``l`` for spherical harmonics in the encoder.
+      out_mlp_layers:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of layers in the final head MLP.
+      use_invariant_branch:
+        type: boolean
+        default: true
+        description: Enable the invariant absorber branch.
+      use_attention_branch:
+        type: boolean
+        default: true
+        description: Enable the invariant atom-attention branch.
+      use_equivariant_branch:
+        type: boolean
+        default: true
+        description: Enable the late equivariant absorber head.
+      use_eq_attention_branch:
+        type: boolean
+        default: false
+        description: Enable the equivariant atom-attention branch.
+      use_conv_branch:
+        type: boolean
+        default: false
+        description: Enable the invariant SchNet/PaiNN convolution branch.
+      use_eq_conv_branch:
+        type: boolean
+        default: false
+        description: Enable the equivariant NequIP/MACE convolution branch.
+      use_path_branch:
+        type: boolean
+        default: false
+        description: Enable the 3-body path-scattering branch.
+      fusion_mode:
+        $ref: model_types.schema.yaml#/$defs/e3eeFusionMode
+        default: cat
+        description: Branch fusion strategy. ``"cat"`` preserves the existing concatenate-and-MLP head, while ``"gated"``
+          uses learned energy-conditioned soft gates before the final head.
+      residual_scale_init:
+        type: number
+        default: 0.1
+        description: Initial value of learnable residual scales.
+      attention_heads:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of attention heads in attention branches.
+      attention_rbf_dim:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Number of RBF bases for attention-graph distances.
+      attention_lmax:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Maximum ``l`` for spherical harmonics in attention/conv branches.
+      attention_irreps:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: 32x0e + 16x1o + 8x2e
+        description: Output irreps of equivariant attention/conv branches.
+      att_cutoff:
+        type: number
+        default: 10.0
+        description: Attention-graph cutoff radius in Angstrom.
+      conv_use_gate:
+        type: boolean
+        default: true
+        description: If ``True``, use a PaiNN-style scalar gate in conv branches.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeE3EE
+        description: String identifier stored on the base :class:`Model`.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of energy-grid points (output length).
+    description: 'Absorber-centred E3-equivariant model. Architecture: - Equivariant atom encoder (e3nn spherical harmonics
+      message passing) - Branch 1 (optional): invariant absorber features + energy - Branch 2a (optional): energy-conditioned
+      atom attention - Branch 2b (optional): energy-conditioned equivariant atom attention - Branch 2c (optional): energy-conditioned
+      invariant convolution (SchNet/PaiNN-style) - Branch 2d (optional): energy-conditioned equivariant convolution (NequIP/MACE-style)
+      - Branch 3 (optional): late equivariant absorber head - Branch 4 (optional): 3-body path scattering'
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

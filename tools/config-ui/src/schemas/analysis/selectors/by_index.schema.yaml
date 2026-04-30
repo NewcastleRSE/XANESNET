@@ -1,0 +1,22 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: by_index.schema.yaml
+title: 'XANESNET selector schema: by_index'
+$defs:
+  selectorIndexList:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    - indices
+    properties:
+      selector_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/selectorTypeIndexList
+        description: Registered selector name from the analysis configuration.
+      indices:
+        type: array
+        items:
+          type: integer
+          minimum: 0
+        description: Zero-based sample indices to keep. Negative indices are rejected.
+    description: Select samples by explicit zero-based indices.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

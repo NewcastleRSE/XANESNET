@@ -1,0 +1,10 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: inferencers.schema.yaml
+title: XANESNET inferencer configuration schemas
+$defs:
+  inferencer:
+    oneOf:
+    - $ref: inferencers/basic.schema.yaml#/$defs/inferencerBasic
+    - $ref: inferencers/ensemble.schema.yaml#/$defs/inferencerEnsemble
+    description: Union of inferencer configuration objects instantiated by ``InferencerRegistry``.
+description: Runner schemas backed by trainer and inferencer registries.

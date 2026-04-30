@@ -1,0 +1,171 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: dimenet_pp.schema.yaml
+title: 'XANESNET model schema: dimenet_pp'
+$defs:
+  modelTrainDimeNetPP:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - out_channels
+    properties:
+      hidden_channels:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden feature dimension.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      int_emb_size:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate embedding size in the interaction block.
+      basis_emb_size:
+        type: integer
+        minimum: 1
+        default: 8
+        description: Basis embedding size for RBF/SBF projection.
+      out_emb_channels:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Output embedding size before the final projection.
+      num_spherical:
+        type: integer
+        minimum: 2
+        default: 7
+        description: Number of spherical basis functions; must be >= 2.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 6
+        description: Number of radial basis functions.
+      cutoff:
+        type: number
+        default: 5.0
+        description: Radial cutoff in **A**.
+      envelope_exponent:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Exponent controlling envelope smoothness.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual layers before the skip connection.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers after the skip connection.
+      num_output_layers:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of hidden layers in the output block.
+      act:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: swish
+        description: Activation function name.
+      output_initializer:
+        $ref: model_types.schema.yaml#/$defs/dimeNetOutputInitializer
+        default: zeros
+        description: Weight init for the final layer; one of ``"zeros"`` or ``"glorot_orthogonal"``.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeDimeNetPP
+        description: Model type string (passed to base class).
+      out_channels:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Output feature dimension per atom.
+    description: DimeNet++ improvement over the original DimeNet.
+  modelInferDimeNetPP:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - out_channels
+    properties:
+      hidden_channels:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Hidden feature dimension.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      int_emb_size:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Intermediate embedding size in the interaction block.
+      basis_emb_size:
+        type: integer
+        minimum: 1
+        default: 8
+        description: Basis embedding size for RBF/SBF projection.
+      out_emb_channels:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Output embedding size before the final projection.
+      num_spherical:
+        type: integer
+        minimum: 2
+        default: 7
+        description: Number of spherical basis functions; must be >= 2.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 6
+        description: Number of radial basis functions.
+      cutoff:
+        type: number
+        default: 5.0
+        description: Radial cutoff in **A**.
+      envelope_exponent:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Exponent controlling envelope smoothness.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual layers before the skip connection.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of residual layers after the skip connection.
+      num_output_layers:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of hidden layers in the output block.
+      act:
+        type: string
+        not:
+          pattern: ^[Aa][Uu][Tt][Oo]$
+        default: swish
+        description: Activation function name.
+      output_initializer:
+        $ref: model_types.schema.yaml#/$defs/dimeNetOutputInitializer
+        default: zeros
+        description: Weight init for the final layer; one of ``"zeros"`` or ``"glorot_orthogonal"``.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeDimeNetPP
+        description: Model type string (passed to base class).
+      out_channels:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Output feature dimension per atom.
+    description: DimeNet++ improvement over the original DimeNet.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

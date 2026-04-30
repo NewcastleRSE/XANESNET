@@ -1,0 +1,9 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: trainers.schema.yaml
+title: XANESNET trainer configuration schemas
+$defs:
+  trainer:
+    oneOf:
+    - $ref: trainers/basic.schema.yaml#/$defs/trainerBasic
+    description: Union of trainer configuration objects instantiated by ``TrainerRegistry``.
+description: Runner schemas backed by trainer and inferencer registries.

@@ -1,0 +1,28 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: graph_types.schema.yaml
+title: XANESNET graph dataset value types
+$defs:
+  graphMethod:
+    type: string
+    enum:
+    - radius
+    - voronoi
+    - cov_radius
+    description: Graph construction method accepted by graph dataset constructors.
+  nullableGraphMethod:
+    oneOf:
+    - type: string
+      enum:
+      - radius
+      - voronoi
+      - cov_radius
+    - type: 'null'
+    description: Graph construction method or ``null`` for dataset-specific fallback behavior.
+  minFacetArea:
+    description: Numeric area threshold or strings such as "5%".
+    type:
+    - number
+    - string
+    - 'null'
+    default: null
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

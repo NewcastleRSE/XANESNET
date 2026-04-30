@@ -1,0 +1,60 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: batchprocessor_types.schema.yaml
+title: XANESNET batchprocessor compatibility value types
+$defs:
+  descriptorDatasets:
+    type: string
+    enum:
+    - descriptor
+    - descriptor_mp
+    description: Descriptor dataset types with registered descriptor batch processors.
+  descriptorModels:
+    type: string
+    enum:
+    - mlp
+    - lstm
+    description: Model types registered for descriptor dataset batch processing.
+  envEmbedDatasets:
+    type: string
+    enum:
+    - envembed
+    - envembed_mp
+    description: Environment-embedding dataset types with registered batch processors.
+  geometryGraphDatasets:
+    type: string
+    enum:
+    - geometrygraph
+    - geometrygraph_mp
+    description: Geometry graph dataset types with registered graph batch processors.
+  geometryGraphModels:
+    type: string
+    enum:
+    - schnet
+    - dimenet
+    - dimenet++
+    description: Model types registered for geometry graph dataset batch processing.
+  gemNetDatasets:
+    type: string
+    enum:
+    - gemnet
+    - gemnet_mp
+    description: GemNet dataset types registered with the GemNet batch processor.
+  gemNetOCDatasets:
+    type: string
+    enum:
+    - gemnet_oc
+    - gemnet_oc_mp
+    description: GemNet-OC dataset types registered with the GemNet-OC batch processor.
+  e3eeDatasets:
+    type: string
+    enum:
+    - e3ee
+    - e3ee_mp
+    description: E3EE dataset types registered with the E3EE batch processor.
+  e3eeFullDatasets:
+    type: string
+    enum:
+    - e3ee_full
+    - e3ee_full_mp
+    description: E3EE-full dataset types registered with the E3EE-full batch processor.
+description: Compatibility schemas derived from ``BatchProcessorRegistry`` dataset/model registrations.

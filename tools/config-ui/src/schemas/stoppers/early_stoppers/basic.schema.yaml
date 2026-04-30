@@ -1,0 +1,29 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: basic.schema.yaml
+title: 'XANESNET early-stopper schema: basic'
+$defs:
+  earlyStopperBasic:
+    type: object
+    additionalProperties: false
+    required:
+    - early_stopper_type
+    - patience
+    properties:
+      early_stopper_type:
+        $ref: ../early_stopper_types.schema.yaml#/$defs/earlyStopperTypeBasic
+        description: Registry key identifying this stopper type.
+      restore_best:
+        type: boolean
+        default: true
+        description: If ``True``, restore the model to its best-seen state when ``restore`` is called.
+      patience:
+        type: integer
+        minimum: 1
+        description: Number of epochs without meaningful improvement after which training is stopped.
+      min_delta:
+        type: number
+        default: 0.0
+        description: Minimum absolute improvement per epoch required to be counted as meaningful progress. The threshold is
+          scaled by the number of epochs elapsed since the previous best.
+    description: Patience-based early stopper.
+description: Early-stopper schemas backed by ``EarlyStopperRegistry`` classes.

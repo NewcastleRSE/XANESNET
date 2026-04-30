@@ -1,0 +1,79 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: analysis_types.schema.yaml
+title: XANESNET analysis value types
+$defs:
+  selectorType:
+    type: string
+    enum:
+    - all
+    - none
+    - index_list
+    - index_range
+    - random
+    description: Selector registry key accepted by ``SelectorRegistry.get``.
+  selectorTypeAllOrNone:
+    type: string
+    enum:
+    - all
+    - none
+    description: Aliases registered to ``IdentitySelector``.
+  collectorType:
+    type: string
+    enum:
+    - error_metric
+    description: Collector registry key accepted by ``CollectorRegistry.get``.
+  aggregatorType:
+    type: string
+    enum:
+    - scalar
+    description: Aggregator registry key accepted by ``AggregatorRegistry.get``.
+  reporterType:
+    type: string
+    enum:
+    - scalar
+    - statistics
+    description: Reporter registry key accepted by ``ReporterRegistry.get``.
+  plotterType:
+    type: string
+    enum:
+    - scalar
+    - spectra
+    - stat_table
+    description: Plotter registry key accepted by ``PlotterRegistry.get``.
+  reportFormat:
+    type: string
+    enum:
+    - yaml
+    - json
+    description: Output format accepted by ``StatisticsReporter.SUPPORTED_FORMATS``.
+  selectorTypeAll:
+    const: all
+    description: Registry key definition used by the corresponding XANESNET registry.
+  selectorTypeNone:
+    const: none
+    description: Registry key definition used by the corresponding XANESNET registry.
+  selectorTypeIndexList:
+    const: index_list
+    description: Registry key definition used by the corresponding XANESNET registry.
+  selectorTypeIndexRange:
+    const: index_range
+    description: Registry key definition used by the corresponding XANESNET registry.
+  selectorTypeRandom:
+    const: random
+    description: Registry key definition used by the corresponding XANESNET registry.
+  collectorTypeErrorMetric:
+    const: error_metric
+    description: Registry key definition used by the corresponding XANESNET registry.
+  analysisTypeScalar:
+    const: scalar
+    description: Registry key definition used by the corresponding XANESNET registry.
+  reporterTypeStatistics:
+    const: statistics
+    description: Registry key definition used by the corresponding XANESNET registry.
+  plotterTypeSpectra:
+    const: spectra
+    description: Registry key definition used by the corresponding XANESNET registry.
+  plotterTypeStatTable:
+    const: stat_table
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

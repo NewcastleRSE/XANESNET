@@ -1,0 +1,48 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: infer.schema.yaml
+title: XANESNET inference configuration
+type: object
+additionalProperties: false
+required:
+- datasource
+- dataset
+- inferencer
+$comment: User inference YAML is strictly merged with the checkpoint signature before validate_config_infer() runs. datasource,
+  dataset, and inferencer are supplied by the user; dataset_type, model, and strategy usually come from the checkpoint signature.
+  If model or strategy are repeated in the user YAML, they must not conflict with the checkpoint and model values cannot use
+  "auto".
+properties:
+  seed:
+    $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
+    default: null
+    description: Optional top-level seed validated by ``_validate_global``; absent values default to ``null`` before runtime
+      use.
+  device:
+    type:
+    - string
+    - 'null'
+    default: cpu
+    description: Compute device; e.g., ``"cpu"``, ``"cuda:0"``; absent values default to ``"cpu"`` and are passed
+      to trainers or inferencers.
+  datasource:
+    $ref: datasources/datasources.schema.yaml#/$defs/datasource
+    description: Configuration section used by core setup code to instantiate ``DataSourceRegistry.get(datasource_type)``.
+  dataset:
+    $ref: datasets/datasets.schema.yaml#/$defs/datasetInferUser
+    description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+  model:
+    $ref: models/models.schema.yaml#/$defs/modelInfer
+    description: Optional model section after checkpoint-signature merge; inference rejects ``"auto"`` model values.
+  inferencer:
+    $ref: runners/inferencers.schema.yaml#/$defs/inferencer
+    description: Inference runner section; mutually exclusive with ``trainer`` in ``validate_config``.
+  strategy:
+    $ref: strategies/strategies.schema.yaml#/$defs/strategy
+    description: Configuration section used by core setup code to instantiate ``StrategyRegistry.get(strategy_type)``.
+allOf:
+- not:
+    required:
+    - trainer
+- $ref: compatibility/batchprocessors.schema.yaml#/$defs/inferModeCompatibility
+description: Inference configuration validated by ``validate_config_infer`` after checkpoint-signature merge and consumed
+  by ``core_infer.infer``.

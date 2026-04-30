@@ -1,0 +1,65 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: wacsf.schema.yaml
+title: 'XANESNET descriptor schema: wacsf'
+$defs:
+  descriptorWACSF:
+    type: object
+    additionalProperties: false
+    required:
+    - descriptor_type
+    properties:
+      descriptor_type:
+        $ref: descriptor_types.schema.yaml#/$defs/descriptorTypeWACSF
+        description: Identifier string for this descriptor type.
+      r_min:
+        type: number
+        default: 1.0
+        description: Minimum radial distance. **A**. Defaults to ``1.0``.
+      r_max:
+        type: number
+        default: 6.0
+        description: Maximum radial cutoff distance. **A**. Defaults to ``6.0``.
+      n_g2:
+        type: integer
+        minimum: 0
+        default: 16
+        description: Number of G2 (radial) symmetry functions. Defaults to ``16``.
+      n_g4:
+        type: integer
+        minimum: 0
+        default: 32
+        description: Number of G4 (angular) symmetry functions. Defaults to ``32``.
+      l:
+        oneOf:
+        - type: array
+          items:
+            type: number
+        - type: 'null'
+        default: null
+        description: Lambda values for G4 encoding. Defaults to ``[1.0, -1.0]``.
+      z:
+        oneOf:
+        - type: array
+          items:
+            type: number
+        - type: 'null'
+        default: null
+        description: Zeta values for G4 encoding. Defaults to ``[1.0]``.
+      g2_parameterisation:
+        $ref: descriptor_types.schema.yaml#/$defs/wacsfParameterisation
+        default: shifted
+        description: G2 grid strategy - ``'shifted'`` or ``'centred'``. Defaults to ``'shifted'``.
+      g4_parameterisation:
+        $ref: descriptor_types.schema.yaml#/$defs/wacsfParameterisation
+        default: centred
+        description: G4 grid strategy - ``'shifted'`` or ``'centred'``. Defaults to ``'centred'``.
+      use_charge:
+        type: boolean
+        default: false
+        description: Append charge state scalar to the descriptor. Defaults to ``False``.
+      use_spin:
+        type: boolean
+        default: false
+        description: Append spin state scalar to the descriptor. Defaults to ``False``.
+    description: Weighted atom-centered symmetry function (WACSF) descriptor.
+description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

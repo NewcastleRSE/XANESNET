@@ -1,0 +1,14 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: lr_schedulers.schema.yaml
+title: XANESNET learning-rate scheduler configuration schemas
+$defs:
+  lrScheduler:
+    oneOf:
+    - $ref: lr_schedulers/none.schema.yaml#/$defs/lrSchedulerNone
+    - $ref: lr_schedulers/step.schema.yaml#/$defs/lrSchedulerStep
+    - $ref: lr_schedulers/multistep.schema.yaml#/$defs/lrSchedulerMultiStep
+    - $ref: lr_schedulers/exponential.schema.yaml#/$defs/lrSchedulerExponential
+    - $ref: lr_schedulers/linear.schema.yaml#/$defs/lrSchedulerLinear
+    - $ref: lr_schedulers/constant.schema.yaml#/$defs/lrSchedulerConstant
+    description: Union of learning-rate scheduler configuration objects registered in ``LRSchedulerRegistry``.
+description: Reusable component value schemas backed by activation, optimizer, initializer, and scheduler registries.

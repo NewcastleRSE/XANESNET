@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: l1.schema.yaml
+title: 'XANESNET regularizer schema: l1'
+$defs:
+  regularizerL1:
+    type: object
+    additionalProperties: false
+    required:
+    - regularizer_type
+    properties:
+      regularizer_type:
+        $ref: regularizer_types.schema.yaml#/$defs/regularizerTypeL1
+        description: Identifier string for this regularizer type.
+      weight:
+        type: number
+        default: 1.0
+        description: Scalar multiplier applied to the L1 penalty.
+    description: L1 regularization (sum of absolute parameter values).
+description: Regularizer schemas backed by ``RegularizerRegistry`` classes.

@@ -1,0 +1,70 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: geometrygraph.schema.yaml
+title: 'XANESNET dataset schema: geometrygraph'
+$defs:
+  datasetGeometryGraph:
+    type: object
+    additionalProperties: false
+    required:
+    - dataset_type
+    - root
+    properties:
+      cutoff:
+        type: number
+        default: 6.0
+        description: Graph cutoff in **Angstrom**.
+      max_num_neighbors:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Per-source neighbor cap.
+      compute_angles:
+        type: boolean
+        default: false
+        description: Whether to precompute triplet angles.
+      graph_method:
+        $ref: ../graph_types.schema.yaml#/$defs/graphMethod
+        default: radius
+        description: Graph construction method.
+      min_facet_area:
+        $ref: ../graph_types.schema.yaml#/$defs/minFacetArea
+        default: null
+        description: Numeric area threshold or strings such as "5%".
+      cov_radii_scale:
+        type: number
+        default: 1.5
+        description: Covalent-radii scale for graph construction.
+      root:
+        type: string
+        description: Directory that stores processed ``.pth`` files.
+      preload:
+        type: boolean
+        default: true
+        description: Whether to preload processed samples.
+      skip_prepare:
+        type: boolean
+        default: false
+        description: Whether to reuse existing processed files.
+      split_ratios:
+        type:
+        - array
+        - 'null'
+        items:
+          type: number
+          minimum: 0
+        minItems: 1
+        default:
+        - 1.0
+        $comment: Runtime requires the values to sum to 1.0 when split_indexfile is null.
+        description: Optional split ratios.
+      split_indexfile:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Optional path to split indices.
+      dataset_type:
+        $ref: ../dataset_types.schema.yaml#/$defs/datasetTypeGeometryGraph
+        description: Registered dataset type name.
+    description: Geometry-based graph dataset.
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

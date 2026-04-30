@@ -1,0 +1,31 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: runner_types.schema.yaml
+title: XANESNET runner value types
+$defs:
+  trainerType:
+    type: string
+    enum:
+    - basic
+    description: Trainer registry key accepted by ``TrainerRegistry.get``.
+  trainerTypeBasic:
+    const: basic
+    description: Registry key definition used by the corresponding XANESNET registry.
+  inferencerType:
+    type: string
+    enum:
+    - basic
+    - ensemble
+    description: Inferencer registry key accepted by ``InferencerRegistry.get``.
+  inferencerTypeBasic:
+    const: basic
+    description: Registry key definition used by the corresponding XANESNET registry.
+  inferencerTypeEnsemble:
+    const: ensemble
+    description: Registry key definition used by the corresponding XANESNET registry.
+  modelDevicePolicy:
+    type: string
+    enum:
+    - all
+    - sequential
+    description: Device placement policy used by ``EnsembleInferencer`` for multiple models.
+description: Runner schemas backed by trainer and inferencer registries.

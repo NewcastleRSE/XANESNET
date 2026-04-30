@@ -1,0 +1,46 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: richgraph.schema.yaml
+title: 'XANESNET dataset schema: richgraph'
+$defs:
+  datasetRichGraph:
+    type: object
+    additionalProperties: false
+    required:
+    - dataset_type
+    - root
+    properties:
+      root:
+        type: string
+        description: Directory that stores processed ``.pth`` files.
+      preload:
+        type: boolean
+        default: true
+        description: Whether to preload processed samples.
+      skip_prepare:
+        type: boolean
+        default: false
+        description: Whether to reuse existing processed files.
+      split_ratios:
+        type:
+        - array
+        - 'null'
+        items:
+          type: number
+          minimum: 0
+        minItems: 1
+        default:
+        - 1.0
+        $comment: Runtime requires the values to sum to 1.0 when split_indexfile is null.
+        description: Optional split ratios.
+      split_indexfile:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Optional path to split indices.
+      dataset_type:
+        $ref: ../dataset_types.schema.yaml#/$defs/datasetTypeRichGraph
+        description: Registered dataset type name.
+    $comment: Registered dataset; no batch processor is currently registered for training/inference.
+    description: Work-in-progress graph dataset with radius-graph connectivity.
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

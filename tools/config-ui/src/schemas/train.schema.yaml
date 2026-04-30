@@ -1,0 +1,49 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: train.schema.yaml
+title: XANESNET training configuration
+type: object
+additionalProperties: false
+required:
+- datasource
+- dataset
+- model
+- trainer
+- strategy
+$comment: 'Training configs are validated by validate_config_train(). Exactly one runner section is allowed here: trainer
+  is required and inferencer is forbidden. Selected top-level model dimensions may be the case-insensitive token "auto"; they
+  are resolved from the prepared dataset before model construction.'
+properties:
+  seed:
+    $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
+    default: null
+    description: Optional top-level seed for Python, NumPy, and PyTorch (CPU + CUDA); 
+      absent values default to ``null`` before runtime use.
+  device:
+    type:
+    - string
+    - 'null'
+    default: cpu
+    description: Top-level compute device validated by ``_validate_global``; absent values default to ``"cpu"`` and are passed
+      to trainers or inferencers.
+  datasource:
+    $ref: datasources/datasources.schema.yaml#/$defs/datasource
+    description: Configuration section used by core setup code to instantiate ``DataSourceRegistry.get(datasource_type)``.
+  dataset:
+    $ref: datasets/datasets.schema.yaml#/$defs/dataset
+    description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+  model:
+    $ref: models/models.schema.yaml#/$defs/modelTrain
+    description: Configuration section used by strategy setup to instantiate the registered model; training schemas allow
+      selected ``"auto"`` fields.
+  trainer:
+    $ref: runners/trainers.schema.yaml#/$defs/trainer
+    description: Training runner section; mutually exclusive with ``inferencer`` in ``validate_config``.
+  strategy:
+    $ref: strategies/strategies.schema.yaml#/$defs/strategy
+    description: Configuration section used by core setup code to instantiate ``StrategyRegistry.get(strategy_type)``.
+allOf:
+- not:
+    required:
+    - inferencer
+- $ref: compatibility/batchprocessors.schema.yaml#/$defs/trainDatasetModelCompatibility
+description: Training configuration validated by ``validate_config_train`` and consumed by ``core_train.train``.

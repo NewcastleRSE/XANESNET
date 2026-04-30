@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: mace.schema.yaml
+title: 'XANESNET descriptor schema: mace'
+$defs:
+  descriptorMACE:
+    type: object
+    additionalProperties: false
+    required:
+    - descriptor_type
+    properties:
+      descriptor_type:
+        $ref: descriptor_types.schema.yaml#/$defs/descriptorTypeMACE
+        description: Identifier string for this descriptor type.
+      invariants_only:
+        type: boolean
+        default: false
+        description: If ``True``, return only rotationally invariant features. Defaults to ``False``.
+      num_layers:
+        type: integer
+        default: -1
+        description: Number of MACE message-passing layers to use (``-1`` for all). Defaults to ``-1``.
+    description: MACE foundation-model descriptor.
+description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

@@ -1,0 +1,11 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: early_stoppers.schema.yaml
+title: XANESNET early-stopper configuration schemas
+$defs:
+  earlyStopper:
+    oneOf:
+    - $ref: early_stoppers/none.schema.yaml#/$defs/earlyStopperNone
+    - $ref: early_stoppers/basic.schema.yaml#/$defs/earlyStopperBasic
+    - $ref: early_stoppers/time.schema.yaml#/$defs/earlyStopperTime
+    description: Union of early-stopper configuration objects instantiated by ``EarlyStopperRegistry``.
+description: Early-stopper schemas backed by ``EarlyStopperRegistry`` classes.

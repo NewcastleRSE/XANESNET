@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: collectors.schema.yaml
+title: XANESNET collector configuration schemas
+$defs:
+  collector:
+    oneOf:
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricMse
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricL1
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricBce
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricEmd
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricWcc
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricSpecplus
+    - $ref: errors.schema.yaml#/$defs/collectorErrorMetricMkssim1D
+    description: Union of collector configuration objects instantiated by ``CollectorRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

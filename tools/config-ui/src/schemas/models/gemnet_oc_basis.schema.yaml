@@ -1,0 +1,119 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gemnet_oc_basis.schema.yaml
+title: XANESNET GemNet-OC basis configuration schemas
+$defs:
+  gemnetOCRBF:
+    oneOf:
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/rbfNameGaussian
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+        trainable:
+          type: boolean
+          default: false
+          description: Whether the GemNet-OC basis parameter is trainable.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/rbfNameSphericalBessel
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/rbfNameBernstein
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+        pregamma_initial:
+          type: number
+          default: 0.45264
+          description: Initial pregamma value used by the GemNet-OC radial basis configuration dictionary.
+    description: GemNet-OC radial basis configuration dictionary passed through the ``rbf`` and related basis fields.
+  gemnetOCEnvelope:
+    oneOf:
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      - exponent
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/envelopeNamePolynomial
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+        exponent:
+          type: integer
+          minimum: 1
+          default: 5
+          description: Exponent value used by the GemNet-OC envelope configuration dictionary.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/envelopeNameExponential
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+    description: GemNet-OC envelope configuration dictionary passed through the ``envelope`` field.
+  gemnetOCCBF:
+    oneOf:
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/cbfNameGaussian
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+        trainable:
+          type: boolean
+          default: false
+          description: Whether the GemNet-OC basis parameter is trainable.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/cbfNameSphericalHarmonics
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+    description: GemNet-OC circular basis configuration dictionary passed through the ``cbf`` field.
+  gemnetOCSBF:
+    oneOf:
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/sbfNameSphericalHarmonics
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/sbfNameLegendreOuter
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+    - type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          $ref: gemnet_oc_basis_types.schema.yaml#/$defs/sbfNameGaussianOuter
+          description: GemNet-OC basis function name dispatched by the basis configuration dictionary.
+        trainable:
+          type: boolean
+          default: false
+          description: Whether the GemNet-OC basis parameter is trainable.
+    description: GemNet-OC spherical basis configuration dictionary passed through the ``sbf`` field.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

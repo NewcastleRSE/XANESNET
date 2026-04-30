@@ -1,0 +1,12 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: selectors.schema.yaml
+title: XANESNET selector configuration schemas
+$defs:
+  selector:
+    oneOf:
+    - $ref: identity.schema.yaml#/$defs/selectorIdentity
+    - $ref: by_index.schema.yaml#/$defs/selectorIndexList
+    - $ref: by_range.schema.yaml#/$defs/selectorIndexRange
+    - $ref: bernoulli.schema.yaml#/$defs/selectorRandom
+    description: Union of selector configuration objects instantiated by ``SelectorRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

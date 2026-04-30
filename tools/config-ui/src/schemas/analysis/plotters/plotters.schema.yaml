@@ -1,0 +1,11 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: plotters.schema.yaml
+title: XANESNET plotter configuration schemas
+$defs:
+  plotter:
+    oneOf:
+    - $ref: scalar.schema.yaml#/$defs/plotterScalar
+    - $ref: spectra.schema.yaml#/$defs/plotterSpectra
+    - $ref: stat_table.schema.yaml#/$defs/plotterStatTable
+    description: Union of plotter configuration objects instantiated by ``PlotterRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

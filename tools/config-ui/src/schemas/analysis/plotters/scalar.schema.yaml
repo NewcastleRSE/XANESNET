@@ -1,0 +1,20 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: scalar.schema.yaml
+title: 'XANESNET plotter schema: scalar'
+$defs:
+  plotterScalar:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/analysisTypeScalar
+        description: Registered plotter name from the analysis configuration.
+      bins:
+        type: integer
+        minimum: 1
+        default: 50
+        description: Number of histogram bins. Defaults to ``DEFAULT_BINS``.
+    description: Create distribution plots for each scalar value key.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

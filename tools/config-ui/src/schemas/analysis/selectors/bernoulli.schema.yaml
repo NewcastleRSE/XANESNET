@@ -1,0 +1,21 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: bernoulli.schema.yaml
+title: 'XANESNET selector schema: bernoulli'
+$defs:
+  selectorRandom:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    - p
+    properties:
+      selector_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/selectorTypeRandom
+        description: Registered selector name from the analysis configuration.
+      p:
+        type: number
+        minimum: 0
+        maximum: 1
+        description: Probability of retaining each sample. Must be in the inclusive range ``[0, 1]``.
+    description: Select a random fixed subset of samples using Bernoulli sampling.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

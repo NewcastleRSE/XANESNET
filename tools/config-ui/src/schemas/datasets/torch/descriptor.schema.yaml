@@ -1,0 +1,96 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: descriptor.schema.yaml
+title: 'XANESNET dataset schema: descriptor'
+$defs:
+  datasetDescriptor:
+    type: object
+    additionalProperties: false
+    required:
+    - dataset_type
+    - root
+    properties:
+      mode:
+        $ref: ../dataset_types.schema.yaml#/$defs/descriptorMode
+        default: forward
+        description: '``forward`` for descriptor-to-spectrum or ``reverse`` for spectrum-to-descriptor.'
+      fourier:
+        type: boolean
+        default: false
+        description: Whether to add Fourier-transformed spectra.
+      fourier_concat:
+        type: boolean
+        default: false
+        description: Whether Fourier features concatenate real and imaginary components.
+      gaussian:
+        type: boolean
+        default: false
+        description: Whether to fit spectra to a Gaussian basis.
+      widths_eV:
+        type: array
+        items:
+          type: number
+        default:
+        - 0.5
+        - 1.0
+        - 2.0
+        - 4.0
+        description: Gaussian basis widths in **eV**.
+      basis_stride:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Energy-grid stride used when creating a Gaussian basis.
+      basis_path:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Optional serialized spectral basis path.
+      descriptors:
+        type: array
+        minItems: 1
+        items:
+          $ref: ../../descriptors/descriptors.schema.yaml#/$defs/descriptor
+        default:
+        - descriptor_type: wacsf
+          r_min: 1.0
+          r_max: 6.0
+          n_g2: 16
+          n_g4: 32
+        description: Descriptor configuration objects.
+      root:
+        type: string
+        description: Directory that stores processed ``.pth`` files.
+      preload:
+        type: boolean
+        default: true
+        description: Whether to preload processed samples.
+      skip_prepare:
+        type: boolean
+        default: false
+        description: Whether to reuse existing processed files.
+      split_ratios:
+        type:
+        - array
+        - 'null'
+        items:
+          type: number
+          minimum: 0
+        minItems: 1
+        default:
+        - 1.0
+        $comment: Runtime requires the values to sum to 1.0 when split_indexfile is null.
+        description: Optional split ratios.
+      split_indexfile:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Optional path to split indices.
+      dataset_type:
+        $ref: ../dataset_types.schema.yaml#/$defs/datasetTypeDescriptor
+        description: Registered dataset type name.
+    allOf:
+    - $ref: ../descriptor_feature_rules.schema.yaml#/$defs/descriptorFeatureRules
+    description: Dataset that converts structures to descriptor tensors.
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

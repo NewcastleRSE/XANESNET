@@ -1,0 +1,73 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: mkssim1d.schema.yaml
+title: 'XANESNET loss schema: mkssim1d'
+$defs:
+  lossMKSSIM1D:
+    type: object
+    additionalProperties: false
+    required:
+    - loss_type
+    - N
+    properties:
+      loss_type:
+        $ref: loss_types.schema.yaml#/$defs/lossTypeMKSSIM1D
+        description: Identifier string for this loss type.
+      N:
+        type: integer
+        minimum: 1
+        description: Length of the input signal.
+      fractions:
+        type: array
+        items:
+          type: number
+        default:
+        - 0.01
+        - 0.05
+        - 0.1
+        - 0.15
+        - 0.2
+        - 0.25
+        description: Kernel size fractions of ``N`` for each SSIM scale. Defaults to ``[0.01, 0.05, 0.10, 0.15, 0.2, 0.25]``.
+      data_range:
+        type: number
+        default: 1.0
+        description: Dynamic range of the signal (``max - min``). Defaults to ``1.0``.
+      K:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: number
+        default:
+        - 0.01
+        - 0.03
+        description: Stability constants ``(K1, K2)`` for luminance and contrast-structure terms. Defaults to ``(0.01, 0.03)``.
+      device:
+        type: string
+        default: cpu
+        description: Compatibility argument retained for configuration parity. Kernels are moved to the device of ``preds``
+          during ``forward``. Defaults to ``'cpu'``.
+      use_weighted_sum:
+        type: boolean
+        default: false
+        description: If ``True``, combine scales via weighted sum instead of the default multiplicative combination. Defaults
+          to ``False``.
+      weights:
+        oneOf:
+        - type: array
+          items:
+            type: number
+        - type: 'null'
+        default: null
+        description: Per-scale weights when ``use_weighted_sum=True``. If ``None``, uniform weights are used. Defaults to
+          ``None``.
+      final_combine:
+        type: boolean
+        default: true
+        description: If ``True``, collapse scales into a single map. If ``False``, return a per-scale stack. Defaults to ``True``.
+      final_mean:
+        type: boolean
+        default: true
+        description: If ``True``, reduce the loss map to one value per batch element. Defaults to ``True``.
+    description: Multi-kernel SSIM loss for 1-D signals.
+description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

@@ -1,0 +1,40 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: rdc.schema.yaml
+title: 'XANESNET descriptor schema: rdc'
+$defs:
+  descriptorRDC:
+    type: object
+    additionalProperties: false
+    required:
+    - descriptor_type
+    properties:
+      descriptor_type:
+        $ref: descriptor_types.schema.yaml#/$defs/descriptorTypeRDC
+        description: Identifier string for this descriptor type.
+      r_min:
+        type: number
+        default: 0.0
+        description: Minimum radial grid distance. **A**. Defaults to ``0.0``.
+      r_max:
+        type: number
+        default: 8.0
+        description: Maximum radial cutoff distance. **A**. Defaults to ``8.0``.
+      dr:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.01
+        description: Grid spacing of the auxiliary real-space grid. **A**. Defaults to ``0.01``.
+      alpha:
+        type: number
+        default: 10.0
+        description: Gaussian exponent (smoothing parameter). Defaults to ``10.0``.
+      use_charge:
+        type: boolean
+        default: false
+        description: Append the charge state scalar to the descriptor. Defaults to ``False``.
+      use_spin:
+        type: boolean
+        default: false
+        description: Append the spin state scalar to the descriptor. Defaults to ``False``.
+    description: Radial distribution curve (RDC) descriptor.
+description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

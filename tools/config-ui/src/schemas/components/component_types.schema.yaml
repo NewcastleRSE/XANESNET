@@ -1,0 +1,81 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: component_types.schema.yaml
+title: XANESNET component value types
+$defs:
+  activationName:
+    type: string
+    enum:
+    - relu
+    - prelu
+    - tanh
+    - sigmoid
+    - elu
+    - leakyrelu
+    - selu
+    - silu
+    - gelu
+    description: Activation registry key accepted by ``ActivationRegistry.get``.
+  optimizerName:
+    type: string
+    enum:
+    - adam
+    - Adam
+    - sgd
+    - SGD
+    - rmsprop
+    - RMSprop
+    - adamw
+    - AdamW
+    - adagrad
+    - Adagrad
+    description: Optimizer registry key accepted by ``OptimizerRegistry.get``; matching is case-insensitive in code.
+  weightInitName:
+    type: string
+    enum:
+    - default
+    - uniform
+    - normal
+    - xavier_uniform
+    - xavier_normal
+    - kaiming_uniform
+    - kaiming_normal
+    description: Weight initializer registry key accepted by ``WeightInitRegistry.get``.
+  biasInitName:
+    type: string
+    enum:
+    - zeros
+    - ones
+    description: Bias initializer registry key accepted by ``BiasInitRegistry.get``.
+  lrSchedulerType:
+    type: string
+    enum:
+    - step
+    - multistep
+    - exponential
+    - linear
+    - constant
+    - none
+    - 'no'
+    description: Learning-rate scheduler registry key accepted by ``LRSchedulerRegistry.get``.
+  lrSchedulerTypeNoneOrNo:
+    type: string
+    enum:
+    - none
+    - 'no'
+    description: Aliases registered to the no-op learning-rate scheduler.
+  lrSchedulerTypeStep:
+    const: step
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lrSchedulerTypeMultiStep:
+    const: multistep
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lrSchedulerTypeExponential:
+    const: exponential
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lrSchedulerTypeLinear:
+    const: linear
+    description: Registry key definition used by the corresponding XANESNET registry.
+  lrSchedulerTypeConstant:
+    const: constant
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Reusable component value schemas backed by activation, optimizer, initializer, and scheduler registries.

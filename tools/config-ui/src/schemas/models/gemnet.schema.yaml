@@ -1,0 +1,271 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gemnet.schema.yaml
+title: 'XANESNET model schema: gemnet'
+$defs:
+  modelTrainGemNet:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - num_targets
+    properties:
+      num_spherical:
+        type: integer
+        minimum: 1
+        default: 7
+        description: Number of spherical harmonics / basis functions.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 6
+        description: Number of radial basis functions.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      emb_size_atom:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Embedding size for atoms.
+      emb_size_edge:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Embedding size for edges.
+      emb_size_trip:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Down-projected embedding size in the triplet interaction block.
+      emb_size_quad:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Down-projected embedding size in the quadruplet interaction block.
+      emb_size_rbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedding size of the radial basis projection.
+      emb_size_cbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedding size of the circular basis projection.
+      emb_size_sbf:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Embedding size of the spherical basis projection.
+      emb_size_bil_quad:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Edge embedding size after the bilinear layer in the quadruplet block.
+      emb_size_bil_trip:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Edge embedding size after the bilinear layer in the triplet block.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual blocks before each skip connection.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual blocks after each skip connection.
+      num_concat:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of residual blocks after the atom-edge concatenation.
+      num_atom:
+        type: integer
+        minimum: 1
+        default: 2
+        description: Number of residual blocks in the atom update block.
+      triplets_only:
+        type: boolean
+        default: false
+        description: If ``True``, use GemNet-T/dT (triplets only, no quadruplets).
+      cutoff:
+        type: number
+        default: 5.0
+        description: Main graph edge cutoff in **A**.
+      int_cutoff:
+        type: number
+        default: 10.0
+        description: Interaction graph edge cutoff in **A** (quadruplet variant only).
+      envelope_exponent:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Exponent ``p`` for the polynomial cutoff envelope.
+      output_init:
+        $ref: model_types.schema.yaml#/$defs/gemNetOutputInitializer
+        default: HeOrthogonal
+        description: Weight initialization for the final output layer (``"HeOrthogonal"`` or ``"zeros"``).
+      activation:
+        $ref: model_types.schema.yaml#/$defs/gemNetActivation
+        default: swish
+        description: Activation function name (``"swish"`` / ``"silu"``).
+      scale_file:
+        oneOf:
+        - type: string
+          not:
+            pattern: ^[Aa][Uu][Tt][Oo]$
+        - type: 'null'
+        default: null
+        description: Path to a JSON file with pre-fitted variance scale factors, or ``None`` to use the default value of 1.0
+          for all factors.
+      num_elements:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Number of distinct element types in the embedding table.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeGemNet
+        description: Model type string (passed to base class).
+      num_targets:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Output dimension per atom.
+    description: Universal directional graph neural network (GemNet).
+  modelInferGemNet:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - num_targets
+    properties:
+      num_spherical:
+        type: integer
+        minimum: 1
+        default: 7
+        description: Number of spherical harmonics / basis functions.
+      num_radial:
+        type: integer
+        minimum: 1
+        default: 6
+        description: Number of radial basis functions.
+      num_blocks:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of interaction blocks.
+      emb_size_atom:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Embedding size for atoms.
+      emb_size_edge:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Embedding size for edges.
+      emb_size_trip:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Down-projected embedding size in the triplet interaction block.
+      emb_size_quad:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Down-projected embedding size in the quadruplet interaction block.
+      emb_size_rbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedding size of the radial basis projection.
+      emb_size_cbf:
+        type: integer
+        minimum: 1
+        default: 16
+        description: Embedding size of the circular basis projection.
+      emb_size_sbf:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Embedding size of the spherical basis projection.
+      emb_size_bil_quad:
+        type: integer
+        minimum: 1
+        default: 32
+        description: Edge embedding size after the bilinear layer in the quadruplet block.
+      emb_size_bil_trip:
+        type: integer
+        minimum: 1
+        default: 64
+        description: Edge embedding size after the bilinear layer in the triplet block.
+      num_before_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual blocks before each skip connection.
+      num_after_skip:
+        type: integer
+        minimum: 0
+        default: 1
+        description: Number of residual blocks after each skip connection.
+      num_concat:
+        type: integer
+        minimum: 1
+        default: 1
+        description: Number of residual blocks after the atom-edge concatenation.
+      num_atom:
+        type: integer
+        minimum: 1
+        default: 2
+        description: Number of residual blocks in the atom update block.
+      triplets_only:
+        type: boolean
+        default: false
+        description: If ``True``, use GemNet-T/dT (triplets only, no quadruplets).
+      cutoff:
+        type: number
+        default: 5.0
+        description: Main graph edge cutoff in **A**.
+      int_cutoff:
+        type: number
+        default: 10.0
+        description: Interaction graph edge cutoff in **A** (quadruplet variant only).
+      envelope_exponent:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Exponent ``p`` for the polynomial cutoff envelope.
+      output_init:
+        $ref: model_types.schema.yaml#/$defs/gemNetOutputInitializer
+        default: HeOrthogonal
+        description: Weight initialization for the final output layer (``"HeOrthogonal"`` or ``"zeros"``).
+      activation:
+        $ref: model_types.schema.yaml#/$defs/gemNetActivation
+        default: swish
+        description: Activation function name (``"swish"`` / ``"silu"``).
+      scale_file:
+        oneOf:
+        - type: string
+          not:
+            pattern: ^[Aa][Uu][Tt][Oo]$
+        - type: 'null'
+        default: null
+        description: Path to a JSON file with pre-fitted variance scale factors, or ``None`` to use the default value of 1.0
+          for all factors.
+      num_elements:
+        type: integer
+        minimum: 1
+        default: 100
+        description: Number of distinct element types in the embedding table.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeGemNet
+        description: Model type string (passed to base class).
+      num_targets:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Output dimension per atom.
+    description: Universal directional graph neural network (GemNet).
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

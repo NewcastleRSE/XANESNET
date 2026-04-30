@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: none.schema.yaml
+title: 'XANESNET early-stopper schema: none'
+$defs:
+  earlyStopperNone:
+    type: object
+    additionalProperties: false
+    required:
+    - early_stopper_type
+    properties:
+      early_stopper_type:
+        $ref: ../early_stopper_types.schema.yaml#/$defs/earlyStopperTypeNoneOrNo
+        description: Registry key identifying this stopper type.
+      restore_best:
+        type: boolean
+        default: true
+        description: Passed through to ``EarlyStopper``; controls whether model weights are snapshotted on improvement.
+    description: No-op early stopper that never halts training.
+description: Early-stopper schemas backed by ``EarlyStopperRegistry`` classes.

@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: statistics.schema.yaml
+title: 'XANESNET reporter schema: statistics'
+$defs:
+  reporterStatistics:
+    type: object
+    additionalProperties: false
+    required:
+    - reporter_type
+    properties:
+      reporter_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/reporterTypeStatistics
+        description: Registered reporter name from the analysis configuration.
+      format:
+        $ref: ../analysis_types.schema.yaml#/$defs/reportFormat
+        default: yaml
+        description: Output format. Supported values are ``"yaml"`` and ``"json"``.
+    description: Write aggregated statistics as structured files.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

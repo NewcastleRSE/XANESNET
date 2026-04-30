@@ -1,0 +1,11 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: datasources.schema.yaml
+title: XANESNET datasource configuration schemas
+$defs:
+  datasource:
+    oneOf:
+    - $ref: xyzspec.schema.yaml#/$defs/datasourceXYZSpec
+    - $ref: multixyzspec.schema.yaml#/$defs/datasourceMultiXYZSpec
+    - $ref: pmgjson.schema.yaml#/$defs/datasourcePMGJSON
+    description: Union of datasource configuration objects instantiated by ``DataSourceRegistry``.
+description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

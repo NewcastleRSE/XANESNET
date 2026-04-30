@@ -1,0 +1,25 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: scalar.schema.yaml
+title: XANESNET scalar aggregator schema
+$defs:
+  aggregatorScalar:
+    type: object
+    additionalProperties: false
+    required:
+    - aggregator_type
+    properties:
+      aggregator_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/analysisTypeScalar
+        description: Registered aggregator name from the analysis configuration.
+      percentiles:
+        type: array
+        items:
+          type: number
+        default:
+        - 25
+        - 50
+        - 75
+        description: Percentiles to compute. Values use NumPy percentile units, where ``0`` is the minimum and ``100`` is
+          the maximum. Defaults to ``[25, 50, 75]``.
+    description: Compute summary statistics for all scalar sample and collector values.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

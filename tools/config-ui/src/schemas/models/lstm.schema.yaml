@@ -1,0 +1,91 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: lstm.schema.yaml
+title: 'XANESNET model schema: lstm'
+$defs:
+  modelTrainLSTM:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - out_size
+    properties:
+      hidden_size:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Number of features in each LSTM hidden state direction.
+      hidden_out_size:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Width of the intermediate dense layer after the LSTM.
+      num_layers:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Number of stacked recurrent layers.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.2
+        description: Dropout probability applied between the dense layers. Range ``[0, 1)``.
+      activation:
+        $ref: ../components/component_types.schema.yaml#/$defs/activationName
+        default: prelu
+        description: Name of the activation function for the dense layer.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeLSTM
+        description: Model type identifier string.
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of input features at each sequence step.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of output spectral points.
+    description: Bidirectional LSTM model for descriptor-based XANES prediction.
+  modelInferLSTM:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - out_size
+    properties:
+      hidden_size:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Number of features in each LSTM hidden state direction.
+      hidden_out_size:
+        type: integer
+        minimum: 1
+        default: 128
+        description: Width of the intermediate dense layer after the LSTM.
+      num_layers:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Number of stacked recurrent layers.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.2
+        description: Dropout probability applied between the dense layers. Range ``[0, 1)``.
+      activation:
+        $ref: ../components/component_types.schema.yaml#/$defs/activationName
+        default: prelu
+        description: Name of the activation function for the dense layer.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeLSTM
+        description: Model type identifier string.
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of input features at each sequence step.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Number of output spectral points.
+    description: Bidirectional LSTM model for descriptor-based XANES prediction.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

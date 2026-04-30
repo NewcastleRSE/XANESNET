@@ -1,0 +1,33 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: stat_table.schema.yaml
+title: 'XANESNET plotter schema: stat_table'
+$defs:
+  plotterStatTable:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        $ref: ../analysis_types.schema.yaml#/$defs/plotterTypeStatTable
+        description: Registered plotter name from the analysis configuration.
+      stat_keys:
+        type:
+        - array
+        - 'null'
+        items:
+          type: string
+        default:
+        - mean
+        - std
+        - median
+        - min
+        - max
+        description: Ordered statistic keys to include as table columns.
+      precision:
+        type: integer
+        minimum: 0
+        default: 4
+        description: Number of significant digits used when formatting table values.
+    description: Render comparison tables of aggregated statistics as PDF figures.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

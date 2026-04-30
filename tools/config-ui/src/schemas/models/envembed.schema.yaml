@@ -1,0 +1,111 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: envembed.schema.yaml
+title: 'XANESNET model schema: envembed'
+$defs:
+  modelTrainEnvEmbed:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - kgroups
+    properties:
+      n_shells:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of learnable radial shells.
+      max_radius_angs:
+        type: number
+        default: 7.0
+        description: Radial cutoff in **A**.
+      init_width:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.8
+        description: Initial Gaussian shell width in **A**.
+      use_gating:
+        type: boolean
+        default: true
+        description: If ``True``, modulate shell summary with Fourier distance features.
+      head_hidden:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Hidden dimension of the residual blocks in the coefficient head.
+      head_depth:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of :class:`~xanesnet.models.envembed.layers.ResidualPreLNBlock` layers in the coefficient head
+          trunk.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.1
+        description: Dropout probability applied in the coefficient head residual blocks.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeEnvEmbed
+        description: Model type string (passed to base class).
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Descriptor feature dimension ``H``.
+      kgroups:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveIntegerArray
+        description: Number of spectral basis coefficients per width group.
+    description: Environment Embedding model.
+  modelInferEnvEmbed:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - kgroups
+    properties:
+      n_shells:
+        type: integer
+        minimum: 1
+        default: 4
+        description: Number of learnable radial shells.
+      max_radius_angs:
+        type: number
+        default: 7.0
+        description: Radial cutoff in **A**.
+      init_width:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.8
+        description: Initial Gaussian shell width in **A**.
+      use_gating:
+        type: boolean
+        default: true
+        description: If ``True``, modulate shell summary with Fourier distance features.
+      head_hidden:
+        type: integer
+        minimum: 1
+        default: 256
+        description: Hidden dimension of the residual blocks in the coefficient head.
+      head_depth:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Number of :class:`~xanesnet.models.envembed.layers.ResidualPreLNBlock` layers in the coefficient head
+          trunk.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.1
+        description: Dropout probability applied in the coefficient head residual blocks.
+      model_type:
+        $ref: model_types.schema.yaml#/$defs/modelTypeEnvEmbed
+        description: Model type string (passed to base class).
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
+        description: Descriptor feature dimension ``H``.
+      kgroups:
+        $ref: ../shared/value_types.schema.yaml#/$defs/positiveIntegerArray
+        description: Number of spectral basis coefficients per width group.
+    description: Environment Embedding model.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

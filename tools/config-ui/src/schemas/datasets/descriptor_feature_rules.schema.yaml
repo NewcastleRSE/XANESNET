@@ -1,0 +1,49 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: descriptor_feature_rules.schema.yaml
+title: XANESNET descriptor dataset feature rules
+$defs:
+  descriptorFeatureRules:
+    allOf:
+    - not:
+        required:
+        - fourier
+        - gaussian
+        properties:
+          fourier:
+            const: true
+            description: Optional Fourier feature transform flag in ``DescriptorDataset`` and multiprocessing descriptor dataset
+              configs.
+          gaussian:
+            const: true
+            description: Optional Gaussian feature transform flag in ``DescriptorDataset`` and multiprocessing descriptor
+              dataset configs.
+    - if:
+        required:
+        - fourier
+        properties:
+          fourier:
+            const: true
+            description: Optional Fourier feature transform flag in ``DescriptorDataset`` and multiprocessing descriptor dataset
+              configs.
+      then:
+        properties:
+          mode:
+            $ref: dataset_types.schema.yaml#/$defs/descriptorModeForward
+            description: Descriptor dataset spectrum direction mode; Fourier and Gaussian feature transforms are only valid
+              with ``forward``.
+    - if:
+        required:
+        - gaussian
+        properties:
+          gaussian:
+            const: true
+            description: Optional Gaussian feature transform flag in ``DescriptorDataset`` and multiprocessing descriptor
+              dataset configs.
+      then:
+        properties:
+          mode:
+            $ref: dataset_types.schema.yaml#/$defs/descriptorModeForward
+            description: Descriptor dataset spectrum direction mode; Fourier and Gaussian feature transforms are only valid
+              with ``forward``.
+    description: Descriptor dataset feature-transform rules that restrict Fourier and Gaussian options to forward mode.
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

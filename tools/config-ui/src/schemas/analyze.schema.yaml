@@ -1,0 +1,53 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: analyze.schema.yaml
+title: XANESNET analysis configuration
+type: object
+additionalProperties: false
+required:
+- selectors
+- collectors
+- aggregators
+- reporters
+- plotters
+$comment: Analysis configs are only minimally wrapped by validate_config_analyze(), so this schema documents the runtime component
+  constructors used by core_analyze. All five component lists must be present. Empty lists are valid; an empty selectors list
+  creates an implicit all-selector at runtime.
+properties:
+  seed:
+    $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
+    default: null
+    description: Optional top-level seed validated by ``_validate_global``; absent values default to ``null`` before runtime
+      use.
+  selectors:
+    type: array
+    items:
+      $ref: analysis/analysis.schema.yaml#/$defs/selector
+    default: []
+    description: Analysis selector configurations; an empty list creates an implicit ``all`` selector for each prediction
+      reader in ``_setup_selectors``.
+  collectors:
+    type: array
+    items:
+      $ref: analysis/analysis.schema.yaml#/$defs/collector
+    default: []
+    description: Analysis collector configurations instantiated by ``CollectorRegistry`` in ``_setup_collectors``.
+  aggregators:
+    type: array
+    items:
+      $ref: analysis/analysis.schema.yaml#/$defs/aggregator
+    default: []
+    description: Analysis aggregator configurations instantiated by ``AggregatorRegistry`` in ``_setup_aggregators``.
+  reporters:
+    type: array
+    items:
+      $ref: analysis/analysis.schema.yaml#/$defs/reporter
+    default: []
+    description: Analysis reporter configurations instantiated by ``ReporterRegistry`` in ``_setup_reporters``.
+  plotters:
+    type: array
+    items:
+      $ref: analysis/analysis.schema.yaml#/$defs/plotter
+    default: []
+    description: Analysis plotter configurations instantiated by ``PlotterRegistry`` in ``_setup_plotters``.
+description: Analysis configuration minimally wrapped by ``validate_config_analyze`` and consumed by ``core_analyze`` setup
+  functions.

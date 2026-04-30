@@ -1,0 +1,12 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: strategies.schema.yaml
+title: XANESNET strategy configuration schemas
+$defs:
+  strategy:
+    oneOf:
+    - $ref: single.schema.yaml#/$defs/strategySingle
+    - $ref: deep_ensemble.schema.yaml#/$defs/strategyDeepEnsemble
+    - $ref: bootstrap.schema.yaml#/$defs/strategyBootstrap
+    - $ref: snapshot_ensemble.schema.yaml#/$defs/strategySnapshotEnsemble
+    description: Union of strategy configuration objects instantiated by ``StrategyRegistry``.
+description: Strategy schemas backed by ``StrategyRegistry`` classes.

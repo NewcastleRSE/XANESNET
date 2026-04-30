@@ -1,0 +1,31 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: early_stopper_types.schema.yaml
+title: XANESNET early-stopper value types
+$defs:
+  earlyStopperType:
+    type: string
+    enum:
+    - none
+    - 'no'
+    - basic
+    - time
+    description: Early-stopper registry key accepted by ``EarlyStopperRegistry.get``.
+  earlyStopperTypeNoneOrNo:
+    type: string
+    enum:
+    - none
+    - 'no'
+    description: Aliases registered to the no-op early stopper.
+  earlyStopperTypeNone:
+    const: none
+    description: Registry key definition used by the corresponding XANESNET registry.
+  earlyStopperTypeNo:
+    const: 'no'
+    description: Registry key definition used by the corresponding XANESNET registry.
+  earlyStopperTypeBasic:
+    const: basic
+    description: Registry key definition used by the corresponding XANESNET registry.
+  earlyStopperTypeTime:
+    const: time
+    description: Registry key definition used by the corresponding XANESNET registry.
+description: Early-stopper schemas backed by ``EarlyStopperRegistry`` classes.

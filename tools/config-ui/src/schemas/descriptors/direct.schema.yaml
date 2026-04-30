@@ -1,0 +1,16 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: direct.schema.yaml
+title: 'XANESNET descriptor schema: direct'
+$defs:
+  descriptorDirect:
+    type: object
+    additionalProperties: false
+    required:
+    - descriptor_type
+    properties:
+      descriptor_type:
+        $ref: descriptor_types.schema.yaml#/$defs/descriptorTypeDirect
+        description: Identifier string for this descriptor type.
+    $comment: Registered but currently raises NotImplementedError.
+    description: Descriptor that reads pre-computed features directly without transformation.
+description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

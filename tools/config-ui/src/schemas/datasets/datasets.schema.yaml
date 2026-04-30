@@ -1,0 +1,31 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: datasets.schema.yaml
+title: XANESNET dataset configuration schemas
+$comment: Dataset variant schemas mirror xanesnet.datasets subpackages; graph-specific reusable types live in graph_types.schema.yaml.
+$defs:
+  dataset:
+    oneOf:
+    - $ref: torch/descriptor.schema.yaml#/$defs/datasetDescriptor
+    - $ref: torch/mp/descriptor.schema.yaml#/$defs/datasetDescriptorMP
+    - $ref: torch/envembed.schema.yaml#/$defs/datasetEnvEmbed
+    - $ref: torch/mp/envembed.schema.yaml#/$defs/datasetEnvEmbedMP
+    - $ref: torchgeometric/geometrygraph.schema.yaml#/$defs/datasetGeometryGraph
+    - $ref: torchgeometric/mp/geometrygraph.schema.yaml#/$defs/datasetGeometryGraphMP
+    - $ref: torchgeometric/gemnet.schema.yaml#/$defs/datasetGemNet
+    - $ref: torchgeometric/mp/gemnet.schema.yaml#/$defs/datasetGemNetMP
+    - $ref: torchgeometric/gemnet_oc.schema.yaml#/$defs/datasetGemNetOC
+    - $ref: torchgeometric/mp/gemnet_oc.schema.yaml#/$defs/datasetGemNetOCMP
+    - $ref: torchgeometric/e3ee.schema.yaml#/$defs/datasetE3EE
+    - $ref: torchgeometric/mp/e3ee.schema.yaml#/$defs/datasetE3EEMP
+    - $ref: torchgeometric/e3ee_full.schema.yaml#/$defs/datasetE3EEFull
+    - $ref: torchgeometric/mp/e3ee_full.schema.yaml#/$defs/datasetE3EEFullMP
+    - $ref: torchgeometric/richgraph.schema.yaml#/$defs/datasetRichGraph
+    description: Union of dataset configuration objects instantiated by ``DatasetRegistry`` for training.
+  datasetInferUser:
+    anyOf:
+    - title: 'dataset: checkpoint overlay'
+      $ref: infer_overlay.schema.yaml#/$defs/datasetInferOverlay
+    - title: 'dataset: full config'
+      $ref: datasets.schema.yaml#/$defs/dataset
+    description: Inference dataset union for user YAML before checkpoint signature fields are merged.
+description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

@@ -1,0 +1,36 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: single.schema.yaml
+title: 'XANESNET strategy schema: single'
+$defs:
+  strategySingle:
+    type: object
+    additionalProperties: false
+    required:
+    - strategy_type
+    properties:
+      weight_init:
+        $ref: ../components/component_types.schema.yaml#/$defs/weightInitName
+        default: default
+        description: Weight initialization scheme name.
+      weight_init_params:
+        type: object
+        default: {}
+        additionalProperties: true
+        $comment: Forwarded as kwargs to the selected torch.nn.init weight initializer. Examples include {a,b} for uniform_,
+          {mean,std} for normal_, {gain} for xavier_*, and {a,mode,nonlinearity} for kaiming_*.
+        description: Additional parameters for the weight initializer.
+      bias_init:
+        $ref: ../components/component_types.schema.yaml#/$defs/biasInitName
+        default: zeros
+        description: Bias initialization scheme name.
+      checkpoint_interval:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Epoch interval for checkpoint saves, or ``None`` to disable interval-based checkpointing.
+      strategy_type:
+        $ref: strategy_types.schema.yaml#/$defs/strategyTypeSingle
+        description: Registry key identifying this strategy type.
+    description: Single-model training and inference strategy.
+description: Strategy schemas backed by ``StrategyRegistry`` classes.

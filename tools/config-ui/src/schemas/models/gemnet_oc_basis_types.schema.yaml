@@ -1,0 +1,61 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gemnet_oc_basis_types.schema.yaml
+title: XANESNET GemNet-OC basis value types
+$defs:
+  rbfName:
+    type: string
+    enum:
+    - gaussian
+    - spherical_bessel
+    - bernstein
+    description: Radial basis function name dispatched by ``RadialBasis``.
+  rbfNameGaussian:
+    const: gaussian
+    description: Gaussian radial basis function name dispatched by ``RadialBasis``.
+  rbfNameSphericalBessel:
+    const: spherical_bessel
+    description: Spherical Bessel radial basis function name dispatched by ``RadialBasis``.
+  rbfNameBernstein:
+    const: bernstein
+    description: Bernstein radial basis function name dispatched by ``RadialBasis``.
+  envelopeName:
+    type: string
+    enum:
+    - polynomial
+    - exponential
+    description: Envelope function name accepted by GemNet-OC radial basis configuration.
+  envelopeNamePolynomial:
+    const: polynomial
+    description: Polynomial envelope function name accepted by GemNet-OC radial basis configuration.
+  envelopeNameExponential:
+    const: exponential
+    description: Exponential envelope function name accepted by GemNet-OC radial basis configuration.
+  cbfName:
+    type: string
+    enum:
+    - gaussian
+    - spherical_harmonics
+    description: Circular basis function name dispatched by ``CircularBasisLayer``.
+  cbfNameGaussian:
+    const: gaussian
+    description: Gaussian circular basis function name dispatched by ``CircularBasisLayer``.
+  cbfNameSphericalHarmonics:
+    const: spherical_harmonics
+    description: Spherical-harmonics circular basis function name dispatched by ``CircularBasisLayer``.
+  sbfName:
+    type: string
+    enum:
+    - spherical_harmonics
+    - legendre_outer
+    - gaussian_outer
+    description: Spherical basis function name dispatched by ``SphericalBasisLayer``.
+  sbfNameSphericalHarmonics:
+    const: spherical_harmonics
+    description: Spherical-harmonics spherical basis function name dispatched by ``SphericalBasisLayer``.
+  sbfNameLegendreOuter:
+    const: legendre_outer
+    description: Legendre outer-product spherical basis function name dispatched by ``SphericalBasisLayer``.
+  sbfNameGaussianOuter:
+    const: gaussian_outer
+    description: Gaussian outer-product spherical basis function name dispatched by ``SphericalBasisLayer``.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

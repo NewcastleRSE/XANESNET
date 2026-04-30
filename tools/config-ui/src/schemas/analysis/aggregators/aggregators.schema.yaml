@@ -1,0 +1,9 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: aggregators.schema.yaml
+title: XANESNET aggregator configuration schemas
+$defs:
+  aggregator:
+    oneOf:
+    - $ref: scalar.schema.yaml#/$defs/aggregatorScalar
+    description: Union of aggregator configuration objects instantiated by ``AggregatorRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

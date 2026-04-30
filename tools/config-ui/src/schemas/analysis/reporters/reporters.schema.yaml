@@ -1,0 +1,10 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: reporters.schema.yaml
+title: XANESNET reporter configuration schemas
+$defs:
+  reporter:
+    oneOf:
+    - $ref: scalar.schema.yaml#/$defs/reporterScalar
+    - $ref: statistics.schema.yaml#/$defs/reporterStatistics
+    description: Union of reporter configuration objects instantiated by ``ReporterRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

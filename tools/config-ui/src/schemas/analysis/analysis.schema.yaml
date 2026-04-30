@@ -1,0 +1,20 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: analysis.schema.yaml
+title: XANESNET analysis component configuration schemas
+$defs:
+  selector:
+    $ref: selectors/selectors.schema.yaml#/$defs/selector
+    description: Union of selector configuration objects instantiated by ``SelectorRegistry`` in ``core_analyze``.
+  collector:
+    $ref: collectors/collectors.schema.yaml#/$defs/collector
+    description: Union of collector configuration objects instantiated by ``CollectorRegistry`` in ``core_analyze``.
+  aggregator:
+    $ref: aggregators/aggregators.schema.yaml#/$defs/aggregator
+    description: Union of aggregator configuration objects instantiated by ``AggregatorRegistry`` in ``core_analyze``.
+  reporter:
+    $ref: reporters/reporters.schema.yaml#/$defs/reporter
+    description: Union of reporter configuration objects instantiated by ``ReporterRegistry`` in ``core_analyze``.
+  plotter:
+    $ref: plotters/plotters.schema.yaml#/$defs/plotter
+    description: Union of plotter configuration objects instantiated by ``PlotterRegistry`` in ``core_analyze``.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.
