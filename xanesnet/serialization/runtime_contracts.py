@@ -110,20 +110,20 @@ def _require_concrete_inference_encodings(config: ConfigRaw) -> None:
         )
 
 
-def _require_ensemble_inferencer_for_deep_ensemble(config: ConfigRaw) -> None:
-    """Validate deep-ensemble inference runner selection.
+def _require_ensemble_inferencer_for_ensemble_strategies(config: ConfigRaw) -> None:
+    """Validate ensemble-strategy inference runner selection.
 
     Args:
         config: Schema-valid merged inference configuration.
 
     Raises:
-        ConfigError: If a deep-ensemble strategy is paired with a non-ensemble
+        ConfigError: If an ensemble strategy is paired with a non-ensemble
             inferencer.
     """
     strategy_type = _section_value(config, "strategy", "strategy_type")
     inferencer_type = _section_value(config, "inferencer", "inferencer_type")
-    if strategy_type == "deep_ensemble" and inferencer_type != "ensemble":
-        raise ConfigError("Inference strategy 'deep_ensemble' requires inferencer 'ensemble'.")
+    if strategy_type in {"deep_ensemble", "bootstrap"} and inferencer_type != "ensemble":
+        raise ConfigError(f"Inference strategy '{strategy_type}' requires inferencer 'ensemble'.")
 
 
 def _section_value(config: ConfigRaw, section: str, key: str) -> Any:
@@ -169,7 +169,7 @@ _RUNTIME_CONTRACTS_BY_MODE: dict[ConfigMode, tuple[_RuntimeContract, ...]] = {
         _require_registered_batch_processor,
         _require_concrete_inference_model,
         _require_concrete_inference_encodings,
-        _require_ensemble_inferencer_for_deep_ensemble,
+        _require_ensemble_inferencer_for_ensemble_strategies,
     ),
     "analyze": (),
 }

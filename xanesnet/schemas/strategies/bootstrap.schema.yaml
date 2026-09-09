@@ -1,7 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: bootstrap.schema.yaml
 title: 'XANESNET strategy schema: bootstrap'
-$comment: Registered in the strategy schemas, but the implementation currently raises NotImplementedError.
 $defs:
   strategyBootstrap:
     type: object
@@ -33,5 +32,20 @@ $defs:
       strategy_type:
         const: bootstrap
         description: Strategy identifier.
-    description: Bootstrap ensemble strategy.
+      n_models:
+        type: integer
+        minimum: 1
+        default: 5
+        description: Number of bootstrap ensemble members.
+      sample_fraction:
+        type: number
+        exclusiveMinimum: 0
+        default: 1.0
+        description: Fraction of the training subset resampled for each bootstrap member.
+      seeds:
+        type: array
+        items:
+          type: integer
+        description: Optional per-model random seeds for resampling and weight initialization.
+    description: Sequential bootstrap-ensemble training and aggregate inference strategy.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.
