@@ -38,67 +38,80 @@ collectors:
       invariants_only: true
       num_layers: -1
 aggregators:
-  # Summary statistics over every scalar sample and collector value.
   - aggregator_type: "scalar"
     percentiles: [25, 50, 75, 90, 95]
 
-  # Mean and spread of the per-channel collector vectors, e.g. energy-resolved
-  # losses. Required by the 'energy_resolved_loss' plotter.
   - aggregator_type: "vector"
 
-  # Per-channel spectra statistics. Required by the 'mean_spectrum' plotter.
   - aggregator_type: "spectrum"
 
-  # Rank samples by a collected scalar and select best/worst percent groups.
-  # Required by the 'mean_spectrum' plotter for its tail curves.
   - aggregator_type: "ranking"
     sort_key: "mse"
     percent: 20
     group_keys: ["prediction"]
 
-  # Per-channel bias/variance decomposition. Required by the 'bias_variance' plotter.
   - aggregator_type: "bias_variance"
 
 reporters:
   - reporter_type: "scalar"
+  
   - reporter_type: "statistics"
     format: "yaml"
-    # Only report the scalar summaries; the other aggregators feed plotters.
     aggregator_types: ["scalar"]
 
 plotters:
   - plotter_type: scalar
+    plot_size: default
     bins: 50
+    legend_position: outside
 
   - plotter_type: spectra_all
+    plot_size: default
     max_pages: 100
+    legend_position: outside
 
   - plotter_type: spectra_comparison
+    plot_size: default
     n_samples: 5
     sort_key: mse
+    legend_position: outside
 
   - plotter_type: energy_resolved_loss
+    plot_size: default
+    legend_position: outside
 
   - plotter_type: mean_spectrum
+    plot_size: default
+    legend_position: outside
 
   - plotter_type: parity
+    plot_size: default
 
   - plotter_type: bias_variance
+    plot_size: default
+    legend_position: outside
 
   - plotter_type: error_correlation
+    plot_size: default
     sort_key: mse
 
   - plotter_type: pca
+    plot_size: default
+    legend_position: outside
 
   - plotter_type: selector_overview
+    plot_size: default
     err_key: mse
+    legend_position: outside
 
   - plotter_type: stat_table
+    plot_size: default
     stat_keys: ["mean", "std", "median", "min", "max"]
     precision: 4
     sort_key: mse
 
   - plotter_type: stat_table_latex
+    plot_size: default
     stat_keys: ["mean", "std", "median", "min", "max"]
     precision: 4
     sort_key: mse
