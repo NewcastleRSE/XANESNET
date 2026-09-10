@@ -1,0 +1,80 @@
+# Example configuration for MLP k-fold cross-validation training with toy data.
+
+seed: 2025
+device: cpu
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/toy_data/
+  spectrum_key: "XANES"
+
+dataset:
+  # general:
+  dataset_type: descriptor
+  root: ./data/processed/toy_data_mlp_kfold/  # Where should the processed data be stored
+  preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
+  skip_prepare: False
+  # params:
+  # descriptors:
+  descriptors:
+    - descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
+
+encodings:
+  - encoding_type: identity
+
+model:
+  # general:
+  model_type: mlp
+  # params:
+  in_size: auto
+  out_size: auto
+  hidden_size: 256
+  dropout: 0.1
+  num_hidden_layers: 3
+  shrink_rate: 0.5
+  activation: prelu
+
+trainer:
+  # general:
+  trainer_type: basic
+  batch_size: 4
+  shuffle: True
+  drop_last: False
+  num_workers: 0
+  # params:
+  epochs: 20
+  learning_rate: 0.001
+  optimizer: Adam
+  max_norm: null
+  validation_interval: 10
+  lr_warmup: True
+  warmup_steps: 500
+  loss:
+    - loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: linear
+    start_factor: 1.0
+    end_factor: 0.1
+    total_iters: 40
+  early_stopper:
+    early_stopper_type: basic
+    patience: 25
+    min_delta: 0.001
+    restore_best: True
+
+strategy:
+  # general:
+  strategy_type: kfold
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 25
+  # params:
+  n_splits: 3
+  n_repeats: 1
+  seed: 2025

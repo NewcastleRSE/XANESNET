@@ -8,6 +8,7 @@ $defs:
     - single
     - deep_ensemble
     - bootstrap
+    - kfold
     - snapshot_ensemble
     description: Strategy registry key accepted by ``StrategyRegistry.get``.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.
