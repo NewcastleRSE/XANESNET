@@ -1,26 +1,50 @@
-XANESNET Documentation
-======================
+===============
+X A N E S N E T
+===============
 
-Welcome to the XANESNET documentation.
+.. image:: images/xanesnet_graphic.png
+   :align: center
 
-We present XANESNET, a PyTorch-based, open-source software framework for machine learning in spectroscopy. The framework integrates training, inference, and automated analysis within a plugin-based architecture. Its modular design allows users to compare, combine, and extend different methods without modifying the core codebase, providing a flexible and reusable framework rather than a single-purpose implementation. XANESNET supports forward prediction from structure to spectrum and inverse inference from spectra to structures or properties. A unified data pipeline uniformly handles molecular and periodic systems, while the framework remains agnostic to the spectroscopic technique. We demonstrate its use for learning structure-spectrum relationships in X-ray absorption spectroscopy. By prioritizing extensibility and reproducibility, XANESNET aims to accelerate and make more accessible machine-learning research in spectroscopy.
+|
 
+XANESNET is an open-source toolbox for the rapid and automated analysis and
+prediction of X-ray spectroscopy data. The software is collaboratively
+developed by 
+`Hendrik Junkawitsch <https://github.com/HendrikJunkawitsch>`_, the `Penfold Group <http://penfoldgroup.co.uk>`_, and the
+`Research Software Engineering (RSE) team <https://rse.ncldata.dev/>`_ at
+`Newcastle University <https://ncl.ac.uk>`_.
 
-The :doc:`overview` summarises the supported workflows and points to the
-project README, configuration examples, and interactive config UI. The full
-API reference is generated from in-source Google-style docstrings.
+This documentation provides a user guide for running XANESNET and an API
+reference generated from in-source docstrings.
 
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
 
-   overview
+   user-guide/intro
+   user-guide/install
+   user-guide/running
+   user-guide/input
+   user-guide/datasets
+   user-guide/descriptors
+   user-guide/models
+   user-guide/strategies
 
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
 
-   modules
+   api/modules
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Project Links
+   :hidden:
+
+   XANESNET GitHub Repository <https://github.com/NewcastleRSE/xray-spectroscopy-ml>
+   XANESNET GitLab Repository <https://gitlab.com/team-xnet/xanesnet>
+   XANESNET Training Datasets <https://gitlab.com/team-xnet/training-sets>
+   Penfold Group <http://penfoldgroup.co.uk>
 
 * :ref:`genindex`
 * :ref:`modindex`
