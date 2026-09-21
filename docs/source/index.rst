@@ -23,12 +23,11 @@ reference generated from in-source docstrings.
 
    user-guide/intro
    user-guide/install
+   user-guide/user-interface
    user-guide/running
    user-guide/input
-   user-guide/datasets
    user-guide/descriptors
    user-guide/models
-   user-guide/strategies
 
 .. toctree::
    :maxdepth: 2
