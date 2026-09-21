@@ -19,6 +19,7 @@ Subpackages
    xanesnet.models.gemnet
    xanesnet.models.gemnet_oc
    xanesnet.models.mlp
+   xanesnet.models.multihead
    xanesnet.models.schnet
    xanesnet.models.xasnetv2
 

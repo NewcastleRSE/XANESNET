@@ -1,7 +1,7 @@
-xanesnet.batchprocessors.envembed module
+xanesnet.models.multihead.mh\_cnn module
 ========================================
 
-.. automodule:: xanesnet.batchprocessors.envembed
+.. automodule:: xanesnet.models.multihead.mh_cnn
    :members:
    :show-inheritance:
    :undoc-members:

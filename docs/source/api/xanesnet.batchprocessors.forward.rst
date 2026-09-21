@@ -21,3 +21,4 @@ Submodules
    xanesnet.batchprocessors.forward.gemnet_oc
    xanesnet.batchprocessors.forward.geometrygraph_dimenet
    xanesnet.batchprocessors.forward.geometrygraph_schnet
+   xanesnet.batchprocessors.forward.multihead

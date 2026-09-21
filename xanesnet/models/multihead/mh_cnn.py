@@ -1,18 +1,24 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
+#
+# Citations:
+#   ...
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+"""Multi-head convolutional neural network (CNN) model for spectroscopy prediction."""
 
 import torch
 from torch import nn
@@ -26,7 +32,30 @@ from .layers import MLPHead
 
 @ModelRegistry.register("mh_cnn")
 class MultiHead_CNN(Model):
+    """A customisable multi-head convolutional neural network (CNN) for spectroscopy prediction.
 
+    Consists of a sequence of convolutional layers followed by a multi-head MLP predictor.
+    Each convolutional layer contains a convolutional kernel, batch normalization, an activation function,
+    and a dropout layer. The MLP predictor contains a sequence of hidden layers followed by a linear output layer.
+    Each hidden layer contains a linear transformation, dropout, and an activation function. The final
+    layer is a plain linear layer with no activation.
+
+    Args:
+        model_type: Model type identifier string.
+        in_size: Number of input features.
+        out_size: Number of output features.
+        hidden_size: Width of the first hidden layer.
+        dropout: Dropout probability applied after each hidden linear layer. Range ``[0, 1)``.
+        num_conv_layers: Number of convolutional layers (excluding the output layer).
+        activation: Name of the activation function for hidden layers.
+        out_channel: Number of output channels for the first conv layer.
+        channel_mul: Multiplies the number of channels at each subsequent layer.
+        kernel_size: Size of the convolutional kernel.
+        stride: Stride for convolution and upsampling.
+        head_num_hidden_layers: Number of hidden layers in the multi-head MLP predictor.
+        head_hidden_size: Width of the first hidden layer in the multi-head MLP predictor.
+        head_shrink_rate: Multiplicative factor applied to the layer width at each depth step in the multi-head MLP predictor.  
+    """
     def __init__(
         self,
         model_type: str,
@@ -45,22 +74,7 @@ class MultiHead_CNN(Model):
         head_hidden_size: int,
         head_shrink_rate: float,
     ) -> None:  
-        """     
-        Args:
-            model_type (str): Model type identifier
-            in_size (integer): Size of input data
-            out_size (integer): Size of output data
-            hidden_size (integer): Size of the hidden layer in the dense predictor.
-            out_features (int): Size of output data.
-            hidden_size (int): Size of the hidden layer in the dense predictor.
-            dropout (float): Dropout rate for regularization.
-            num_conv_layers (int): Number of convolutional layers in the encoder.
-            activation (str): Name of activation function for all layers.
-            out_channel (int): Number of output channels for the first conv layer.
-            channel_mul (int): Multiplies the number of channels at each subsequent layer.
-            kernel_size (int): Size of the convolutional kernel.
-            stride (int): Stride for convolution and upsampling.
-        """     
+        """ Initialize ``MultiHead_CNN``."""     
         super().__init__(model_type)
  
         self.in_size = in_size

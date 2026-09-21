@@ -15,6 +15,7 @@ Submodules
    xanesnet.strategies.base
    xanesnet.strategies.bootstrap
    xanesnet.strategies.deep_ensemble
+   xanesnet.strategies.kfold
    xanesnet.strategies.registry
    xanesnet.strategies.single
    xanesnet.strategies.snapshot_ensemble

@@ -26,12 +26,18 @@ Common options:
 Training outputs are saved under ``<out_dir>/<name>/``. Typical outputs include processed
 dataset, execution logs, trained model, model checkpoints, and config files.
 
-Examples:
+Example:   
 
 .. code-block:: bash
 
+   # MLP training configuration with default settings
    xanesnet train -i configs/mlp.yaml 
 
+Example:
+
+.. code-block:: bash
+
+   # MLP deep ensemble training configuration with custom run name, TensorBoard logging, and no interactive confirmation
    xanesnet train -i configs/mlp_deep_ensembles.yaml -n mlp_run -t -y
 
 
@@ -60,8 +66,14 @@ Examples:
 
 .. code-block:: bash
 
+   # MLP inference configuration with default settings
    xanesnet infer -i configs/mlp_infer.yaml -m runs/train_000/models/final.pth
 
+Examples:
+
+.. code-block:: bash
+
+   # MLP deep ensemble inference configuration with custom run name, and no interactive confirmation
    xanesnet infer -i configs/mlp_deep_ensemble_infer.yaml -m runs/train_000/models/final.pth -n mlp_infer -y
 
 ------------------
@@ -83,11 +95,17 @@ Common options:
 Analysis outputs are saved under ``<out_dir>/<name>/``. Depneding on the selected analysis type, 
 the outputs may include: scalar metrics in ``metrics/``, spectra plots in ``spectra/``, and statistical tables in ``statistics/``.
 
-Examples:
+Example:
 
 .. code-block:: bash
 
-   xanesnet infer -i configs/analyze_example.yaml -p runs/infer_000
+   # MLP analysis configuration with default settings 
+   xanesnet analyze -i configs/analyze_example.yaml -p runs/infer_000
 
-   xanesnet infer -i configs/analyze_example.yaml -p runs/infer_000 -n analyze_000 -y
+Example:
+
+.. code-block:: bash
+
+   # MLP deep ensemble analysis configuration with custom run name, and no interactive confirmation
+   xanesnet analyze -i configs/analyze_example.yaml -p runs/infer_000 -n analyze_000 -y
 

@@ -1,24 +1,16 @@
 User Interface
 ==============
 
-The XANESNET user interface is an interactive editor for ``train``,
-``infer``, and ``analyze`` YAML configuration files. It is located in
-``tools/config-ui/`` in the repository.
+The XANESNET user interface (located in ``tools/config-ui/``) is an interactive editor for ``train``,
+``infer``, and ``analyze`` YAML configuration files. It is built with React and Vite.
 
-Forms are generated from JSON Schema files exposed at ``src/schemas/``, which
-is a symlink to ``xanesnet/schemas/``. This keeps UI defaults and allowed
-schema variants aligned with runtime Python validation.
-
-
-The app supports two main tasks:
-
-* Browse valid XANESNET configuration options.
-* Generate complete YAML files for training, inference, and analysis workflows.
+Forms are generated from JSON schemas in ``src/schemas/`` (symlinked via ``xanesnet/schemas/``)
+This keeps UI defaults and allowed schema variants aligned with runtime Python validation.
 
 Features
 --------
 
-* Mode-specific forms for Train, Infer, and Analyze configs.
+* Mode-specific forms for Train, Infer, and Analyze configurations.
 * YAML import with automatic mode detection.
 * Infer checkpoint ``signature.yaml`` import that merges signature-provided
   ``dataset``, ``model``, and ``strategy`` fields into the Infer form.

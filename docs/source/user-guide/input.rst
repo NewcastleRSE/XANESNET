@@ -13,42 +13,22 @@ Default values are automatically applied during validation,
 so the input file only needs to include fields you want to override. 
 The example input files can be found in the ``configs/`` directory.
 
-Avaiable sections in training configuration files (``xanesnet train``):
+.. _training:
 
-  * ``seed`` — global random seed
-  * ``device`` — compute device (``cpu`` or ``cuda``)
-  * ``datasource`` — raw structure/spectrum source
-  * ``dataset`` — how raw data are processed
-  * ``encodings`` — optional spectrum encodings applied before the model
-  * ``model`` — neural network architecture
-  * ``trainer`` — optimisation loop
-  * ``strategy`` — how models are trained and checkpointed.
+======================
+training configuration
+======================
 
+The training configuration configures the training process, including data loading, model definition, and training loop.
 
-Avaiable sections in inference configuration files (``xanesnet infer``):
+Common fields:
 
-  * ``seed`` — global random seed
-  * ``device`` — compute device (``cpu`` or ``cuda``)
-  * ``datasource`` — raw structure/spectrum source
-  * ``dataset`` — how raw data are processed
-  * ``inferencer`` — inference loop
+* ``seed`` (int): optional random seed for stochastic selectors
+* ``device`` (str): compute device (``cpu`` or ``cuda``)
 
 
-Avaiable sections in analysis configuration files (``xanesnet analyze``):
-
-  * ``seed`` — global random seed
-  * ``selectors`` — which samples to analyse
-  * ``collectors`` —  values to collect from the selected samples
-  * ``aggregators`` — summary statistics over the collected values
-  * ``reporters`` — reports written to disk 
-  * ``plotters`` — plots written to disk
-
-
-.. _datasource:
-
-==========
 datasource
-==========
+----------
 
 The datasource section defines where raw structures and spectra are read
 from before dataset preparation.
@@ -85,11 +65,8 @@ Example (Multiple directories PMGJSON dataset):
     root_path: ./data/toy_data/
     spectrum_key: "XANES"
 
-.. _dataset:
-
-========
 dataset
-========
+--------
 
 The dataset section defines how raw data are processed, cached, and split.
 
@@ -152,11 +129,8 @@ Example (SchNet dataset):
       cov_radii_scale: 2.5
       max_num_neighbors: 50
 
-.. _encodings:
-
-=========
 encodings
-=========
+----------
 
 The encodings section is a list of spectrum transforms applied to target
 features before they reach the model. Each entry requires ``encoding_type``.
@@ -196,11 +170,9 @@ Example (Fourier encoding with concatenation):
     - encoding_type: fourier
     - concat: true
 
-.. _model:
 
-========
 model
-========
+----------
 
 The model section defines the neural network architecture. See
 :doc:`models` for supported ``model_type`` values and hyperparameters.
@@ -270,11 +242,9 @@ Example (SchNet model):
     num_gaussians: 50
     cutoff: 5.0
 
-.. _trainer:
 
-========
 trainer
-========
+----------
 
 The trainer section configures the optimisation loop.
 
@@ -333,13 +303,10 @@ The trainer section configures the optimisation loop.
 
     * ``step`` (:class:`~torch.optim.lr_scheduler.StepLR`) — decay at a given number of epochs
     * ``multistep`` (:class:`~torch.optim.lr_scheduler.MultiStepLR`) — decay at listed milestones
-    * ``exponential`` (:class:`~torch.optim.lr_scheduler.ExponentialLR`) —
-
+    * ``exponential`` (:class:`~torch.optim.lr_scheduler.ExponentialLR`) — multiplicative decay each epoch
     * ``linear`` (:class:`~torch.optim.lr_scheduler.LinearLR`) — linear decay with a given start and end learning rate
-    * ``constant`` (:class:`~torch.optim.lr_scheduler.ConstantLR`) — 
-    keep the learning rate constant
-    * ``none`` / ``no`` (:class:`~xanesnet.components.lrscheduler.NoOpLRScheduler`) —
-      leave the learning rate unchanged
+    * ``constant`` (:class:`~torch.optim.lr_scheduler.ConstantLR`) — keep the learning rate constant
+    * ``none`` / ``no`` (:class:`~xanesnet.components.lrscheduler.NoOpLRScheduler`) — leave the learning rate unchanged
 
   * additional parameters are scheduler-specific.
 
@@ -347,12 +314,9 @@ The trainer section configures the optimisation loop.
 
   * ``early_stopper_type`` (str): supported values:
 
-    * ``none`` / ``no`` (:class:`~xanesnet.stoppers.no.NoStopper`) — never
-      stop early
-    * ``basic`` (:class:`~xanesnet.stoppers.basic.BasicStopper`) — stop after
-    a given number of epochs without improvement
-    * ``time`` (:class:`~xanesnet.stoppers.time.TimeStopper`) — stop after 
-    a given number of seconds of wall-clock time
+    * ``none`` / ``no`` (:class:`~xanesnet.stoppers.no.NoStopper`) — never stop early
+    * ``basic`` (:class:`~xanesnet.stoppers.basic.BasicStopper`) — stop after a given number of epochs without improvement
+    * ``time`` (:class:`~xanesnet.stoppers.time.TimeStopper`) — stop after a given number of seconds of wall-clock time
   * additional parameters are stopper-specific.
 
 
@@ -389,11 +353,9 @@ Example:
        restore_best: true
 
 
-.. _strategy:
 
-=========
 strategy
-=========
+----------
 
 The strategy section controls how models are trained, initialised, checkpointed,
 and which inferencer type is required at prediction time. 
@@ -433,11 +395,23 @@ Example:
      bias_init: zeros
      checkpoint_interval: 25
 
+
 .. _inferencer:
 
-===========
+========================
+inference configuration
+======================== 
+
+The inference configuration configures the inference process.
+
+Common fields:
+
+* ``seed`` (int): optional random seed for stochastic selectors
+* ``device`` (str): compute device (``cpu`` or ``cuda``)
+
+
 inferencer
-===========
+----------
 
 The inferencer section configures the inference loop. 
 
@@ -489,10 +463,13 @@ Example (ensemble):
 
 .. _analyze:
 
-analysis 
+======================
+analysis configuration
 ======================
 
-The analysis section configures the post-processing of inference predictions.
+The analysis configuration configures the post-processing of inference predictions.
+
+Common fields:
 
 * ``seed`` (int): optional random seed for stochastic selectors
 
@@ -503,16 +480,24 @@ Select list of samples applied to each prediction reader.
 
 * ``selector_type`` (str): supported values:
 
-  * ``all`` (:class:`~xanesnet.analysis.selectors.identity.IdentitySelector`) —
-    keep every sample
-  * ``none`` (:class:`~xanesnet.analysis.selectors.identity.IdentitySelector`) —
-    keep no samples
+  * ``all/none`` (:class:`~xanesnet.analysis.selectors.identity.IdentitySelector`) —
+    yield all source samples unchanged.
   * ``index_list`` (:class:`~xanesnet.analysis.selectors.by_index.IndexSelector`) —
-    keep explicit zero-based ``indices``
+    select samples by explicit zero-based indices.
   * ``index_range`` (:class:`~xanesnet.analysis.selectors.by_range.IndexRangeSelector`) —
     keep samples from inclusive ``start`` up to exclusive ``end``
   * ``random`` (:class:`~xanesnet.analysis.selectors.bernoulli.BernoulliSelector`) —
     Bernoulli subsample with probability ``p``
+* additional parameters are selector-specific.
+
+Example:
+
+.. code-block:: yaml
+
+   selectors:
+     - selector_type: all
+     - selector_type: random
+       p: 0.1
 
 collectors
 ----------
@@ -529,6 +514,16 @@ List of per-sample metrics computed from predictions and targets.
   :ref:`trainer`). Loss-specific parameters are forwarded to the loss
   constructor.
 
+Example:
+
+.. code-block:: yaml
+
+   collectors:
+     - collector_type: error_metric
+       loss_type: l1
+     - collector_type: error_metric
+       loss_type: mse
+
 aggregators
 -----------
 
@@ -538,6 +533,14 @@ List of summary statistics computed over collected values.
 
   * ``scalar`` (:class:`~xanesnet.analysis.aggregators.scalar.ScalarAggregator`) —
     mean, standard deviation, min, max, and optional ``percentiles``
+
+Example:
+
+.. code-block:: yaml
+
+   aggregators:
+     - aggregator_type: scalar
+       percentiles: [25, 50, 75, 90, 95]
 
 reporters
 ---------
@@ -550,6 +553,16 @@ List of structured outputs written to disk.
     per-sample scalar values as CSV files
   * ``statistics`` (:class:`~xanesnet.analysis.reporters.statistics.StatisticsReporter`) —
     aggregated statistics as YAML or JSON
+* additional parameters are reporter-specific.
+
+Example:
+
+.. code-block:: yaml
+
+   reporters:
+     - reporter_type: scalar
+     - reporter_type: statistics
+       format: yaml 
 
 plotters
 --------
@@ -565,43 +578,15 @@ List of figures written to disk.
   * ``stat_table`` (:class:`~xanesnet.analysis.plotters.stat_table.StatTablePlotter`) —
     render comparison tables of aggregated statistics as PDF figures
 
+* additional parameters are plotter-specific.
+
 Example:
 
 .. code-block:: yaml
 
-   seed: 42
-
-   selectors:
-     - selector_type: all
-     - selector_type: random
-       p: 0.1
-     - selector_type: index_range
-       start: 0
-       end: 50
-
-   collectors:
-     - collector_type: error_metric
-       loss_type: l1
-     - collector_type: error_metric
-       loss_type: mse
-
-   aggregators:
-     - aggregator_type: scalar
-       percentiles: [25, 50, 75, 90, 95]
-
-   reporters:
-     - reporter_type: scalar
-     - reporter_type: statistics
-       format: yaml
-
    plotters:
      - plotter_type: scalar
-       bins: 50
      - plotter_type: spectra
        sort_by_value: true
        sort_key: mse
        sort_ascending: true
-       max_pages: 100
-     - plotter_type: stat_table
-       stat_keys: [mean, std, median, min, max]
-       precision: 4

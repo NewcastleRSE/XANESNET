@@ -14,3 +14,4 @@ Submodules
 
    xanesnet.datasets.torch.mp.descriptor
    xanesnet.datasets.torch.mp.envembed
+   xanesnet.datasets.torch.mp.multihead
