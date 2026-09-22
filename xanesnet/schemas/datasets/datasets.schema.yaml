@@ -9,8 +9,10 @@ $defs:
     - $ref: torch/descriptor.schema.yaml#/$defs/datasetDescriptorInverse
     - $ref: torch/mp/descriptor.schema.yaml#/$defs/datasetDescriptorMP
     - $ref: torch/mp/descriptor.schema.yaml#/$defs/datasetDescriptorInverseMP
-    - $ref: torch/multihead.schema.yaml#/$defs/datasetMultihead
-    - $ref: torch/mp/multihead.schema.yaml#/$defs/datasetMultiheadMP
+    - $ref: torch/descriptor_multihead.schema.yaml#/$defs/datasetDescriptorMultihead
+    - $ref: torch/descriptor_multihead.schema.yaml#/$defs/datasetDescriptorMultiheadInverse
+    - $ref: torch/mp/descriptor_multihead.schema.yaml#/$defs/datasetDescriptorMultiheadMP
+    - $ref: torch/mp/descriptor_multihead.schema.yaml#/$defs/datasetDescriptorMultiheadInverseMP
     - $ref: torch/envembed.schema.yaml#/$defs/datasetEnvEmbed
     - $ref: torch/mp/envembed.schema.yaml#/$defs/datasetEnvEmbedMP
     - $ref: torchgeometric/geometrygraph.schema.yaml#/$defs/datasetGeometryGraph

@@ -10,11 +10,6 @@ $defs:
     - in_size
     - out_size
     properties:
-      hidden_size:
-        type: integer
-        minimum: 1
-        default: 512
-        description: Size of the hidden layer in the dense predictor (stored on the model signature).
       dropout:
         type: number
         minimum: 0
@@ -70,11 +65,11 @@ $defs:
         description: Model type identifier string.
       in_size:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
-        description: Length of the input spectrum (number of energy points).
+        description: Number of input features.
       out_size:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveIntegerArray
-        description: Output size for each prediction head.
-    description: Multi-head CNN for spectroscopy prediction with one head per subdirectory.
+        description: Output size for each prediction head; all entries must be equal because predictions are stacked.
+    description: Multi-head CNN with one prediction head per datasource subdirectory.
   modelTrainMHCNN:
     $ref: '#/$defs/modelMHCNN'
     description: Training view of modelMHCNN; automatic dimension fields may use the case-insensitive auto token.

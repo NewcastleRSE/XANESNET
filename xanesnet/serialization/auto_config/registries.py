@@ -25,17 +25,20 @@ from typing import Any
 
 import torch
 
+from xanesnet.datasets import Dataset
 from xanesnet.utils.registry import Registry
 
 from ..config import ConfigRaw
 from .statistics import SpectralStatisticsCollector
 
-ModelResolver = Callable[[dict[str, Any], torch.Tensor], ConfigRaw]
-"""Model auto-resolver signature: ``(inputs, target) -> resolved_fields``.
+ModelResolver = Callable[[dict[str, Any], torch.Tensor, Dataset], ConfigRaw]
+"""Model auto-resolver signature: ``(inputs, target, dataset) -> resolved_fields``.
 
 The first argument is the model-specific input dictionary produced by the
 batch processor.  The second is the encoded target tensor whose final
-dimension typically determines the output size.  Returns a
+dimension typically determines the output size.  The third is the prepared
+dataset, which provides dataset-level information for fields that cannot be
+inferred from one input and target sample.  Returns a
 :data:`~xanesnet.serialization.config.ConfigRaw` of resolved model
 fields.
 """
@@ -58,7 +61,9 @@ Keys are lower-case model type strings (e.g. ``"mlp"``, ``"schnet"``).
 Register with::
 
     @ModelAutoResolver.register("my_model")
-    def _resolve_my_model(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+    def _resolve_my_model(
+        inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset
+    ) -> ConfigRaw:
         ...
 """
 

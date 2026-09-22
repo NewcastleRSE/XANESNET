@@ -18,22 +18,23 @@
 # Citations:
 #   ...
 
-"""Multiprocessing multi-head dataset registration."""
+"""Multiprocessing descriptor-based multi-head dataset registration."""
 
 from xanesnet.datasets._mp import MpDatasetMixin
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
 
 from ...registry import DatasetRegistry
-from ..multihead import MultiheadDataset
+from ..descriptor_multihead import DescriptorMultiheadDataset
 
 
-@DatasetRegistry.register("multihead_mp")
-class MultiheadDatasetMp(MpDatasetMixin, MultiheadDataset):
-    """Multiprocessing variant of :class:`MultiheadDataset`.
+@DatasetRegistry.register("descriptor_multihead_mp")
+@DatasetRegistry.register("descriptor_multihead_inverse_mp")
+class DescriptorMultiheadDatasetMp(MpDatasetMixin, DescriptorMultiheadDataset):
+    """Multiprocessing variant of :class:`DescriptorMultiheadDataset`.
 
     Args:
-        dataset_type: Registered dataset type name (``"multihead_mp"``).
+        dataset_type: Registered dataset type name.
         datasource: Raw datasource used during preparation.
         root: Directory that stores processed ``.pth`` files.
         preload: Whether to preload processed samples.
@@ -57,7 +58,7 @@ class MultiheadDatasetMp(MpDatasetMixin, MultiheadDataset):
         descriptors: list[Config],
         num_workers: int | None,
     ) -> None:
-        """Initialize a multiprocessing multi-head dataset."""
+        """Initialize a multiprocessing descriptor multi-head dataset."""
         super().__init__(
             dataset_type=dataset_type,
             datasource=datasource,

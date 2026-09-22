@@ -33,6 +33,10 @@ STOP_ON_FAILURE=false
 
 TRAIN_CONFIGS=(
     "mlp.yaml"
+    "mh_mlp.yaml"
+    "mh_mlp_inverse.yaml"
+    "mh_cnn.yaml"
+    "mh_cnn_inverse.yaml"
     "schnet.yaml"
     "dimenet.yaml"
     "dimenet_pp.yaml"

@@ -23,6 +23,7 @@
 from .base import BatchProcessor
 from .forward import (
     DescriptorMLPBatchProcessor,
+    DescriptorMultiheadBatchProcessor,
     E3EEBatchProcessor,
     E3EEFullBatchProcessor,
     EnvEmbedBatchProcessor,
@@ -31,11 +32,11 @@ from .forward import (
     GemNetOCBatchProcessor,
     GeometryGraphDimeNetBatchProcessor,
     GeometryGraphSchNetBatchProcessor,
-    MultiheadBatchProcessor,
 )
 from .inverse import (
     InverseBatchProcessor,
     InverseDescriptorMLPBatchProcessor,
+    InverseDescriptorMultiheadBatchProcessor,
 )
 from .registry import BatchProcessorRegistry
 
@@ -45,7 +46,9 @@ __all__ = [
     "InverseBatchProcessor",
     "BatchProcessorRegistry",
     "DescriptorMLPBatchProcessor",
+    "DescriptorMultiheadBatchProcessor",
     "InverseDescriptorMLPBatchProcessor",
+    "InverseDescriptorMultiheadBatchProcessor",
     "GemNetBatchProcessor",
     "GemNetOCBatchProcessor",
     "E3EEBatchProcessor",
@@ -53,5 +56,4 @@ __all__ = [
     "EnvEmbedBatchProcessor",
     "GeometryGraphDimeNetBatchProcessor",
     "GeometryGraphSchNetBatchProcessor",
-    "MultiheadBatchProcessor",
 ]

@@ -18,23 +18,30 @@
 # Citations:
 #   ...
 
+"""Reusable MLP prediction head for multi-head models."""
+
 import torch
 from torch import nn
 
 from xanesnet.components import ActivationRegistry
 
-class MLPHead(nn.Module):
-    """             
-    A class for constructing a customisable MLP (Multi-Layer Perceptron) model that
-    is used as one head of a larger multi-headed MLP network. The model consists of
-    a set of hidden layers. All the layers expect the final layer, are comprised of
-    a linear layer, a dropout layer, and an activation function. The final (output)
-    layer is a linear layer.
 
-    The size of each hidden linear layer is determined by the input dimension
-    (input_size) and the output dimension (output_size) that reduces the layer
-    dimension multiplicatively.
-    """ 
+class MLPHead(nn.Module):
+    """MLP prediction head used by the multi-head model architectures.
+
+    Each hidden layer contains a linear transformation, dropout, and an
+    activation function. The output layer is linear so the head can predict
+    both encoded spectra and descriptor features in forward or inverse mode.
+
+    Args:
+        in_size: Number of input features.
+        out_size: Number of output features.
+        hidden_size: Width of the first hidden layer.
+        dropout: Dropout probability applied after each hidden layer.
+        num_hidden_layers: Number of hidden layers.
+        shrink_rate: Multiplicative factor applied to hidden layer widths.
+        activation: Name of the hidden-layer activation function.
+    """
 
     def __init__(
         self,
@@ -45,18 +52,8 @@ class MLPHead(nn.Module):
         num_hidden_layers: int,
         shrink_rate: float,
         activation: str,
-    ):
-        """
-        Args:
-            in_size (integer): Size of input data
-            out_size (integer): Size of output data
-            hidden_size (integer): Size of the initial hidden layer.
-            dropout (float): Dropout probability for hidden layers.
-            num_hidden_layers (int): Number of hidden layers, excluding input and output layers
-            shrink_rate (float): Rate to reduce the hidden layer size multiplicatively.
-            activation (str): Name of activation function for hidden layers.
-        """
-        
+    ) -> None:
+        """Initialize ``MLPHead``."""
         super().__init__()
 
         layers: list[nn.Module] = []
@@ -68,17 +65,23 @@ class MLPHead(nn.Module):
             if next_size < 1:
                 raise ValueError(f"Hidden layer {i + 1} size is less than 1. Adjust hidden_size or shrink_rate.")
 
-
             layers.append(nn.Linear(current_size, next_size))
-            layers.append(nn.BatchNorm1d(next_size))
             layers.append(nn.Dropout(dropout))
             layers.append(ActivationRegistry.create(activation))
             current_size = next_size
 
-        # Initialise output layer    
-        layers.append(nn.Sequential(nn.Linear(current_size, out_size), nn.Softplus()))
+        # Initialise output layer
+        layers.append(nn.Linear(current_size, out_size))
 
         self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Return the head prediction for ``x``.
+
+        Args:
+            x: Input tensor. ``(batch_size, in_size)``.
+
+        Returns:
+            Prediction tensor. ``(batch_size, out_size)``.
+        """
         return self.model(x)

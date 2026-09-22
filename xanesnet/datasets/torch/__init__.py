@@ -21,18 +21,18 @@
 """Standard PyTorch dataset exports."""
 
 from .descriptor import DescriptorData, DescriptorDataset
+from .descriptor_multihead import DescriptorMultiheadData, DescriptorMultiheadDataset
 from .envembed import EnvEmbedData, EnvEmbedDataset
-from .mp import DescriptorDatasetMp, EnvEmbedDatasetMp, MultiheadDatasetMp
-from .multihead import MultiheadData, MultiheadDataset
+from .mp import DescriptorDatasetMp, DescriptorMultiheadDatasetMp, EnvEmbedDatasetMp
 
 __all__ = [
     "EnvEmbedData",
     "EnvEmbedDataset",
     "DescriptorData",
     "DescriptorDataset",
+    "DescriptorMultiheadData",
+    "DescriptorMultiheadDataset",
     "DescriptorDatasetMp",
+    "DescriptorMultiheadDatasetMp",
     "EnvEmbedDatasetMp",
-    "MultiheadData",
-    "MultiheadDataset",
-    "MultiheadDatasetMp",
 ]

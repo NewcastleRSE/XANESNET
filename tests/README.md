@@ -26,11 +26,11 @@ tests/
 
 ### `dry_runs/`: pipeline smoke tests
 
-End-to-end tests that run the full train, infer, and analyze workflow for every supported model using toy data and minimal epochs. They validate that each model completes the pipeline without runtime errors.
+End-to-end tests for the representative train, infer, and analyze workflow using toy data. Model-specific one-epoch training dry runs are defined by the top-level configurations and run with `scripts/testing/dispatchers/dry_run_all_configs.sh`.
 
-All dry-run tests are marked `@pytest.mark.slow` and are skipped in quick mode (`-q`).
+The full pipeline test is marked `@pytest.mark.slow` and is skipped in quick mode (`-q`).
 
-To add a new model pair, create matching configs in `dry_runs/train/` and `dry_runs/infer/` with the same stem. They are picked up automatically by `collect_model_pairs()` in `conftest.py`.
+To add a model to the one-epoch dry-run sweep, add its training configuration to the `TRAIN_CONFIGS` list in `scripts/testing/dispatchers/dry_run_all_configs.sh`.
 
 ### `unit/`: framework-level unit tests
 

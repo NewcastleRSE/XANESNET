@@ -65,9 +65,7 @@ class MultiPMGJSONSource(DataSource):
         self.spectrum_key = spectrum_key
 
         self.sample_ids: dict[str, list[str]] = self._get_file_dictionary()
-        self._subdir_ids: dict[str, int] = {
-            subdir: subdir_id for subdir_id, subdir in enumerate(self.sample_ids)
-        }
+        self._subdir_ids: dict[str, int] = {subdir: subdir_id for subdir_id, subdir in enumerate(self.sample_ids)}
         self._flat_index: list[tuple[str, str]] = [
             (subdir, file) for subdir, files in self.sample_ids.items() for file in files
         ]
@@ -98,7 +96,9 @@ class MultiPMGJSONSource(DataSource):
         Returns:
             The deserialised pymatgen ``Molecule`` or ``Structure`` at
             position ``idx``, with ``sample_id``, ``subdir_name``, and
-            ``subdir_id`` stored in ``properties``.
+            ``subdir_id`` stored in ``properties``. When ``spectrum_key`` is
+            not ``"spectrum"``, the source property is available under
+            ``"spectrum"`` and the original property is removed.
         """
         subdir, file = self._flat_index[idx]
         json_file = Path(self.root_path) / subdir / f"{file}.json"

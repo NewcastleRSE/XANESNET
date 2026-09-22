@@ -1,4 +1,4 @@
-# Example configuration for multi-head CNN inference with toy data.
+# Example configuration for inverse descriptor-based multi-head CNN inference with toy data.
 
 seed: 2025
 device: cpu
@@ -9,7 +9,7 @@ datasource:
   spectrum_key: "XANES"
 
 dataset:
-  root: ./data/processed/toy_data_multihead_cnn/
+  root: ./data/processed/toy_data_multihead_cnn_inverse/
   preload: True
   skip_prepare: True
 

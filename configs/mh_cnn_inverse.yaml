@@ -1,4 +1,4 @@
-# Example configuration for descriptor-based multi-head MLP training with toy data.
+# Example configuration for inverse descriptor-based multi-head CNN training with toy data.
 
 seed: 2025
 device: cpu
@@ -10,9 +10,9 @@ datasource:
 
 dataset:
   # general:
-  # Descriptor-based multi-head dataset; each subdirectory selects one prediction head.
-  dataset_type: descriptor_multihead
-  root: ./data/processed/toy_data_multihead_mlp/  # Where should the processed data be stored
+  # Descriptor-based inverse multi-head dataset; spectra are inputs and descriptors are targets.
+  dataset_type: descriptor_multihead_inverse
+  root: ./data/processed/toy_data_multihead_cnn_inverse/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
@@ -30,18 +30,20 @@ encodings:
 
 model:
   # general:
-  model_type: mh_mlp
+  model_type: mh_cnn
   # params:
   in_size: auto
   out_size: auto
-  hidden_size: 512
-  head_hidden_size: 512
   dropout: 0.1
-  num_hidden_layers: 3
-  head_num_hidden_layers: 2
-  shrink_rate: 0.5
-  head_shrink_rate: 1.0
+  num_conv_layers: 3
   activation: prelu
+  out_channel: 32
+  channel_mul: 2
+  kernel_size: 3
+  stride: 2
+  head_hidden_size: 512
+  head_num_hidden_layers: 2
+  head_shrink_rate: 1.0
 
 trainer:
   # general:
@@ -64,15 +66,15 @@ trainer:
     regularizer_type: none
   lr_scheduler:
     lr_scheduler_type: linear
-    start_factor: 1.0 
+    start_factor: 1.0
     end_factor: 0.1
     total_iters: 40
   early_stopper:
-    early_stopper_type: basic 
+    early_stopper_type: basic
     patience: 25
     min_delta: 0.001
     restore_best: True
-  
+
 strategy:
   # general:
   strategy_type: single
@@ -80,6 +82,3 @@ strategy:
   bias_init: zeros
   checkpoint_interval: 25
   # params:
-
-
-

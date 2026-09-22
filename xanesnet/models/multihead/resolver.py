@@ -20,36 +20,66 @@
 
 """Automatic configuration resolvers for multi-head models."""
 
-from typing import Any
+from typing import Any, cast
 
 import torch
 
-from xanesnet.batchprocessors.forward.multihead import _MULTIHEAD_OUT_SIZES_KEY
+from xanesnet.datasets import Dataset, DescriptorMultiheadDataset
 from xanesnet.serialization.auto_config.registries import ModelAutoResolver
 from xanesnet.serialization.config import ConfigRaw
-from xanesnet.utils.exceptions import ConfigError
 
 
-def _resolve_multihead_fields(inputs: dict[str, Any]) -> ConfigRaw:
-    if _MULTIHEAD_OUT_SIZES_KEY not in inputs:
-        raise ConfigError(
-            "Multi-head auto-resolution requires "
-            f"inputs['{_MULTIHEAD_OUT_SIZES_KEY}'] from MultiheadBatchProcessor.input_preparation_single()."
-        )
+def _resolve_multihead_fields(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
+    """Resolve shared input and equal per-head output dimensions.
 
+    Args:
+        inputs: Representative model inputs prepared by descriptor-based
+            multi-head batch processors.
+        target: Representative encoded target tensor used to resolve the
+            common output width.
+        dataset: Prepared descriptor multi-head dataset used to determine the
+            number of heads.
+
+    Returns:
+        Resolved ``in_size`` and ``out_size`` model configuration fields.
+
+    """
+    multihead_dataset = cast(DescriptorMultiheadDataset, dataset)
     return {
         "in_size": int(inputs["x"].shape[-1]),
-        "out_size": inputs[_MULTIHEAD_OUT_SIZES_KEY],
+        "out_size": [int(target.shape[-1])] * multihead_dataset.num_heads,
     }
 
 
 @ModelAutoResolver.register("mh_mlp")
-def resolve_mh_mlp(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
-    """Resolve MH-MLP input and output dimensions."""
-    return _resolve_multihead_fields(inputs)
+def resolve_mh_mlp(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
+    """Resolve automatic dimensions for ``MultiHeadMLP``.
+
+    Args:
+        inputs: Representative model inputs from the batch processor.
+        target: Representative encoded target tensor used to resolve the
+            common output width.
+        dataset: Prepared descriptor multi-head dataset used to determine the
+            number of heads.
+
+    Returns:
+        Resolved multi-head model fields.
+    """
+    return _resolve_multihead_fields(inputs, target, dataset)
 
 
 @ModelAutoResolver.register("mh_cnn")
-def resolve_mh_cnn(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
-    """Resolve MH-CNN input and output dimensions."""
-    return _resolve_multihead_fields(inputs)
+def resolve_mh_cnn(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
+    """Resolve automatic dimensions for ``MultiHeadCNN``.
+
+    Args:
+        inputs: Representative model inputs from the batch processor.
+        target: Representative encoded target tensor used to resolve the
+            common output width.
+        dataset: Prepared descriptor multi-head dataset used to determine the
+            number of heads.
+
+    Returns:
+        Resolved multi-head model fields.
+    """
+    return _resolve_multihead_fields(inputs, target, dataset)

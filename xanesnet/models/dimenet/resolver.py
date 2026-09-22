@@ -24,17 +24,19 @@ from typing import Any
 
 import torch
 
+from xanesnet.datasets import Dataset
 from xanesnet.serialization.auto_config.registries import ModelAutoResolver
 from xanesnet.serialization.config import ConfigRaw
 
 
 @ModelAutoResolver.register("dimenet")
-def resolve_dimenet(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+def resolve_dimenet(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
     """Resolve DimeNet output dimension.
 
     Args:
         inputs: Prepared model input dictionary.
         target: Prepared target tensor.
+        dataset: Prepared dataset, unused by this resolver.
 
     Returns:
         Mapping with DimeNet automatic field ``out_channels``.
@@ -43,12 +45,13 @@ def resolve_dimenet(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
 
 
 @ModelAutoResolver.register("dimenet++")
-def resolve_dimenet_pp(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+def resolve_dimenet_pp(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
     """Resolve DimeNet++ output dimension.
 
     Args:
         inputs: Prepared model input dictionary.
         target: Prepared target tensor.
+        dataset: Prepared dataset, unused by this resolver.
 
     Returns:
         Mapping with DimeNet++ automatic field ``out_channels``.

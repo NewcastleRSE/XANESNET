@@ -30,18 +30,21 @@ import torch
 from xanesnet.datasources import DataSource
 from xanesnet.descriptors import Descriptor, DescriptorRegistry
 from xanesnet.serialization.config import Config
+from xanesnet.utils.exceptions import ConfigError
 
 from ..base import SavePathFn, TorchDataset
 from ..registry import DatasetRegistry
 
 
 @dataclass
-class MultiheadData:
-    """Container for one multi-head sample or batch.
+class DescriptorMultiheadData:
+    """Container for one descriptor-based multi-head sample or batch.
 
     Attributes:
-        x: Model input tensor, commonly ``(n_features,)`` or ``(batch, n_features)``.
-        y: Model target tensor, commonly ``(n_energies,)`` or ``(batch, n_energies)``.
+        x: Model input tensor. In forward mode this is a descriptor tensor;
+            in inverse mode it is a spectrum tensor.
+        y: Model target tensor. In forward mode this is a spectrum tensor;
+            in inverse mode it is a descriptor tensor.
         energies: Energy grid tensor with shape ``(n_energies,)`` or ``(batch, n_energies)``.
         sample_id: Sample identifier metadata for one sample or a batch.
         element: Absorber atomic number as a scalar tensor for one sample, or
@@ -58,7 +61,7 @@ class MultiheadData:
     element: torch.Tensor | None = None
     head_idx: torch.Tensor | None = None
 
-    def to(self, device: str | torch.device) -> "MultiheadData":
+    def to(self, device: str | torch.device) -> "DescriptorMultiheadData":
         """Move tensor attributes to ``device`` in place.
 
         Args:
@@ -89,7 +92,7 @@ class MultiheadData:
         }
 
     @classmethod
-    def from_state_dict(cls, state: dict[str, Any]) -> "MultiheadData":
+    def from_state_dict(cls, state: dict[str, Any]) -> "DescriptorMultiheadData":
         """Create data from a state dictionary.
 
         Args:
@@ -120,7 +123,7 @@ class MultiheadData:
         return path
 
     @classmethod
-    def load(cls, path: str) -> "MultiheadData":
+    def load(cls, path: str) -> "DescriptorMultiheadData":
         """Load multi-head data from disk.
 
         Args:
@@ -133,16 +136,23 @@ class MultiheadData:
         return cls.from_state_dict(state)
 
 
-@DatasetRegistry.register("multihead")
-class MultiheadDataset(TorchDataset):
-    """Dataset that converts structures to descriptor tensors for multi-head models.
+@DatasetRegistry.register("descriptor_multihead")
+@DatasetRegistry.register("descriptor_multihead_inverse")
+class DescriptorMultiheadDataset(TorchDataset):
+    """Descriptor-based dataset for multi-head models.
 
-    Like :class:`~xanesnet.datasets.torch.descriptor.DescriptorDataset`, but
-    each sample also stores ``head_idx`` from the datasource ``subdir_id``
-    property so batch processors can select the active prediction head.
+    Like :class:`~xanesnet.datasets.torch.descriptor.DescriptorDataset`, this
+    dataset computes the configured structural descriptors for each target
+    site. It additionally stores ``head_idx`` from the datasource
+    ``subdir_id`` property so batch processors can select the active prediction
+    head. The dataset type controls the direction: forward types map
+    descriptors to spectra, while inverse types map spectra to descriptors.
 
     Args:
-        dataset_type: Registered dataset type name (``"multihead_descriptor"``).
+        dataset_type: Registered dataset type name. Canonical names are
+            ``"descriptor_multihead"``, ``"descriptor_multihead_mp"``,
+            ``"descriptor_multihead_inverse"``, and
+            ``"descriptor_multihead_inverse_mp"``.
         datasource: Raw datasource of pymatgen structures or molecules.
         root: Directory that stores processed ``.pth`` files.
         preload: Whether to preload processed samples.
@@ -150,6 +160,9 @@ class MultiheadDataset(TorchDataset):
         split_ratios: Optional split ratios.
         split_indexfile: Optional path to split indices.
         descriptors: Descriptor configuration objects.
+
+    Raises:
+        ConfigError: If a datasource entry does not provide ``subdir_id``.
     """
 
     _INVERSE_MARKER = "_inverse"
@@ -166,10 +179,11 @@ class MultiheadDataset(TorchDataset):
         # params:
         descriptors: list[Config],
     ) -> None:
-        """Initialize the multi-head dataset."""
+        """Initialize the descriptor-based multi-head dataset."""
         super().__init__(dataset_type, datasource, root, preload, skip_prepare, split_ratios, split_indexfile)
 
         self._inverse = self._INVERSE_MARKER in dataset_type
+        self._num_heads: int | None = None
 
         self.descriptor_configs = descriptors
         self.descriptor_list: list[Descriptor] = []
@@ -180,8 +194,48 @@ class MultiheadDataset(TorchDataset):
             descriptor = DescriptorRegistry.create(descriptor_type, **descriptor_config.as_kwargs())
             self.descriptor_list.append(descriptor)
 
+    @property
+    def num_heads(self) -> int:
+        """Return the number of contiguous prediction heads in the dataset.
+
+        Head indices are assigned from the datasource subdirectories in sorted
+        subdirectory-name order and are expected to be zero-based and
+        contiguous. The value is cached after the first lookup because
+        automatic model configuration may request it more than once during a
+        run.
+
+        Returns:
+            Number of prediction heads.
+
+        Raises:
+            ConfigError: If samples do not provide valid contiguous head
+                indices or if the dataset is empty.
+        """
+        if self._num_heads is not None:
+            return self._num_heads
+
+        head_indices: set[int] = set()
+        for idx in range(len(self)):
+            head_idx = self[idx].head_idx
+            if head_idx is None or head_idx.ndim != 0:
+                raise ConfigError("Descriptor multi-head samples must provide scalar head_idx values.")
+            head_indices.add(int(head_idx.item()))
+
+        if not head_indices:
+            raise ConfigError("Cannot determine multi-head count from an empty dataset.")
+
+        expected_head_indices = set(range(max(head_indices) + 1))
+        if head_indices != expected_head_indices:
+            raise ConfigError(
+                "Descriptor multi-head samples must use contiguous zero-based head_idx values; "
+                f"found {sorted(head_indices)}."
+            )
+
+        self._num_heads = len(head_indices)
+        return self._num_heads
+
     def _prepare_single(self, idx: int, save_path_fn: SavePathFn) -> int:
-        """Process one datasource item into multi-head samples.
+        """Process one datasource item into descriptor multi-head samples.
 
         Args:
             idx: Datasource index to process.
@@ -204,6 +258,10 @@ class MultiheadDataset(TorchDataset):
             descriptor_features.append(feature)
         descriptor_features = np.concatenate(descriptor_features, axis=1)
 
+        if "subdir_id" not in pmg_obj.properties:
+            raise ConfigError(
+                "Descriptor multi-head datasource entries must provide ``subdir_id`` for head assignment."
+            )
         head_idx = torch.tensor(pmg_obj.properties["subdir_id"], dtype=torch.int64)
 
         seq = 0
@@ -222,7 +280,7 @@ class MultiheadDataset(TorchDataset):
                 x = df
                 y = intensities
 
-            data = MultiheadData(
+            data = DescriptorMultiheadData(
                 x=x,
                 y=y,
                 energies=energies,
@@ -235,7 +293,7 @@ class MultiheadDataset(TorchDataset):
 
         return seq
 
-    def collate_fn(self, batch: list[MultiheadData]) -> MultiheadData:
+    def collate_fn(self, batch: list[DescriptorMultiheadData]) -> DescriptorMultiheadData:
         """Collate multi-head samples into a batch.
 
         Args:
@@ -251,7 +309,7 @@ class MultiheadDataset(TorchDataset):
                 return None
             return torch.stack([tensor for tensor in tensors if tensor is not None])
 
-        return MultiheadData(
+        return DescriptorMultiheadData(
             x=_stack([b.x for b in batch]),
             y=_stack([b.y for b in batch]),
             energies=_stack([b.energies for b in batch]),
@@ -260,7 +318,7 @@ class MultiheadDataset(TorchDataset):
             head_idx=_stack([b.head_idx for b in batch]),
         )
 
-    def _load_item(self, path: str) -> MultiheadData:
+    def _load_item(self, path: str) -> DescriptorMultiheadData:
         """Load one processed multi-head data sample.
 
         Args:
@@ -269,19 +327,15 @@ class MultiheadDataset(TorchDataset):
         Returns:
             Loaded multi-head data object.
         """
-        return MultiheadData.load(path)
+        return DescriptorMultiheadData.load(path)
 
     @property
     def signature(self) -> Config:
-        """Dataset configuration signature.
+        """Return the dataset configuration signature.
 
         Returns:
-            Configuration values that identify this multi-head dataset.
+            Configuration values that identify this dataset.
         """
         signature = super().signature
-        signature.update_with_dict(
-            {
-                "descriptors": self.descriptor_configs,
-            }
-        )
+        signature.update_with_dict({"descriptors": self.descriptor_configs})
         return signature

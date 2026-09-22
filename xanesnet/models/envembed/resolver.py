@@ -24,6 +24,7 @@ from typing import Any
 
 import torch
 
+from xanesnet.datasets import Dataset
 from xanesnet.serialization.auto_config.registries import ModelAutoResolver
 from xanesnet.serialization.config import ConfigRaw
 from xanesnet.utils.math import SpectralBasis
@@ -45,12 +46,13 @@ def _kgroups_from_basis(basis: SpectralBasis) -> list[int]:
 
 
 @ModelAutoResolver.register("envembed")
-def resolve_envembed(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+def resolve_envembed(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
     """Resolve EnvEmbed descriptor and spectral-basis dimensions.
 
     Args:
         inputs: Prepared model input dictionary.
         target: Prepared target tensor.
+        dataset: Prepared dataset, unused by this resolver.
 
     Returns:
         Mapping with EnvEmbed automatic fields ``in_size`` and ``kgroups``.

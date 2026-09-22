@@ -1,20 +1,24 @@
-"""
-XANESNET
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# XANESNET
+#
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
+#
+# Citations:
+#   ...
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either Version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
-"""Multi-head MLP model for spectroscopy prediction."""
+"""Multi-head MLP model for spectroscopy and descriptor prediction."""
 
 import torch
 from torch import nn
@@ -28,8 +32,31 @@ from .layers import MLPHead
 
 
 @ModelRegistry.register("mh_mlp")
-class MultiHead_MLP(Model):
-        
+class MultiHeadMLP(Model):
+    """Multi-head MLP for forward or inverse prediction.
+
+    A shared MLP trunk produces features for a collection of independent MLP
+    prediction heads. The heads are evaluated together during a forward pass;
+    the multi-head batch processor selects the head associated with each sample.
+    The dataset and batch-processor direction determines whether the model
+    maps descriptors to spectra or spectra to descriptors.
+
+    Args:
+        model_type: Model type identifier string.
+        in_size: Number of input features.
+        out_size: Number of output features for each prediction head. All
+            heads must have the same output size so their predictions can be
+            stacked into one tensor.
+        hidden_size: Width of the first shared hidden layer.
+        dropout: Dropout probability applied in shared and head hidden layers.
+        num_hidden_layers: Number of shared hidden layers.
+        shrink_rate: Multiplicative factor applied to shared layer widths.
+        activation: Name of the activation function.
+        head_num_hidden_layers: Number of hidden layers in each prediction head.
+        head_hidden_size: Width of the first hidden layer in each head.
+        head_shrink_rate: Multiplicative factor applied to head layer widths.
+    """
+
     def __init__(
         self,
         model_type: str,
@@ -42,24 +69,10 @@ class MultiHead_MLP(Model):
         shrink_rate: float,
         activation: str,
         head_num_hidden_layers: int,
-        head_hidden_size: int ,
+        head_hidden_size: int,
         head_shrink_rate: float,
     ) -> None:
-        """
-        Args:
-            model_type (str): Model type identifier
-            in_size (integer): Size of input data
-            out_size (integer): Size of output data
-            hidden_size (integer): Size of the initial hidden layer.
-            dropout (float): Dropout probability for hidden layers.
-            num_hidden_layers (int): Number of hidden layers, excluding input and output layers
-            shrink_rate (float): Rate to reduce the hidden layer size multiplicatively.
-            activation (str): Name of activation function for hidden layers.
-            head_num_hidden_layers (int): Number of hidden layers for each head, excluding input and output layers
-            head_hidden_size (integer): Size of the initial hidden layer for each head.
-            head_shrink_rate (float): Rate to reduce the hidden layer size multiplicatively for each head.
-        """
-
+        """Initialize the shared trunk and per-head MLP predictors."""
         super().__init__(model_type)
 
         self.in_size = in_size
@@ -76,7 +89,7 @@ class MultiHead_MLP(Model):
         layers: list[nn.Module] = []
 
         # Initialise input and hidden layers
-        current_size = in_size  
+        current_size = in_size
         for i in range(num_hidden_layers):
             next_size = int(hidden_size * (shrink_rate**i))
             if next_size < 1:
@@ -106,17 +119,20 @@ class MultiHead_MLP(Model):
             ]
         )
 
-    def forward(self, x: torch.Tensor, active_head_idx: int = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, active_head_idx: int | None = None) -> torch.Tensor:
         """Run a forward pass through the Multi-head MLP.
 
         Args:
-            x: Input tensor. ``(batch_size, in_size)``
-            active_head_idx: Index of the active head. If None, return all heads.
+            x: Input tensor with shape ``(batch_size, in_size)``.
+            active_head_idx: Optional index of one head. When ``None``, return
+                predictions from every head.
 
         Returns:
-            Output tensor. ``(batch_size, out_size)``
+            If ``active_head_idx`` is ``None``, a tensor with shape
+            ``(num_heads, batch_size, out_size)``; otherwise a tensor with
+            shape ``(batch_size, out_size)``.
         """
-        shared = self.dense_layers(x)   
+        shared = self.dense_layers(x)
         if active_head_idx is None:
             return torch.stack([head(shared) for head in self.heads], dim=0)
         else:
@@ -139,18 +155,20 @@ class MultiHead_MLP(Model):
             if isinstance(m, nn.Linear):
                 weight_init_fn(m.weight, **kwargs)
                 assert m.bias is not None, "Bias is None, cannot initialize."
-                bias_init_fn(m.bias)   
+                bias_init_fn(m.bias)
 
         # Apply to all modules
         self.apply(_init_layer)
 
     @property
     def signature(self) -> Config:
-        """
-        Return model signature as a dictionary.
+        """Return the model signature.
+
+        Returns:
+            Configuration values needed to recreate this model.
         """
         signature = super().signature
-        signature.update_with_dict(     
+        signature.update_with_dict(
             {
                 "in_size": self.in_size,
                 "out_size": self.out_size,
@@ -165,5 +183,3 @@ class MultiHead_MLP(Model):
             }
         )
         return signature
-
-

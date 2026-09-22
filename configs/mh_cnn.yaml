@@ -5,12 +5,14 @@ device: cpu
 
 datasource:
   datasource_type: multipmgjson
-  root_path: ./data/toy_data_multipmgjson
+  root_path: ./data/toy_data_multi
+  spectrum_key: "XANES"
 
 dataset:
   # general:
-  dataset_type: multihead
-  root: ./data/processed/toy_data_mlp/  # Where should the processed data be stored
+  # Descriptor-based multi-head dataset; each subdirectory selects one prediction head.
+  dataset_type: descriptor_multihead
+  root: ./data/processed/toy_data_multihead_cnn/  # Where should the processed data be stored
   preload: True                    # Preload dataset into RAM if True; otherwise load on-the-fly
   skip_prepare: False
   split_ratios: [0.8, 0.2]
@@ -32,7 +34,6 @@ model:
   # params:
   in_size: auto
   out_size: auto
-  hidden_size: 512
   dropout: 0.1
   num_conv_layers: 3
   activation: prelu

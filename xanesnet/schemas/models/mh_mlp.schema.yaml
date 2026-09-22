@@ -58,8 +58,8 @@ $defs:
         description: Number of input features.
       out_size:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveIntegerArray
-        description: Output size for each prediction head.
-    description: Multi-head MLP for spectroscopy prediction with one head per subdirectory.
+        description: Output size for each prediction head; all entries must be equal because predictions are stacked.
+    description: Multi-head MLP with one prediction head per datasource subdirectory.
   modelTrainMHMLP:
     $ref: '#/$defs/modelMHMLP'
     description: Training view of modelMHMLP; automatic dimension fields may use the case-insensitive auto token.
