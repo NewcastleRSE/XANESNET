@@ -22,21 +22,24 @@
 
 import csv
 import logging
+from itertools import repeat
 from pathlib import Path
-from typing import cast
 
-from xanesnet.analysis.utils import ScalarValue, is_scalar_value
 from xanesnet.serialization.jsonl_stream import JSONLStream
 
 from ..result import AnalysisResults
 from ..selectors import Selector
-from .base import Reporter, selector_label
+from ..utils import ScalarValue, iter_scalar_items, sample_key
+from .base import Reporter
 from .registry import ReporterRegistry
 
 
 @ReporterRegistry.register("scalar")
 class ScalarReporter(Reporter):
     """Write per-sample scalar values from selectors and collectors as CSV files.
+
+    Requires:
+        Scalar collector output (optional).
 
     Args:
         reporter_type: Registered reporter name from the analysis configuration.
@@ -64,13 +67,10 @@ class ScalarReporter(Reporter):
 
             for sel_idx, selector in enumerate(reader_selectors):
                 logging.info(f"      Selector {sel_idx + 1}/{len(reader_selectors)}.")
-                sel_label = selector_label(results.selectors_config, sel_idx)
-                subdir = root / f"pred_{reader_idx:03d}__sel_{sel_idx:03d}_{sel_label}"
+                subdir = root / results.method_label(reader_idx, sel_idx).dir_name
                 subdir.mkdir(parents=True, exist_ok=True)
 
-                stream: JSONLStream | None = None
-                if reader_idx < len(results.collector_results) and sel_idx < len(results.collector_results[reader_idx]):
-                    stream = results.collector_results[reader_idx][sel_idx]
+                stream = results.collector_stream(reader_idx, sel_idx)
 
                 self._write_scalar_csvs(selector, stream, subdir)
 
@@ -82,30 +82,22 @@ class ScalarReporter(Reporter):
     ) -> None:
         """Write one CSV per scalar field found in selected samples and collector values.
 
-        Each CSV uses ``sample_id`` as the first column and one scalar field as the second column.
+        Each CSV uses ``sample_id`` and ``target_site_index`` as identity
+        columns followed by one scalar field.
 
         Args:
             selector: Selector over prediction samples for one prediction reader and selector pair.
             stream: Optional collector result stream aligned with ``selector``.
             output_dir: Directory where CSV files should be written.
         """
-        rows_by_key: dict[str, list[tuple[str, ScalarValue]]] = {}
+        rows_by_key: dict[str, list[tuple[str, int | None, ScalarValue]]] = {}
 
-        if stream is not None:
-            for sel_sample, col_sample in zip(selector, stream):
-                sample_id = str(col_sample["sample_id"])
-                for key, value in sel_sample.items():
-                    if key != "sample_id" and is_scalar_value(value):
-                        rows_by_key.setdefault(key, []).append((sample_id, cast(float, value)))
-                for key, value in col_sample.items():
-                    if key != "sample_id" and is_scalar_value(value):
-                        rows_by_key.setdefault(key, []).append((sample_id, cast(float, value)))
-        else:
-            for sel_sample in selector:
-                sample_id = str(sel_sample["sample_id"])
-                for key, value in sel_sample.items():
-                    if key != "sample_id" and is_scalar_value(value):
-                        rows_by_key.setdefault(key, []).append((sample_id, cast(float, value)))
+        for sample, record in zip(selector, stream if stream is not None else repeat({})):
+            sample_id, target_site_index = sample_key(sample)
+            scalars = dict(iter_scalar_items(sample))
+            scalars.update(iter_scalar_items(record))
+            for key, value in scalars.items():
+                rows_by_key.setdefault(key, []).append((sample_id, target_site_index, value))
 
         if not rows_by_key:
             logging.info("      No scalar data found, skipping.")
@@ -115,5 +107,5 @@ class ScalarReporter(Reporter):
             filepath = output_dir / f"{key}.csv"
             with open(filepath, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["sample_id", key])
+                writer.writerow(["sample_id", "target_site_index", key])
                 writer.writerows(rows)

@@ -77,7 +77,7 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     logging.info("Resolving 'auto' encoding fields...")
     config = resolve_auto_encoding_config(config, dataset)
 
-    encoding = _setup_encoding(config)
+    encoding = _setup_encoding(config, dataset)
 
     logging.info("Resolving 'auto' model fields...")
     config = resolve_auto_model_config(config, dataset, encoding)
@@ -126,12 +126,13 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
             dataset,
             config.get_str("device"),
             peak_gpu_memory_allocated_mb,
+            encoding,
         )
         profile_json_path, profile_readable_path = save_model_profile(save_dir, model_profile)
         logging.info(f"Dry-run model profile JSON saved to: {profile_json_path}")
         logging.info(f"Dry-run model profile readable report saved to: {profile_readable_path}")
     try:
-        _summary_models(model_list, dataset)
+        _summary_models(model_list, dataset, encoding)
     except Exception as exc:
         logging.warning(f"Model summary failed and will be skipped: {exc}")
 
@@ -190,17 +191,23 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_encoding(config: Config) -> SpectraEncoding:
-    """Build the composed spectra encoding from config.
+def _setup_encoding(config: Config, dataset: Dataset) -> SpectraEncoding:
+    """Build and prepare the composed spectra encoding from config.
 
     Args:
         config: Validated configuration containing an ``encodings`` section.
+        dataset: Prepared dataset containing the raw spectral energy grid.
 
     Returns:
         A :class:`CombinedEncoding` wrapping all configured component
-        encodings.
+        encodings, prepared for the dataset's spectral width.
     """
-    return CombinedEncoding.from_configs(config.get_config_list("encodings"))
+    encoding = CombinedEncoding.from_configs(config.get_config_list("encodings"))
+    energies = getattr(dataset[0], "energies", None)
+    if energies is None or energies.ndim == 0:
+        raise ValueError("Prepared dataset sample must provide a spectral energy grid.")
+    encoding.prepare(int(energies.shape[-1]))
+    return encoding
 
 
 def _setup_strategy(
@@ -281,15 +288,18 @@ def _run_training(strategy: Strategy) -> tuple[list[Model], float]:
 ###############################################################################
 
 
-def _summary_models(model_list: list[Model], dataset: Dataset) -> None:
+def _summary_models(
+    model_list: list[Model], dataset: Dataset, encoding: SpectraEncoding
+) -> None:
     """Log a torchinfo summary for each trained model.
 
     Args:
         model_list: Trained model instances.
         dataset: Dataset used during training (for batch input preparation).
+        encoding: Prepared spectra encoding used by the models.
     """
     logging.info("Model Summary")
 
     for idx, model in enumerate(model_list):
         logging.info(f"Model  {idx}:")
-        create_model_summary(model, dataset)
+        create_model_summary(model, dataset, encoding=encoding)

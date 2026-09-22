@@ -21,12 +21,20 @@
 """Aggregator implementations and registry exports."""
 
 from .base import Aggregator, AggregatorResult
+from .bias_variance import BiasVarianceAggregator
+from .ranking import RankingAggregator
 from .registry import AggregatorRegistry
 from .scalar import ScalarAggregator
+from .spectrum import SpectrumAggregator
+from .vector import VectorAggregator
 
 __all__ = [
     "Aggregator",
     "AggregatorRegistry",
-    "ScalarAggregator",
     "AggregatorResult",
+    "BiasVarianceAggregator",
+    "RankingAggregator",
+    "ScalarAggregator",
+    "SpectrumAggregator",
+    "VectorAggregator",
 ]

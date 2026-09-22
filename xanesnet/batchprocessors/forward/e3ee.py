@@ -81,7 +81,7 @@ class E3EEBatchProcessor(ForwardBatchProcessor):
         return batch.intensities
 
     def element_preparation(self, batch: E3EEBatch) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from an E3EE batch.
+        """Prepare target-site atomic numbers from an E3EE batch.
 
         Gathers the atomic number at each sample's target-site index from the
         padded node features ``x``.
@@ -94,8 +94,8 @@ class E3EEBatchProcessor(ForwardBatchProcessor):
         """
         return batch.x[torch.arange(batch.x.size(0), device=batch.x.device), batch.target_site_index]
 
-    def sample_id_extraction(self, batch: E3EEBatch) -> np.ndarray:
-        """Extract file names from an E3EE batch.
+    def sample_id_preparation(self, batch: E3EEBatch) -> np.ndarray:
+        """Prepare file names from an E3EE batch.
 
         Args:
             batch: Collated E3EE batch.

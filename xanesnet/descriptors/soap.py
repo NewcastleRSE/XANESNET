@@ -48,7 +48,7 @@ class SOAP(Descriptor):
         sigma: Gaussian broadening width. **A**.
         species: Atomic numbers to include as distinct species.
             ``None`` to use all elements H (1) through Lr (103).
-        average: Averaging mode across atomic centres (``"off"``,
+        average: Averaging mode across atomic centers (``"off"``,
                     ``"inner"``, or ``"outer"``).
         compression_mode: SOAP compression mode (``"off"``, ``"mu2"``,
             ``"crossover"``, or ``"mu1nu1"``).

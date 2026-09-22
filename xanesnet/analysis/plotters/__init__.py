@@ -21,15 +21,33 @@
 """Plotter implementations and registry exports."""
 
 from .base import Plotter
+from .bias_variance import BiasVariancePlotter
+from .energy_resolved import EnergyResolvedLossPlotter
+from .error_correlation import ErrorCorrelationPlotter
+from .mean_spectrum import MeanSpectrumPlotter
+from .parity import ParityPlotter
+from .pca import PcaPlotter
 from .registry import PlotterRegistry
 from .scalar import ScalarPlotter
-from .spectra import SpectraPlotter
+from .selector_overview import SelectorOverviewPlotter
+from .spectra import AllSpectraPlotter
+from .spectra_comparison import SpectraComparisonPlotter
 from .stat_table import StatTablePlotter
+from .stat_table_latex import StatTableLatexPlotter
 
 __all__ = [
     "Plotter",
     "PlotterRegistry",
     "ScalarPlotter",
-    "SpectraPlotter",
+    "AllSpectraPlotter",
+    "SpectraComparisonPlotter",
     "StatTablePlotter",
+    "StatTableLatexPlotter",
+    "EnergyResolvedLossPlotter",
+    "MeanSpectrumPlotter",
+    "ParityPlotter",
+    "BiasVariancePlotter",
+    "ErrorCorrelationPlotter",
+    "PcaPlotter",
+    "SelectorOverviewPlotter",
 ]

@@ -1,0 +1,36 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: pca.schema.yaml
+title: 'XANESNET plotter schema: pca'
+$defs:
+  plotterPca:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        const: pca
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      descriptor_key:
+        type: string
+        minLength: 1
+        default: descriptor
+        description: Collector key holding the descriptor vectors that are
+          projected.
+      legend_position:
+        type: string
+        enum:
+        - inside
+        - outside
+        default: outside
+        description: Place the selector legend inside the axes or outside the
+          plot on the right.
+    description: Pool every selector's descriptor vectors for one reader,
+      project them onto their principal components, and plot the groups
+      colored by selector.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

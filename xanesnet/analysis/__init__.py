@@ -20,11 +20,11 @@
 
 """Analysis pipeline registries and component package exports."""
 
-from xanesnet.analysis.aggregators import AggregatorRegistry
-from xanesnet.analysis.collectors import CollectorRegistry
-from xanesnet.analysis.plotters import PlotterRegistry
-from xanesnet.analysis.reporters import ReporterRegistry
-from xanesnet.analysis.selectors import SelectorRegistry
+from .aggregators import AggregatorRegistry
+from .collectors import CollectorRegistry
+from .plotters import PlotterRegistry
+from .reporters import ReporterRegistry
+from .selectors import SelectorRegistry
 
 __all__ = [
     "SelectorRegistry",

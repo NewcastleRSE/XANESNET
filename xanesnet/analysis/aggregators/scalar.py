@@ -21,15 +21,17 @@
 """Aggregator that summarizes scalar values from samples and collectors."""
 
 import logging
+from itertools import repeat
 from typing import Any
 
 import numpy as np
 
-from xanesnet.analysis.utils import is_scalar_value
+from xanesnet.serialization.config import Config
 from xanesnet.serialization.jsonl_stream import JSONLStream
 from xanesnet.serialization.prediction_readers import PredictionSample
 
 from ..selectors import Selector
+from ..utils import iter_scalar_items
 from .base import Aggregator, AggregatorResult
 from .registry import AggregatorRegistry
 
@@ -38,21 +40,22 @@ from .registry import AggregatorRegistry
 class ScalarAggregator(Aggregator):
     """Compute summary statistics for all scalar sample and collector values.
 
+    Scalars sharing a key are collected over the selected samples and reduced
+    to summary statistics.
+
+    Requires:
+        Scalar collector output (optional).
+
     Args:
         aggregator_type: Registered aggregator name from the analysis configuration.
-        percentiles: Percentiles to compute. Values use NumPy percentile units, where ``0`` is the
-            minimum and ``100`` is the maximum. Defaults to ``[25, 50, 75]``.
+        percentiles: Percentile levels in ``[0, 100]``.
     """
 
-    def __init__(
-        self,
-        aggregator_type: str,
-        percentiles: list[float] | None = None,
-    ) -> None:
+    def __init__(self, aggregator_type: str, percentiles: list[float]) -> None:
         """Initialize a scalar summary aggregator."""
         super().__init__(aggregator_type)
 
-        self.percentiles = percentiles if percentiles is not None else [25, 50, 75]
+        self.percentiles = percentiles
 
     def aggregate(self, selector: Selector, per_sample_values: JSONLStream | None, index: int) -> AggregatorResult:
         """Aggregate scalar values into mean, spread, extrema, and percentile statistics.
@@ -68,35 +71,29 @@ class ScalarAggregator(Aggregator):
         """
         values_by_key: dict[str, list[float]] = {}
 
-        for sample in selector:
+        for sample, record in zip(selector, per_sample_values if per_sample_values is not None else repeat({})):
             self._collect_scalars(sample, values_by_key)
-
-        if per_sample_values is not None:
-            for raw_sample in per_sample_values:
-                self._collect_scalars(raw_sample, values_by_key)
+            self._collect_scalars(record, values_by_key)
 
         if not values_by_key:
-            logging.info(f"ScalarAggregator: No scalar values found for selector {selector} at index {index}.")
+            logging.info("      No scalar values found, skipping.")
 
         data = {name: self._compute_stats(values) for name, values in values_by_key.items()}
-        result = AggregatorResult(
-            aggregator_type=self.aggregator_type,
-            aggregator_index=index,
-            data=data,
-        )
-        return result
+        return AggregatorResult(aggregator_type=self.aggregator_type, aggregator_index=index, data=data)
 
     @staticmethod
     def _collect_scalars(sample: dict[str, Any] | PredictionSample, target: dict[str, list[float]]) -> None:
         """Append scalar values from ``sample`` into ``target`` by key.
 
+        Sample metadata such as ``sample_id`` and ``target_site_index`` is
+        skipped so it is not summarized as if it were a measurement.
+
         Args:
             sample: Prediction sample or collector output mapping.
             target: Mutable mapping from value key to accumulated scalar values.
         """
-        for key, value in sample.items():
-            if is_scalar_value(value):
-                target.setdefault(key, []).append(float(value))
+        for key, value in iter_scalar_items(sample):
+            target.setdefault(key, []).append(float(value))
 
     def _compute_stats(self, values: list[float]) -> dict[str, float]:
         """Compute summary statistics for scalar values.
@@ -119,3 +116,14 @@ class ScalarAggregator(Aggregator):
         for p in self.percentiles:
             stats[f"p{p}"] = float(np.percentile(arr, p))
         return stats
+
+    @property
+    def signature(self) -> Config:
+        """Return the scalar aggregator signature.
+
+        Returns:
+            Configuration values needed to recreate this aggregator.
+        """
+        signature = super().signature
+        signature.update_with_dict({"percentiles": self.percentiles})
+        return signature

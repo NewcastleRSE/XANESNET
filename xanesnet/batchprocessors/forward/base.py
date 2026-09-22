@@ -35,7 +35,7 @@ class ForwardBatchProcessor(BatchProcessor):
     target and reversed on predictions, while inputs pass through unchanged.
     Concrete forward processors only implement the data-shaping methods
     (:meth:`input_preparation`, :meth:`target_preparation`,
-    :meth:`sample_id_extraction`, and optionally :meth:`element_preparation`
+    :meth:`sample_id_preparation`, and optionally :meth:`element_preparation`
     and :meth:`prediction_preparation`).
     """
 

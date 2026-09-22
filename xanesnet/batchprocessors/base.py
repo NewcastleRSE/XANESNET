@@ -37,7 +37,7 @@ class BatchProcessor(ABC):
     Converts a dataset batch into model inputs and targets for a specific
     model architecture. Subclasses must implement the data-shaping methods
     :meth:`input_preparation`, :meth:`target_preparation`, and
-    :meth:`sample_id_extraction`, plus the three encoding hooks
+    :meth:`sample_id_preparation`, plus the three encoding hooks
     :meth:`encode_input`, :meth:`encode_target`, and :meth:`decode_target`.
 
     **Spectra encoding.** The stored
@@ -153,7 +153,7 @@ class BatchProcessor(ABC):
         return self.target_preparation(batch)
 
     def element_preparation(self, batch: Any) -> torch.Tensor | None:
-        """Extract per-target-site atomic numbers from a batch.
+        """Prepare per-target-site atomic numbers from a batch.
 
         The returned tensor is aligned row-wise with :meth:`target_preparation`,
         carrying the target-site element's atomic number for each target spectrum.
@@ -170,7 +170,7 @@ class BatchProcessor(ABC):
         return None
 
     def element_preparation_single(self, dataset: "Dataset", index: int) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from a single dataset sample.
+        """Prepare target-site atomic numbers from a single dataset sample.
 
         Collates the sample at ``index`` into a batch of size 1 and delegates
         to :meth:`element_preparation`.
@@ -186,6 +186,23 @@ class BatchProcessor(ABC):
         sample = dataset[index]
         batch = dataset.collate_fn([sample])
         return self.element_preparation(batch)
+
+    def target_site_index_preparation(self, batch: Any) -> torch.Tensor | None:
+        """Prepare original raw-structure atom indices for target-sites.
+
+        The returned tensor is aligned row-wise with :meth:`target_preparation`.
+        Each value indexes the raw structure identified by the corresponding
+        ``sample_id``. ``None`` denotes predictions that are not specific to
+        an atom in the raw structure.
+
+        Args:
+            batch: A collated batch produced by the dataset's ``collate_fn``.
+
+        Returns:
+            Original target-site atom indices ``(n_target_sites,)``, or
+            ``None`` for non-site-specific predictions.
+        """
+        return getattr(batch, "target_site_index", None)
 
     @abstractmethod
     def encode_input(self, inputs: dict[str, Any], elements: torch.Tensor | None = None) -> dict[str, Any]:
@@ -244,8 +261,8 @@ class BatchProcessor(ABC):
         ...
 
     @abstractmethod
-    def sample_id_extraction(self, batch: Any) -> np.ndarray:
-        """Extract file name identifiers from a batch.
+    def sample_id_preparation(self, batch: Any) -> np.ndarray:
+        """Prepare file name identifiers from a batch.
 
         Args:
             batch: A collated batch produced by the dataset's ``collate_fn``.

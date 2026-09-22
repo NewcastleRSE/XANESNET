@@ -43,12 +43,20 @@ class Loss(nn.Module, ABC):
         self.loss_type = loss_type
 
     @abstractmethod
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        """Compute the scalar loss between predictions and targets.
+    def forward(
+        self,
+        preds: torch.Tensor,
+        targets: torch.Tensor,
+        reduction: str = "mean",
+    ) -> torch.Tensor:
+        """Compute the loss between predictions and targets.
 
         Args:
             preds: Model output predictions ``(B, N)``.
             targets: Ground-truth target values ``(B, N)``.
+            reduction: ``"mean"`` returns the scalar loss; ``"none"`` returns
+                the energy-resolved loss map with shape ``(B, N)`` where
+                supported.
 
         Returns:
             Loss tensor.

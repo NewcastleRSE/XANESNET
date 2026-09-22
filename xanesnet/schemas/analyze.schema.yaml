@@ -49,4 +49,9 @@ properties:
       $ref: analysis/analysis.schema.yaml#/$defs/plotter
     default: []
     description: Analysis plotter configurations instantiated by ``PlotterRegistry`` in ``_setup_plotters``.
+  preload:
+    type: boolean
+    default: false
+    description: Preloads prediction records and matched raw structures into memory during setup instead of
+      reading them from disk on every sample access.
 description: Analysis configuration validated by ``validate_config_analyze`` and consumed by ``core_analyze`` setup functions.

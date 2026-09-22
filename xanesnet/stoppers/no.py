@@ -53,7 +53,7 @@ class NoStopper(EarlyStopper):
         """Update tracking state and always return ``False``.
 
         Args:
-            value: Current metric value to minimise.
+            value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
 

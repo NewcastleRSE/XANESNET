@@ -77,13 +77,13 @@ class ExponentialEnvelope(torch.nn.Module):
 
 
 class GaussianBasis(torch.nn.Module):
-    """Radial Gaussian basis functions with evenly spaced centres.
+    """Radial Gaussian basis functions with evenly spaced centers.
 
     Args:
-        start: Start of the centre grid in **angstrom**. Default ``0.0``.
-        stop: End of the centre grid in **angstrom**. Default ``5.0``.
+        start: Start of the center grid in **angstrom**. Default ``0.0``.
+        stop: End of the center grid in **angstrom**. Default ``5.0``.
         num_gaussians: Number of Gaussian functions.
-        trainable: Whether the centres are learnable parameters.
+        trainable: Whether the centers are learnable parameters.
     """
 
     def __init__(

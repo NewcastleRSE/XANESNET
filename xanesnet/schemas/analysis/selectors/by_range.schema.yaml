@@ -21,6 +21,7 @@ $defs:
         type:
         - integer
         - 'null'
+        minimum: 0
         description: Exclusive zero-based end index. ``None`` keeps samples through the source end.
     description: Select samples from ``start`` up to, but excluding, ``end``.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

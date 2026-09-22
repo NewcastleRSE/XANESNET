@@ -1,0 +1,63 @@
+seed: 42
+device: cuda
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/paper_workflow/trainval/
+  spectrum_key: XANES
+
+dataset:
+  dataset_type: geometrygraph_mp
+  root: ./data/processed/paper_workflow_schnet_trainval/
+  preload: false
+  skip_prepare: false
+  split_ratios: [0.9, 0.1]
+  graph_builder:
+    graph_builder_type: cov_radius
+    cutoff: 5.0
+    max_num_neighbors: 25
+    cov_radii_scale: 2.5
+  num_workers: 4
+
+encodings:
+  - encoding_type: subtract_average
+    average: auto
+    per_element: true
+    elements: auto
+
+model:
+  model_type: schnet
+  hidden_channels: 128
+  reduce_channels_1: 64
+  reduce_channels_2: auto
+  num_filters: 128
+  num_interactions: 6
+  num_gaussians: 50
+  cutoff: 5.0
+
+trainer:
+  trainer_type: basic
+  batch_size: 32
+  shuffle: true
+  drop_last: false
+  num_workers: 4
+  epochs: 10
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 1
+  lr_warmup: false
+  loss:
+    - loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: none
+  early_stopper:
+    early_stopper_type: none
+    restore_best: true
+
+strategy:
+  strategy_type: single
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 1

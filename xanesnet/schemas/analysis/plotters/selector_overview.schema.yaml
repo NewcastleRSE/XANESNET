@@ -1,0 +1,32 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: selector_overview.schema.yaml
+title: 'XANESNET plotter schema: selector_overview'
+$defs:
+  plotterSelectorOverview:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    - err_key
+    properties:
+      plotter_type:
+        const: selector_overview
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      err_key:
+        type: string
+        minLength: 1
+        description: Scalar collector key used to rank and color selectors. Must
+          be produced by a configured collector.
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
+    description: For every prediction reader with two or more selectors, plot a
+      scoreboard comparing the selectors' mean error and a grid with one
+      representative structure per selector. Useful for selectors that
+      partition samples into groups, such as ``structure_cluster``, but works
+      for any selector set.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

@@ -56,6 +56,17 @@ class FourierEncoding(SpectraEncoding):
 
         self.concat = concat
 
+    def output_size(self, input_size: int) -> int:
+        """Return the Fourier representation width for an input width.
+
+        Args:
+            input_size: Number of points in the input spectrum.
+
+        Returns:
+            ``2 * input_size`` or ``3 * input_size`` when ``concat`` is true.
+        """
+        return input_size * (3 if self.concat else 2)
+
     def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         """Apply the symmetric-extension FFT to target spectra.
 

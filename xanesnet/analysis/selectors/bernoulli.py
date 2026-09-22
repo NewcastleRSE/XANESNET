@@ -23,6 +23,7 @@
 import random
 from collections.abc import Iterator
 
+from xanesnet.serialization.config import Config
 from xanesnet.serialization.prediction_readers import PredictionReader, PredictionSample
 
 from .base import Selector
@@ -39,21 +40,9 @@ class BernoulliSelector(Selector):
         p: Probability of retaining each sample. Must be in the inclusive range ``[0, 1]``.
     """
 
-    def __init__(
-        self,
-        selector_type: str,
-        data_source: PredictionReader,
-        p: float,
-    ) -> None:
-        """Initialize the selector and draw the retained sample indices.
-
-        Raises:
-            ValueError: If ``p`` is outside the inclusive range ``[0, 1]``.
-        """
+    def __init__(self, selector_type: str, data_source: PredictionReader, p: float) -> None:
+        """Initialize the selector and draw the retained sample indices."""
         super().__init__(selector_type, data_source)
-
-        if not 0.0 <= p <= 1.0:
-            raise ValueError("p must be in [0, 1]")
 
         self.p = p
         self._selected_indices: list[int] = [i for i in range(len(data_source)) if random.random() < p]
@@ -66,3 +55,22 @@ class BernoulliSelector(Selector):
         """
         for i in self._selected_indices:
             yield self.data_source[i]
+
+    def __len__(self) -> int:
+        """Return the number of selected samples.
+
+        Returns:
+            Number of selected prediction samples.
+        """
+        return len(self._selected_indices)
+
+    @property
+    def signature(self) -> Config:
+        """Return the selector signature.
+
+        Returns:
+            Configuration values needed to recreate this selector.
+        """
+        signature = super().signature
+        signature.update_with_dict({"p": self.p})
+        return signature

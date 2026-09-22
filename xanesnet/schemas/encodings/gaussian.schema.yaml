@@ -25,7 +25,7 @@ $defs:
           per entry.
       basis_stride:
         $ref: ../shared/value_types.schema.yaml#/$defs/positiveInteger
-        description: Spacing between Gaussian centres in grid points.
+        description: Spacing between Gaussian centers in grid points.
       num_points:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
         description: Number of points in the spectra to encode; may be the training-time ``auto``

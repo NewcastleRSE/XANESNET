@@ -71,6 +71,7 @@ class E3EEFullBatch(Protocol):
     # Targets, concatenated over target sites across the batch
     energies: torch.Tensor
     intensities: torch.Tensor
+    target_site_index: torch.Tensor
     sample_id: list[str]
 
 
@@ -83,7 +84,7 @@ class E3EEFullDataset(TorchGeometricDataset):
     flagged in ``target_site_mask``; the training loop selects those rows via
     the mask (same pattern as SchNet / DimeNet).
 
-    All edges are computed once per structure. Target-site-centred triplet paths
+    All edges are computed once per structure. Target-site-centered triplet paths
     are computed for every site independently (with ``max_paths_per_site``
     paths each) and tagged with ``path_center`` so that the model can scatter
     them into the per-atom layout.
@@ -213,6 +214,7 @@ class E3EEFullDataset(TorchGeometricDataset):
         data_kwargs: dict[str, Any] = {
             "x": atomic_numbers,
             "target_site_mask": target_site_mask,
+            "target_site_index": torch.tensor(target_site_indices, dtype=torch.int64),
             "edge_src": edge_index[0],
             "edge_dst": edge_index[1],
             "edge_weight": edge_weight,
@@ -288,11 +290,9 @@ class E3EEFullDataset(TorchGeometricDataset):
         Returns:
             PyG batch with full-structure E3EE tensors attached.
         """
-        bsz = len(batch)
-
         x_list = [sample.x for sample in batch]
         n_atoms_per_sample = torch.tensor([xi.shape[0] for xi in x_list], dtype=torch.int64)
-        n_max = int(n_atoms_per_sample.max().item()) if bsz > 0 else 0
+        n_max = int(n_atoms_per_sample.max().item())
 
         x = pad_sequence(x_list, batch_first=True, padding_value=0)
         mask_list = [torch.ones(xi.shape[0], dtype=torch.bool) for xi in x_list]
@@ -307,6 +307,7 @@ class E3EEFullDataset(TorchGeometricDataset):
         # target_site_mask.view(-1) order: sample-major, atom-minor).
         intensities = torch.cat([s.intensities.to(dtype=torch.float32) for s in batch], dim=0)
         energies = torch.cat([s.energies.to(dtype=torch.float32) for s in batch], dim=0)
+        target_site_index = torch.cat([s.target_site_index.to(dtype=torch.int64) for s in batch], dim=0)
 
         edge_src_list: list[torch.Tensor] = []
         edge_dst_list: list[torch.Tensor] = []
@@ -319,10 +320,10 @@ class E3EEFullDataset(TorchGeometricDataset):
             edge_weight_list.append(sample.edge_weight)
             edge_vec_list.append(sample.edge_vec)
 
-        edge_src = torch.cat(edge_src_list, dim=0) if edge_src_list else torch.zeros(0, dtype=torch.int64)
-        edge_dst = torch.cat(edge_dst_list, dim=0) if edge_dst_list else torch.zeros(0, dtype=torch.int64)
-        edge_weight = torch.cat(edge_weight_list, dim=0) if edge_weight_list else torch.zeros(0, dtype=torch.float32)
-        edge_vec = torch.cat(edge_vec_list, dim=0) if edge_vec_list else torch.zeros(0, 3, dtype=torch.float32)
+        edge_src = torch.cat(edge_src_list, dim=0)
+        edge_dst = torch.cat(edge_dst_list, dim=0)
+        edge_weight = torch.cat(edge_weight_list, dim=0)
+        edge_vec = torch.cat(edge_vec_list, dim=0)
 
         att_src_list: list[torch.Tensor] = []
         att_dst_list: list[torch.Tensor] = []
@@ -334,10 +335,10 @@ class E3EEFullDataset(TorchGeometricDataset):
             att_dst_list.append(sample.att_dst + offset)
             att_dist_list.append(sample.att_dist)
             att_vec_list.append(sample.att_vec)
-        att_src = torch.cat(att_src_list, dim=0) if att_src_list else torch.zeros(0, dtype=torch.int64)
-        att_dst = torch.cat(att_dst_list, dim=0) if att_dst_list else torch.zeros(0, dtype=torch.int64)
-        att_dist = torch.cat(att_dist_list, dim=0) if att_dist_list else torch.zeros(0, dtype=torch.float32)
-        att_vec = torch.cat(att_vec_list, dim=0) if att_vec_list else torch.zeros(0, 3, dtype=torch.float32)
+        att_src = torch.cat(att_src_list, dim=0)
+        att_dst = torch.cat(att_dst_list, dim=0)
+        att_dist = torch.cat(att_dist_list, dim=0)
+        att_vec = torch.cat(att_vec_list, dim=0)
 
         has_paths = all(hasattr(s, "path_j") for s in batch)
         path_center = torch.zeros(0, dtype=torch.int64)
@@ -375,6 +376,7 @@ class E3EEFullDataset(TorchGeometricDataset):
                 "energies",
                 "intensities",
                 "target_site_mask",
+                "target_site_index",
                 "edge_src",
                 "edge_dst",
                 "edge_weight",
@@ -397,6 +399,7 @@ class E3EEFullDataset(TorchGeometricDataset):
         setattr(batched, "x", x)
         setattr(batched, "mask", mask)
         setattr(batched, "target_site_mask", target_site_mask)
+        setattr(batched, "target_site_index", target_site_index)
         setattr(batched, "edge_src", edge_src)
         setattr(batched, "edge_dst", edge_dst)
         setattr(batched, "edge_weight", edge_weight)

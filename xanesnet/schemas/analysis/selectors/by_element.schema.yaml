@@ -1,0 +1,24 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: by_element.schema.yaml
+title: 'XANESNET selector schema: by_element'
+$defs:
+  selectorElement:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    - elements
+    properties:
+      selector_type:
+        const: element
+        description: Registered selector name from the analysis configuration.
+      elements:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+        description: Chemical symbols of target-site elements to keep.
+    description: Select predictions by target-site chemical element.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

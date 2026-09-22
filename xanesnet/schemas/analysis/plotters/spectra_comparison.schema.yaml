@@ -1,0 +1,31 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: spectra_comparison.schema.yaml
+title: 'XANESNET plotter schema: spectra_comparison'
+$defs:
+  plotterSpectraComparison:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    - sort_key
+    properties:
+      plotter_type:
+        const: spectra_comparison
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
+      n_samples:
+        type: integer
+        minimum: 1
+        default: 10
+        description: Number of best and worst samples plotted per method and per combined PDF.
+      sort_key:
+        type: string
+        description: Scalar collector key used to rank samples. Must be produced
+          by a configured collector.
+    description: Plot the N best and N worst spectra per method plus cross-method overlay PDFs.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

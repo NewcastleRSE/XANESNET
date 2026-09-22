@@ -1,19 +1,91 @@
 seed: 42
+preload: true
 
 selectors:
   - selector_type: all
 
 collectors:
-  - collector_type: error_metric
-    loss_type: mse
+  - collector_type: loss
+    loss:
+      loss_type: mse
+
+  - collector_type: loss
+    loss:
+      loss_type: mse
+    energy_resolved: true
+
+  - collector_type: descriptor
+    descriptor:
+      descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 8
+      n_g4: 16
+      l: [1.0, -1.0]
+      z: [1.0]
+      g2_parameterisation: shifted
+      g4_parameterisation: centred
+      use_charge: false
+      use_spin: false
 
 aggregators:
   - aggregator_type: scalar
     percentiles: [50]
 
+  - aggregator_type: vector
+
+  - aggregator_type: spectrum
+
+  - aggregator_type: ranking
+    sort_key: mse
+    percent: 20
+    group_keys: [prediction]
+
+  - aggregator_type: bias_variance
+
 reporters:
   - reporter_type: scalar
 
 plotters:
-  - plotter_type: spectra
+  - plotter_type: spectra_all
+    plot_size: default
     max_pages: 1
+    legend_position: outside
+
+  - plotter_type: spectra_comparison
+    plot_size: default
+    n_samples: 2
+    sort_key: mse
+    legend_position: outside
+
+  - plotter_type: stat_table
+    plot_size: default
+    sort_key: mse
+
+  - plotter_type: stat_table_latex
+    plot_size: default
+    sort_key: mse
+
+  - plotter_type: energy_resolved_loss
+    plot_size: default
+    legend_position: outside
+
+  - plotter_type: mean_spectrum
+    plot_size: default
+    legend_position: outside
+
+  - plotter_type: parity
+    plot_size: default
+
+  - plotter_type: bias_variance
+    plot_size: default
+    legend_position: outside
+
+  - plotter_type: error_correlation
+    plot_size: default
+    sort_key: mse
+
+  - plotter_type: pca
+    plot_size: default
+    legend_position: outside
+

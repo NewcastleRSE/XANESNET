@@ -18,56 +18,69 @@
 # Citations:
 #   ...
 
-"""Plotter for predicted and target spectra comparisons."""
+"""Plotter that writes predicted-target spectra comparisons for every selected sample."""
 
 import logging
+import random
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.figure import Figure
 
-from xanesnet.analysis.utils import ScalarValue, is_scalar_value
-from xanesnet.serialization.jsonl_stream import JSONLStream
+from xanesnet.serialization.config import Config
 from xanesnet.serialization.prediction_readers import PredictionSample
+from xanesnet.utils.exceptions import ConfigError
 
-from ..reporters.base import selector_label
 from ..result import AnalysisResults
 from ..selectors import Selector
+from ..utils import one_line_label, sample_key, sample_key_sort_key
 from .base import Plotter
+from .common.layout import save_figure
+from .common.spectra_pages import (
+    combined_spectra_page_figure,
+    spectra_page_figure,
+    spectra_structure_page_figure,
+)
+from .common.style import PlotSize
 from .registry import PlotterRegistry
 
 
-@PlotterRegistry.register("spectra")
-class SpectraPlotter(Plotter):
+@PlotterRegistry.register("spectra_all")
+class AllSpectraPlotter(Plotter):
     """Plot predicted and target spectra for every selected sample.
+
+    One multi-page PDF per method; each page shows one sample, with its
+    structure when matched. ``max_pages`` draws a random subset. With two or
+    more readers, a combined PDF overlays every reader's prediction for the
+    samples common to all readers.
+
+    Requires:
+        Matched raw structures (optional): shown alongside the spectra.
 
     Args:
         plotter_type: Registered plotter name from the analysis configuration.
-        sort_by_value: Whether to sort PDF pages by a scalar value.
-        sort_key: Scalar key to sort by. Values are read from collector output first, then samples.
-        sort_ascending: Whether sorted pages should use ascending order.
+        latex_font: Render figures in a LaTeX-style serif font when ``True``.
         max_pages: Maximum number of pages per PDF. ``None`` writes all selected samples.
+        legend_position: Place spectra legends ``"inside"`` the axes or
+            ``"outside"`` them on the right.
+        plot_size: Shared figure size profile: ``"small"`` or ``"default"``.
     """
 
     def __init__(
         self,
         plotter_type: str,
-        sort_by_value: bool = False,
-        sort_key: str | None = None,
-        sort_ascending: bool = True,
-        max_pages: int | None = None,
+        max_pages: int | None,
+        legend_position: str,
+        latex_font: bool,
+        plot_size: PlotSize,
     ) -> None:
-        """Initialize a spectra comparison plotter."""
-        super().__init__(plotter_type)
-        self.sort_by_value = sort_by_value
-        self.sort_key = sort_key
-        self.sort_ascending = sort_ascending
+        """Initialize an all-spectra comparison plotter."""
+        super().__init__(plotter_type, latex_font=latex_font, plot_size=plot_size)
         self.max_pages = max_pages
+        self.legend_position = legend_position
 
-    def plot(self, results: AnalysisResults, output_dir: Path) -> None:
+    def _plot(self, results: AnalysisResults, output_dir: Path) -> None:
         """Write one multi-page spectra PDF per prediction-reader/selector pair.
 
         Args:
@@ -86,23 +99,16 @@ class SpectraPlotter(Plotter):
 
             for sel_idx, selector in enumerate(reader_selectors):
                 logging.info(f"      Selector {sel_idx + 1}/{len(reader_selectors)}.")
-                sel_label_str = selector_label(results.selectors_config, sel_idx)
-                sel_cfg = results.selectors_config[sel_idx] if sel_idx < len(results.selectors_config) else {}
+                label = results.method_label(reader_idx, sel_idx)
+                pdf_path = root / f"{label.dir_name}.pdf"
 
-                stream: JSONLStream | None = None
-                if reader_idx < len(results.collector_results) and sel_idx < len(results.collector_results[reader_idx]):
-                    stream = results.collector_results[reader_idx][sel_idx]
+                self._plot_to_pdf(selector, pdf_path, one_line_label(label.lines))
 
-                combo_label = f"pred_{reader_idx:03d}__sel_{sel_idx:03d}_{sel_label_str}"
-                subtitle = _subtitle(sel_cfg, reader_idx)
-                pdf_path = root / f"{combo_label}.pdf"
-
-                self._plot_to_pdf(selector, stream, pdf_path, subtitle)
+        self._plot_combined(results, root)
 
     def _plot_to_pdf(
         self,
         selector: Selector,
-        stream: JSONLStream | None,
         pdf_path: Path,
         subtitle: str,
     ) -> None:
@@ -110,150 +116,116 @@ class SpectraPlotter(Plotter):
 
         Args:
             selector: Selector over prediction samples for one prediction reader and selector pair.
-            stream: Optional collector result stream aligned with ``selector``.
             pdf_path: Destination PDF path.
             subtitle: Subtitle text describing prediction and selector context.
         """
-        entries: list[tuple[PredictionSample, dict[str, Any]]] = []
-        if stream is not None:
-            for sel_sample, col_sample in zip(selector, stream):
-                entries.append((sel_sample, col_sample))
-        else:
-            for sel_sample in selector:
-                entries.append((sel_sample, {}))
-
+        entries = list(selector)
         if not entries:
             return
-
-        if self.sort_by_value and self.sort_key:
-            key = self.sort_key
-
-            def _sort_val(entry: tuple[PredictionSample, dict[str, Any]]) -> float:
-                """Return the scalar value used to order one PDF page entry.
-
-                Args:
-                    entry: Pair of prediction sample and collector scalar dictionary.
-
-                Returns:
-                    Sort value for the configured key, or ``0.0`` when unavailable/non-scalar.
-                """
-                sel_s, col_s = entry
-                v = col_s.get(key, sel_s.get(key, 0.0))
-                return cast(float, v) if is_scalar_value(v) else 0.0
-
-            entries.sort(key=_sort_val, reverse=not self.sort_ascending)
-
-        if self.max_pages is not None:
-            entries = entries[: self.max_pages]
+        entries = _random_subset(entries, self.max_pages)
 
         with PdfPages(pdf_path) as pdf:
-            for sample, col_scalars in entries:
-                fig = self._plot_single(sample, col_scalars, subtitle)
-                pdf.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
+            for sample in entries:
+                if sample.get("structure") is not None:
+                    fig = spectra_structure_page_figure(
+                        sample,
+                        subtitle,
+                        self.style,
+                        legend_position=self.legend_position,
+                    )
+                else:
+                    fig = spectra_page_figure(
+                        sample,
+                        subtitle,
+                        self.style,
+                        legend_position=self.legend_position,
+                    )
+                save_figure(fig, pdf, self.style)
 
-    @staticmethod
-    def _plot_single(
-        sample: PredictionSample,
-        col_scalars: dict[str, Any],
-        subtitle: str,
-    ) -> Figure:
-        """Create a spectra comparison figure for one prediction sample.
+    def _plot_combined(self, results: AnalysisResults, root: Path) -> None:
+        """Write combined spectra pages comparing prediction readers on shared samples.
+
+        For every selector index shared by all prediction readers, records
+        common to every reader are matched by compound sample identity
+        (sample ID and target-site index), and a random subset overlays every
+        reader's prediction against the shared target. Nothing is written with
+        fewer than two prediction readers.
 
         Args:
-            sample: Prediction sample containing ``prediction`` and ``target`` spectra, and
-                ``sample_id`` for the title. It may also contain ``prediction_std`` uncertainty.
-                Spectra values are flattened to one-dimensional arrays with shape ``(N,)``.
-            col_scalars: Collector scalar values aligned with ``sample``.
-            subtitle: Subtitle text describing prediction and selector context.
+            results: Analysis pipeline outputs to plot.
+            root: Root ``spectra_plots`` directory; combined PDFs are written
+                under ``<root>/combined/``.
+
+        Raises:
+            ConfigError: If duplicate records share a compound sample identity.
+        """
+        if len(results.selectors) < 2:
+            return
+
+        n_common_selectors = min(len(reader_selectors) for reader_selectors in results.selectors)
+        combined_root = root / "combined"
+
+        for sel_idx in range(n_common_selectors):
+            by_reader: list[dict[tuple[str, int | None], PredictionSample]] = []
+            for reader_idx in range(len(results.selectors)):
+                entries: dict[tuple[str, int | None], PredictionSample] = {}
+                for sample in results.selectors[reader_idx][sel_idx]:
+                    identity = sample_key(sample)
+                    if identity in entries:
+                        raise ConfigError(f"Duplicate prediction record for sample identity {identity!r}.")
+                    entries[identity] = sample
+                by_reader.append(entries)
+
+            common_keys = set.intersection(*(set(entries) for entries in by_reader))
+            if len(common_keys) < 2:
+                continue
+
+            selected_keys = _random_subset(sorted(common_keys, key=sample_key_sort_key), self.max_pages)
+            selector_type = results.selectors[0][sel_idx].selector_type
+            subtitle = one_line_label([" / ".join(results.prediction_names), str(results.selectors[0][sel_idx])])
+
+            combined_root.mkdir(parents=True, exist_ok=True)
+            pdf_path = combined_root / f"sel_{sel_idx:03d}_{selector_type}.pdf"
+            with PdfPages(pdf_path) as pdf:
+                for identity in selected_keys:
+                    sample = by_reader[0][identity]
+                    target = np.asarray(sample["target"]).ravel()
+                    predictions = [np.asarray(entries[identity]["prediction"]).ravel() for entries in by_reader]
+                    fig = combined_spectra_page_figure(
+                        sample,
+                        results.prediction_names,
+                        predictions,
+                        target,
+                        subtitle,
+                        self.style,
+                        legend_position=self.legend_position,
+                    )
+                    save_figure(fig, pdf, self.style)
+
+    @property
+    def signature(self) -> Config:
+        """Return the all-spectra plotter signature.
 
         Returns:
-            Matplotlib figure with spectra and residual panels.
+            Configuration values needed to recreate this plotter.
         """
-        pred = np.asarray(sample["prediction"]).ravel()
-        target = np.asarray(sample["target"]).ravel()
-        pred_std_value = sample.get("prediction_std")
-        pred_std = np.asarray(pred_std_value).ravel() if pred_std_value is not None else None
-        residual = pred - target
-        x = np.arange(len(pred))
-        sample_id = sample["sample_id"]
-
-        fig, (ax_spec, ax_res) = plt.subplots(
-            nrows=2,
-            ncols=1,
-            figsize=(10, 5),
-            gridspec_kw={"height_ratios": [3, 1]},
-            sharex=True,
-        )
-
-        ax_spec.plot(x, target, label="Target", linewidth=2.0, color="#019cd8")
-        if pred_std is not None:
-            if pred_std.shape == pred.shape:
-                ax_spec.fill_between(
-                    x,
-                    pred - pred_std,
-                    pred + pred_std,
-                    label="Prediction +/- 1 std",
-                    color="#005186",
-                    alpha=0.18,
-                    linewidth=0,
-                )
-            else:
-                logging.warning(
-                    "Skipping prediction_std shading because shape %s does not match prediction shape %s.",
-                    pred_std.shape,
-                    pred.shape,
-                )
-        ax_spec.plot(x, pred, label="Prediction", linewidth=2.0, color="#005186", linestyle="--")
-        ax_spec.set_ylabel("Intensity")
-        ax_spec.set_title(f"Sample: {sample_id}")
-        ax_spec.legend(fontsize=10, loc="upper right")
-
-        scalars: dict[str, ScalarValue] = {}
-        for key, value in sample.items():
-            if key not in ("prediction", "target", "sample_id") and is_scalar_value(value):
-                scalars[key] = cast(ScalarValue, value)
-        for key, value in col_scalars.items():
-            if key != "sample_id" and is_scalar_value(value):
-                scalars[key] = cast(ScalarValue, value)
-
-        if scalars:
-            text = "\n".join(f"{k}: {v:.4g}" for k, v in scalars.items())
-            ax_spec.text(
-                0.01,
-                0.97,
-                text,
-                transform=ax_spec.transAxes,
-                fontsize=10,
-                verticalalignment="top",
-                fontfamily="monospace",
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8),
-            )
-
-        ax_res.plot(x, residual, color="#e85651", linewidth=2.0)
-        ax_res.axhline(0, color="black", linewidth=1.0, linestyle=":")
-        ax_res.set_xlabel("Channel")
-        ax_res.set_ylabel("Residual")
-
-        fig.text(0.5, -0.01, subtitle, ha="center", va="top", fontsize=7, color="gray")
-        fig.tight_layout()
-        return fig
+        signature = super().signature
+        signature.update_with_dict({"max_pages": self.max_pages, "legend_position": self.legend_position})
+        return signature
 
 
-def _subtitle(sel_cfg: dict[str, Any], reader_idx: int) -> str:
-    """Build the spectra plot subtitle for one prediction-reader/selector pair.
+def _random_subset(items: list[Any], max_count: int | None) -> list[Any]:
+    """Return every item, or a random subset when ``max_count`` truncates them.
 
     Args:
-        sel_cfg: Selector configuration dictionary for this selector index.
-        reader_idx: Zero-based prediction reader index.
+        items: Candidate items in their natural order.
+        max_count: Maximum number of items to keep, or ``None`` to keep all.
 
     Returns:
-        Human-readable subtitle string.
+        All items when ``max_count`` is ``None`` or not smaller than
+        ``len(items)``; otherwise a random sample of that size, drawn using
+        the global seed.
     """
-    parts = [f"predictions={reader_idx}"]
-    sel_type = sel_cfg.get("selector_type", "?")
-    parts.append(f"selector={sel_type}")
-    extras = {k: v for k, v in sel_cfg.items() if k != "selector_type"}
-    if extras:
-        parts.append(" ".join(f"{k}={v}" for k, v in extras.items()))
-    return "  |  ".join(parts)
+    if max_count is None or len(items) <= max_count:
+        return list(items)
+    return random.sample(list(items), max_count)

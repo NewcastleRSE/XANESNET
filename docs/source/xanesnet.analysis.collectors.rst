@@ -13,5 +13,6 @@ Submodules
    :maxdepth: 4
 
    xanesnet.analysis.collectors.base
-   xanesnet.analysis.collectors.errors
+   xanesnet.analysis.collectors.descriptor
+   xanesnet.analysis.collectors.loss
    xanesnet.analysis.collectors.registry

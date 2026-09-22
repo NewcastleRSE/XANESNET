@@ -57,7 +57,7 @@ class BasicStopper(EarlyStopper):
 
         self.patience = patience
         self.min_delta = min_delta
-        self.last_improvement_epoch: int | None = None
+        self.last_improvement_epoch: int = 0
 
     def step(self, value: float, model: Model, epoch: int) -> bool:
         """Check whether training should stop.
@@ -67,7 +67,7 @@ class BasicStopper(EarlyStopper):
         ``min_delta * epochs_since_best``.
 
         Args:
-            value: Current metric value to minimise.
+            value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
 
@@ -79,9 +79,6 @@ class BasicStopper(EarlyStopper):
             _ = super().step(value, model, epoch)
             self.last_improvement_epoch = epoch
             return False
-
-        if self.last_improvement_epoch is None:
-            self.last_improvement_epoch = self.best_epoch
 
         epochs_since_best = max(1, epoch - self.best_epoch)
         required_total_delta = self.min_delta * epochs_since_best

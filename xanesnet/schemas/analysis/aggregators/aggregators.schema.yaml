@@ -5,5 +5,9 @@ $defs:
   aggregator:
     oneOf:
     - $ref: scalar.schema.yaml#/$defs/aggregatorScalar
+    - $ref: vector.schema.yaml#/$defs/aggregatorVector
+    - $ref: spectrum.schema.yaml#/$defs/aggregatorSpectrum
+    - $ref: ranking.schema.yaml#/$defs/aggregatorRanking
+    - $ref: bias_variance.schema.yaml#/$defs/aggregatorBiasVariance
     description: Union of aggregator configuration objects instantiated by ``AggregatorRegistry`` in ``core_analyze``.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

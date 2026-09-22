@@ -18,7 +18,7 @@
 # Citations:
 #   ...
 
-"""Target-site-centred E3-equivariant model (E3EE)."""
+"""Target-site-centered E3-equivariant model (E3EE)."""
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ from .utils import invariant_feature_dim, invariant_features_from_irreps
 @ModelRegistry.register("e3ee")
 class E3EE(Model):
     """
-    Target-site-centred E3-equivariant model.
+    Target-site-centered E3-equivariant model.
     Architecture:
     - Equivariant atom encoder (e3nn spherical harmonics message passing)
     - Branch 1 (optional): invariant target-site features + energy

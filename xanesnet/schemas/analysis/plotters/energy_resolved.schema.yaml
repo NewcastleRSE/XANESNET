@@ -1,0 +1,59 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: energy_resolved.schema.yaml
+title: 'XANESNET plotter schema: energy_resolved_loss'
+$defs:
+  plotterEnergyResolvedLoss:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        const: energy_resolved_loss
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
+      y_scale:
+        type: string
+        enum:
+        - linear
+        - log
+        default: linear
+        description: Y-axis scaling for the loss curves.
+      start_index:
+        type:
+        - integer
+        - 'null'
+        minimum: 0
+        default: null
+        description: First channel index to plot. Defaults to the first channel.
+      end_index:
+        type:
+        - integer
+        - 'null'
+        minimum: 0
+        default: null
+        description: One-past-the-end channel index to plot. Defaults to the last channel.
+      y_zoom:
+        type:
+        - number
+        - 'null'
+        exclusiveMinimum: 0
+        default: null
+        description: Optional upper y-axis limit for zooming in around zero.
+      keys:
+        type:
+        - array
+        - 'null'
+        items:
+          type: string
+        default: null
+        description: Energy-resolved loss keys to plot. When null, every
+          collected key is plotted.
+    description: Plot average energy-resolved loss curves per method plus combined
+      grid and overlay figures. Requires a ``vector`` aggregator.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

@@ -2,10 +2,38 @@ $schema: https://json-schema.org/draft/2020-12/schema
 $id: plotters.schema.yaml
 title: XANESNET plotter configuration schemas
 $defs:
+  plotSize:
+    type: string
+    enum:
+    - small
+    - default
+    default: default
+    description: Shared figure size and rendering profile.
+  latexFont:
+    type: boolean
+    default: true
+    description: Render text and mathtext in a LaTeX-style serif (STIX/Times)
+      font. When false, matplotlib's default sans-serif is used.
+  legendPosition:
+    type: string
+    enum:
+    - inside
+    - outside
+    default: inside
+    description: Place axis legends inside the axes or outside them on the right.
   plotter:
     oneOf:
     - $ref: scalar.schema.yaml#/$defs/plotterScalar
     - $ref: spectra.schema.yaml#/$defs/plotterSpectra
+    - $ref: spectra_comparison.schema.yaml#/$defs/plotterSpectraComparison
     - $ref: stat_table.schema.yaml#/$defs/plotterStatTable
+    - $ref: stat_table_latex.schema.yaml#/$defs/plotterStatTableLatex
+    - $ref: energy_resolved.schema.yaml#/$defs/plotterEnergyResolvedLoss
+    - $ref: mean_spectrum.schema.yaml#/$defs/plotterMeanSpectrum
+    - $ref: parity.schema.yaml#/$defs/plotterParity
+    - $ref: bias_variance.schema.yaml#/$defs/plotterBiasVariance
+    - $ref: error_correlation.schema.yaml#/$defs/plotterErrorCorrelation
+    - $ref: pca.schema.yaml#/$defs/plotterPca
+    - $ref: selector_overview.schema.yaml#/$defs/plotterSelectorOverview
     description: Union of plotter configuration objects instantiated by ``PlotterRegistry`` in ``core_analyze``.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

@@ -30,9 +30,15 @@ from .registry import LossRegistry
 class EMDLoss(Loss):
     """Earth Mover's (Wasserstein) distance loss.
 
-    Computes the discrete 1-D Earth Mover's Distance on a unit-spaced
-    spectral grid as the L1 distance between the cumulative spectra of
-    ``preds`` and ``targets``.
+    Computes the cumulative-difference form of the discrete 1-D transport
+    cost on a common, ordered, uniformly spaced spectral grid. With unit grid
+    spacing this is the L1 distance between the cumulative spectra of
+    ``preds`` and ``targets``. It is the balanced 1-Wasserstein distance
+    between non-negative spectra only when each prediction and target pair
+    has equal total mass. The implementation does not normalize spectra,
+    enforce non-negativity, or account for physical energy spacing; inputs
+    are therefore expected to satisfy those assumptions when a Wasserstein
+    interpretation is intended.
 
     Args:
         loss_type: Identifier string for this loss type.
@@ -45,16 +51,33 @@ class EMDLoss(Loss):
         """Initialize ``EMDLoss``."""
         super().__init__(loss_type)
 
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         """Compute the Earth Mover's Distance loss.
 
         Args:
-            preds: Model output predictions ``(B, N)``.
-            targets: Ground-truth spectral targets ``(B, N)``.
+            preds: Model output spectra ``(B, N)``. For a balanced
+                Wasserstein interpretation, values must be non-negative and
+                each row must have the same total mass as the corresponding
+                target row.
+            targets: Ground-truth spectra ``(B, N)`` on the same ordered,
+                uniformly spaced grid as ``preds``. The grid spacing is
+                treated as one, so physical energy units are ignored.
+            reduction: ``"mean"`` sums the absolute cumulative differences
+                over the grid for each sample and then averages those sample
+                costs over the batch. ``"none"`` returns the unsummed
+                point-wise map with shape ``(B, N)``. No reduction over the
+                grid is performed for ``"none"``.
 
         Returns:
-            Scalar loss tensor summed over spectral bins and averaged over the
-            batch dimension.
+            Loss tensor.
+
+        Raises:
+            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``.
         """
         cdf_delta = torch.cumsum(preds - targets, dim=-1)
-        return cdf_delta.abs().sum(dim=-1).mean()
+        loss_map = cdf_delta.abs()
+        if reduction == "mean":
+            return loss_map.sum(dim=-1).mean()
+        if reduction == "none":
+            return loss_map
+        raise ValueError(f"Unsupported reduction: {reduction}")

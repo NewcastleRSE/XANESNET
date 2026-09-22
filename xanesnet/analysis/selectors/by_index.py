@@ -22,6 +22,7 @@
 
 from collections.abc import Iterator
 
+from xanesnet.serialization.config import Config
 from xanesnet.serialization.prediction_readers import PredictionReader, PredictionSample
 
 from .base import Selector
@@ -38,21 +39,9 @@ class IndexSelector(Selector):
         indices: Zero-based sample indices to keep. Negative indices are rejected.
     """
 
-    def __init__(
-        self,
-        selector_type: str,
-        data_source: PredictionReader,
-        indices: list[int],
-    ) -> None:
-        """Initialize an explicit-index selector.
-
-        Raises:
-            ValueError: If any configured index is negative.
-        """
+    def __init__(self, selector_type: str, data_source: PredictionReader, indices: list[int]) -> None:
+        """Initialize an explicit-index selector."""
         super().__init__(selector_type, data_source)
-
-        if any(i < 0 for i in indices):
-            raise ValueError("IndexSelector does not support negative indices")
 
         self.indices = set(indices)
 
@@ -65,3 +54,22 @@ class IndexSelector(Selector):
         for idx, sample in enumerate(self.data_source):
             if idx in self.indices:
                 yield sample
+
+    def __len__(self) -> int:
+        """Return the number of selected samples.
+
+        Returns:
+            Number of selected prediction samples.
+        """
+        return len(self.indices)
+
+    @property
+    def signature(self) -> Config:
+        """Return the selector signature.
+
+        Returns:
+            Configuration values needed to recreate this selector.
+        """
+        signature = super().signature
+        signature.update_with_dict({"indices": sorted(self.indices)})
+        return signature

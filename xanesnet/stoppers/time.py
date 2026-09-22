@@ -59,7 +59,7 @@ class TimeStopper(EarlyStopper):
         """Check whether the time limit has been exceeded.
 
         Args:
-            value: Current metric value to minimise.
+            value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
 

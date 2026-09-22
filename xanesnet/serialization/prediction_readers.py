@@ -30,6 +30,10 @@ from typing import Any, NotRequired, TypedDict, cast
 import h5py
 import numpy as np
 import torch
+from pymatgen.core import Molecule, Structure
+from tqdm import tqdm
+
+from xanesnet.datasources import DataSource
 
 from .prediction_writers import PredictionBatch
 
@@ -45,18 +49,24 @@ class PredictionSample(TypedDict):
     dimension - each field corresponds to a single row of the equivalent
     ``PredictionBatch`` field. ``prediction_std`` is present when inference
     produced an energy/channel-wise uncertainty estimate. ``sample_id`` is the
-    identifier written by XANESNET inference.
+    identifier written by XANESNET inference. ``target_site_index`` identifies
+    the original atom within that structure, or is ``None`` for non-site-specific
+    predictions. ``time_per_spectrum`` is the forward-pass duration amortized
+    over the spectra produced by the batch. This value is in seconds and covers
+    only the model forward pass. Analysis may attach the matching raw
+    ``structure`` from the inference datasource.
     """
 
     # Required:
     prediction: np.ndarray | torch.Tensor
     target: np.ndarray | torch.Tensor
     sample_id: str
+    target_site_index: int | None
 
     # Optional:
     prediction_std: NotRequired[np.ndarray | torch.Tensor]
-    forward_time: NotRequired[float]
-    forward_time_pass: NotRequired[float]
+    time_per_spectrum: NotRequired[float]
+    structure: NotRequired[Molecule | Structure]
 
 
 ###############################################################################
@@ -113,6 +123,15 @@ class PredictionReader(ABC):
         """
         ...
 
+    def provides_structures(self) -> bool:
+        """Return whether records carry matched raw structures.
+
+        Returns:
+            ``True`` when ``__getitem__`` results include a ``structure``
+            entry, ``False`` otherwise.
+        """
+        return False
+
     def __iter__(self) -> Iterator[PredictionSample]:
         """Reset the iteration cursor and return ``self`` as the iterator.
 
@@ -161,9 +180,6 @@ class PredictionReader(ABC):
     @staticmethod
     def _stack_values(values: list[Any]) -> np.ndarray:
         """Stack prediction field values into one array."""
-        if not values:
-            return np.array([])
-
         if all(isinstance(value, np.ndarray) for value in values):
             arrays = [value for value in values if isinstance(value, np.ndarray)]
             return np.stack(arrays, axis=0)
@@ -232,6 +248,217 @@ class PredictionReader(ABC):
 
 
 ###############################################################################
+########################## STRUCTURE MATCHED CLASS ############################
+###############################################################################
+
+
+class StructureMatchedPredictionReader(PredictionReader):
+    """Attach the structure matching each prediction's ``sample_id``.
+
+    The wrapped prediction reader remains indexed at target-site level. A
+    structure may therefore occur in multiple returned samples when it has
+    multiple target sites. When ``preload_structures`` is enabled, parsed
+    structures are retained in memory after indexing instead of being
+    re-read from disk on every sample access.
+
+    Args:
+        predictions_reader: Reader containing persisted inference predictions.
+        datasource: Raw datasource reconstructed from the inference run.
+        preload_structures: Whether to cache parsed raw structures in memory.
+
+    Raises:
+        ValueError: If the datasource contains duplicate ``sample_id`` values,
+            or a prediction refers to a sample that is absent from it.
+    """
+
+    def __init__(
+        self,
+        predictions_reader: PredictionReader,
+        datasource: DataSource,
+        preload_structures: bool = False,
+    ) -> None:
+        """Initialize the structure-enriched prediction reader.
+
+        Args:
+            predictions_reader: Reader containing persisted inference predictions.
+            datasource: Raw datasource reconstructed from the inference run.
+            preload_structures: Whether to cache parsed raw structures in memory.
+        """
+        self.predictions_reader = predictions_reader
+        self.datasource = datasource
+        self.preload_structures = preload_structures
+        self._structure_cache: dict[int, Molecule | Structure] | None = {} if preload_structures else None
+        self._source_indices_by_id = self._index_source_indices(datasource)
+        super().__init__(predictions_reader.path)
+
+    def _validate_path(self) -> None:
+        """Accept the already validated path owned by the wrapped reader."""
+
+    def __len__(self) -> int:
+        """Return the number of target-site prediction records.
+
+        Returns:
+            Number of records provided by the wrapped prediction reader.
+        """
+        return len(self.predictions_reader)
+
+    def provides_structures(self) -> bool:
+        """Return whether records carry matched raw structures.
+
+        Returns:
+            Always ``True`` for this reader.
+        """
+        return True
+
+    def __getitem__(self, index: int) -> PredictionSample:
+        """Return one prediction record with its originating raw structure.
+
+        Args:
+            index: Zero-based target-site prediction index.
+
+        Returns:
+            Prediction record with an added ``structure`` entry.
+
+        Raises:
+            ValueError: If the record's ``sample_id`` is not in the inference
+                datasource.
+        """
+        sample = dict(self.predictions_reader[index])
+        sample_id = str(sample["sample_id"])
+        try:
+            source_index = self._source_indices_by_id[sample_id]
+        except KeyError as exc:
+            raise ValueError(f"Prediction at index {index} references unknown sample_id '{sample_id}'.") from exc
+        sample["structure"] = self._load_structure(source_index)
+        return cast(PredictionSample, sample)
+
+    def get_all(self) -> PredictionBatch:
+        """Load persisted prediction fields without materializing structures.
+
+        Returns:
+            Full prediction batch returned by the wrapped reader.
+        """
+        return self.predictions_reader.get_all()
+
+    def close(self) -> None:
+        """Close resources owned by the wrapped prediction reader."""
+        self.predictions_reader.close()
+
+    def _load_structure(self, source_index: int) -> Molecule | Structure:
+        """Return the parsed raw structure for one datasource position.
+
+        Cached entries are reused when ``preload_structures`` is enabled;
+        otherwise the structure is loaded from disk on every access.
+
+        Args:
+            source_index: Zero-based datasource position.
+
+        Returns:
+            The pymatgen structure or molecule at ``source_index``.
+        """
+        if self._structure_cache is not None:
+            return self._structure_cache[source_index]
+        return self.datasource[source_index]
+
+    def _index_source_indices(self, datasource: DataSource) -> dict[str, int]:
+        """Index datasource positions by their required ``sample_id`` property.
+
+        When ``preload_structures`` is enabled, the parsed objects are
+        retained in ``_structure_cache`` for later reuse.
+
+        Args:
+            datasource: Source of raw structures or molecules.
+
+        Returns:
+            Mapping from sample identifier to datasource position.
+
+        Raises:
+            ValueError: If a structure lacks ``sample_id`` or the datasource
+                contains duplicate identifiers.
+        """
+        source_indices_by_id: dict[str, int] = {}
+        for source_index, structure in tqdm(
+            enumerate(datasource), desc="Indexing datasource sample_ids", total=len(datasource)
+        ):
+            try:
+                sample_id = str(structure.properties["sample_id"])
+            except KeyError as exc:
+                raise ValueError("Inference datasource entries must define properties['sample_id'].") from exc
+
+            if sample_id in source_indices_by_id:
+                raise ValueError(f"Inference datasource contains duplicate sample_id '{sample_id}'.")
+            source_indices_by_id[sample_id] = source_index
+            if self._structure_cache is not None:
+                self._structure_cache[source_index] = structure
+
+        return source_indices_by_id
+
+
+###############################################################################
+############################## PRELOAD CLASS ##################################
+###############################################################################
+
+
+class PreloadedPredictionReader(PredictionReader):
+    """Serve an in-memory snapshot of a wrapped prediction reader's records.
+
+    Materializes every target-site record of the wrapped reader once during
+    setup and serves later accesses from memory. Useful when the analysis
+    pipeline iterates the same predictions multiple times.
+
+    Args:
+        predictions_reader: Reader whose records should be preloaded.
+    """
+
+    def __init__(self, predictions_reader: PredictionReader) -> None:
+        """Preload all records from the wrapped prediction reader."""
+        self.predictions_reader = predictions_reader
+        self._samples: list[PredictionSample] = [
+            predictions_reader[i] for i in tqdm(range(len(predictions_reader)), desc="Preloading predictions")
+        ]
+        super().__init__(predictions_reader.path)
+
+    def _validate_path(self) -> None:
+        """Accept the already validated path owned by the wrapped reader."""
+
+    def __len__(self) -> int:
+        """Return the number of preloaded target-site records.
+
+        Returns:
+            Number of records served from memory.
+        """
+        return len(self._samples)
+
+    def provides_structures(self) -> bool:
+        """Forward the structure capability of the wrapped reader.
+
+        Returns:
+            ``True`` when the wrapped reader attaches matched raw structures.
+        """
+        return self.predictions_reader.provides_structures()
+
+    def __getitem__(self, index: int) -> PredictionSample:
+        """Return one preloaded prediction record.
+
+        Args:
+            index: Zero-based target-site prediction index.
+
+        Returns:
+            The preloaded ``PredictionSample`` at ``index``.
+
+        Raises:
+            IndexError: If ``index`` is out of range.
+        """
+        if index < 0 or index >= len(self):
+            raise IndexError(f"Index {index} out of range [0, {len(self)})")
+        return self._samples[index]
+
+    def close(self) -> None:
+        """Close resources owned by the wrapped prediction reader."""
+        self.predictions_reader.close()
+
+
+###############################################################################
 ################################# HDF5 CLASS ##################################
 ###############################################################################
 
@@ -266,7 +493,6 @@ class HDF5Reader(PredictionReader):
 
             if not isinstance(group, h5py.Group):
                 raise TypeError(f"Expected Group, got {type(group).__name__}")
-
             self._h5 = h5
             self._group = group
         except Exception:
@@ -323,6 +549,7 @@ class HDF5Reader(PredictionReader):
 
                 sample[key] = data
 
+        sample.setdefault("target_site_index", None)
         return cast(PredictionSample, sample)
 
     def get_all(self) -> PredictionBatch:
@@ -416,6 +643,7 @@ class NumpyReader(PredictionReader):
         with np.load(sample_file) as data:
             sample = {key: self._normalize_sample_value(data[key]) for key in data.files}
 
+        sample.setdefault("target_site_index", None)
         return cast(PredictionSample, sample)
 
 
@@ -486,6 +714,7 @@ class JSONReader(PredictionReader):
             else:
                 sample[key] = self._normalize_sample_value(np.array(value))
 
+        sample.setdefault("target_site_index", None)
         return cast(PredictionSample, sample)
 
 
@@ -506,7 +735,7 @@ def detect_prediction_format(path: str | Path) -> type[PredictionReader]:
 
     Raises:
         FileNotFoundError: If ``path`` does not exist.
-        ValueError: If no recognisable prediction files are found.
+        ValueError: If no recognizable prediction files are found.
     """
     predictions_path = Path(path)
 
@@ -525,3 +754,43 @@ def detect_prediction_format(path: str | Path) -> type[PredictionReader]:
             f"Could not detect prediction format in {predictions_path}. "
             f"Expected HDF5 (predictions.h5), Numpy (sample_*.npz), or JSON (sample_*.json) files."
         )
+
+
+###############################################################################
+################################# FACTORY #####################################
+###############################################################################
+
+
+def build_prediction_reader(
+    path: str | Path,
+    datasource: DataSource | None = None,
+    preload: bool = False,
+) -> PredictionReader:
+    """Build a prediction reader for one predictions directory.
+
+    Detects the storage format from the directory contents, optionally
+    attaches matching raw structures from ``datasource``, and optionally
+    preloads every target-site record into memory.
+
+    Args:
+        path: Directory containing persisted prediction files.
+        datasource: Optional datasource whose raw structures are attached to
+            matching prediction records. When ``None``, records are returned
+            without structures.
+        preload: Whether to preload prediction records and matched structures
+            into memory during setup.
+
+    Returns:
+        A format reader, optionally wrapped for structure enrichment and
+        in-memory preloading.
+    """
+    reader_class = detect_prediction_format(path)
+    logging.info(f"Detected format for {path}: {reader_class.__name__}")
+    reader = reader_class(path)
+
+    if datasource is not None:
+        reader = StructureMatchedPredictionReader(reader, datasource, preload_structures=preload)
+    if preload:
+        reader = PreloadedPredictionReader(reader)
+
+    return reader

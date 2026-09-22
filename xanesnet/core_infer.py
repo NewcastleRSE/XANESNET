@@ -54,7 +54,7 @@ def infer(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint:
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
-    encoding = _setup_encoding(config)
+    encoding = _setup_encoding(config, dataset)
     strategy = _setup_strategy(config, dataset, encoding)
     strategy.setup_models()
     strategy.set_state_dicts(checkpoint.model_states)
@@ -115,17 +115,23 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_encoding(config: Config) -> SpectraEncoding:
-    """Build the composed spectra encoding from config.
+def _setup_encoding(config: Config, dataset: Dataset) -> SpectraEncoding:
+    """Build and prepare the composed spectra encoding from config.
 
     Args:
         config: Validated configuration containing an ``encodings`` section.
+        dataset: Prepared dataset containing the raw spectral energy grid.
 
     Returns:
         A :class:`CombinedEncoding` wrapping all configured component
-        encodings.
+        encodings, prepared for the dataset's spectral width.
     """
-    return CombinedEncoding.from_configs(config.get_config_list("encodings"))
+    encoding = CombinedEncoding.from_configs(config.get_config_list("encodings"))
+    energies = getattr(dataset[0], "energies", None)
+    if energies is None or energies.ndim == 0:
+        raise ValueError("Prepared dataset sample must provide a spectral energy grid.")
+    encoding.prepare(int(energies.shape[-1]))
+    return encoding
 
 
 def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding) -> Strategy:

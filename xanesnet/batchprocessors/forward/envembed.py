@@ -67,7 +67,7 @@ class EnvEmbedBatchProcessor(ForwardBatchProcessor):
         return batch.intensities  # type: ignore[return-value]
 
     def element_preparation(self, batch: EnvEmbedData) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from an EnvEmbed batch.
+        """Prepare target-site atomic numbers from an EnvEmbed batch.
 
         Args:
             batch: Collated EnvEmbed batch.
@@ -78,8 +78,8 @@ class EnvEmbedBatchProcessor(ForwardBatchProcessor):
         """
         return batch.element
 
-    def sample_id_extraction(self, batch: EnvEmbedData) -> np.ndarray:
-        """Extract file names from an EnvEmbed batch.
+    def sample_id_preparation(self, batch: EnvEmbedData) -> np.ndarray:
+        """Prepare file names from an EnvEmbed batch.
 
         Args:
             batch: Collated EnvEmbed batch.

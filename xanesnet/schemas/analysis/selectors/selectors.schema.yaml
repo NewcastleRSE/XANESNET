@@ -5,8 +5,11 @@ $defs:
   selector:
     oneOf:
     - $ref: identity.schema.yaml#/$defs/selectorIdentity
+    - $ref: by_element.schema.yaml#/$defs/selectorElement
     - $ref: by_index.schema.yaml#/$defs/selectorIndexList
     - $ref: by_range.schema.yaml#/$defs/selectorIndexRange
     - $ref: bernoulli.schema.yaml#/$defs/selectorRandom
+    - $ref: structure_cluster.schema.yaml#/$defs/selectorStructureCluster
+    - $ref: chain.schema.yaml#/$defs/selectorChain
     description: Union of selector configuration objects instantiated by ``SelectorRegistry`` in ``core_analyze``.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

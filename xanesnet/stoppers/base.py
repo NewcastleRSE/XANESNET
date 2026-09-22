@@ -63,7 +63,7 @@ class EarlyStopper(ABC):
         then apply their own stopping criterion.
 
         Args:
-            value: The metric to minimise (e.g. validation loss) at the
+            value: The metric to minimize (e.g. validation loss) at the
                 current epoch.
             model: The model being trained; its weights are copied when a
                 new best is reached and ``restore_best`` is ``True``.

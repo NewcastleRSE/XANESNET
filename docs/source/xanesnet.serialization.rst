@@ -23,6 +23,7 @@ Submodules
    xanesnet.serialization.checkpoints
    xanesnet.serialization.config
    xanesnet.serialization.jsonl_stream
+   xanesnet.serialization.metadata
    xanesnet.serialization.model_profile
    xanesnet.serialization.models
    xanesnet.serialization.prediction_readers

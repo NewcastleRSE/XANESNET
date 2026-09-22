@@ -1,0 +1,36 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ranking.schema.yaml
+title: XANESNET ranking aggregator schema
+$defs:
+  aggregatorRanking:
+    type: object
+    additionalProperties: false
+    required:
+    - aggregator_type
+    - sort_key
+    properties:
+      aggregator_type:
+        const: ranking
+        description: Registered aggregator name from the analysis configuration.
+      sort_key:
+        type: string
+        minLength: 1
+        description: Scalar collector key used to rank samples. Must be produced
+          by a configured collector.
+      percent:
+        type: number
+        exclusiveMinimum: 0
+        maximum: 50
+        default: 20
+        description: Percentage of samples in the best and worst groups.
+      group_keys:
+        type: array
+        items:
+          type: string
+        default: []
+        description: Vector keys (from samples or collector output) for which the
+          best and worst group mean and standard deviation are computed.
+    description: Rank the selected samples by a collected scalar value and select
+      the best and worst percent groups.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

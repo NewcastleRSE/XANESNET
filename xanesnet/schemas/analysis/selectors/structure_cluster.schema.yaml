@@ -1,0 +1,50 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: structure_cluster.schema.yaml
+title: XANESNET structure-cluster selector schema
+$defs:
+  selectorStructureCluster:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    - descriptor
+    properties:
+      selector_type:
+        const: structure_cluster
+        description: Registered selector name from the analysis configuration.
+      descriptor:
+        $ref: ../../descriptors/descriptors.schema.yaml#/$defs/descriptor
+        description: Descriptor configuration used to embed each structure.
+      cluster_distance:
+        type:
+        - number
+        - 'null'
+        minimum: 0
+        default: null
+        description: Linkage-distance cut for cluster formation. When null,
+          ``distance_fraction`` of the maximum linkage height is used.
+      distance_fraction:
+        type: number
+        exclusiveMinimum: 0
+        exclusiveMaximum: 1
+        default: 0.25
+        description: Fraction of the maximum linkage height used as the cut.
+          Lower values produce more clusters.
+      min_cluster_size:
+        type: integer
+        minimum: 1
+        default: 3
+        description: Clusters with fewer members are folded into an ``others``
+          bucket.
+      cluster_id:
+        type:
+        - integer
+        - 'null'
+        default: null
+        description: Cluster to select. When null, expands into one selector
+          per cluster plus the ``others`` bucket. When set, only that cluster
+          is selected (skipped if it does not exist).
+    description: Partition the selected structures into clusters and select one
+      cluster. Expands into one selector per cluster plus an ``others`` bucket.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

@@ -60,7 +60,7 @@ class ZScoreEncoding(AffineEncoding):
 
     Args:
         encoding_type: Identifier string for this encoding type.
-        mean: Means used to centre the spectra. A flat list when
+        mean: Means used to center the spectra. A flat list when
             ``per_element`` is false, or one row per element (aligned with
             ``elements``) when true.
         std: Standard deviations used to scale the spectra, shaped like

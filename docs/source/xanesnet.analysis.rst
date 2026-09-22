@@ -24,5 +24,6 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   xanesnet.analysis.descriptor_cache
    xanesnet.analysis.result
    xanesnet.analysis.utils

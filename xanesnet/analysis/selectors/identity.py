@@ -40,11 +40,7 @@ class IdentitySelector(Selector):
         data_source: Prediction reader to select samples from.
     """
 
-    def __init__(
-        self,
-        selector_type: str,
-        data_source: PredictionReader,
-    ) -> None:
+    def __init__(self, selector_type: str, data_source: PredictionReader) -> None:
         """Initialize an identity selector."""
         super().__init__(selector_type, data_source)
 
@@ -55,3 +51,11 @@ class IdentitySelector(Selector):
             Iterator over prediction samples.
         """
         yield from self.data_source
+
+    def __len__(self) -> int:
+        """Return the number of selected samples.
+
+        Returns:
+            Number of selected prediction samples.
+        """
+        return len(self.data_source)

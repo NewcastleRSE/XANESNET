@@ -122,7 +122,7 @@ def bessel_basis(n: int, k: int) -> list[list[sym.Expr]]:
 
 
 def sph_harm_prefactor(l_degree: int, m_order: int) -> float:
-    """Compute the normalisation pre-factor for a real spherical harmonic.
+    """Compute the normalization pre-factor for a real spherical harmonic.
 
     Computes ``sqrt((2l+1) / (4 pi) * (l-|m|)! / (l+|m|)!)``.
 
@@ -131,7 +131,7 @@ def sph_harm_prefactor(l_degree: int, m_order: int) -> float:
         m_order: Order of the spherical harmonic (``-l <= m <= l``).
 
     Returns:
-        Normalisation pre-factor as a Python float.
+        Normalization pre-factor as a Python float.
     """
     # sqrt((2*l+1)/4*pi * (l-m)!/(l+m)! )
     return (

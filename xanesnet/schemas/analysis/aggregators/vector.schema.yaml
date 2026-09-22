@@ -1,0 +1,28 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: vector.schema.yaml
+title: XANESNET vector aggregator schema
+$defs:
+  aggregatorVector:
+    type: object
+    additionalProperties: false
+    required:
+    - aggregator_type
+    properties:
+      aggregator_type:
+        const: vector
+        description: Registered aggregator name from the analysis configuration.
+      percentiles:
+        type: array
+        items:
+          type: number
+          minimum: 0
+          maximum: 100
+        default:
+        - 25
+        - 50
+        - 75
+        description: Percentiles to compute. Values use NumPy percentile units, where ``0`` is the minimum and ``100`` is
+          the maximum. Defaults to ``[25, 50, 75]``.
+    description: Compute per-channel summary statistics for all vector collector values.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

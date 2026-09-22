@@ -18,11 +18,12 @@
 # Citations:
 #   ...
 
-"""Base reporter interface and shared reporter helpers."""
+"""Base reporter interface."""
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, cast
+
+from xanesnet.serialization.config import Config
 
 from ..result import AnalysisResults
 
@@ -57,17 +58,20 @@ class Reporter(ABC):
         """
         ...
 
+    @property
+    def signature(self) -> Config:
+        """Return the reporter signature.
 
-def selector_label(selectors_config: list[dict[str, Any]], sel_idx: int) -> str:
-    """Return the configured selector type label for a selector index.
+        Returns:
+            Configuration values needed to recreate this reporter.
+        """
+        return Config({"reporter_type": self.reporter_type})
 
-    Args:
-        selectors_config: Selector configuration dictionaries in pipeline order.
-        sel_idx: Zero-based selector index.
+    def __str__(self) -> str:
+        """Return the short display label of this reporter."""
+        return self.reporter_type
 
-    Returns:
-        Configured ``selector_type`` when present, otherwise ``"unknown"``.
-    """
-    if sel_idx < len(selectors_config):
-        return cast(str, selectors_config[sel_idx].get("selector_type", "unknown"))
-    return "unknown"
+    def __repr__(self) -> str:
+        """Return a detailed representation of this reporter."""
+        args = ", ".join(f"{key}={value!r}" for key, value in self.signature.as_dict().items())
+        return f"{type(self).__name__}({args})"

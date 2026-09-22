@@ -99,17 +99,17 @@ class Registry(Generic[_T, _K]):
             raise KeyError(f"{self._item_name} {self._format(normalized_key)} not found in registry")
         return self._registry[normalized_key]
 
-    def create(self, key: _K, **kwargs: Any) -> Any:
-        """Instantiate or call the registered object for ``key``.
+    def create(self, registry_key: _K, **kwargs: Any) -> Any:
+        """Instantiate or call the registered object for ``registry_key``.
 
         Args:
-            key: Registry key to resolve.
+            registry_key: Registry key to resolve.
             **kwargs: Keyword arguments forwarded to the registered callable.
 
         Returns:
-            The result of ``get(key)(**kwargs)``.
+            The result of ``get(registry_key)(**kwargs)``.
         """
-        factory = cast(Callable[..., Any], self.get(key))
+        factory = cast(Callable[..., Any], self.get(registry_key))
         return factory(**kwargs)
 
     def list(self) -> list[_K]:

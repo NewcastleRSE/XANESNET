@@ -116,7 +116,7 @@ class GemNetOCBatchProcessor(ForwardBatchProcessor):
         return batch.intensities
 
     def element_preparation(self, batch: GemNetBatch) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from a GemNet-OC batch.
+        """Prepare target-site atomic numbers from a GemNet-OC batch.
 
         Selects atomic numbers at target-site positions via ``target_site_mask``.
 
@@ -128,8 +128,8 @@ class GemNetOCBatchProcessor(ForwardBatchProcessor):
         """
         return batch.x[batch.target_site_mask]
 
-    def sample_id_extraction(self, batch: GemNetBatch) -> np.ndarray:
-        """Extract file names from a GemNet-OC batch.
+    def sample_id_preparation(self, batch: GemNetBatch) -> np.ndarray:
+        """Prepare file names from a GemNet-OC batch.
 
         Args:
             batch: Collated GemNet-OC batch.

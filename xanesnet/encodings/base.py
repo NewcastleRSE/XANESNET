@@ -43,6 +43,10 @@ class SpectraEncoding(ABC):
     internal tensors must be moved to the device of the input tensor inside
     :meth:`encode` and :meth:`decode`.
 
+    Call :meth:`prepare` once the raw spectral width is known, before using
+    :meth:`encode` or :meth:`decode`. :meth:`output_size` provides the
+    deterministic encoded width used for model construction.
+
     Both :meth:`encode` and :meth:`decode` accept an optional ``elements``
     tensor carrying the per-sample target-site atomic numbers ``(B,)``. Encodings
     that do not depend on the target-site element ignore it; element-aware
@@ -58,6 +62,29 @@ class SpectraEncoding(ABC):
     ) -> None:
         """Initialize ``SpectraEncoding``."""
         self.encoding_type = encoding_type
+
+    def prepare(self, input_size: int) -> None:
+        """Prepare the encoding for spectra with a given input width.
+
+        Encodings whose shape depends on the input width may override this
+        method to bind their internal state.
+
+        Args:
+            input_size: Number of points in the raw spectrum.
+        """
+        pass
+
+    @abstractmethod
+    def output_size(self, input_size: int) -> int:
+        """Return the encoded width for a given input width.
+
+        Args:
+            input_size: Number of points in the input representation.
+
+        Returns:
+            Number of points in the encoded representation.
+        """
+        ...
 
     @abstractmethod
     def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:

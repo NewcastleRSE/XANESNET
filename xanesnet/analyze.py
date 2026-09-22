@@ -36,6 +36,7 @@ from xanesnet.serialization.config import (
     copy_raw_config,
     load_raw_config,
 )
+from xanesnet.serialization.metadata import write_run_metadata
 from xanesnet.serialization.schema_validation import validate_config_schema
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
@@ -51,6 +52,20 @@ setup_logging(logging.INFO)
 ###############################################################################
 ############################## ARGUMENT PARSING ###############################
 ###############################################################################
+
+
+def _flatten_args(values: list[list[str]] | None) -> list[str]:
+    """Flatten the nested lists produced by ``nargs='+'`` with ``action='append'``.
+
+    Args:
+        values: Nested list of parsed values, or ``None``.
+
+    Returns:
+        Flat list of values in argument order.
+    """
+    if not values:
+        return []
+    return [value for group in values for value in group]
 
 
 def parse_args(args: list[str]) -> Namespace:
@@ -71,12 +86,25 @@ def parse_args(args: list[str]) -> Namespace:
         help="Path to input YAML configuration file.",
     )
     parser.add_argument(
-        "-p",
-        "--predictions",
+        "-r",
+        "--inference-runs",
         type=str,
         required=True,
-        help="Path to directory containing predictions. Can be specified multiple times.",
         action="append",
+        nargs="+",
+        help=("Path(s) to inference run directories. Can be repeated (-r A -r B) " "and/or space separated (-r A B)."),
+    )
+    parser.add_argument(
+        "-d",
+        "--prediction-names",
+        type=str,
+        action="append",
+        nargs="+",
+        help=(
+            "Optional display names for inference run directories, in the same "
+            "order as -r. Can be repeated (-d X -d Y) and/or space separated "
+            "(-d X Y)."
+        ),
     )
     parser.add_argument(
         "-o",
@@ -98,6 +126,10 @@ def parse_args(args: list[str]) -> Namespace:
     )
 
     args_namespace = parser.parse_args(args)
+
+    args_namespace.inference_runs = _flatten_args(args_namespace.inference_runs)
+    args_namespace.prediction_names = _flatten_args(args_namespace.prediction_names)
+
     return args_namespace
 
 
@@ -140,6 +172,11 @@ def main(args: list[str]) -> None:
 
         # Setup file logging
         setup_file_logging(save_dir)
+
+        # Write software and hardware metadata files
+        software_info_path, hardware_info_path = write_run_metadata(save_dir, mode="analyze", command_line_args=args)
+        logging.info(f"Software metadata saved to: {software_info_path}")
+        logging.info(f"Hardware metadata saved to: {hardware_info_path}")
 
         # Copy raw config file
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="analyze_config.yaml")

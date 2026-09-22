@@ -32,7 +32,7 @@ class SpectralBasis(nn.Module):
     Builds a ``(N, K)`` basis matrix ``Phi`` on a uniform energy grid, where
     ``N`` is the number of energy points and
     ``K = len(widths_eV) * ceil(N / stride)``. Each column of ``Phi`` is a
-    Gaussian centred at a strided grid point with one of the specified widths.
+    Gaussian centered at a strided grid point with one of the specified widths.
     Both ``Phi`` and the ``centers`` vector are registered as non-trainable
     buffers.
 
@@ -45,8 +45,8 @@ class SpectralBasis(nn.Module):
         normalize_atoms: If ``True`` (default), each Gaussian column is
             normalized so that its discrete integral (sum * dE) is
             approximately 1.
-        stride: Spacing between Gaussian centres in grid steps. A stride
-            of 1 places a centre at every energy point.
+        stride: Spacing between Gaussian centers in grid steps. A stride
+            of 1 places a center at every energy point.
     """
 
     def __init__(

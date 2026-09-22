@@ -115,12 +115,12 @@ class PDOS(Descriptor):
 
         Returns:
             Broadened pDOS array of shape ``(num_points,)`` or ``(2 * num_points,)``
-            when ``use_quad=True``. Values are ``NaN`` if the calculation fails.
+            when ``use_quad=True``.
 
         Raises:
             NotImplementedError: If ``site_index`` is ``None``.
             ImportError: If ``code='xtb'`` is requested but ``tblite`` is unavailable.
-            ValueError: If an unknown ``code`` is specified.
+            ValueError: If an unknown ``code`` is specified or the descriptor contains non-finite values.
         """
         if site_index is None:
             raise NotImplementedError(
@@ -128,11 +128,15 @@ class PDOS(Descriptor):
                 "The electronic structure calculation is per-molecule; pass a specific site_index."
             )
         if self.code == "xtb":
-            return self._transform_xtb(system, site_index)
+            descriptor = self._transform_xtb(system, site_index)
         elif self.code == "pyscf":
-            return self._transform_pyscf(system, site_index)
+            descriptor = self._transform_pyscf(system, site_index)
         else:
             raise ValueError(f"Unknown code: {self.code}")
+
+        if not np.all(np.isfinite(descriptor)):
+            raise ValueError("PDOS calculation produced a non-finite descriptor.")
+        return descriptor
 
     def _validate_charge_spin(self, total_electrons: int, charge: int, spin: int) -> None:
         """Raise if the charge/spin configuration is inconsistent or unsupported.
@@ -166,7 +170,7 @@ class PDOS(Descriptor):
 
         Returns:
             Broadened pDOS array of shape ``(num_points,)`` or ``(2 * num_points,)``
-            when ``use_quad=True``. Returns an array of ``NaN`` on calculation failure.
+            when ``use_quad=True``.
 
         Raises:
             ImportError: If the optional ``tblite`` dependency is unavailable.
@@ -193,53 +197,50 @@ class PDOS(Descriptor):
         calc.set("verbosity", self.verbosity)
         calc.set("max-iter", self.max_cycles)
 
-        try:
-            res = calc.singlepoint()
-            _ = res.get("energy")
-            coeff = np.asarray(res.get("orbital-coefficients"), dtype=float)
-            coeff = np.square(coeff)
-            # Pick p-channel rows depending on site atom Z
-            z0 = int(numbers[site_index])
-            # For transition metals and heavier series the AO ordering can put core (0:?) then valence;
-            # the original code used slices [6:8] for p and [0:4] for d. Preserve that intent.
+        res = calc.singlepoint()
+        _ = res.get("energy")
+        coeff = np.asarray(res.get("orbital-coefficients"), dtype=float)
+        coeff = np.square(coeff)
+
+        # Pick p-channel rows depending on site atom Z
+        z0 = int(numbers[site_index])
+        # For transition metals and heavier series the AO ordering can put core (0:?) then valence;
+        # the original code used slices [6:8] for p and [0:4] for d. Preserve that intent.
+        if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
+            p_rows = slice(6, 8)
+            d_rows = slice(0, 4)
+        else:
+            p_rows = slice(1, 3)  # lighter elements: p ~ rows 1-2 in that basis mapping
+            d_rows = slice(0, 0)  # unused unless quad requested for TMs
+
+        # p-DOS fraction for each MO
+        p_dos = np.array([np.sum(coeff[p_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
+
+        # MO energies and occupations
+        orbe = np.asarray(res.get("orbital-energies")) * 27.211324570273  # eV
+        orbo = np.asarray(res.get("orbital-occupations"))
+
+        if self.use_occupied:
+            weights = p_dos * np.abs(orbo)
+        else:
+            weights = p_dos * np.abs(orbo - 2.0)  # unoccupied part
+
+        x = np.linspace(self.e_min, self.e_max, num=self.num_points, endpoint=True)
+        pdos_gauss = np.asarray(spectrum(orbe, weights, self.sigma, x), dtype=float)
+
+        if self.use_quad:
             if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
-                p_rows = slice(6, 8)
-                d_rows = slice(0, 4)
+                d_dos = np.array([np.sum(coeff[d_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
             else:
-                p_rows = slice(1, 3)  # lighter elements: p ~ rows 1-2 in that basis mapping
-                d_rows = slice(0, 0)  # unused unless quad requested for TMs
-
-            # p-DOS fraction for each MO
-            p_dos = np.array([np.sum(coeff[p_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
-
-            # MO energies and occupations
-            orbe = np.asarray(res.get("orbital-energies")) * 27.211324570273  # eV
-            orbo = np.asarray(res.get("orbital-occupations"))
+                raise ValueError("d-orbitals are not considered for these atoms.")
 
             if self.use_occupied:
-                weights = p_dos * np.abs(orbo)
+                d_weights = d_dos * np.abs(orbo)
             else:
-                weights = p_dos * np.abs(orbo - 2.0)  # unoccupied part
+                d_weights = d_dos * np.abs(orbo - 2.0)
 
-            x = np.linspace(self.e_min, self.e_max, num=self.num_points, endpoint=True)
-            pdos_gauss = np.asarray(spectrum(orbe, weights, self.sigma, x), dtype=float)
-
-            if self.use_quad:
-                if (21 <= z0 <= 29) or (39 <= z0 <= 47) or (57 <= z0 <= 79) or (89 <= z0 <= 112):
-                    d_dos = np.array([np.sum(coeff[d_rows, i]) / np.sum(coeff[:, i]) for i in range(coeff.shape[1])])
-                else:
-                    raise ValueError("d-orbitals are not considered for these atoms.")
-
-                if self.use_occupied:
-                    d_weights = d_dos * np.abs(orbo)
-                else:
-                    d_weights = d_dos * np.abs(orbo - 2.0)
-
-                ddos_gauss = np.asarray(spectrum(orbe, d_weights, self.sigma, x), dtype=float)
-                pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
-
-        except Exception:
-            pdos_gauss = np.full(self.num_points * (2 if self.use_quad else 1), np.nan)
+            ddos_gauss = np.asarray(spectrum(orbe, d_weights, self.sigma, x), dtype=float)
+            pdos_gauss = np.concatenate([pdos_gauss, ddos_gauss], axis=0)
 
         return pdos_gauss
 

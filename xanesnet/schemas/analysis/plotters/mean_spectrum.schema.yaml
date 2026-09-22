@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: mean_spectrum.schema.yaml
+title: 'XANESNET plotter schema: mean_spectrum'
+$defs:
+  plotterMeanSpectrum:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        const: mean_spectrum
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
+    description: Plot mean predicted and target spectra plus best/worst tail means
+      and per-channel spread. Requires a ``spectrum`` aggregator.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

@@ -21,6 +21,7 @@
 """Mean squared error loss for XANESNET."""
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from .base import Loss
@@ -44,14 +45,16 @@ class MSELoss(Loss):
 
         self.loss = nn.MSELoss()
 
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         """Compute the mean squared error loss.
 
         Args:
             preds: Model output predictions ``(B, N)``.
             targets: Ground-truth target values ``(B, N)``.
+            reduction: ``"mean"`` returns the scalar loss; ``"none"`` returns
+                the energy-resolved map with shape ``(B, N)``.
 
         Returns:
-            Scalar loss tensor.
+            Loss tensor.
         """
-        return self.loss(preds, targets)
+        return F.mse_loss(preds, targets, reduction=reduction)

@@ -26,6 +26,10 @@ import torch.nn.functional as F
 from .base import Loss
 from .registry import LossRegistry
 
+# TODO MSSSIM has the auto data_range feature. Note that currently when resuming
+# TODO training from a checkpoint the running min/max is not restored, so the data_range will \
+# TODO be re-inferred from the resumed training batches.
+
 
 @LossRegistry.register("msssim")
 class MultiScale_SSIM(Loss):
@@ -55,10 +59,6 @@ class MultiScale_SSIM(Loss):
             instead of the default multiplicative combination.
         weights: Per-scale weights when ``use_weighted_sum=True``.
             If ``None``, uniform weights are used.
-        final_combine: If ``True``, collapse scales into a single map.
-            If ``False``, return a per-scale stack.
-        final_mean: If ``True``, reduce the loss map to one value per batch
-            element.
     """
 
     def __init__(
@@ -69,16 +69,12 @@ class MultiScale_SSIM(Loss):
         K: tuple[float, float],
         use_weighted_sum: bool,
         weights: list[float] | None,
-        final_combine: bool,
-        final_mean: bool,
     ) -> None:
         """Initialize ``MultiScale_SSIM``."""
         super().__init__(loss_type)
         self._K = K
         self._fractions = fractions
         self.use_weighted_sum = use_weighted_sum
-        self.final_combine = final_combine
-        self.final_mean = final_mean
 
         if data_range is not None:
             self.C1 = (K[0] * data_range) ** 2
@@ -124,7 +120,7 @@ class MultiScale_SSIM(Loss):
             weights: Per-scale weights.  Uniform when ``None``.
 
         Returns:
-            Normalised weight tensor ``(num_scales,)``.
+            Normalized weight tensor ``(num_scales,)``.
         """
         num_scales = len(self._fractions)
         if weights is not None:
@@ -158,7 +154,8 @@ class MultiScale_SSIM(Loss):
 
         return kernel_sizes, gaussian_sigmas
 
-    def _fspecial_gauss_1d(self, size: int, sigma: float) -> torch.Tensor:
+    @staticmethod
+    def _fspecial_gauss_1d(size: int, sigma: float) -> torch.Tensor:
         """Create a normalized 1-D Gaussian kernel.
 
         Args:
@@ -174,57 +171,25 @@ class MultiScale_SSIM(Loss):
         g /= g.sum()
         return g
 
-    @staticmethod
-    def _prepare_mask(mask: torch.Tensor, target_ndim: int) -> torch.Tensor:
-        """Make a spectral mask rank-compatible with an unreduced loss map.
-
-        Args:
-            mask: Spectral mask with rank 2, 3, or 4. Rank-2 masks such as
-                ``(B, N)`` are expanded by inserting singleton axes at
-                dimension 1 until the rank matches ``target_ndim``. A rank-4
-                mask is also accepted for a rank-3 target map when its third
-                axis is singleton, e.g. ``(B, 1, 1, N)``.
-            target_ndim: Expected rank of the unreduced loss map. In this
-                module this is typically ``3`` for combined maps of shape
-                ``(B, 1, N)`` or ``4`` for per-scale maps of shape
-                ``(B, num_scales, 1, N)``.
-
-        Returns:
-            A mask tensor with rank ``target_ndim`` that is ready to be
-            multiplied with the unreduced loss map.
-
-        Raises:
-            ValueError: If ``mask`` does not have rank 2, 3, or 4, or if it
-                cannot be adapted to rank ``target_ndim`` without leaving an
-                incompatible non-singleton axis.
-        """
-        if mask.ndim not in (2, 3, 4):
-            raise ValueError(f"Expected mask to have rank 2, 3, or 4, got {mask.ndim}")
-
-        while mask.ndim < target_ndim:
-            mask = mask.unsqueeze(1)
-
-        if mask.ndim == target_ndim + 1 and target_ndim == 3 and mask.shape[2] == 1:
-            mask = mask.squeeze(2)
-
-        if mask.ndim != target_ndim:
-            raise ValueError(f"Expected mask to broadcast to a rank-{target_ndim} loss map, got rank {mask.ndim}")
-
-        return mask
-
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        preds: torch.Tensor,
+        targets: torch.Tensor,
+        reduction: str = "mean",
+    ) -> torch.Tensor:
         """Compute the multi-scale SSIM loss.
 
         Args:
             preds: Predicted signals ``(B, N)``.
             targets: Ground-truth signals ``(B, N)``.
-            mask: Optional mask tensor with shape ``(B, N)`` or broadcastable to
-                the unreduced loss map. Defaults to ``None``.
+            reduction: ``"mean"`` returns the scalar loss; ``"none"`` returns
+                the combined energy-resolved loss map with shape ``(B, N)``.
 
         Returns:
-            Scalar loss tensor when ``final_mean=True``. Otherwise returns the
-            unreduced loss map with shape ``(B, N)`` when ``final_combine=True``
-            or ``(B, num_scales, N)`` when ``final_combine=False``.
+            Loss tensor.
+
+        Raises:
+            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``.
         """
         if self._g_masks is None:
             N = preds.shape[-1]
@@ -273,33 +238,22 @@ class MultiScale_SSIM(Loss):
             loss_scale = l * cs
             loss_scales.append(loss_scale)
 
-        if self.final_combine:
-            if self.use_weighted_sum:
-                assert self._weights is not None
-                # Stack tensors along a new dimension: shape [num_scales, B, 1, L]
-                loss_stack = torch.stack(loss_scales, dim=0)
-                weights = self._weights.to(device=preds.device, dtype=preds.dtype).view(-1, 1, 1, 1)
-                loss_ms_ssim = torch.sum(weights * loss_stack, dim=0)
-            else:
-                # Multiplicative combination (default)
-                loss_ms_ssim = torch.ones_like(loss_scales[0])
-                for ls in loss_scales:
-                    loss_ms_ssim *= ls
+        if self.use_weighted_sum:
+            assert self._weights is not None
+            # Stack tensors along a new dimension: shape [num_scales, B, 1, L]
+            loss_stack = torch.stack(loss_scales, dim=0)
+            weights = self._weights.to(device=preds.device, dtype=preds.dtype).view(-1, 1, 1, 1)
+            loss_ms_ssim = torch.sum(weights * loss_stack, dim=0)
         else:
-            loss_ms_ssim = torch.stack(loss_scales, dim=1)
+            # Multiplicative combination (default)
+            loss_ms_ssim = torch.ones_like(loss_scales[0])
+            for ls in loss_scales:
+                loss_ms_ssim *= ls
 
-        loss_ms_ssim = 1 - loss_ms_ssim
+        loss_map = 1 - loss_ms_ssim  # (B, 1, N)
 
-        if mask is not None:
-            mask = self._prepare_mask(mask, loss_ms_ssim.ndim).to(device=loss_ms_ssim.device, dtype=loss_ms_ssim.dtype)
-            loss_ms_ssim = loss_ms_ssim * mask
-
-        if self.final_mean:
-            if mask is not None:
-                denom = mask.sum().clamp_min(torch.finfo(loss_ms_ssim.dtype).eps)
-                return loss_ms_ssim.sum() / denom
-            return torch.mean(loss_ms_ssim)
-
-        if self.final_combine:
-            return loss_ms_ssim.squeeze(1)
-        return loss_ms_ssim.squeeze(2)
+        if reduction == "none":
+            return loss_map.squeeze(1)
+        if reduction == "mean":
+            return torch.mean(loss_map)
+        raise ValueError(f"Unsupported reduction: {reduction}")

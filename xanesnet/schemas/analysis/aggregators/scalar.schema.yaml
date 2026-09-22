@@ -15,6 +15,8 @@ $defs:
         type: array
         items:
           type: number
+          minimum: 0
+          maximum: 100
         default:
         - 25
         - 50

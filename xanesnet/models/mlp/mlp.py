@@ -32,7 +32,7 @@ from ..registry import ModelRegistry
 
 @ModelRegistry.register("mlp")
 class MLP(Model):
-    """A customisable multi-layer perceptron (MLP) for spectroscopy prediction.
+    """A customizable multi-layer perceptron (MLP) for spectroscopy prediction.
 
     Consists of a sequence of hidden layers followed by a linear output layer. Each hidden
     layer contains a linear transformation, dropout, and an activation function. The final

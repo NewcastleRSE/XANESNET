@@ -21,7 +21,7 @@
 """Shared graph-construction utilities used by :class:`GraphBuilder` subclasses.
 
 The functions here operate on already-built edge lists (symmetrisation,
-truncation) and on already-built graphs (target-site-centred paths, triplet
+truncation) and on already-built graphs (target-site-centered paths, triplet
 angles, and direction-aware higher-order indices). They are model-agnostic
 and reused across builders and downstream dataset code.
 """

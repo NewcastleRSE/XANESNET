@@ -11,10 +11,16 @@ $defs:
       plotter_type:
         const: scalar
         description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
       bins:
         type: integer
         minimum: 1
         default: 50
-        description: Number of histogram bins. Defaults to ``DEFAULT_BINS``.
+        description: Number of histogram bins.
     description: Create distribution plots for each scalar value key.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

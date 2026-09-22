@@ -15,5 +15,16 @@ $defs:
         $ref: ../analysis_types.schema.yaml#/$defs/reportFormat
         default: yaml
         description: Output format. Supported values are ``"yaml"`` and ``"json"``.
+      aggregator_types:
+        type:
+        - array
+        - 'null'
+        items:
+          type: string
+        default: null
+        description: Registered aggregator names to report. When null, every
+          configured aggregator is reported; a list restricts the report to
+          those types, which is useful when other aggregators only exist to
+          feed a plotter.
     description: Write aggregated statistics as structured files.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

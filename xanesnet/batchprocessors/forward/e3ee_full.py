@@ -94,7 +94,7 @@ class E3EEFullBatchProcessor(ForwardBatchProcessor):
         return batch.intensities
 
     def element_preparation(self, batch: E3EEFullBatch) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from an E3EEFull batch.
+        """Prepare target-site atomic numbers from an E3EEFull batch.
 
         Selects atomic numbers at target-site positions via ``target_site_mask``.
 
@@ -106,8 +106,8 @@ class E3EEFullBatchProcessor(ForwardBatchProcessor):
         """
         return batch.x[batch.target_site_mask]
 
-    def sample_id_extraction(self, batch: E3EEFullBatch) -> np.ndarray:
-        """Extract file names from an E3EEFull batch.
+    def sample_id_preparation(self, batch: E3EEFullBatch) -> np.ndarray:
+        """Prepare file names from an E3EEFull batch.
 
         Args:
             batch: Collated E3EEFull batch.

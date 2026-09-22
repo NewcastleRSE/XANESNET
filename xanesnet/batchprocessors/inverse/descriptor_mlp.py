@@ -68,7 +68,7 @@ class InverseDescriptorMLPBatchProcessor(InverseBatchProcessor):
         return batch.y  # type: ignore[return-value]
 
     def element_preparation(self, batch: DescriptorData) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from a descriptor batch.
+        """Prepare target-site atomic numbers from a descriptor batch.
 
         Args:
             batch: Collated descriptor batch.
@@ -79,8 +79,8 @@ class InverseDescriptorMLPBatchProcessor(InverseBatchProcessor):
         """
         return batch.element
 
-    def sample_id_extraction(self, batch: DescriptorData) -> np.ndarray:
-        """Extract file names from a descriptor batch.
+    def sample_id_preparation(self, batch: DescriptorData) -> np.ndarray:
+        """Prepare file names from a descriptor batch.
 
         Args:
             batch: Collated descriptor batch.

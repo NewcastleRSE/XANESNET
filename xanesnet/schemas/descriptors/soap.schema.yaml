@@ -46,7 +46,7 @@ $defs:
         type: string
         enum: [off, inner, outer]
         default: outer
-        description: Averaging mode across atomic centres.
+        description: Averaging mode across atomic centers.
       compression_mode:
         type: string
         enum: [off, mu2, crossover, mu1nu1]

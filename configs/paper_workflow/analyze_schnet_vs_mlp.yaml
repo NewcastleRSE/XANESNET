@@ -1,0 +1,107 @@
+seed: 42
+preload: true
+
+selectors:
+  - selector_type: all
+
+collectors:
+  - collector_type: loss
+    loss:
+      loss_type: l1
+
+  - collector_type: loss
+    loss:
+      loss_type: mse
+
+  - collector_type: loss
+    loss:
+      loss_type: msssim
+
+  - collector_type: loss
+    loss:
+      loss_type: emd
+
+  - collector_type: loss
+    loss:
+      loss_type: mse
+    energy_resolved: true
+
+  - collector_type: loss
+    loss:
+      loss_type: msssim
+    energy_resolved: true
+
+aggregators:
+  - aggregator_type: scalar
+    percentiles: [25, 50, 75, 90, 95]
+
+  - aggregator_type: vector
+
+  - aggregator_type: spectrum
+
+  - aggregator_type: ranking
+    sort_key: mse
+    percent: 20
+    group_keys: [prediction]
+
+  - aggregator_type: bias_variance
+
+reporters:
+  - reporter_type: scalar
+
+  - reporter_type: statistics
+    format: yaml
+    aggregator_types: [scalar]
+
+plotters:
+  - plotter_type: scalar
+    plot_size: small
+    bins: 50
+    legend_position: outside
+
+  - plotter_type: spectra_all
+    plot_size: small
+    max_pages: 8
+    legend_position: inside
+
+  - plotter_type: spectra_all
+    plot_size: small
+    max_pages: 8
+    legend_position: outside
+
+  - plotter_type: spectra_comparison
+    plot_size: small
+    n_samples: 5
+    sort_key: mse
+    legend_position: inside
+
+  - plotter_type: energy_resolved_loss
+    plot_size: small
+    legend_position: outside
+
+  - plotter_type: mean_spectrum
+    plot_size: small
+    legend_position: outside
+
+  - plotter_type: parity
+    plot_size: small
+
+  - plotter_type: bias_variance
+    plot_size: small
+    legend_position: outside
+
+  - plotter_type: error_correlation
+    plot_size: small
+    sort_key: mse
+
+  - plotter_type: stat_table
+    plot_size: small
+    stat_keys: [mean, std, median, min, max]
+    precision: 4
+    sort_key: mse
+
+  - plotter_type: stat_table_latex
+    plot_size: small
+    stat_keys: [mean, std, median, min, max]
+    precision: 4
+    sort_key: mse

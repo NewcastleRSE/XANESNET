@@ -1,0 +1,21 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: descriptor.schema.yaml
+title: XANESNET descriptor collector schema
+$defs:
+  collectorDescriptor:
+    type: object
+    additionalProperties: false
+    required:
+    - collector_type
+    - descriptor
+    properties:
+      collector_type:
+        const: descriptor
+        description: Registered collector name from the analysis configuration.
+      descriptor:
+        $ref: ../../descriptors/descriptors.schema.yaml#/$defs/descriptor
+        description: Descriptor configuration used to embed each structure.
+    description: Compute the configured structure descriptor for each sample
+      under the ``descriptor`` key.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

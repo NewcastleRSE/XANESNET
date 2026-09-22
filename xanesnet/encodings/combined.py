@@ -39,7 +39,8 @@ class CombinedEncoding(SpectraEncoding):
     A combined encoding is always used as the single entry point for training
     and inference, even when only one component encoding is configured (the
     list then has length one). Build instances from configuration with
-    :meth:`from_configs`.
+    :meth:`from_configs`, then call :meth:`prepare` with the raw spectral
+    width before encoding or decoding.
 
     Args:
         encodings: Ordered, non-empty list of :class:`SpectraEncoding` modules
@@ -87,6 +88,29 @@ class CombinedEncoding(SpectraEncoding):
             encodings.append(SpectraEncodingRegistry.create(encoding_type, **item_config.as_kwargs()))
 
         return cls(encodings)
+
+    def prepare(self, input_size: int) -> None:
+        """Prepare each component for its input width in sequence.
+
+        Args:
+            input_size: Number of points in the raw input representation.
+        """
+        for encoding in self.encodings:
+            encoding.prepare(input_size)
+            input_size = encoding.output_size(input_size)
+
+    def output_size(self, input_size: int) -> int:
+        """Return the output width after sequentially applying all components.
+
+        Args:
+            input_size: Number of points in the input representation.
+
+        Returns:
+            Number of points in the final encoded representation.
+        """
+        for encoding in self.encodings:
+            input_size = encoding.output_size(input_size)
+        return input_size
 
     def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         """Encode target spectra through every component in order.

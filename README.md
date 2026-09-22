@@ -143,19 +143,19 @@ xanesnet infer \
     -y
 ```
 
-Inference configs are strictly merged with the checkpoint signature saved during training. If a user-provided value conflicts with the signature, inference fails early. The merged and validated configs are saved in the new inference run directory, and predictions are written under `predictions/`.
+Inference configs are strictly merged with the checkpoint signature saved during training. If a user-provided value conflicts with the signature, inference fails early. The merged and validated configs are saved in the inference run directory, and predictions are written under `predictions/`.
 
 ### Analyze
 
 ```bash
 xanesnet analyze \
     -i configs/analyze_example.yaml \
-    -p runs/<infer_run>/predictions \
+    -r runs/<infer_run> \
     -n mlp_analysis \
     -y
 ```
 
-The `-p` option can be supplied multiple times when comparing or aggregating predictions from several inference runs.
+The `-r` option can be supplied multiple times when comparing or aggregating inference runs. Each run's directory name is used as its display name in tables; override with `-d`. Analysis reads each run's `validated_infer_config.yaml` and, when its datasource is available, supplies selectors with the matched raw `structure`. If this context cannot be loaded, analysis continues with prediction data only. Set `preload: true` in the analysis config to load predictions and matched structures into memory during setup (default: `false`).
 
 ### Python Entry Point
 

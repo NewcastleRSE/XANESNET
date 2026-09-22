@@ -30,6 +30,7 @@ from torchinfo import summary
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.datasets import Dataset
+from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model
 
 
@@ -38,6 +39,7 @@ def build_model_profile(
     dataset: Dataset,
     device: str | torch.device,
     peak_gpu_memory_allocated_mb: float | None,
+    encoding: SpectraEncoding | None = None,
 ) -> dict[str, Any]:
     """Build JSON-serializable model profile metadata.
 
@@ -47,11 +49,13 @@ def build_model_profile(
         device: Configured training device.
         peak_gpu_memory_allocated_mb: Peak GPU memory allocated during the
             dry-run training epoch, or ``None`` when CUDA memory was not tracked.
+        encoding: Prepared spectra encoding used by the model, or ``None`` when
+            the model consumes raw spectra.
 
     Returns:
         Dictionary ready to save as ``model_profile.json``.
     """
-    summary_result = create_model_summary(model, dataset, verbose=0)
+    summary_result = create_model_summary(model, dataset, verbose=0, encoding=encoding)
     total_param_bytes = int(summary_result.total_param_bytes)
 
     return {
@@ -94,7 +98,12 @@ def _prepare_torchinfo_inputs(
     return tensor_inputs, _forward
 
 
-def create_model_summary(model: Model, dataset: Dataset, verbose: int | None = None) -> Any:
+def create_model_summary(
+    model: Model,
+    dataset: Dataset,
+    verbose: int | None = None,
+    encoding: SpectraEncoding | None = None,
+) -> Any:
     """Create a ``torchinfo`` summary for a model and dataset sample.
 
     Args:
@@ -102,12 +111,19 @@ def create_model_summary(model: Model, dataset: Dataset, verbose: int | None = N
         dataset: Dataset used to prepare one representative input sample.
         verbose: Optional ``torchinfo.summary`` verbosity. When ``None``, the
             torchinfo default is used.
+        encoding: Prepared spectra encoding used by the model, or ``None`` when
+            the model consumes raw spectra.
 
     Returns:
         The ``torchinfo`` summary result.
     """
-    batchprocessor = BatchProcessorRegistry.create((dataset.dataset_type, model.model_type))
+    batchprocessor = BatchProcessorRegistry.create(
+        (dataset.dataset_type, model.model_type),
+        encoding=encoding,
+    )
     inputs = batchprocessor.input_preparation_single(dataset, 0)
+    elements = batchprocessor.element_preparation_single(dataset, 0)
+    inputs = batchprocessor.encode_input(inputs, elements)
 
     tensor_inputs, _forward = _prepare_torchinfo_inputs(model, inputs)
     try:
@@ -175,13 +191,9 @@ def save_model_profile(save_dir: Path, model_profile: dict[str, Any]) -> tuple[P
         readable_file.write("Model Profile\n")
         readable_file.write("=============\n\n")
 
-        architecture = model_profile.get("model_architecture")
         readable_file.write("Model Architecture\n")
         readable_file.write("------------------\n")
-        if isinstance(architecture, str) and architecture:
-            readable_file.write(f"{architecture}\n\n")
-        else:
-            readable_file.write("<not available>\n\n")
+        readable_file.write(f"{model_profile['model_architecture']}\n\n")
 
         readable_file.write("Metadata\n")
         readable_file.write("--------\n")

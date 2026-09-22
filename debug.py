@@ -67,10 +67,10 @@ def run_debug_analyze() -> None:
         "analyze",
         "-i",
         "./configs/<...>.yaml",  # Insert path to analysis config
-        "-p",
-        "./runs/<...>/predictions",  # Insert path to predictions directory
-        "-p",
-        "./runs/<...>/predictions",
+        "-r",
+        "./runs/<...>/",  # Insert path to inference directory
+        "-r",
+        "./runs/<...>/",
         "-n",
         "<...>",  # Insert name for analysis run
         "--yes",  # Skip all prompts with yes (use with caution!)

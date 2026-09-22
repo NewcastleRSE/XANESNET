@@ -18,7 +18,7 @@
 # Citations:
 #   ...
 
-"""E3EE: target-site-centred E3-equivariant model."""
+"""E3EE: target-site-centered E3-equivariant model."""
 
 from .e3ee import E3EE
 from .resolver import resolve_e3ee  # <- triggers resolver registration

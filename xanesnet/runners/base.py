@@ -126,10 +126,10 @@ class Runner(ABC):
         loss: float,
         regularization: float,
         total: float,
+        epoch: int,
         valid_loss: float | None = None,
         valid_regularization: float | None = None,
         valid_total: float | None = None,
-        epoch: int | None = None,
     ) -> None:
         """Log training (and optionally validation) metrics for one epoch.
 
@@ -140,9 +140,9 @@ class Runner(ABC):
             valid_loss: Mean validation loss, or ``None`` if not computed.
             valid_regularization: Mean validation regularization term, or ``None``.
             valid_total: Mean total validation loss, or ``None``.
-            epoch: Current epoch index, or ``None`` to omit the epoch prefix.
+            epoch: Current epoch index.
         """
-        epoch_str = f"Epoch {epoch:03d} | " if epoch is not None else ""
+        epoch_str = f"Epoch {epoch:03d} | "
         train_str = f"Loss: {loss:.6f} | Reg: {regularization:.6f} | Total: {total:.6f}"
 
         if valid_total is not None:

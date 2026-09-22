@@ -20,7 +20,7 @@ $defs:
       use_path_branch:
         type: boolean
         default: false
-        description: Whether to precompute target-site-centred paths.
+        description: Whether to precompute target-site-centered paths.
       max_paths_per_structure:
         type: integer
         minimum: 1

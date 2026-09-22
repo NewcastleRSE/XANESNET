@@ -18,9 +18,9 @@
 # Citations:
 #   ...
 
-"""Reporter implementations, helpers, and registry exports."""
+"""Reporter implementations and registry exports."""
 
-from .base import Reporter, selector_label
+from .base import Reporter
 from .registry import ReporterRegistry
 from .scalar import ScalarReporter
 from .statistics import StatisticsReporter
@@ -30,5 +30,4 @@ __all__ = [
     "ReporterRegistry",
     "ScalarReporter",
     "StatisticsReporter",
-    "selector_label",
 ]

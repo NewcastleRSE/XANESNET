@@ -1,6 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: spectra.schema.yaml
-title: 'XANESNET plotter schema: spectra'
+title: 'XANESNET plotter schema: spectra_all'
 $defs:
   plotterSpectra:
     type: object
@@ -9,27 +9,23 @@ $defs:
     - plotter_type
     properties:
       plotter_type:
-        const: spectra
+        const: spectra_all
         description: Registered plotter name from the analysis configuration.
-      sort_by_value:
-        type: boolean
-        default: false
-        description: Whether to sort PDF pages by a scalar value.
-      sort_key:
-        type:
-        - string
-        - 'null'
-        default: null
-        description: Scalar key to sort by. Values are read from collector output first, then samples.
-      sort_ascending:
-        type: boolean
-        default: true
-        description: Whether sorted pages should use ascending order.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
       max_pages:
         type:
         - integer
         - 'null'
+        minimum: 1
         default: null
-        description: Maximum number of pages per PDF. ``None`` writes all selected samples.
-    description: Plot predicted and target spectra for every selected sample.
+        description: Maximum number of pages per PDF. ``None`` writes all selected
+          samples; otherwise a random subset is drawn using the global seed.
+    description: Plot predicted and target spectra for a random subset of every
+      selected sample. With two or more prediction readers, also plot combined
+      pages overlaying every reader's prediction on the samples they share.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

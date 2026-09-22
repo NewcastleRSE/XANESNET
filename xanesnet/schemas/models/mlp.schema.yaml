@@ -44,7 +44,7 @@ $defs:
       out_size:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
         description: Number of output features.
-    description: A customisable multi-layer perceptron (MLP) for spectroscopy prediction.
+    description: A customizable multi-layer perceptron (MLP) for spectroscopy prediction.
   modelTrainMLP:
     $ref: '#/$defs/modelMLP'
     description: Training view of modelMLP; automatic dimension fields may use the case-insensitive auto token.

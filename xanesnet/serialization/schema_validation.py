@@ -324,14 +324,14 @@ def _materialize_defaults(instance: Any, schema: Any) -> Any:
         schema: Schema node that describes ``instance``.
 
     Returns:
-        ``instance`` with defaults applied, or a deep copy of the schema default
-        when ``instance`` is ``None`` and ``schema`` defines ``default``.
+        ``instance`` with defaults applied. Explicit ``None`` values are
+        preserved.
     """
     if not isinstance(schema, dict):
         return instance
 
     if instance is None:
-        return copy.deepcopy(schema["default"]) if "default" in schema else instance
+        return instance
 
     if isinstance(instance, dict):
         _materialize_object_defaults(instance, schema)
@@ -356,10 +356,10 @@ def _materialize_object_defaults(instance: dict[str, Any], schema: SchemaRaw) ->
         for key, property_schema in properties.items():
             if not isinstance(property_schema, dict):
                 continue
-            if key not in instance or instance[key] is None:
+            if key not in instance:
                 if "default" in property_schema:
                     instance[key] = copy.deepcopy(property_schema["default"])
-                elif key not in instance:
+                else:
                     continue
             instance[key] = _materialize_defaults(instance[key], property_schema)
 

@@ -25,7 +25,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -224,7 +224,7 @@ class Dataset(TorchDataset, ABC):
         Returns:
             A list of subset index lists.
         """
-        return [self.get_subset_indices(i) or [] for i in range(len(self._subsets))]
+        return [cast(list[int], self.get_subset_indices(i)) for i in range(len(self._subsets))]
 
     def get_subset(self, index: int) -> Subset | None:
         """Return one configured subset.

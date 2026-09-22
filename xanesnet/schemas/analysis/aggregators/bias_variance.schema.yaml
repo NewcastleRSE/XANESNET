@@ -1,0 +1,18 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: bias_variance.schema.yaml
+title: XANESNET bias-variance aggregator schema
+$defs:
+  aggregatorBiasVariance:
+    type: object
+    additionalProperties: false
+    required:
+    - aggregator_type
+    properties:
+      aggregator_type:
+        const: bias_variance
+        description: Registered aggregator name from the analysis configuration.
+    description: Decompose the per-channel mean squared error of the selected
+      samples into a squared-bias and a variance term. Consumed by the
+      ``bias_variance`` plotter.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

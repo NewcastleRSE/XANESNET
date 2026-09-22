@@ -18,7 +18,7 @@
 # Citations:
 #   ...
 
-"""Target-site-centred 3-body path enumeration for XANESNET graph inputs."""
+"""Target-site-centered 3-body path enumeration for XANESNET graph inputs."""
 
 import numpy as np
 import torch
@@ -30,11 +30,11 @@ def _target_site_neighbors(
     target_site_idx: int,
     cutoff: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return the neighbours of the target site within ``cutoff``.
+    """Return the neighbors of the target site within ``cutoff``.
 
-    For periodic ``Structure`` objects, uses pymatgen's PBC-aware neighbour
+    For periodic ``Structure`` objects, uses pymatgen's PBC-aware neighbor
     search so that ``neighbor_coords`` are the Cartesian coordinates of the
-    correct periodic images. Zero-distance self-neighbours (the target site
+    correct periodic images. Zero-distance self-neighbors (the target site
     in its own unit cell) are filtered out; periodic images of the target
     site at finite distance are retained. For ``Molecule`` objects, uses
     plain Euclidean distances and excludes the target site itself.
@@ -42,7 +42,7 @@ def _target_site_neighbors(
     Args:
         pmg_obj: The periodic structure or molecule.
         target_site_idx: Index of the target site in ``pmg_obj``.
-        cutoff: Maximum neighbour distance in **angstroms**.
+        cutoff: Maximum neighbor distance in **angstroms**.
 
     Returns:
         A tuple ``(neighbor_indices, neighbor_coords)`` where
@@ -79,7 +79,7 @@ def build_target_site_paths(
     cutoff: float,
     max_paths: int,
 ) -> dict[str, torch.Tensor]:
-    """Enumerate target-site-centred 3-body paths ``(target_site, j, k)``.
+    """Enumerate target-site-centered 3-body paths ``(target_site, j, k)``.
 
     Both ``j`` and ``k`` must be within ``cutoff`` of the target site. For
     periodic structures, ``j`` and ``k`` may be periodic images; their scalar
@@ -90,7 +90,7 @@ def build_target_site_paths(
     Args:
         pmg_obj: The periodic structure or molecule.
         target_site_idx: Index of the target site in ``pmg_obj``.
-        cutoff: Neighbour cutoff radius in **angstroms**.
+        cutoff: Neighbor cutoff radius in **angstroms**.
         max_paths: Maximum number of paths to return.
 
     Returns:
@@ -118,7 +118,7 @@ def build_target_site_paths(
             "path_cosangle": torch.zeros(0, dtype=torch.float32),
         }
 
-    # Enumerate ordered index pairs (j < k over the neighbour-list ordering).
+    # Enumerate ordered index pairs (j < k over the neighbor-list ordering).
     ii, jj = np.triu_indices(n, k=1)
 
     cj = neigh_coords[ii]

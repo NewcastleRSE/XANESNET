@@ -78,7 +78,7 @@ class GeometryGraphSchNetBatchProcessor(ForwardBatchProcessor):
         return batch.intensities
 
     def element_preparation(self, batch: GeometryGraphBatch) -> torch.Tensor | None:
-        """Extract target-site atomic numbers from a geometry-graph batch.
+        """Prepare target-site atomic numbers from a geometry-graph batch.
 
         Selects atomic numbers at target-site positions via ``target_site_mask``.
 
@@ -90,8 +90,8 @@ class GeometryGraphSchNetBatchProcessor(ForwardBatchProcessor):
         """
         return batch.x[batch.target_site_mask]
 
-    def sample_id_extraction(self, batch: GeometryGraphBatch) -> np.ndarray:
-        """Extract file names from a geometry-graph batch.
+    def sample_id_preparation(self, batch: GeometryGraphBatch) -> np.ndarray:
+        """Prepare file names from a geometry-graph batch.
 
         Args:
             batch: Collated geometry-graph batch.

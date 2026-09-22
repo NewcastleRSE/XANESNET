@@ -1,0 +1,30 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: spectrum.schema.yaml
+title: XANESNET spectrum aggregator schema
+$defs:
+  aggregatorSpectrum:
+    type: object
+    additionalProperties: false
+    required:
+    - aggregator_type
+    properties:
+      aggregator_type:
+        const: spectrum
+        description: Registered aggregator name from the analysis configuration.
+      percentiles:
+        type: array
+        items:
+          type: number
+          minimum: 0
+          maximum: 100
+        default:
+        - 25
+        - 50
+        - 75
+        description: Percentiles to compute per channel for the predicted and
+          target spectra. Values use NumPy percentile units, where ``0`` is the
+          minimum and ``100`` is the maximum. Defaults to ``[25, 50, 75]``.
+    description: Compute per-channel summary statistics for the predicted and
+      target spectra of the selected samples.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

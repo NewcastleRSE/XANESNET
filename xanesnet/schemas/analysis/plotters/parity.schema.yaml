@@ -1,0 +1,21 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: parity.schema.yaml
+title: 'XANESNET plotter schema: parity'
+$defs:
+  plotterParity:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        const: parity
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+    description: Plot predicted-versus-target intensity parity with RMSE, MAE,
+      and R2 annotations plus a combined per-method grid.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.

@@ -41,6 +41,7 @@ class MACE(Descriptor):
             features.
         num_layers: Number of MACE message-passing layers to use (``-1`` for
             all).
+        device: Compute device for the MACE model.
     """
 
     def __init__(
@@ -48,13 +49,15 @@ class MACE(Descriptor):
         descriptor_type: str,
         invariants_only: bool,
         num_layers: int,
+        device: str,
     ) -> None:
         """Initialize ``MACE``."""
         super().__init__(descriptor_type)
 
         self.invariants_only = invariants_only
         self.num_layers = num_layers
-        self.mace = mace_mp()
+        self.device = device
+        self.mace = mace_mp(device=device, default_dtype="float32")
 
     def transform(
         self,

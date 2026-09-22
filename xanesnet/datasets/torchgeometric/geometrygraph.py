@@ -54,8 +54,8 @@ class GeometryGraphData(Data):
             Increment used by PyG for ``key``.
         """
         if key in ("idx_kj", "idx_ji"):
-            edge_index = self.edge_index
-            return edge_index.size(1) if edge_index is not None else 0
+            assert self.edge_index is not None
+            return self.edge_index.size(1)
         return super().__inc__(key, value, *args, **kwargs)
 
 
@@ -79,6 +79,7 @@ class GeometryGraphBatch(Batch):
     energies: torch.Tensor
     intensities: torch.Tensor
     target_site_mask: torch.Tensor
+    target_site_index: torch.Tensor
     sample_id: list[str]
 
 
@@ -173,6 +174,7 @@ class GeometryGraphDataset(TorchGeometricDataset):
             energies=energies,
             intensities=intensities,
             target_site_mask=target_site_mask,
+            target_site_index=torch.tensor(target_site_indices, dtype=torch.int64),
             sample_id=pmg_obj.properties["sample_id"],
         )
 
@@ -191,10 +193,11 @@ class GeometryGraphDataset(TorchGeometricDataset):
             ``intensities`` / ``target_site_mask`` has a corresponding
             identifier.
         """
-        fields_to_cat = ["energies", "intensities", "target_site_mask"]
+        fields_to_cat = ["energies", "intensities", "target_site_mask", "target_site_index"]
         batched = GeometryGraphBatch.from_data_list(batch, exclude_keys=[*fields_to_cat, "sample_id"])
         for field in fields_to_cat:
-            setattr(batched, field, torch.cat([getattr(d, field) for d in batch], dim=0))
+            values = [getattr(data, field) for data in batch]
+            setattr(batched, field, torch.cat(values, dim=0))
         batched.sample_id = [
             str(getattr(data, "sample_id"))
             for data in batch

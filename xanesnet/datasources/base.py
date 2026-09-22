@@ -21,7 +21,7 @@
 """Abstract base class defining the uniform data-loading interface for all XANESNET data sources.
 
 Every ``DataSource`` returns a :class:`pymatgen.core.Molecule` or
-:class:`pymatgen.core.Structure` with the following normalised shape:
+:class:`pymatgen.core.Structure` with the following normalized shape:
 
 * ``properties["sample_id"]`` -- the unique sample identifier, always present.
 * When the datasource carries spectral data, the spectrum is attached via

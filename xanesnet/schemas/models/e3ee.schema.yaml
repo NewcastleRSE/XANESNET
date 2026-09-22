@@ -152,7 +152,7 @@ $defs:
       out_size:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
         description: Number of energy-grid points (output length).
-    description: 'Target-site-centred E3-equivariant model. Architecture: - Equivariant atom encoder (e3nn spherical harmonics
+    description: 'Target-site-centered E3-equivariant model. Architecture: - Equivariant atom encoder (e3nn spherical harmonics
       message passing) - Branch 1 (optional): invariant target-site features + energy - Branch 2a (optional): energy-conditioned
       atom attention - Branch 2b (optional): energy-conditioned equivariant atom attention - Branch 2c (optional): energy-conditioned
       invariant convolution (SchNet/PaiNN-style) - Branch 2d (optional): energy-conditioned equivariant convolution (NequIP/MACE-style)

@@ -27,7 +27,7 @@ After installation, run::
    xanesnet infer -i configs/in_mlp_infer.yaml \
        -m runs/<train_run>/models/final.pth -n mlp_infer -y
    xanesnet analyze -i configs/analyze_example.yaml \
-       -p runs/<infer_run>/predictions -n mlp_analysis -y
+       -r runs/<infer_run> -n mlp_analysis -y
 
 Configuration
 -------------

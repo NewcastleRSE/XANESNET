@@ -77,13 +77,13 @@ def load_sample(json_dir: Path, index: int | None, file_stem: str | None) -> Str
 
 
 def element_colors(atomic_numbers: np.ndarray) -> list[RGBColor]:
-    """Return display colours for atomic numbers.
+    """Return display colors for atomic numbers.
 
     Args:
         atomic_numbers: Atomic numbers with shape ``(N,)``.
 
     Returns:
-        RGB colours normalized to Matplotlib's ``0.0`` to ``1.0`` range.
+        RGB colors normalized to Matplotlib's ``0.0`` to ``1.0`` range.
     """
 
     colors: list[RGBColor] = []
@@ -253,15 +253,15 @@ def plot_triplets(
 
 
 def target_site_neighbor_coords(pmg_obj: PMGObject, target_site_idx: int, cutoff: float) -> np.ndarray:
-    """Return neighbouring coordinates around the target site.
+    """Return neighboring coordinates around the target site.
 
     Args:
-        pmg_obj: Pymatgen object containing the target site and neighbours.
+        pmg_obj: Pymatgen object containing the target site and neighbors.
         target_site_idx: Atom index used as the target site.
-        cutoff: Maximum neighbour distance in **angstrom**.
+        cutoff: Maximum neighbor distance in **angstrom**.
 
     Returns:
-        Neighbour coordinates with shape ``(M, 3)`` in **angstrom**.
+        Neighbor coordinates with shape ``(M, 3)`` in **angstrom**.
     """
 
     target_site_coord = np.array(pmg_obj.cart_coords[target_site_idx], dtype=np.float64)
@@ -284,13 +284,13 @@ def plot_target_site_paths(
     max_paths: int,
     max_draw: int,
 ) -> None:
-    """Plot a deterministic sample of target-site-centred two-neighbour paths.
+    """Plot a deterministic sample of target-site-centered two-neighbor paths.
 
     Args:
         ax: Matplotlib 3D axis to draw on.
         pmg_obj: Pymatgen object containing atom coordinates.
         target_site_idx: Atom index used as the target site.
-        cutoff: Maximum neighbour distance in **angstrom**.
+        cutoff: Maximum neighbor distance in **angstrom**.
         max_paths: Number of lowest-score paths retained before drawing.
         max_draw: Maximum number of retained paths to draw.
     """
@@ -450,7 +450,7 @@ def compute_voronoi_facets(pmg_obj: PMGObject, cutoff: float) -> list[VoronoiFac
 
 
 def plot_voronoi_facets(ax: Any, facets: list[VoronoiFacet]) -> None:
-    """Plot Voronoi facets coloured by area.
+    """Plot Voronoi facets colored by area.
 
     Args:
         ax: Matplotlib 3D axis to draw on.

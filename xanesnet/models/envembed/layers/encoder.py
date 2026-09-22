@@ -37,7 +37,7 @@ def init_mlp_weights(module: nn.Module) -> None:
 
 
 class SoftRadialShellsEncoder(nn.Module):
-    """Target-site-centric soft-binning over distance with learnable shell centres and widths.
+    """Target-site-centric soft-binning over distance with learnable shell centers and widths.
 
     For each learnable radial shell, computes Gaussian weights over neighbor
     atoms from the target-site-centric distance distribution. These shell-wise
@@ -75,7 +75,7 @@ class SoftRadialShellsEncoder(nn.Module):
         self.d_input = int(d_input)
         self.latent_dim = int(latent_dim)
 
-        # Learnable shell centres (evenly spaced) and widths
+        # Learnable shell centers (evenly spaced) and widths
         centers = torch.linspace(0.5, self.max_radius - 0.5, steps=self.n_shells)
         widths = torch.full((self.n_shells,), float(init_width))
 

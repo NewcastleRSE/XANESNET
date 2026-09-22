@@ -23,7 +23,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from xanesnet.serialization.config import Config
+
 from ..result import AnalysisResults
+from .common.style import PlotSize, PlotStyle, get_plot_style
 
 
 class Plotter(ABC):
@@ -33,16 +36,23 @@ class Plotter(ABC):
 
     Args:
         plotter_type: Registered plotter name from the analysis configuration.
+        latex_font: Render figures in a LaTeX-style serif font when ``True``.
+        plot_size: Shared figure size profile: ``"small"`` or ``"default"``.
 
     Attributes:
         plotter_type: Registered plotter name from the analysis configuration.
+        latex_font: Whether figures use the LaTeX-style serif font.
+        plot_size: Name of the shared figure size profile.
+        style: Resolved immutable rendering style for this plotter.
     """
 
-    def __init__(self, plotter_type: str) -> None:
+    def __init__(self, plotter_type: str, latex_font: bool, plot_size: PlotSize) -> None:
         """Initialize a plotter instance."""
         self.plotter_type = plotter_type
+        self.latex_font = latex_font
+        self.plot_size = plot_size
+        self.style: PlotStyle = get_plot_style(plot_size)
 
-    @abstractmethod
     def plot(
         self,
         results: AnalysisResults,
@@ -54,4 +64,43 @@ class Plotter(ABC):
             results: Analysis pipeline outputs to plot.
             output_dir: Directory where plot files should be written.
         """
+        with self.style.context(self.latex_font):
+            self._plot(results, output_dir)
+
+    @abstractmethod
+    def _plot(
+        self,
+        results: AnalysisResults,
+        output_dir: Path,
+    ) -> None:
+        """Generate plot files from analysis results.
+
+        Args:
+            results: Analysis pipeline outputs to plot.
+            output_dir: Directory where plot files should be written.
+        """
         ...
+
+    @property
+    def signature(self) -> Config:
+        """Return the plotter signature.
+
+        Returns:
+            Configuration values needed to recreate this plotter.
+        """
+        return Config(
+            {
+                "plotter_type": self.plotter_type,
+                "latex_font": self.latex_font,
+                "plot_size": self.plot_size,
+            }
+        )
+
+    def __str__(self) -> str:
+        """Return the short display label of this plotter."""
+        return self.plotter_type
+
+    def __repr__(self) -> str:
+        """Return a detailed representation of this plotter."""
+        args = ", ".join(f"{key}={value!r}" for key, value in self.signature.as_dict().items())
+        return f"{type(self).__name__}({args})"

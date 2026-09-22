@@ -28,7 +28,7 @@ from tqdm import tqdm
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model
-from xanesnet.serialization.prediction_writers import PredictionWriter
+from xanesnet.serialization.prediction_writers import PredictionBatch, PredictionWriter
 
 from .base import Inferencer
 from .registry import InferencerRegistry
@@ -119,45 +119,36 @@ class BasicInferencer(Inferencer):
 
             predictions = self.batch_processor.decode_target(predictions, elements)
 
-            # Two timing fields, both broadcast to ``[n_target_sites]`` so they
+            # Timing fields are broadcast to ``[n_target_sites]`` so they
             # follow the writer's per-target-site leading-dimension contract:
-            #   * ``forward_time``      -- amortized per-target-site cost: the
-            #     wall-clock duration of this forward pass divided by the
-            #     number of target sites with ground truth produced by it.
-            #     Useful as the time budget attributable to a single spectrum.
-            #   * ``forward_time_pass`` -- raw wall-clock duration of the
-            #     forward pass, repeated for every target site it produced.
-            #     Independent of batch size / multi-target-site count.
+            #   * ``time_per_spectrum`` -- forward-pass duration divided by the
+            #     number of spectra produced by this batch.
+            # The value is in seconds and covers only the timed model forward
+            # pass, excluding data loading and output writing.
             # ``predictions`` after ``prediction_preparation`` already contains
             # exactly the target sites with ground truth (selected via
             # ``target_site_mask`` for masking models, all rows for per-target-site
             # datasets).
             n_target_sites = predictions.shape[0]
             wall_time = end_time - start_time
-            forward_time = torch.full(
+            time_per_spectrum = torch.full(
                 (n_target_sites,),
                 wall_time / n_target_sites if n_target_sites > 0 else 0.0,
                 dtype=torch.float32,
                 device=self.device,
             )
-            forward_time_pass = torch.full(
-                (n_target_sites,),
-                wall_time,
-                dtype=torch.float32,
-                device=self.device,
-            )
-
             # Target
             targets = self.batch_processor.target_preparation(batch)
 
             # Writer add
             if writer is not None:
-                writer.add(
-                    {
-                        "prediction": predictions,
-                        "target": targets,
-                        "sample_id": self.batch_processor.sample_id_extraction(batch),
-                        "forward_time": forward_time,
-                        "forward_time_pass": forward_time_pass,
-                    }
-                )
+                prediction_batch: PredictionBatch = {
+                    "prediction": predictions,
+                    "target": targets,
+                    "sample_id": self.batch_processor.sample_id_preparation(batch),
+                    "time_per_spectrum": time_per_spectrum,
+                }
+                target_site_indices = self.batch_processor.target_site_index_preparation(batch)
+                if target_site_indices is not None:
+                    prediction_batch["target_site_index"] = target_site_indices
+                writer.add(prediction_batch)

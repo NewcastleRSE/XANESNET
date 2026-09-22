@@ -55,6 +55,8 @@ class EnvEmbedData:
         element: Target-site atomic number as a scalar tensor for one sample, or
             ``(batch,)`` for a batch. Consumed by element-aware spectra
             encodings.
+        target_site_index: Original target-site atom index as a scalar tensor
+            for one sample, or ``(batch,)`` for a batch.
         basis: Spectral basis attached at runtime and excluded from saved state.
     """
 
@@ -66,6 +68,7 @@ class EnvEmbedData:
     lengths: torch.Tensor | None = None
     sample_id: str | list[Any] | None = None
     element: torch.Tensor | None = None
+    target_site_index: torch.Tensor | None = None
     basis: SpectralBasis | None = None  # not saved in state dict
 
     def to(self, device: str | torch.device) -> "EnvEmbedData":
@@ -85,6 +88,7 @@ class EnvEmbedData:
             "c_star",
             "lengths",
             "element",
+            "target_site_index",
             "basis",
         ]:
             val = getattr(self, attr)
@@ -111,6 +115,7 @@ class EnvEmbedData:
             "lengths": self.lengths,
             "sample_id": self.sample_id,
             "element": self.element,
+            "target_site_index": self.target_site_index,
         }
 
     @classmethod
@@ -124,14 +129,15 @@ class EnvEmbedData:
             Reconstructed environment-embedding data object.
         """
         return cls(
-            descriptor_features=state.get("descriptor_features"),
-            distance_features=state.get("distance_features"),
-            intensities=state.get("intensities"),
-            energies=state.get("energies"),
-            c_star=state.get("c_star"),
-            lengths=state.get("lengths"),
-            sample_id=state.get("sample_id"),
-            element=state.get("element"),
+            descriptor_features=state["descriptor_features"],
+            distance_features=state["distance_features"],
+            intensities=state["intensities"],
+            energies=state["energies"],
+            c_star=state["c_star"],
+            lengths=state["lengths"],
+            sample_id=state["sample_id"],
+            element=state["element"],
+            target_site_index=state["target_site_index"],
             basis=None,
         )
 
@@ -276,6 +282,7 @@ class EnvEmbedDataset(TorchDataset):
                 c_star=c_star,
                 sample_id=pmg_obj.properties["sample_id"],
                 element=element,
+                target_site_index=torch.tensor(site_idx, dtype=torch.int64),
                 basis=self.basis,
             )
 
@@ -393,11 +400,9 @@ class EnvEmbedDataset(TorchDataset):
         sample_id_list = [sample.sample_id for sample in batch]
 
         element_samples = [sample.element for sample in batch]
-        element = (
-            None
-            if any(e is None for e in element_samples)
-            else torch.stack([cast(torch.Tensor, e) for e in element_samples], dim=0)
-        )
+        element = torch.stack([cast(torch.Tensor, e) for e in element_samples], dim=0)
+        target_site_indices = [sample.target_site_index for sample in batch]
+        target_site_index = torch.stack([cast(torch.Tensor, index) for index in target_site_indices], dim=0)
 
         intensities = torch.stack([inten.to(dtype=torch.float32) for inten in intensities_list], dim=0)
         energies = torch.stack([en.to(dtype=torch.float32) for en in energies_list], dim=0)
@@ -414,6 +419,7 @@ class EnvEmbedDataset(TorchDataset):
             lengths=lengths,
             sample_id=sample_id_list,
             element=element,
+            target_site_index=target_site_index,
             basis=batch[0].basis,
         )
 

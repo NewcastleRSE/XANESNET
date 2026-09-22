@@ -41,6 +41,7 @@ from xanesnet.serialization.config import (
     copy_raw_config,
     load_raw_config,
 )
+from xanesnet.serialization.metadata import write_run_metadata
 from xanesnet.serialization.schema_validation import validate_config_schema
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.strategies import StrategyRegistry
@@ -156,6 +157,11 @@ def main(args: list[str]) -> None:
 
         # Setup file logging
         setup_file_logging(save_dir)
+
+        # Write software and hardware metadata files
+        software_info_path, hardware_info_path = write_run_metadata(save_dir, mode="train", command_line_args=args)
+        logging.info(f"Software metadata saved to: {software_info_path}")
+        logging.info(f"Hardware metadata saved to: {hardware_info_path}")
 
         # Copy raw config file
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")

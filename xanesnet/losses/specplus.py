@@ -71,39 +71,52 @@ class SpectralLossPlus(Loss):
         self.huber_delta = huber_delta
         self.kappa_peak = kappa_peak
 
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        preds: torch.Tensor,
+        targets: torch.Tensor,
+        reduction: str = "mean",
+    ) -> torch.Tensor:
         """Compute the spectral loss.
 
         Args:
             preds: Model output predictions ``(B, N)``.
             targets: Ground-truth spectral targets ``(B, N)``.
-            mask: Reserved for future masking support. Currently unused.
-                Defaults to ``None``.
+            reduction: ``"mean"`` returns the scalar loss; ``"none"`` returns
+                the energy-resolved map ``alpha * Lc + beta * Ld + gamma * Lg``
+                with shape ``(B, N)``. The gradient term is left-padded with
+                one zero channel to match the signal length.
 
         Returns:
-            Scalar loss tensor: ``alpha * Lc + beta * Ld + gamma * Lg``.
+            Loss tensor.
+
+        Raises:
+            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``.
         """
         yb = self.gaussian_blur1d(targets, self.blur_sigma_bins)
         pb = self.gaussian_blur1d(preds, self.blur_sigma_bins)
-        Lc = F.mse_loss(pb, yb)  # coarse (blurred) similarity
+        Lc = F.mse_loss(pb, yb, reduction="none")  # coarse (blurred) similarity
 
         # Peak-aware weighting
         w_peak = self.peak_weighting(targets, kappa=self.kappa_peak)
         diff_pred = preds - pb
         diff_true = targets - yb
-        Ld = ((diff_pred - diff_true) ** 2 * w_peak).mean()  # weighted detail loss
+        Ld = (diff_pred - diff_true) ** 2 * w_peak  # weighted detail loss
 
         if preds.shape[-1] < 2:
-            Lg = preds.new_zeros(())
+            Lg = preds.new_zeros(preds.shape)
         else:
             dy = preds[:, 1:] - preds[:, :-1]
             dyy = targets[:, 1:] - targets[:, :-1]
-            Lg = self.huber_loss(dy, dyy, delta=self.huber_delta)  # gradient/shape consistency
+            Lg = F.pad(self.huber_loss(dy, dyy, delta=self.huber_delta, reduction="none"), (1, 0))
 
-        loss = self.alpha * Lc + self.beta * Ld + self.gamma * Lg
+        loss_map = self.alpha * Lc + self.beta * Ld + self.gamma * Lg
 
-        # return L, (Lc, Ld, Lg)
-        return loss
+        if reduction == "mean":
+            return loss_map.mean()
+        if reduction == "none":
+            return loss_map
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
     def gaussian_blur1d(
         self,
@@ -197,7 +210,7 @@ class SpectralLossPlus(Loss):
         """Compute a peak-aware spatial weight map.
 
         Upweights strong intensities and concave regions to direct the detail
-        loss towards spectrally important features.
+        loss toward spectrally important features.
 
         Args:
             y: Input signals ``(B, N)``.

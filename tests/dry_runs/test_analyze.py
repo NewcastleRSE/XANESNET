@@ -18,7 +18,7 @@
 # Citations:
 #   ...
 
-"""End-to-end dry-run test: train, infer, analyse."""
+"""End-to-end dry-run test: train, infer, analyze."""
 
 import logging
 from pathlib import Path
@@ -44,7 +44,7 @@ PIPELINE_ANALYZE = ANALYZE_DIR / "test_analyze.yaml"
 
 @pytest.mark.slow
 def test_full_pipeline(tmp_path: Path) -> None:
-    """Run the complete train, infer, analyse workflow.
+    """Run the complete train, infer, analyze workflow.
 
     Uses the SchNet model pair as a representative pipeline.  All
     intermediate outputs are written under *tmp_path* and cleaned up
@@ -71,6 +71,8 @@ def test_full_pipeline(tmp_path: Path) -> None:
         train_run_dirs = sorted((tmp_path / "train").glob("train_test_*"))
         assert train_run_dirs
         train_run_dir = train_run_dirs[-1]
+        assert (train_run_dir / "software.info").is_file()
+        assert (train_run_dir / "hardware.info").is_file()
 
         ckpt_path = find_checkpoint(train_run_dir)
 
@@ -95,14 +97,19 @@ def test_full_pipeline(tmp_path: Path) -> None:
         predictions_dir = infer_run_dir / "predictions"
         assert predictions_dir.is_dir()
         assert (predictions_dir / "predictions.h5").exists()
+        assert (infer_run_dir / "validated_infer_config.yaml").is_file()
+        assert (infer_run_dir / "software.info").is_file()
+        assert (infer_run_dir / "hardware.info").is_file()
 
-        # Analyse
+        # Analyze
         analyze_cli.main(
             [
                 "-i",
                 str(PIPELINE_ANALYZE),
-                "-p",
-                str(predictions_dir),
+                "-r",
+                str(infer_run_dir),
+                "--prediction-names",
+                "MLP",
                 "-o",
                 str(tmp_path / "analyze"),
                 "-n",
@@ -116,5 +123,7 @@ def test_full_pipeline(tmp_path: Path) -> None:
 
         assert (analyze_run_dir / "reports").is_dir()
         assert (analyze_run_dir / "plots").is_dir()
+        assert (analyze_run_dir / "software.info").is_file()
+        assert (analyze_run_dir / "hardware.info").is_file()
     finally:
         cleanup_processed_data(PIPELINE_TRAIN)

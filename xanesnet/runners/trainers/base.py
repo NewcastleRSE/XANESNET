@@ -171,10 +171,10 @@ class Trainer(Runner):
                 train_loss,
                 train_regularization,
                 train_total,
+                epoch,
                 valid_loss,
                 valid_regularization,
                 valid_total,
-                epoch,
             )
 
             # TensorBoard logging

@@ -87,8 +87,8 @@ def _draw_directed_edges(
         edge_dst: Destination atom indices with shape ``(E,)``.
         edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
         is_periodic: Whether periodic boundary crossings should be highlighted.
-        color_intra: RGBA colour for intra-cell edges.
-        color_pbc: RGBA colour for periodic-boundary edges.
+        color_intra: RGBA color for intra-cell edges.
+        color_pbc: RGBA color for periodic-boundary edges.
         width_intra: Line width for intra-cell edges.
         width_pbc: Line width for periodic-boundary edges.
 

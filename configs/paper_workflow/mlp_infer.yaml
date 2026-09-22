@@ -1,0 +1,20 @@
+seed: 42
+device: cuda
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/paper_workflow/test/
+  spectrum_key: XANES
+
+dataset:
+  root: ./data/processed/paper_workflow_mlp_test/
+  preload: true
+  skip_prepare: false
+
+inferencer:
+  inferencer_type: basic
+  batch_size: 32
+  shuffle: false
+  drop_last: false
+  num_workers: 0
+  buffer_size: 1000

@@ -38,7 +38,7 @@ from .registry import DataSourceRegistry
 class PMGJSONSource(DataSource):
     """Datasource for pymatgen JSON files in a single directory.
 
-    Each JSON file must contain a single serialised pymatgen ``Structure`` or
+    Each JSON file must contain a single serialized pymatgen ``Structure`` or
     ``Molecule`` entry, identified by the ``@class`` key.
 
     Args:
@@ -88,7 +88,7 @@ class PMGJSONSource(DataSource):
             idx: Zero-based index into the datasource.
 
         Returns:
-            The deserialised pymatgen ``Molecule`` or ``Structure`` at
+            The deserialized pymatgen ``Molecule`` or ``Structure`` at
             position ``idx``, with ``sample_id`` stored in ``properties``
             and the spectrum accessible under ``"spectrum"``.
         """
@@ -141,7 +141,7 @@ class PMGJSONSource(DataSource):
             json_file: Path to the ``.json`` file.
 
         Returns:
-            The deserialised pymatgen ``Molecule`` or ``Structure``.
+            The deserialized pymatgen ``Molecule`` or ``Structure``.
 
         Raises:
             ResourceError: If the file cannot be parsed as a ``Structure`` or

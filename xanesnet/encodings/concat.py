@@ -64,6 +64,40 @@ class ConcatEncoding(SpectraEncoding):
 
         self.encodings: list[SpectraEncoding] = CombinedEncoding.from_configs(encodings).encodings
         self._split_sizes: list[int] = []
+        self._input_size: int | None = None
+
+    def prepare(self, input_size: int) -> None:
+        """Prepare sub-encodings and record their deterministic output widths.
+
+        Every sub-encoding receives the same input width because concat
+        applies them independently. The resulting widths are stored for
+        decoding, which means decoding no longer depends on a previous call to
+        :meth:`encode`.
+
+        Args:
+            input_size: Number of points in the raw spectrum.
+        """
+        self._split_sizes = []
+        self._input_size = None
+
+        split_sizes: list[int] = []
+        for encoding in self.encodings:
+            encoding.prepare(input_size)
+            split_sizes.append(encoding.output_size(input_size))
+
+        self._split_sizes = split_sizes
+        self._input_size = input_size
+
+    def output_size(self, input_size: int) -> int:
+        """Return the concatenated width of all sub-encoding outputs.
+
+        Args:
+            input_size: Number of points in the shared input spectrum.
+
+        Returns:
+            Sum of the output widths of all sub-encodings.
+        """
+        return sum(encoding.output_size(input_size) for encoding in self.encodings)
 
     def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         """Encode target spectra through every sub-encoding and concatenate.
@@ -76,22 +110,34 @@ class ConcatEncoding(SpectraEncoding):
         Returns:
             Encoded targets ``(B, sum(M_i))``, the concatenation of all
             sub-encoding outputs.
+
+        Raises:
+            RuntimeError: If the encoding has not been prepared for the input
+                spectrum width.
         """
+        if not self._split_sizes or self._input_size is None:
+            raise RuntimeError("ConcatEncoding.encode called before prepare; call prepare with the raw spectrum width.")
+        if targets.shape[-1] != self._input_size:
+            raise ValueError(f"ConcatEncoding expected input width {self._input_size}, got {targets.shape[-1]}.")
+
         encoded_parts: list[torch.Tensor] = []
-        self._split_sizes = []
-        for encoding in self.encodings:
+        for encoding, split_size in zip(self.encodings, self._split_sizes):
             encoded = encoding.encode(targets, elements)
             encoded_parts.append(encoded)
-            self._split_sizes.append(encoded.shape[-1])
+            if encoded.shape[-1] != split_size:
+                raise RuntimeError(
+                    f"Sub-encoding '{encoding.encoding_type}' returned width {encoded.shape[-1]}, "
+                    f"but prepare predicted {split_size}."
+                )
         return torch.cat(encoded_parts, dim=-1)
 
     def decode(self, predictions: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         """Decode predictions by splitting, decoding, and averaging.
 
         Splits the concatenated prediction tensor into per-encoding chunks
-        according to the sizes recorded during the last :meth:`encode` call,
-        decodes each chunk through its corresponding sub-decoder, and averages
-        the resulting spectra element-wise.
+        according to the sizes determined by :meth:`prepare`, decodes each
+        chunk through its corresponding sub-decoder, and averages the
+        resulting spectra element-wise.
 
         Args:
             predictions: Model predictions in the concatenated encoded space
@@ -104,15 +150,15 @@ class ConcatEncoding(SpectraEncoding):
             all sub-decoders.
 
         Raises:
-            RuntimeError: If ``decode`` is called before ``encode`` (split
-                sizes have not yet been recorded) or if the prediction size
-                does not match the sum of the expected split sizes.
+            RuntimeError: If ``decode`` is called before :meth:`prepare`.
+            ValueError: If the prediction size does not match the sum of the
+                expected split sizes.
         """
-        if not self._split_sizes:
-            raise RuntimeError(
-                "ConcatEncoding.decode called before encode; split sizes are unknown. "
-                "Call encode first to record the per-encoding output sizes."
-            )
+        if not self._split_sizes or self._input_size is None:
+            raise RuntimeError("ConcatEncoding.decode called before prepare; call prepare with the raw spectrum width.")
+        expected_size = sum(self._split_sizes)
+        if predictions.shape[-1] != expected_size:
+            raise ValueError(f"ConcatEncoding expected prediction width {expected_size}, got {predictions.shape[-1]}.")
         chunks = torch.split(predictions, self._split_sizes, dim=-1)
         decoded_parts: list[torch.Tensor] = []
         for chunk, encoding in zip(chunks, self.encodings):

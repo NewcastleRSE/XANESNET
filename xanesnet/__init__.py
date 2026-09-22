@@ -19,3 +19,13 @@
 #   ...
 
 """Top-level package for XANESNET."""
+
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("XANESNET")
+except PackageNotFoundError:
+    # The package can be imported directly from an uninstalled source checkout.
+    __version__ = "unknown"
+
+__all__ = ["__version__"]

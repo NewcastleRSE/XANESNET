@@ -85,7 +85,7 @@ class PairElementEnergyScattering(nn.Module):
 
 class TargetSitePathAggregator(nn.Module):
     """
-    3-body target-site-centred path aggregator for paths (target site, j, k).
+    3-body target-site-centered path aggregator for paths (target site, j, k).
 
     Consumes precomputed flat triplet scalars (``r0j``, ``r0k``, ``rjk``,
     ``cos(angle)``) and per-path flat atom indices into the padded ``B * N``

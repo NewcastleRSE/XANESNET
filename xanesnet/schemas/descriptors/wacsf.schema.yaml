@@ -48,11 +48,11 @@ $defs:
       g2_parameterisation:
         $ref: descriptor_types.schema.yaml#/$defs/wacsfParameterisation
         default: shifted
-        description: G2 grid strategy - ``'shifted'`` or ``'centred'``. Defaults to ``'shifted'``.
+        description: G2 grid strategy - ``'shifted'`` or ``'centered'``. Defaults to ``'shifted'``.
       g4_parameterisation:
         $ref: descriptor_types.schema.yaml#/$defs/wacsfParameterisation
         default: centred
-        description: G4 grid strategy - ``'shifted'`` or ``'centred'``. Defaults to ``'centred'``.
+        description: G4 grid strategy - ``'shifted'`` or ``'centered'``. Defaults to ``'centered'``.
       use_charge:
         type: boolean
         default: false

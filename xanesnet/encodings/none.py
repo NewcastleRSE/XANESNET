@@ -47,6 +47,17 @@ class NoneEncoding(SpectraEncoding):
         """Initialize ``NoneEncoding``."""
         super().__init__(encoding_type)
 
+    def output_size(self, input_size: int) -> int:
+        """Return the unchanged width of the identity encoding.
+
+        Args:
+            input_size: Number of points in the input spectrum.
+
+        Returns:
+            Number of points in the encoded representation.
+        """
+        return input_size
+
     def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         """Return the target spectra unchanged.
 

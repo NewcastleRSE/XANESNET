@@ -55,15 +55,26 @@ class CombinedLoss(Loss):
         normalized = [w / total for w in weights]
         self.register_buffer("weights", torch.tensor(normalized, dtype=torch.float32))
 
-    def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(self, preds: torch.Tensor, targets: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         """Compute the normalized weighted sum of component losses.
 
         Args:
             preds: Model output predictions ``(B, N)``.
             targets: Ground-truth target values ``(B, N)``.
+            reduction: ``"mean"`` returns the scalar loss; ``"none"`` returns
+                the weighted sum of the component energy-resolved maps with
+                shape ``(B, N)``.
 
         Returns:
-            Scalar loss tensor.
+            Loss tensor.
+
+        Raises:
+            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``.
         """
-        stacked = torch.stack([loss(preds, targets) for loss in self.losses])
-        return (self.weights * stacked).sum()
+        maps = torch.stack([loss(preds, targets, reduction="none") for loss in self.losses])
+        combined = (self.weights.view(-1, 1, 1) * maps).sum(dim=0)
+        if reduction == "mean":
+            return combined.mean()
+        if reduction == "none":
+            return combined
+        raise ValueError(f"Unsupported reduction: {reduction}")

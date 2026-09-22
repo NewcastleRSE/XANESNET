@@ -116,6 +116,17 @@ class AffineEncoding(SpectraEncoding):
         if per_element:
             self._lookup = self._build_lookup(encoding_type, self.elements, shift, scale)
 
+    def output_size(self, input_size: int) -> int:
+        """Return the unchanged width of an affine encoding.
+
+        Args:
+            input_size: Number of points in the input spectrum.
+
+        Returns:
+            Number of points in the encoded representation.
+        """
+        return input_size
+
     @staticmethod
     def _build_lookup(
         encoding_type: str,

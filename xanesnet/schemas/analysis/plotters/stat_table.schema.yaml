@@ -11,10 +11,12 @@ $defs:
       plotter_type:
         const: stat_table
         description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
       stat_keys:
-        type:
-        - array
-        - 'null'
+        type: array
         items:
           type: string
         default:
@@ -29,5 +31,12 @@ $defs:
         minimum: 0
         default: 4
         description: Number of significant digits used when formatting table values.
+      sort_key:
+        type:
+        - string
+        - 'null'
+        default: null
+        description: Scalar value key whose first statistic orders the combined
+          table rows. When null, the first value key is used.
     description: Render comparison tables of aggregated statistics as PDF figures.
 description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

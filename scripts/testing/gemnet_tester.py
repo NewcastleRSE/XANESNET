@@ -76,7 +76,7 @@ def build_main_edges(
     Args:
         pmg_obj: Pymatgen object containing atom coordinates.
         cutoff: Maximum edge distance in **angstrom**.
-        max_nbrs: Maximum number of outgoing neighbours per atom.
+        max_nbrs: Maximum number of outgoing neighbors per atom.
         method: Graph construction method accepted by ``GraphBuilderRegistry``.
         min_facet_area: Voronoi facet area threshold in **angstrom squared** or percent.
         cov_radii_scale: Scale factor for covalent-radius graph construction.
@@ -203,7 +203,7 @@ def _draw_generic_edges(
     color_pbc: RGBColor,
     alpha: float = 0.75,
 ) -> int:
-    """Draw one edge graph with custom colours.
+    """Draw one edge graph with custom colors.
 
     Args:
         ax: Matplotlib 3D axis to draw on.
@@ -212,8 +212,8 @@ def _draw_generic_edges(
         edge_dst: Destination atom indices with shape ``(E,)``.
         edge_vec: Edge vectors with shape ``(E, 3)`` in **angstrom**.
         is_periodic: Whether periodic-boundary crossings should be highlighted.
-        color_intra: RGB colour for intra-cell edges.
-        color_pbc: RGB colour for periodic-boundary edges.
+        color_intra: RGB color for intra-cell edges.
+        color_pbc: RGB color for periodic-boundary edges.
         alpha: Alpha value for intra-cell edges.
 
     Returns:
@@ -376,7 +376,7 @@ def plot_mixed_triplets(
         idx_out: Output edge indices with shape ``(T,)``.
         idx_in: Input edge indices with shape ``(T,)``.
         max_draw: Maximum number of mixed triplets to draw.
-        color: RGB colour used for the triangle faces and edges.
+        color: RGB color used for the triangle faces and edges.
         seed: NumPy random-generator seed.
     """
 
@@ -425,7 +425,7 @@ def main() -> None:
         "--int-max-neighbors",
         type=int,
         default=None,
-        help="Interaction graph: per-source neighbour cap; defaults to --max-neighbors",
+        help="Interaction graph: per-source neighbor cap; defaults to --max-neighbors",
     )
     p.add_argument(
         "--int-graph-method",

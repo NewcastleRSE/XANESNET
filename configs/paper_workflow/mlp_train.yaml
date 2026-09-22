@@ -1,0 +1,64 @@
+seed: 42
+device: cuda
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/paper_workflow/trainval/
+  spectrum_key: XANES
+
+dataset:
+  dataset_type: descriptor_mp
+  root: ./data/processed/paper_workflow_mlp_trainval/
+  preload: false
+  skip_prepare: false
+  split_ratios: [0.9, 0.1]
+  descriptors:
+    - descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 16
+      n_g4: 32
+  num_workers: 4
+
+encodings:
+  - encoding_type: subtract_average
+    average: auto
+    per_element: true
+    elements: auto
+
+model:
+  model_type: mlp
+  in_size: auto
+  out_size: auto
+  hidden_size: 256
+  dropout: 0.1
+  num_hidden_layers: 3
+  shrink_rate: 0.5
+  activation: prelu
+
+trainer:
+  trainer_type: basic
+  batch_size: 32
+  shuffle: true
+  drop_last: false
+  num_workers: 4
+  epochs: 10
+  learning_rate: 0.001
+  optimizer: Adam
+  validation_interval: 1
+  lr_warmup: false
+  loss:
+    - loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: none
+  early_stopper:
+    early_stopper_type: none
+    restore_best: true
+
+strategy:
+  strategy_type: single
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 1

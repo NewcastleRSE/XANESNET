@@ -19,5 +19,9 @@ $defs:
         type: integer
         default: -1
         description: Number of MACE message-passing layers to use (``-1`` for all). Defaults to ``-1``.
+      device:
+        type: string
+        default: cpu
+        description: Compute device for the MACE model. Defaults to ``"cpu"``; set ``"cuda"`` (or ``"cuda:N"``) to use the GPU, or ``""`` to auto-select CUDA when available.
     description: MACE foundation-model descriptor.
 description: Descriptor schemas backed by ``DescriptorRegistry`` classes imported by ``xanesnet.descriptors``.

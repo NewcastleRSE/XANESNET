@@ -104,7 +104,7 @@ def get_initializer(name: str, **init_kwargs) -> Callable[..., torch.Tensor]:
         in-place.
 
     Raises:
-        ValueError: If ``name`` is not recognised.
+        ValueError: If ``name`` is not recognized.
     """
     name = name.lower()
     if name == "heorthogonal":

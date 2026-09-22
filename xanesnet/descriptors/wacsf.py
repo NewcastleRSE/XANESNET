@@ -32,7 +32,7 @@ from .registry import DescriptorRegistry
 class WACSF(Descriptor):
     """Weighted atom-centered symmetry function (WACSF) descriptor.
 
-    Encodes the local geometry around a site using parameterised radial (G2)
+    Encodes the local geometry around a site using parameterized radial (G2)
     and angular (G4) symmetry functions with atom-type weighting.
 
     References:

@@ -59,13 +59,5 @@ $defs:
         default: null
         description: Per-scale weights when ``use_weighted_sum=True``. If ``None``, uniform weights are used. Defaults to
           ``None``.
-      final_combine:
-        type: boolean
-        default: true
-        description: If ``True``, collapse scales into a single map. If ``False``, return a per-scale stack. Defaults to ``True``.
-      final_mean:
-        type: boolean
-        default: true
-        description: If ``True``, reduce the loss map to one value per batch element. Defaults to ``True``.
     description: Multi-kernel SSIM loss for 1-D signals.
 description: Loss schemas backed by ``LossRegistry`` classes and loss constructor signatures.

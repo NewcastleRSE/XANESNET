@@ -27,7 +27,7 @@ import torch
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model
-from xanesnet.serialization.prediction_writers import PredictionWriter
+from xanesnet.serialization.prediction_writers import PredictionBatch, PredictionWriter
 
 from .base import Inferencer
 from .registry import InferencerRegistry
@@ -167,29 +167,23 @@ class EnsembleInferencer(Inferencer):
 
             n_target_sites = predictions_mean.shape[0]
             wall_time = end_time - start_time
-            forward_time = torch.full(
+            time_per_spectrum = torch.full(
                 (n_target_sites,),
                 wall_time / n_target_sites if n_target_sites > 0 else 0.0,
                 dtype=torch.float32,
                 device=self.device,
             )
-            forward_time_pass = torch.full(
-                (n_target_sites,),
-                wall_time,
-                dtype=torch.float32,
-                device=self.device,
-            )
-
             targets = self.batch_processor.target_preparation(batch)
 
             if writer is not None:
-                writer.add(
-                    {
-                        "prediction": predictions_mean,
-                        "prediction_std": predictions_std,
-                        "target": targets,
-                        "sample_id": self.batch_processor.sample_id_extraction(batch),
-                        "forward_time": forward_time,
-                        "forward_time_pass": forward_time_pass,
-                    }
-                )
+                prediction_batch: PredictionBatch = {
+                    "prediction": predictions_mean,
+                    "prediction_std": predictions_std,
+                    "target": targets,
+                    "sample_id": self.batch_processor.sample_id_preparation(batch),
+                    "time_per_spectrum": time_per_spectrum,
+                }
+                target_site_indices = self.batch_processor.target_site_index_preparation(batch)
+                if target_site_indices is not None:
+                    prediction_batch["target_site_index"] = target_site_indices
+                writer.add(prediction_batch)

@@ -23,7 +23,9 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from xanesnet.serialization.config import Config
 from xanesnet.serialization.prediction_readers import PredictionSample
+
 
 
 class Collector(ABC):
@@ -54,3 +56,21 @@ class Collector(ABC):
             Mapping of string keys to JSON-serializable collected values.
         """
         ...
+
+    @property
+    def signature(self) -> Config:
+        """Return the collector signature.
+
+        Returns:
+            Configuration values needed to recreate this collector.
+        """
+        return Config({"collector_type": self.collector_type})
+
+    def __str__(self) -> str:
+        """Return the short display label of this collector."""
+        return self.collector_type
+
+    def __repr__(self) -> str:
+        """Return a detailed representation of this collector."""
+        args = ", ".join(f"{key}={value!r}" for key, value in self.signature.as_dict().items())
+        return f"{type(self).__name__}({args})"

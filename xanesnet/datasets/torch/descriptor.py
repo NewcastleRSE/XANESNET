@@ -22,7 +22,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -47,6 +47,8 @@ class DescriptorData:
         element: Target-site atomic number as a scalar tensor for one sample, or
             ``(batch,)`` for a batch. Consumed by element-aware spectra
             encodings.
+        target_site_index: Original target-site atom index as a scalar tensor
+            for one sample, or ``(batch,)`` for a batch.
     """
 
     x: torch.Tensor | None = None
@@ -54,6 +56,7 @@ class DescriptorData:
     energies: torch.Tensor | None = None
     sample_id: str | list[Any] | None = None
     element: torch.Tensor | None = None
+    target_site_index: torch.Tensor | None = None
 
     def to(self, device: str | torch.device) -> "DescriptorData":
         """Move tensor attributes to ``device`` in place.
@@ -64,7 +67,7 @@ class DescriptorData:
         Returns:
             This data object after moving tensor attributes.
         """
-        for attr in ["x", "y", "energies", "element"]:
+        for attr in ["x", "y", "energies", "element", "target_site_index"]:
             val = getattr(self, attr)
             if val is not None:
                 setattr(self, attr, val.to(device))
@@ -82,6 +85,7 @@ class DescriptorData:
             "energies": self.energies,
             "sample_id": self.sample_id,
             "element": self.element,
+            "target_site_index": self.target_site_index,
         }
 
     @classmethod
@@ -95,11 +99,12 @@ class DescriptorData:
             Reconstructed descriptor data object.
         """
         return cls(
-            x=state.get("x"),
-            y=state.get("y"),
-            energies=state.get("energies"),
-            sample_id=state.get("sample_id"),
-            element=state.get("element"),
+            x=state["x"],
+            y=state["y"],
+            energies=state["energies"],
+            sample_id=state["sample_id"],
+            element=state["element"],
+            target_site_index=state["target_site_index"],
         )
 
     def save(self, path: str) -> str:
@@ -234,6 +239,7 @@ class DescriptorDataset(TorchDataset):
                 energies=energies,
                 sample_id=pmg_obj.properties["sample_id"],
                 element=element,
+                target_site_index=torch.tensor(site_idx, dtype=torch.int64),
             )
 
             # Save processed data
@@ -252,11 +258,9 @@ class DescriptorDataset(TorchDataset):
             Batched descriptor data with stacked tensor fields.
         """
 
-        def _stack(tensors: list[torch.Tensor | None]) -> torch.Tensor | None:
-            """Stack tensors unless any field is absent for the batch."""
-            if any(t is None for t in tensors):
-                return None
-            return torch.stack([tensor for tensor in tensors if tensor is not None])
+        def _stack(tensors: list[torch.Tensor | None]) -> torch.Tensor:
+            """Stack tensors along a new leading batch dimension."""
+            return torch.stack([cast(torch.Tensor, tensor) for tensor in tensors], dim=0)
 
         return DescriptorData(
             x=_stack([b.x for b in batch]),
@@ -264,6 +268,7 @@ class DescriptorDataset(TorchDataset):
             energies=_stack([b.energies for b in batch]),
             sample_id=[b.sample_id for b in batch],
             element=_stack([b.element for b in batch]),
+            target_site_index=_stack([b.target_site_index for b in batch]),
         )
 
     def _load_item(self, path: str) -> DescriptorData:

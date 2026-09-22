@@ -15,7 +15,7 @@ $defs:
         description: Identifier string for this encoding type.
       mean:
         $ref: ../shared/value_types.schema.yaml#/$defs/autoNumberArrayOrMatrix
-        description: Means used to centre the spectra. A flat list (per-point when ``per_point`` is
+        description: Means used to center the spectra. A flat list (per-point when ``per_point`` is
           true, otherwise a single global mean) when ``per_element`` is false, or one row per element
           aligned with ``elements`` when true. May be the training-time ``auto`` token, which is
           resolved from the training data.

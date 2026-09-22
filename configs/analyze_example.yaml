@@ -12,32 +12,93 @@ selectors:
     start: 0
     end: 50
 
-collectors:
-  - collector_type: "error_metric"
-    loss_type: "l1"
-  
-  - collector_type: "error_metric"
-    loss_type: "mse"
+  - selector_type: "structure_cluster"
+    descriptor:
+      descriptor_type: mace
+      invariants_only: true
+      num_layers: -1
 
+collectors:
+  - collector_type: "loss"
+    loss:
+      loss_type: "l1"
+  
+  - collector_type: "loss"
+    loss:
+      loss_type: "mse"
+
+  - collector_type: "loss"
+    loss:
+      loss_type: "mse"
+    energy_resolved: true
+
+  - collector_type: "descriptor"
+    descriptor:
+      descriptor_type: mace
+      invariants_only: true
+      num_layers: -1
 aggregators:
+  # Summary statistics over every scalar sample and collector value.
   - aggregator_type: "scalar"
     percentiles: [25, 50, 75, 90, 95]
+
+  # Mean and spread of the per-channel collector vectors, e.g. energy-resolved
+  # losses. Required by the 'energy_resolved_loss' plotter.
+  - aggregator_type: "vector"
+
+  # Per-channel spectra statistics. Required by the 'mean_spectrum' plotter.
+  - aggregator_type: "spectrum"
+
+  # Rank samples by a collected scalar and select best/worst percent groups.
+  # Required by the 'mean_spectrum' plotter for its tail curves.
+  - aggregator_type: "ranking"
+    sort_key: "mse"
+    percent: 20
+    group_keys: ["prediction"]
+
+  # Per-channel bias/variance decomposition. Required by the 'bias_variance' plotter.
+  - aggregator_type: "bias_variance"
 
 reporters:
   - reporter_type: "scalar"
   - reporter_type: "statistics"
     format: "yaml"
+    # Only report the scalar summaries; the other aggregators feed plotters.
+    aggregator_types: ["scalar"]
 
 plotters:
   - plotter_type: scalar
     bins: 50
 
-  - plotter_type: spectra
-    sort_by_value: True
-    sort_key: mse
-    sort_ascending: True
+  - plotter_type: spectra_all
     max_pages: 100
+
+  - plotter_type: spectra_comparison
+    n_samples: 5
+    sort_key: mse
+
+  - plotter_type: energy_resolved_loss
+
+  - plotter_type: mean_spectrum
+
+  - plotter_type: parity
+
+  - plotter_type: bias_variance
+
+  - plotter_type: error_correlation
+    sort_key: mse
+
+  - plotter_type: pca
+
+  - plotter_type: selector_overview
+    err_key: mse
 
   - plotter_type: stat_table
     stat_keys: ["mean", "std", "median", "min", "max"]
     precision: 4
+    sort_key: mse
+
+  - plotter_type: stat_table_latex
+    stat_keys: ["mean", "std", "median", "min", "max"]
+    precision: 4
+    sort_key: mse

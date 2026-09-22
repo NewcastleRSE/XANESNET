@@ -167,7 +167,7 @@ class Checkpoint:
         """
         return cls(
             model_states=state["model_states"],
-            optimizer_states=state.get("optimizer_states"),
-            epochs=state.get("epochs"),
+            optimizer_states=state["optimizer_states"],
+            epochs=state["epochs"],
             signature=Config(state["signature"]),
         )

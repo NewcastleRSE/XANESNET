@@ -26,7 +26,7 @@ configured encoding to a sample of spectra and produces a rich visualization.
 
 Every encoding produces four base panels:
 
-1. Raw spectra (per-element colouring when element info is available).
+1. Raw spectra (per-element coloring when element info is available).
 2. Encoded representation -- line plot when the encoding preserves the
    spectrum length, or a heat-map / bar chart otherwise.
 3. Round-trip: raw vs. decode(encode(x)) overlaid.
@@ -84,7 +84,7 @@ from xanesnet.utils.exceptions import ConfigError
 
 
 def _parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the encoding visualiser.
+    """Parse command-line arguments for the encoding visualizer.
 
     Returns:
         Populated argument namespace.
@@ -221,7 +221,7 @@ _ELEMENT_SYMBOLS: dict[int, str] = {
     79: "Au",
 }
 
-#: Qualitative colour palette for up to 10 distinct elements.
+#: Qualitative color palette for up to 10 distinct elements.
 _ELEMENT_COLORS: list[str] = [
     "#1f77b4",
     "#ff7f0e",
@@ -262,7 +262,7 @@ def _build_element_groups(
         * ``unique_z`` -- sorted list of distinct atomic numbers present.
         * ``groups`` -- ``{z: [sample_indices]}`` mapping.
         * ``labels`` -- ``{z: "Symbol"}`` legend labels.
-        * ``colors`` -- ``{z: "#hex"}`` per-element colours.
+        * ``colors`` -- ``{z: "#hex"}`` per-element colors.
     """
     unique_z = sorted(set(elements.tolist()))
     groups: dict[int, list[int]] = {z: [] for z in unique_z}
@@ -279,7 +279,7 @@ def _build_element_groups(
 
 
 ###############################################################################
-# Colour / style constants
+# Color / style constants
 ###############################################################################
 
 _ALPHA = 0.55
@@ -322,13 +322,13 @@ def _plot_raw(
     elements: np.ndarray | None = None,
     title: str = "Raw spectra",
 ) -> None:
-    """Overlay raw spectra on *ax*, optionally colouring by element.
+    """Overlay raw spectra on *ax*, optionally coloring by element.
 
     Args:
         ax: Matplotlib axes to draw on.
         spectra: ``(N, L)`` raw intensity array.
         elements: Optional ``(N,)`` atomic-number array for per-element
-            colouring.
+            coloring.
         title: Panel title.
     """
     energy = _energy_axis(spectra.shape[1])
@@ -364,7 +364,7 @@ def _plot_encoded(
 
     When the encoded dimension matches the original spectrum length
     (``k == n_points``) the coefficients are drawn as overlaid line spectra
-    with per-element colouring.  Otherwise a heat-map (or bar chart for a
+    with per-element coloring.  Otherwise a heat-map (or bar chart for a
     single sample) is used.
 
     Args:
@@ -374,7 +374,7 @@ def _plot_encoded(
         n_points: Original spectrum length; when equal to *K* a line-plot
             is produced instead of a heat-map.
         elements: Optional ``(N,)`` atomic-number array for per-element
-            colouring or y-tick labels.
+            coloring or y-tick labels.
     """
     n_samples, k = encoded.shape
     title = f"Encoded ({encoding_name})  dim={k}"
@@ -444,7 +444,7 @@ def _plot_roundtrip(
         decoded: ``(N, L)`` reconstructed intensities.
         encoding_name: Human-readable encoding label.
         elements: Optional ``(N,)`` atomic-number array for per-element
-            colouring.
+            coloring.
     """
     energy = _energy_axis(spectra.shape[1])
     if elements is not None:
@@ -509,7 +509,7 @@ def _plot_error(
         decoded: ``(N, L)`` reconstructed intensities.
         encoding_name: Human-readable encoding label.
         elements: Optional ``(N,)`` atomic-number array for per-element
-            colouring.
+            coloring.
     """
     error = np.abs(decoded - spectra)
     energy = _energy_axis(spectra.shape[1])
@@ -554,7 +554,7 @@ def _plot_gaussian_decomposition(
     """Decompose one spectrum into its individual Gaussian basis contributions.
 
     Each basis function ``Phi[:, k]`` is multiplied by its fitted coefficient
-    and drawn as a faint filled curve.  Contributions are grouped and coloured
+    and drawn as a faint filled curve.  Contributions are grouped and colored
     by width.  The raw spectrum and the full reconstruction are overlaid as
     thicker lines.
 
@@ -827,7 +827,7 @@ def _figure_for_encoding(
     * **gaussian** -- basis decomposition panel.
     * **subtract_average** -- per-element (or global) average panel.
 
-    Spectra are coloured by target-site element when element information is
+    Spectra are colored by target-site element when element information is
     available.  The encoded panel uses a line plot when the encoding
     preserves the spectrum length, and a heat-map otherwise.
 
@@ -905,7 +905,7 @@ def _figure_overview(
     """Summary figure for the full composed encoding pipeline.
 
     Produces the four base panels (raw, encoded, round-trip, error) for the
-    complete ``combined`` pipeline.  Per-element colouring is applied when
+    complete ``combined`` pipeline.  Per-element coloring is applied when
     element data is available.
 
     Args:

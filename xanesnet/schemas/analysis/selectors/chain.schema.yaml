@@ -1,0 +1,29 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: chain.schema.yaml
+title: 'XANESNET selector schema: chain'
+$defs:
+  selectorChain:
+    type: object
+    additionalProperties: false
+    required:
+    - selector_type
+    properties:
+      selector_type:
+        const: chain
+        description: Registered selector name from the analysis configuration.
+      chain:
+        type: array
+        minItems: 1
+        default:
+        - selector_type: all
+        items:
+          oneOf:
+          - $ref: identity.schema.yaml#/$defs/selectorIdentity
+          - $ref: by_element.schema.yaml#/$defs/selectorElement
+          - $ref: by_index.schema.yaml#/$defs/selectorIndexList
+          - $ref: by_range.schema.yaml#/$defs/selectorIndexRange
+          - $ref: bernoulli.schema.yaml#/$defs/selectorRandom
+          - $ref: structure_cluster.schema.yaml#/$defs/selectorStructureCluster
+        description: Ordered selector configurations applied to the selected samples.
+    description: Apply selectors in order and retain the final selected sample indices.
+description: Analysis component schemas used by ``core_analyze`` setup functions and analysis registries.

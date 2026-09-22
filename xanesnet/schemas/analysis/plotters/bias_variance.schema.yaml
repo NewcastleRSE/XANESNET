@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: bias_variance.schema.yaml
+title: 'XANESNET plotter schema: bias_variance'
+$defs:
+  plotterBiasVariance:
+    type: object
+    additionalProperties: false
+    required:
+    - plotter_type
+    properties:
+      plotter_type:
+        const: bias_variance
+        description: Registered plotter name from the analysis configuration.
+      plot_size:
+        $ref: plotters.schema.yaml#/$defs/plotSize
+      latex_font:
+        $ref: plotters.schema.yaml#/$defs/latexFont
+      legend_position:
+        $ref: plotters.schema.yaml#/$defs/legendPosition
+    description: Plot the per-channel MSE split into squared bias and variance
+      per method plus a combined grid. Requires a ``bias_variance`` aggregator.
+description: Analysis component schemas used by ``core_analyze`` setup functions
+  and analysis registries.
