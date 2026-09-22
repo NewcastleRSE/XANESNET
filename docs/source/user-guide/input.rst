@@ -16,14 +16,14 @@ The example input files can be found in the ``configs/`` directory.
 .. _training:
 
 ======================
-training configuration
+Training configuration
 ======================
 
 The training configuration configures the training process, including data loading, model definition, and training loop.
 
 Common fields:
 
-* ``seed`` (int): optional random seed for stochastic selectors
+* ``seed`` (int): optional random seed
 * ``device`` (str): compute device (``cpu`` or ``cuda``)
 
 
@@ -399,14 +399,14 @@ Example:
 .. _inferencer:
 
 ========================
-inference configuration
+Inference configuration
 ======================== 
 
 The inference configuration configures the inference process.
 
 Common fields:
 
-* ``seed`` (int): optional random seed for stochastic selectors
+* ``seed`` (int): optional random seed 
 * ``device`` (str): compute device (``cpu`` or ``cuda``)
 
 
@@ -464,7 +464,7 @@ Example (ensemble):
 .. _analyze:
 
 ======================
-analysis configuration
+Analysis configuration
 ======================
 
 The analysis configuration configures the post-processing of inference predictions.
