@@ -19,16 +19,16 @@
 # Citations:
 #   ...
 
+# ! Only running training configs !
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 cd "$REPO_ROOT"
 
-# Output directory for dry-run results.
 OUT_DIR="./runs/dry_runs"
 
-# Set to "true" to stop on first failure.
 STOP_ON_FAILURE=false
 
 TRAIN_CONFIGS=(
@@ -48,6 +48,13 @@ TRAIN_CONFIGS=(
     "mlp_deep_ensemble.yaml"
     "mlp_inverse.yaml"
 )
+
+for config in "${TRAIN_CONFIGS[@]}"; do
+    if [[ ! -f "./configs/${config}" ]]; then
+        echo "Configured training file not found: ./configs/${config}" >&2
+        exit 1
+    fi
+done
 
 mkdir -p "$OUT_DIR"
 
@@ -115,3 +122,7 @@ for c in "${FAILED[@]}"; do
 done
 echo ""
 echo "Results saved to: ${OUT_DIR}/"
+
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    exit 1
+fi

@@ -36,6 +36,22 @@ INFER_DIR = TESTS_DIR / "infer"
 ANALYZE_DIR = TESTS_DIR / "analyze"
 
 
+def collect_configs(subdir: str) -> list[Path]:
+    """Collect YAML configurations from a dry-run subdirectory.
+
+    Args:
+        subdir: Subdirectory name, such as ``"train"`` or ``"infer"``.
+
+    Returns:
+        Sorted configuration paths.  An absent subdirectory produces an empty
+        list.
+    """
+    directory = TESTS_DIR / subdir
+    if not directory.is_dir():
+        return []
+    return sorted(directory.glob("*.yaml"))
+
+
 def find_checkpoint(run_dir: Path) -> Path:
     """Locate the deployment checkpoint produced by a training run.
 
@@ -60,6 +76,19 @@ def find_checkpoint(run_dir: Path) -> Path:
     if not checkpoints:
         raise FileNotFoundError(f"No checkpoint found in {run_dir}")
     return checkpoints[-1]
+
+
+def collect_model_pairs() -> list[tuple[Path, Path]]:
+    """Collect train/infer configurations with matching stems.
+
+    Returns:
+        Sorted ``(train_config, infer_config)`` pairs.
+    """
+    train_configs = collect_configs("train")
+    infer_configs = {path.stem: path for path in collect_configs("infer")}
+    return [
+        (train_path, infer_configs[train_path.stem]) for train_path in train_configs if train_path.stem in infer_configs
+    ]
 
 
 def cleanup_processed_data(config_path: Path) -> None:

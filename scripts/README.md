@@ -30,12 +30,7 @@ bash scripts/testing/dispatchers/encodings_tester.sh
 bash scripts/testing/dispatchers/graph_tester.sh
 ```
 
-Two orchestration dispatchers are also provided:
-
-- `run_all_encoding_tests.sh` — runs `encodings_tester.py` for every encoding
-  type in one go.
-- `dry_run_all_configs.sh` — performs a one-epoch dry-run on every top-level
-  training config to verify they all work.
+Additionally:
 
 ```bash
 bash scripts/testing/dispatchers/run_all_encoding_tests.sh
