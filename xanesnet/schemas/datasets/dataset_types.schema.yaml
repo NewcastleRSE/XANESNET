@@ -21,5 +21,9 @@ $defs:
     - e3ee_mp
     - e3ee_full
     - e3ee_full_mp
+    - descriptor_multihead
+    - descriptor_multihead_inverse
+    - descriptor_multihead_mp
+    - descriptor_multihead_inverse_mp
     description: Dataset registry key accepted by ``DatasetRegistry.get``.
 description: Dataset schemas backed by ``DatasetRegistry`` classes and dataset constructor signatures.

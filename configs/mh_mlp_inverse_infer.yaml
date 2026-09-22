@@ -1,0 +1,22 @@
+# Example configuration for inverse descriptor-based multi-head MLP inference with toy data.
+
+seed: 2025
+device: cpu
+
+datasource:
+  datasource_type: multipmgjson
+  root_path: ./data/toy_data_multi
+  spectrum_key: "XANES"
+
+dataset:
+  root: ./data/processed/toy_data_multihead_mlp_inverse/
+  preload: True
+  skip_prepare: True
+
+inferencer:
+  inferencer_type: basic
+  batch_size: 5
+  shuffle: False
+  drop_last: False
+  num_workers: 0
+  buffer_size: 1000

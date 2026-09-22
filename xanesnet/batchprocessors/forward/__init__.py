@@ -22,6 +22,7 @@
 
 from .base import ForwardBatchProcessor
 from .descriptor_mlp import DescriptorMLPBatchProcessor
+from .descriptor_multihead import DescriptorMultiheadBatchProcessor
 from .e3ee import E3EEBatchProcessor
 from .e3ee_full import E3EEFullBatchProcessor
 from .envembed import EnvEmbedBatchProcessor
@@ -33,6 +34,7 @@ from .geometrygraph_schnet import GeometryGraphSchNetBatchProcessor
 __all__ = [
     "ForwardBatchProcessor",
     "DescriptorMLPBatchProcessor",
+    "DescriptorMultiheadBatchProcessor",
     "E3EEBatchProcessor",
     "E3EEFullBatchProcessor",
     "EnvEmbedBatchProcessor",

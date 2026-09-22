@@ -7,5 +7,6 @@ $defs:
     - $ref: xyzspec.schema.yaml#/$defs/datasourceXYZSpec
     - $ref: multixyzspec.schema.yaml#/$defs/datasourceMultiXYZSpec
     - $ref: pmgjson.schema.yaml#/$defs/datasourcePMGJSON
+    - $ref: multipmgjson.schema.yaml#/$defs/datasourceMultiPMGJSON
     description: Union of datasource configuration objects instantiated by ``DataSourceRegistry``.
 description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

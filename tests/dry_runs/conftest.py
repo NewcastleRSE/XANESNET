@@ -37,13 +37,14 @@ ANALYZE_DIR = TESTS_DIR / "analyze"
 
 
 def collect_configs(subdir: str) -> list[Path]:
-    """Collect all YAML files in a dry-runs subdirectory.
+    """Collect YAML configurations from a dry-run subdirectory.
 
     Args:
-        subdir: Subdirectory name (``"train"``, ``"infer"``, or ``"analyze"``).
+        subdir: Subdirectory name, such as ``"train"`` or ``"infer"``.
 
     Returns:
-        Sorted list of ``.yaml`` file paths found in the subdirectory.
+        Sorted configuration paths.  An absent subdirectory produces an empty
+        list.
     """
     directory = TESTS_DIR / subdir
     if not directory.is_dir():
@@ -78,26 +79,16 @@ def find_checkpoint(run_dir: Path) -> Path:
 
 
 def collect_model_pairs() -> list[tuple[Path, Path]]:
-    """Collect paired (train_config, infer_config) paths.
-
-    A pair is formed when a train config in ``train/`` has a matching
-    infer config in ``infer/`` with the same stem (e.g.
-    ``test_schnet.yaml`` in both directories).
+    """Collect train/infer configurations with matching stems.
 
     Returns:
-        List of ``(train_path, infer_path)`` tuples sorted by train stem.
+        Sorted ``(train_config, infer_config)`` pairs.
     """
     train_configs = collect_configs("train")
-    infer_configs = collect_configs("infer")
-    infer_stems = {p.stem for p in infer_configs}
-
-    pairs: list[tuple[Path, Path]] = []
-    for train_path in train_configs:
-        stem = train_path.stem
-        if stem in infer_stems:
-            infer_path = INFER_DIR / f"{stem}.yaml"
-            pairs.append((train_path, infer_path))
-    return sorted(pairs, key=lambda x: x[0].stem)
+    infer_configs = {path.stem: path for path in collect_configs("infer")}
+    return [
+        (train_path, infer_configs[train_path.stem]) for train_path in train_configs if train_path.stem in infer_configs
+    ]
 
 
 def cleanup_processed_data(config_path: Path) -> None:

@@ -93,9 +93,9 @@ def list_subdir_stems(path: Path) -> list[str]:
         path: Directory to list.
 
     Returns:
-        List of directory-name strings for each non-hidden subdirectory.
+        Sorted list of directory-name strings for each non-hidden subdirectory.
     """
-    return [d.stem for d in path.iterdir() if d.is_dir() and not d.name.startswith(".")]
+    return sorted(d.stem for d in path.iterdir() if d.is_dir() and not d.name.startswith("."))
 
 
 ###############################################################################

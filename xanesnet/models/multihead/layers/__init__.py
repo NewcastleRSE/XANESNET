@@ -18,27 +18,10 @@
 # Citations:
 #   ...
 
-"""Automatic configuration resolver for the E3EEFull model."""
+"""Public API for Multihead layer modules."""
 
-from typing import Any
+from .mlp_head import MLPHead
 
-import torch
-
-from xanesnet.datasets import Dataset
-from xanesnet.serialization.auto_config.registries import ModelAutoResolver
-from xanesnet.serialization.config import ConfigRaw
-
-
-@ModelAutoResolver.register("e3ee_full")
-def resolve_e3ee_full(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
-    """Resolve E3EEFull output dimension.
-
-    Args:
-        inputs: Prepared model input dictionary.
-        target: Prepared target tensor.
-        dataset: Prepared dataset, unused by this resolver.
-
-    Returns:
-        Mapping with E3EEFull automatic field ``out_size``.
-    """
-    return {"out_size": int(target.shape[-1])}
+__all__ = [
+    "MLPHead",
+]

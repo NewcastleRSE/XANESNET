@@ -1,0 +1,69 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: mh_mlp.schema.yaml
+title: 'XANESNET model schema: mh_mlp'
+$defs:
+  modelMHMLP:
+    type: object
+    additionalProperties: false
+    required:
+    - model_type
+    - in_size
+    - out_size
+    properties:
+      hidden_size:
+        type: integer
+        minimum: 1
+        default: 226
+        description: Width of the first shared hidden layer.
+      dropout:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.1
+        description: Dropout probability applied after each hidden linear layer. Range ``[0, 1)``.
+      num_hidden_layers:
+        type: integer
+        minimum: 0
+        default: 3
+        description: Number of shared hidden layers (excluding the output layer).
+      shrink_rate:
+        type: number
+        exclusiveMinimum: 0
+        default: 0.5
+        description: Multiplicative factor applied to the shared layer width at each depth step.
+      activation:
+        $ref: ../components/component_types.schema.yaml#/$defs/activationName
+        default: prelu
+        description: Name of the activation function for hidden layers.
+      head_hidden_size:
+        type: integer
+        minimum: 1
+        default: 226
+        description: Width of the first hidden layer in each prediction head.
+      head_num_hidden_layers:
+        type: integer
+        minimum: 0
+        default: 2
+        description: Number of hidden layers in each prediction head (excluding the output layer).
+      head_shrink_rate:
+        type: number
+        exclusiveMinimum: 0
+        default: 1.0
+        description: Multiplicative factor applied to each head's layer width at each depth step.
+      model_type:
+        const: mh_mlp
+        description: Model type identifier string.
+      in_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveInteger
+        description: Number of input features.
+      out_size:
+        $ref: ../shared/value_types.schema.yaml#/$defs/autoPositiveIntegerArray
+        description: Output size for each prediction head; all entries must be equal because predictions are stacked.
+    description: Multi-head MLP with one prediction head per datasource subdirectory.
+  modelTrainMHMLP:
+    $ref: '#/$defs/modelMHMLP'
+    description: Training view of modelMHMLP; automatic dimension fields may use the case-insensitive auto token.
+  modelInferMHMLP:
+    $ref: '#/$defs/modelMHMLP'
+    description: Inference view of modelMHMLP; runtime validation rejects unresolved auto values after checkpoint merge.
+description: Model schemas backed by ``ModelRegistry`` classes and model constructor signatures.

@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: multipmgjson.schema.yaml
+title: 'XANESNET datasource schema: multipmgjson'
+$defs:
+  datasourceMultiPMGJSON:
+    type: object
+    additionalProperties: false
+    required:
+    - datasource_type
+    - root_path
+    properties:
+      datasource_type:
+        const: multipmgjson
+        description: Identifier string for this datasource type.
+      root_path:
+        type: string
+        description: Path to the root directory containing the subdirectories.
+      spectrum_key:
+        type: string
+        description: Raw pymatgen site-property key that contains the spectrum. Defaults to ``"spectrum"``; set this to match a source dataset's property name.
+        default: spectrum
+    description: Datasource for pymatgen JSON files across multiple subdirectories.
+description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

@@ -8,5 +8,6 @@ $defs:
     - xyzspec
     - multixyzspec
     - pmgjson
+    - multipmgjson
     description: Datasource registry key accepted by ``DataSourceRegistry.get``.
 description: Datasource schemas backed by ``DataSourceRegistry`` classes and datasource constructor signatures.

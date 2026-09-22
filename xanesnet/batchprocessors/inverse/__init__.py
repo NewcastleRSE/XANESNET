@@ -22,8 +22,10 @@
 
 from .base import InverseBatchProcessor
 from .descriptor_mlp import InverseDescriptorMLPBatchProcessor
+from .descriptor_multihead import InverseDescriptorMultiheadBatchProcessor
 
 __all__ = [
     "InverseBatchProcessor",
     "InverseDescriptorMLPBatchProcessor",
+    "InverseDescriptorMultiheadBatchProcessor",
 ]

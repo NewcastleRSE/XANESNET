@@ -6,6 +6,8 @@ $defs:
     type: string
     enum:
     - mlp
+    - mh_mlp
+    - mh_cnn
     - envembed
     - schnet
     - dimenet

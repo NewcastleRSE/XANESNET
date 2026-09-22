@@ -21,6 +21,7 @@
 """Public API for XANESNET data sources."""
 
 from .base import DataSource
+from .multipmgjson import MultiPMGJSONSource
 from .multixyzspec import MultiXYZSpecSource
 from .pmgjson import PMGJSONSource
 from .registry import DataSourceRegistry
@@ -31,5 +32,6 @@ __all__ = [
     "XYZSpecSource",
     "DataSourceRegistry",
     "MultiXYZSpecSource",
+    "MultiPMGJSONSource",
     "PMGJSONSource",
 ]

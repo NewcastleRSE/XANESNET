@@ -24,17 +24,19 @@ from typing import Any
 
 import torch
 
+from xanesnet.datasets import Dataset
 from xanesnet.serialization.auto_config.registries import ModelAutoResolver
 from xanesnet.serialization.config import ConfigRaw
 
 
 @ModelAutoResolver.register("e3ee")
-def resolve_e3ee(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+def resolve_e3ee(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
     """Resolve E3EE output dimension.
 
     Args:
         inputs: Prepared model input dictionary.
         target: Prepared target tensor.
+        dataset: Prepared dataset, unused by this resolver.
 
     Returns:
         Mapping with E3EE automatic field ``out_size``.

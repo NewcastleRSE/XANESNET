@@ -21,9 +21,11 @@
 """Multiprocessing standard PyTorch dataset exports."""
 
 from .descriptor import DescriptorDatasetMp
+from .descriptor_multihead import DescriptorMultiheadDatasetMp
 from .envembed import EnvEmbedDatasetMp
 
 __all__ = [
     "DescriptorDatasetMp",
+    "DescriptorMultiheadDatasetMp",
     "EnvEmbedDatasetMp",
 ]

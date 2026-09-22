@@ -18,7 +18,7 @@
 # Citations:
 #   ...
 
-"""Parametrised dry-run tests: train then infer for every model pair."""
+"""Parametrized dry-run tests for paired train and inference workflows."""
 
 import logging
 from pathlib import Path
@@ -31,21 +31,18 @@ from xanesnet import train as train_cli
 from .conftest import cleanup_processed_data, collect_model_pairs, find_checkpoint
 
 MODEL_PAIRS = collect_model_pairs()
-BASIC_PAIRS = [(t, i) for t, i in MODEL_PAIRS if "ensemble" not in t.stem]
-ENSEMBLE_PAIRS = [(t, i) for t, i in MODEL_PAIRS if "ensemble" in t.stem]
-BASIC_IDS = [p[0].stem for p in BASIC_PAIRS]
-ENSEMBLE_IDS = [p[0].stem for p in ENSEMBLE_PAIRS]
+MODEL_IDS = [train_path.stem for train_path, _ in MODEL_PAIRS]
 
 
 def _run_train(train_path: Path, out_dir: Path) -> Path:
-    """Run training via the CLI entry point; return path to the run directory.
+    """Run training and return the created run directory.
 
     Args:
-        train_path: Path to a train-mode YAML config.
-        out_dir: Parent directory for the training run output.
+        train_path: Path to a training configuration.
+        out_dir: Parent directory for the training output.
 
     Returns:
-        Path to the created run directory (inside *out_dir*).
+        The created training run directory.
     """
     train_cli.main(
         [
@@ -59,20 +56,20 @@ def _run_train(train_path: Path, out_dir: Path) -> Path:
         ]
     )
     run_dirs = sorted(out_dir.glob("train_test_*"))
-    assert run_dirs, f"No run directory created under {out_dir}"
+    assert run_dirs, f"No training run directory created under {out_dir}"
     return run_dirs[-1]
 
 
 def _run_infer(infer_path: Path, checkpoint_path: Path, out_dir: Path) -> Path:
-    """Run inference via the CLI entry point; return path to the run directory.
+    """Run inference and return the created run directory.
 
     Args:
-        infer_path: Path to a user-facing infer-mode YAML config.
-        checkpoint_path: Path to a deployment checkpoint (``final.pth``).
-        out_dir: Parent directory for the inference run output.
+        infer_path: Path to an inference configuration.
+        checkpoint_path: Path to the trained deployment checkpoint.
+        out_dir: Parent directory for the inference output.
 
     Returns:
-        Path to the created run directory (inside *out_dir*).
+        The created inference run directory.
     """
     infer_cli.main(
         [
@@ -88,54 +85,27 @@ def _run_infer(infer_path: Path, checkpoint_path: Path, out_dir: Path) -> Path:
         ]
     )
     run_dirs = sorted(out_dir.glob("infer_test_*"))
-    assert run_dirs, f"No run directory created under {out_dir}"
+    assert run_dirs, f"No inference run directory created under {out_dir}"
     return run_dirs[-1]
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("train_path, infer_path", BASIC_PAIRS, ids=BASIC_IDS)
+@pytest.mark.parametrize("train_path, infer_path", MODEL_PAIRS, ids=MODEL_IDS)
 def test_train_and_infer(train_path: Path, infer_path: Path, tmp_path: Path) -> None:
-    """Train a model and run basic inference with the resulting checkpoint.
+    """Train each configured model and run inference from its checkpoint.
 
     Args:
-        train_path: Path to a train-mode YAML config.
-        infer_path: Path to a user-facing infer-mode YAML config.
-        tmp_path: Pytest temporary directory (auto-cleaned).
+        train_path: Path to the paired training configuration.
+        infer_path: Path to the paired inference configuration.
+        tmp_path: Pytest temporary directory for run outputs.
     """
-    logging.info("Dry run: %s", train_path.stem)
+    logging.info("Train and infer dry run: %s", train_path.stem)
 
     try:
         train_run_dir = _run_train(train_path, tmp_path / "train")
-        ckpt_path = find_checkpoint(train_run_dir)
+        checkpoint_path = find_checkpoint(train_run_dir)
+        infer_run_dir = _run_infer(infer_path, checkpoint_path, tmp_path / "infer")
 
-        infer_run_dir = _run_infer(infer_path, ckpt_path, tmp_path / "infer")
-        predictions_dir = infer_run_dir / "predictions"
-        assert predictions_dir.is_dir()
-        assert (predictions_dir / "predictions.h5").exists()
-        assert (predictions_dir / "WRITER_INFO.txt").exists()
-    finally:
-        cleanup_processed_data(train_path)
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize("train_path, infer_path", ENSEMBLE_PAIRS, ids=ENSEMBLE_IDS)
-def test_train_and_ensemble_infer(train_path: Path, infer_path: Path, tmp_path: Path) -> None:
-    """Train a deep ensemble and run ensemble inference.
-
-    Args:
-        train_path: Path to a train-mode YAML config with a deep-ensemble
-            strategy.
-        infer_path: Path to a user-facing infer-mode YAML config with an
-            ensemble inferencer.
-        tmp_path: Pytest temporary directory (auto-cleaned).
-    """
-    logging.info("Ensemble dry run: %s", train_path.stem)
-
-    try:
-        train_run_dir = _run_train(train_path, tmp_path / "train")
-        ckpt_path = find_checkpoint(train_run_dir)
-
-        infer_run_dir = _run_infer(infer_path, ckpt_path, tmp_path / "infer")
         predictions_dir = infer_run_dir / "predictions"
         assert predictions_dir.is_dir()
         assert (predictions_dir / "predictions.h5").exists()

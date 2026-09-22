@@ -177,8 +177,8 @@ def resolve_auto_model_config(config: Config, dataset: Dataset, encoding: Spectr
     the model consumes and predicts via the batch processor's
     :meth:`~xanesnet.batchprocessors.base.BatchProcessor.encode_input` and
     :meth:`~xanesnet.batchprocessors.base.BatchProcessor.encode_target`, asks
-    the model-specific resolver for concrete dimensions, and returns a new
-    ``Config`` without mutating the input config.
+    the model-specific resolver for concrete dimensions using the prepared
+    dataset, and returns a new ``Config`` without mutating the input config.
 
     The batch processor is created *with* the resolved encoding so that
     resolved input and output dimensions match the tensors the model actually
@@ -225,7 +225,7 @@ def resolve_auto_model_config(config: Config, dataset: Dataset, encoding: Spectr
     # the descriptor target untouched.
     inputs = batchprocessor.encode_input(inputs, element)
     target = batchprocessor.encode_target(target, element)
-    resolved_fields = resolver(inputs, target)
+    resolved_fields = resolver(inputs, target, dataset)
 
     for field in sorted(auto_fields):
         if field not in resolved_fields:

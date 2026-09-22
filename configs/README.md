@@ -8,8 +8,7 @@ is validated by the packaged JSON Schemas under
 
 ## How configs are used
 
-A config drives one XANESNET run. The supported workflow today is forward
-prediction from structure to spectra:
+A config drives one XANESNET run.
 
 1. **Train** — `xanesnet train -i <file>` builds the datasource, dataset,
    encodings, model, trainer, and training strategy described by the config.

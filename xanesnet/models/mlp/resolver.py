@@ -24,17 +24,19 @@ from typing import Any
 
 import torch
 
+from xanesnet.datasets import Dataset
 from xanesnet.serialization.auto_config.registries import ModelAutoResolver
 from xanesnet.serialization.config import ConfigRaw
 
 
 @ModelAutoResolver.register("mlp")
-def resolve_mlp(inputs: dict[str, Any], target: torch.Tensor) -> ConfigRaw:
+def resolve_mlp(inputs: dict[str, Any], target: torch.Tensor, dataset: Dataset) -> ConfigRaw:
     """Resolve MLP input and output dimensions.
 
     Args:
         inputs: Prepared model input dictionary.
         target: Prepared target tensor.
+        dataset: Prepared dataset, unused by this resolver.
 
     Returns:
         Mapping with MLP automatic fields ``in_size`` and ``out_size``.
