@@ -23,7 +23,6 @@ runs/
 # Data (usually not committed)
 ############################################
 data/
-data_more/
 
 ############################################
 # IDEs / Editors
