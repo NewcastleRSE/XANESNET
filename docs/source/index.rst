@@ -29,7 +29,6 @@ reference generated from in-source docstrings.
    user-guide/descriptors
    user-guide/datasets
    user-guide/models
-   user-guide/strategies
 
 .. toctree::
    :maxdepth: 2

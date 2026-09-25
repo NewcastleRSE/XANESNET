@@ -270,6 +270,7 @@ the size of the previous layer.
 For example, if ``hidden_size: 512`` and ``shrink_rate: 0.5``,
 the shared hidden layers will have sizes ``512``, ``256``, and ``128``.
 
+The output of the shared MLP is passed to MLP heads.
 Each head is a individual MLP that maps the shared representation to one
 spectrum. The architecture of each head is the same as :class:`MLP <xanesnet.models.mlp.mlp.MLP>`,
 but with its own set of hidden layers.
@@ -330,9 +331,10 @@ For example, if ``out_channel: 32``, ``channel_mul: 2``, and
 ``num_conv_layers: 3``, the layers have ``32``, ``64``, and ``128``
 channels.
 
-The flattened encoder output is passed to one MLP head per spectrum.
-Head widths are set by ``head_hidden_size`` and ``head_shrink_rate``
-in the same way as :class:`MLP <xanesnet.models.mlp.mlp.MLP>`. 
+The output of the shared MLP is passed to MLP heads.
+Each head is a individual MLP that maps the shared representation to one
+spectrum. The architecture of each head is the same as :class:`MLP <xanesnet.models.mlp.mlp.MLP>`,
+but with its own set of hidden layers.
 
 Parameters:
 
