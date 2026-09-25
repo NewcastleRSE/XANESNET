@@ -243,8 +243,10 @@ Example (SchNet model):
     cutoff: 5.0
 
 
+.. _trainer:
+
 trainer
-----------
+-------
 
 The trainer section configures the optimisation loop.
 
