@@ -20,7 +20,9 @@
 
 """Snapshot ensemble strategy for XANESNET (placeholder)."""
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -69,8 +71,8 @@ class SnapshotEnsemble(Strategy):
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
-        trainer_config: Config | None = None,
-        inferencer_config: Config | None = None,
+        trainer_config: Config | None,
+        inferencer_config: Config | None,
     ) -> None:
         """Initialize the placeholder snapshot ensemble strategy."""
         super().__init__(
@@ -104,7 +106,7 @@ class SnapshotEnsemble(Strategy):
         """
         raise NotImplementedError("Not implemented!")  # TODO Implement
 
-    def set_state_dicts(self, state_dicts: list[dict]) -> None:
+    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
         """Raise because snapshot ensemble state-dict loading is not implemented.
 
         Args:

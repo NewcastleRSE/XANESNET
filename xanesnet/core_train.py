@@ -248,6 +248,7 @@ def _setup_strategy(
         model_config=model_config,
         encoding=encoding,
         trainer_config=trainer_config,
+        inferencer_config=None,
     )
 
     return strategy

@@ -18,11 +18,11 @@
 # Citations:
 #   ...
 
-"""Bootstrap ensemble strategy for XANESNET."""
+"""K-fold cross-validation strategy for XANESNET."""
 
 import copy
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -42,16 +42,14 @@ from .base import Strategy
 from .registry import StrategyRegistry
 
 
-@StrategyRegistry.register("bootstrap")
-class Bootstrap(Strategy):
-    """Sequential bootstrap-ensemble training and aggregate inference strategy.
+@StrategyRegistry.register("kfold")
+class KFold(Strategy):
+    """Repeated k-fold cross-validation ensemble training strategy.
 
-    The strategy owns ``n_models`` independent model instances with identical
-    architecture. During training, each member is trained on a bootstrap
-    resample of the training subset (sampling with replacement). During
-    inference, all member models are evaluated on the same batches and their
-    predictions are reduced to mean and energy/channel-wise standard deviation
-    by the ensemble inferencer.
+    The strategy trains one model per fold on a shuffled partition of the full
+    dataset. Each fold uses the holdout partition as validation during training.
+    There are ``n_splits * n_repeats`` fold models in total. All fold models are
+    retained and their predictions are aggregated by the ensemble inferencer.
 
     Args:
         strategy_type: Registry key identifying this strategy type.
@@ -66,9 +64,8 @@ class Bootstrap(Strategy):
         tensorboard_dir: Directory for TensorBoard event files, or ``None``.
         trainer_config: Trainer configuration for training mode.
         inferencer_config: Inferencer configuration for inference mode.
-        n_models: Number of bootstrap ensemble members.
-        sample_fraction: Fraction of the training subset drawn for each
-            bootstrap resample. The effective sample size is at least one.
+        n_splits: Number of folds per repeat.
+        n_repeats: Number of times to repeat the k-fold split.
     """
 
     def __init__(
@@ -85,11 +82,11 @@ class Bootstrap(Strategy):
         tensorboard_dir: str | Path | None,
         trainer_config: Config | None,
         inferencer_config: Config | None,
-        # bootstrap arguments:
-        n_models: int,
-        sample_fraction: float,
+        # k-fold arguments:
+        n_splits: int,
+        n_repeats: int,
     ) -> None:
-        """Initialize the bootstrap ensemble strategy."""
+        """Initialize the k-fold cross-validation strategy."""
         super().__init__(
             strategy_type,
             dataset,
@@ -105,77 +102,86 @@ class Bootstrap(Strategy):
             inferencer_config,
         )
 
-        self.n_models = n_models
-        self.sample_fraction = sample_fraction
+        self.n_splits = n_splits
+        self.n_repeats = n_repeats
+        self.n_models = n_splits * n_repeats
 
         self.models: list[Model] = []
         self.trainers: list[Trainer | None] = []
         self.inferencer: Inferencer | None = None
+        self._fold_splits: list[tuple[list[int], list[int]]] = []
 
-    def _bootstrap_dataset(self) -> Dataset:
-        """Return a dataset copy with a bootstrap-resampled training subset.
+    def _iter_kfold_splits(self) -> Iterator[tuple[list[int], list[int]]]:
+        """Yield full-dataset train and validation indices for each fold.
+
+        Yields:
+            Tuples of ``(train_indices, valid_indices)`` for one fold.
+        """
+        n_samples = len(self.dataset)
+        indices = np.arange(n_samples)
+
+        for _ in range(self.n_repeats):
+            folds = np.array_split(np.random.permutation(indices), self.n_splits)
+            for fold_idx, valid_indices in enumerate(folds):
+                train_indices = np.concatenate(folds[:fold_idx] + folds[fold_idx + 1 :])
+                yield train_indices.tolist(), valid_indices.tolist()
+
+    def _fold_dataset(self, train_indices: list[int], valid_indices: list[int]) -> Dataset:
+        """Return a dataset copy configured for one k-fold split.
+
+        Args:
+            train_indices: Training indices for this fold.
+            valid_indices: Validation indices for this fold.
 
         Returns:
-            A shallow copy of ``self.dataset`` whose training subset contains
-            a bootstrap resample of the original training indices.
+            A shallow copy of ``self.dataset`` with train and validation
+            subsets set to the provided index lists.
         """
-        train_indices = self.dataset.get_subset_indices(0)
-        if train_indices is None:
-            train_indices = list(range(len(self.dataset)))
+        dataset_fold = copy.copy(self.dataset)
+        dataset_fold._subsets = [
+            Subset(self.dataset, train_indices),
+            Subset(self.dataset, valid_indices),
+        ]
+        return dataset_fold
 
-        n_samples = len(train_indices)
-        sample_size = max(1, int(n_samples * self.sample_fraction))
-        bootstrap_indices = np.random.choice(train_indices, size=sample_size, replace=True).tolist()
+    def _dataset_for_model(self, model_idx: int) -> Dataset:
+        """Return the fold-specific dataset view for one model.
 
-        dataset_boot = copy.copy(self.dataset)
-        subsets: list[Subset] = [Subset(self.dataset, bootstrap_indices)]
-        valid_subset = self.dataset.valid_subset
-        if valid_subset is not None:
-            subsets.append(valid_subset)
-        dataset_boot._subsets = subsets
-
-        return dataset_boot
-
-    def _dataset_for_model(self) -> Dataset:
-        """Return a bootstrap-resampled dataset view for one model.
+        Args:
+            model_idx: Index of the model and corresponding fold split.
 
         Returns:
-            A shallow dataset copy whose training subset is bootstrap-resampled.
+            A shallow dataset copy configured with that fold's train and
+            validation subsets.
         """
-        return self._bootstrap_dataset()
+        train_indices, valid_indices = self._fold_splits[model_idx]
+        return self._fold_dataset(train_indices, valid_indices)
 
     def setup_models(self) -> None:
-        """Instantiate ``n_models`` independent model copies from ``model_config``."""
+        """Instantiate one model for each fold across all repeats."""
         model_type = self.model_config.get_str("model_type")
         model_cls = ModelRegistry.get(model_type)
 
         self.models = []
         for model_idx in range(self.n_models):
-            logging.info(f"Initializing bootstrap model {model_idx + 1}/{self.n_models}: {model_type}")
+            logging.info(f"Initializing k-fold model {model_idx + 1}/{self.n_models}: {model_type}")
             self.models.append(model_cls(**self.model_config.as_kwargs()))
 
     def init_model_weights(self) -> None:
-        """Apply configured weight and bias initialization to every model.
-
-        Members are initialized independently through the globally seeded
-        PyTorch random-number generator.
-
-        Raises:
-            ValueError: If ``setup_models`` has not been called.
-        """
+        """Apply weight and bias initialization to every fold model."""
         if len(self.models) == 0:
             raise ValueError("Cannot initialize model weights because models are not initialized.")
 
         logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
         for model_idx, model in enumerate(self.models):
-            logging.info(f"Initializing bootstrap model {model_idx + 1}/{self.n_models} weights.")
+            logging.info(f"Initializing k-fold model {model_idx + 1}/{self.n_models} weights.")
             model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
 
     def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
-        """Load one state dictionary into each bootstrap member.
+        """Load one state dictionary into each fold model.
 
         Args:
-            state_dicts: State dictionaries to load, one per model.
+            state_dicts: State dictionaries to load, one per fold model.
 
         Raises:
             ValueError: If models are not initialized or the number of state
@@ -190,10 +196,7 @@ class Bootstrap(Strategy):
             model.load_state_dict(state_dict)
 
     def setup_trainers(self, device: str | torch.device) -> None:
-        """Instantiate one trainer per bootstrap member.
-
-        Each trainer receives a dataset copy whose training subset is a
-        bootstrap resample of the original training data.
+        """Instantiate one trainer per fold.
 
         Must be called after ``setup_models`` and ``setup_checkpointer``.
 
@@ -212,11 +215,12 @@ class Bootstrap(Strategy):
 
         trainer_type = self.trainer_config.get_str("trainer_type")
         trainer_cls = TrainerRegistry.get(trainer_type)
-
+        self._fold_splits = list(self._iter_kfold_splits())
         self.trainers = []
+
         for model_idx, model in enumerate(self.models):
-            logging.info(f"Initializing trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
-            dataset_model = self._dataset_for_model()
+            logging.info(f"Initializing k-fold trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
+            dataset_model = self._dataset_for_model(model_idx)
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
                 dataset=dataset_model,
@@ -228,48 +232,48 @@ class Bootstrap(Strategy):
             self.trainers.append(trainer)
 
     def run_training(self) -> list[Model]:
-        """Train all bootstrap members sequentially and return them.
+        """Train all fold models and return them.
 
         Must be called after ``setup_trainers``.
 
         Returns:
-            List of trained bootstrap member models. Trainer instances are
-            released after their corresponding member finishes to avoid keeping
-            optimizer state alive during later member training.
+            List of trained fold models.
 
         Raises:
-            ValueError: If trainers or models are not initialized.
+            ValueError: If models or trainers are not initialized.
         """
         if len(self.models) == 0:
             raise ValueError("Cannot run training because models are not initialized.")
         if len(self.trainers) != len(self.models):
             raise ValueError("Cannot run training because trainers are not initialized for every model.")
+        if self.checkpointer is None:
+            raise ValueError("Cannot run training because checkpointer is not instantiated.")
 
         super().run_training()
 
-        assert self.checkpointer is not None
-
-        for model_idx, trainer in enumerate(self.trainers):
+        for fold_idx, trainer in enumerate(self.trainers):
             if trainer is None:
                 raise ValueError("Cannot run training because trainers are not initialized for every model.")
 
-            logging.info(f"Training bootstrap model {model_idx + 1}/{self.n_models}.")
+            logging.info(f"Training k-fold model {fold_idx + 1}/{self.n_models}.")
             self.checkpointer.new_model()
 
             try:
                 if self.tensorboard_dir is not None:
-                    tb_logger.new_run(Path(self.tensorboard_dir) / f"model_{model_idx}")
+                    tb_logger.new_run(Path(self.tensorboard_dir) / f"fold_{fold_idx}")
 
                 trainer.train()
             finally:
                 tb_logger.close()
-                self.models[model_idx].to(torch.device("cpu"))
-                self.trainers[model_idx] = None
 
+                self.models[fold_idx].to(torch.device("cpu"))
+                self.trainers[fold_idx] = None
+
+        logging.info("K-fold cross-validation finished.")
         return self.models
 
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """Instantiate the ensemble inferencer for all loaded models.
+        """Instantiate the ensemble inferencer for all fold models.
 
         Must be called after ``setup_models`` and ``set_state_dicts``.
 
@@ -300,7 +304,7 @@ class Bootstrap(Strategy):
         self.inferencer = inferencer
 
     def run_inference(self, predictions_save_path: str | Path | None) -> None:
-        """Run aggregate ensemble inference and optionally save predictions.
+        """Run aggregate inference with all k-fold models.
 
         Args:
             predictions_save_path: Directory in which to write prediction
@@ -318,10 +322,10 @@ class Bootstrap(Strategy):
 
     @property
     def model_signature(self) -> Config:
-        """Return the shared model architecture signature.
+        """Return the model architecture signature.
 
         Returns:
-            A ``Config`` representing the bootstrap members' model signature.
+            A ``Config`` representing the model signature.
 
         Raises:
             ValueError: If ``setup_models`` has not been called.
@@ -341,8 +345,8 @@ class Bootstrap(Strategy):
         signature = super().signature
         signature.update_with_dict(
             {
-                "n_models": self.n_models,
-                "sample_fraction": self.sample_fraction,
+                "n_splits": self.n_splits,
+                "n_repeats": self.n_repeats,
             }
         )
         return signature

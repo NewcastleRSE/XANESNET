@@ -1,0 +1,66 @@
+# Bootstrap ensemble dry-run training configuration.
+
+seed: 2025
+device: cpu
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/toy_data/
+  spectrum_key: "XANES"
+
+dataset:
+  dataset_type: descriptor
+  root: ./data/processed/toy_data_mlp_bootstrap_test/
+  preload: True
+  skip_prepare: False
+  split_ratios: [0.8, 0.2]
+  descriptors:
+    - descriptor_type: wacsf
+      r_min: 1.0
+      r_max: 6.0
+      n_g2: 8
+      n_g4: 16
+
+encodings:
+  - encoding_type: identity
+
+model:
+  model_type: mlp
+  in_size: auto
+  out_size: auto
+  hidden_size: 32
+  dropout: 0.0
+  num_hidden_layers: 2
+  shrink_rate: 0.5
+  activation: prelu
+
+trainer:
+  trainer_type: basic
+  batch_size: 4
+  shuffle: True
+  drop_last: False
+  num_workers: 0
+  epochs: 2
+  learning_rate: 0.001
+  optimizer: Adam
+  max_norm: null
+  validation_interval: 10
+  lr_warmup: False
+  loss:
+    - loss_type: mse
+  regularizer:
+    regularizer_type: none
+  lr_scheduler:
+    lr_scheduler_type: none
+  early_stopper:
+    early_stopper_type: time
+    time_limit_seconds: 60
+    restore_best: False
+
+strategy:
+  strategy_type: bootstrap
+  weight_init: xavier_uniform
+  bias_init: zeros
+  checkpoint_interval: 1
+  n_models: 2
+  sample_fraction: 1.0

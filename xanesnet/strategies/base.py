@@ -22,7 +22,9 @@
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -77,8 +79,8 @@ class Strategy(ABC):
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
-        trainer_config: Config | None = None,
-        inferencer_config: Config | None = None,
+        trainer_config: Config | None,
+        inferencer_config: Config | None,
     ) -> None:
         """Initialize shared strategy state."""
         self.strategy_type = strategy_type
@@ -117,7 +119,7 @@ class Strategy(ABC):
         ...
 
     @abstractmethod
-    def set_state_dicts(self, state_dicts: list[dict]) -> None:
+    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
         """Load model state dicts from a list of previously saved dicts.
 
         Args:

@@ -1,8 +1,8 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: bootstrap.schema.yaml
-title: 'XANESNET strategy schema: bootstrap'
+$id: kfold.schema.yaml
+title: 'XANESNET strategy schema: kfold'
 $defs:
-  strategyBootstrap:
+  strategyKFold:
     type: object
     additionalProperties: false
     required:
@@ -30,17 +30,17 @@ $defs:
         default: null
         description: Epoch interval between checkpoints, or ``None``.
       strategy_type:
-        const: bootstrap
+        const: kfold
         description: Strategy identifier.
-      n_models:
+      n_splits:
+        type: integer
+        minimum: 2
+        default: 3
+        description: Number of folds per repeat.
+      n_repeats:
         type: integer
         minimum: 1
-        default: 5
-        description: Number of bootstrap ensemble members.
-      sample_fraction:
-        type: number
-        exclusiveMinimum: 0
-        default: 1.0
-        description: Fraction of the training subset resampled for each bootstrap member.
-    description: Sequential bootstrap-ensemble training and aggregate inference strategy.
+        default: 1
+        description: Number of repeated k-fold shuffles.
+    description: Repeated k-fold cross-validation strategy aggregating all fold models.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.

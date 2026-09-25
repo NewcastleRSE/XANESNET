@@ -7,6 +7,7 @@ $defs:
     - $ref: single.schema.yaml#/$defs/strategySingle
     - $ref: deep_ensemble.schema.yaml#/$defs/strategyDeepEnsemble
     - $ref: bootstrap.schema.yaml#/$defs/strategyBootstrap
+    - $ref: kfold.schema.yaml#/$defs/strategyKFold
     - $ref: snapshot_ensemble.schema.yaml#/$defs/strategySnapshotEnsemble
     description: Union of strategy configuration objects instantiated by ``StrategyRegistry``.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.

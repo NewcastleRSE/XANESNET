@@ -23,6 +23,7 @@
 from .base import Strategy
 from .bootstrap import Bootstrap
 from .deep_ensemble import DeepEnsemble
+from .kfold import KFold
 from .registry import StrategyRegistry
 from .single import Single
 from .snapshot_ensemble import SnapshotEnsemble
@@ -31,6 +32,7 @@ __all__ = [
     "Strategy",
     "Bootstrap",
     "DeepEnsemble",
+    "KFold",
     "SnapshotEnsemble",
     "Single",
     "StrategyRegistry",
