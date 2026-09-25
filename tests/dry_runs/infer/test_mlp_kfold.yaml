@@ -1,0 +1,23 @@
+# K-fold ensemble dry-run inference configuration.
+
+seed: 2025
+device: cpu
+
+datasource:
+  datasource_type: pmgjson
+  json_path: ./data/toy_data/
+  spectrum_key: "XANES"
+
+dataset:
+  root: ./data/processed/toy_data_mlp_kfold_test/
+  preload: True
+  skip_prepare: False
+
+inferencer:
+  inferencer_type: ensemble
+  batch_size: 4
+  shuffle: False
+  drop_last: False
+  num_workers: 0
+  buffer_size: 1000
+  model_device_policy: sequential

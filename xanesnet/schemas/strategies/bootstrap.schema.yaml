@@ -42,10 +42,5 @@ $defs:
         exclusiveMinimum: 0
         default: 1.0
         description: Fraction of the training subset resampled for each bootstrap member.
-      seeds:
-        type: array
-        items:
-          type: integer
-        description: Optional per-model random seeds for resampling and weight initialization.
     description: Sequential bootstrap-ensemble training and aggregate inference strategy.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.

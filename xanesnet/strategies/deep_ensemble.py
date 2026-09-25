@@ -18,9 +18,10 @@
 # Citations:
 #   ...
 
-"""Deep-ensemble training and inference strategy for XANESNET."""
+"""Deep-ensemble strategy for XANESNET."""
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -29,8 +30,8 @@ import torch
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.runners.inferencers import InferencerRegistry
-from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
+from xanesnet.runners.trainers import Trainer, TrainerRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -52,17 +53,16 @@ class DeepEnsemble(Strategy):
         strategy_type: Registry key identifying this strategy type.
         dataset: Dataset used for training or inference.
         model_config: Configuration for the model.
-        encoding: Composed spectra encoding forwarded to the trainers and
-            inferencer.
+        encoding: Composed spectra encoding forwarded to the trainers and inferencer.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional weight-initializer parameters.
         bias_init: Bias initialization scheme name.
-        n_models: Number of independent ensemble members.
         checkpoint_dir: Directory for checkpoints, or ``None``.
         checkpoint_interval: Epoch interval between checkpoints, or ``None``.
         tensorboard_dir: Directory for TensorBoard event files, or ``None``.
         trainer_config: Trainer configuration for training mode.
         inferencer_config: Inferencer configuration for inference mode.
+        n_models: Number of independent ensemble members.
     """
 
     def __init__(
@@ -74,12 +74,13 @@ class DeepEnsemble(Strategy):
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
-        n_models: int,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
-        trainer_config: Config | None = None,
-        inferencer_config: Config | None = None,
+        trainer_config: Config | None,
+        inferencer_config: Config | None,
+        # deep-ensemble arguments:
+        n_models: int,
     ) -> None:
         """Initialize the deep ensemble strategy."""
         super().__init__(
@@ -99,8 +100,16 @@ class DeepEnsemble(Strategy):
 
         self.n_models = n_models
         self.models: list[Model] = []
-        self.trainers: list[Any | None] = []
-        self.inferencer: Any | None = None
+        self.trainers: list[Trainer | None] = []
+        self.inferencer: Inferencer | None = None
+
+    def _dataset_for_model(self) -> Dataset:
+        """Return the shared dataset view used by one ensemble member.
+
+        Returns:
+            The strategy's configured dataset.
+        """
+        return self.dataset
 
     def setup_models(self) -> None:
         """Instantiate ``n_models`` independent model copies from ``model_config``."""
@@ -126,7 +135,7 @@ class DeepEnsemble(Strategy):
             logging.info(f"Initializing ensemble model {model_idx + 1}/{self.n_models} weights.")
             model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
 
-    def set_state_dicts(self, state_dicts: list[dict]) -> None:
+    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
         """Load one state dictionary into each ensemble member.
 
         Args:
@@ -168,9 +177,10 @@ class DeepEnsemble(Strategy):
         self.trainers = []
         for model_idx, model in enumerate(self.models):
             logging.info(f"Initializing trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
+            dataset_model = self._dataset_for_model()
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
-                dataset=self.dataset,
+                dataset=dataset_model,
                 model=model,
                 device=device,
                 checkpointer=self.checkpointer,

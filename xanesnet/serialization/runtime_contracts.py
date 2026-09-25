@@ -122,7 +122,7 @@ def _require_ensemble_inferencer_for_ensemble_strategies(config: ConfigRaw) -> N
     """
     strategy_type = _section_value(config, "strategy", "strategy_type")
     inferencer_type = _section_value(config, "inferencer", "inferencer_type")
-    if strategy_type in {"deep_ensemble", "bootstrap"} and inferencer_type != "ensemble":
+    if strategy_type in {"deep_ensemble", "bootstrap", "kfold"} and inferencer_type != "ensemble":
         raise ConfigError(f"Inference strategy '{strategy_type}' requires inferencer 'ensemble'.")
 
 

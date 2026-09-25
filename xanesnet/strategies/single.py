@@ -18,9 +18,10 @@
 # Citations:
 #   ...
 
-"""Single-model training and inference strategy for XANESNET."""
+"""Single-model strategy for XANESNET."""
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -29,8 +30,8 @@ import torch
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.runners.inferencers import InferencerRegistry
-from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
+from xanesnet.runners.trainers import Trainer, TrainerRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -49,13 +50,11 @@ class Single(Strategy):
         strategy_type: Registry key identifying this strategy type.
         dataset: Dataset used for training or inference.
         model_config: Configuration for the managed model.
-        encoding: Composed spectra encoding forwarded to the trainer and
-            inferencer.
+        encoding: Composed spectra encoding forwarded to the trainer and inferencer.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional parameters for the weight initializer.
         bias_init: Bias initialization scheme name.
-        checkpoint_dir: Directory for checkpoints, or ``None`` to disable
-            checkpointing.
+        checkpoint_dir: Directory for checkpoints, or ``None`` to disable checkpointing.
         checkpoint_interval: Epoch interval for checkpoint saves, or
             ``None`` to disable interval-based checkpointing.
         tensorboard_dir: Directory for TensorBoard event files, or
@@ -76,8 +75,8 @@ class Single(Strategy):
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
-        trainer_config: Config | None = None,
-        inferencer_config: Config | None = None,
+        trainer_config: Config | None,
+        inferencer_config: Config | None,
     ) -> None:
         """Initialize the single-model strategy."""
         super().__init__(
@@ -96,8 +95,8 @@ class Single(Strategy):
         )
 
         self.model: Model | None = None
-        self.trainer: Any | None = None
-        self.inferencer: Any | None = None
+        self.trainer: Trainer | None = None
+        self.inferencer: Inferencer | None = None
 
     def setup_models(self) -> None:
         """Instantiate a single model from ``model_config`` and store it as ``self.model``."""
@@ -115,7 +114,7 @@ class Single(Strategy):
         logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
         self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
 
-    def set_state_dicts(self, state_dicts: list[dict]) -> None:
+    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
         """Load model weights from the first entry of ``state_dicts``.
 
         Args:
@@ -271,5 +270,4 @@ class Single(Strategy):
             A ``Config`` capturing the strategy configuration.
         """
         signature = super().signature
-        signature.update_with_dict({})
         return signature

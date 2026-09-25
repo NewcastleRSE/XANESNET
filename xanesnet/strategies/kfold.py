@@ -18,11 +18,11 @@
 # Citations:
 #   ...
 
-"""K-fold cross-validation training and inference strategy for XANESNET."""
+"""K-fold cross-validation strategy for XANESNET."""
 
 import copy
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -33,8 +33,8 @@ from torch.utils.data import Subset
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.runners.inferencers import InferencerRegistry
-from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
+from xanesnet.runners.trainers import Trainer, TrainerRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -44,30 +44,28 @@ from .registry import StrategyRegistry
 
 @StrategyRegistry.register("kfold")
 class KFold(Strategy):
-    """Repeated k-fold cross-validation strategy returning the best fold model.
+    """Repeated k-fold cross-validation ensemble training strategy.
 
     The strategy trains one model per fold on a shuffled partition of the full
     dataset. Each fold uses the holdout partition as validation during training.
-    After all folds complete, the model with the lowest validation score is
-    returned for inference.
+    There are ``n_splits * n_repeats`` fold models in total. All fold models are
+    retained and their predictions are aggregated by the ensemble inferencer.
 
     Args:
         strategy_type: Registry key identifying this strategy type.
         dataset: Dataset used for training or inference.
         model_config: Configuration for the model.
-        encoding: Composed spectra encoding forwarded to the trainers and
-            inferencer.
+        encoding: Composed spectra encoding forwarded to the trainers and inferencer.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional weight-initializer parameters.
         bias_init: Bias initialization scheme name.
-        n_splits: Number of folds per repeat.
-        n_repeats: Number of times to repeat the k-fold split.
-        seed: Random seed used to shuffle samples before splitting.
         checkpoint_dir: Directory for checkpoints, or ``None``.
         checkpoint_interval: Epoch interval between checkpoints, or ``None``.
         tensorboard_dir: Directory for TensorBoard event files, or ``None``.
         trainer_config: Trainer configuration for training mode.
         inferencer_config: Inferencer configuration for inference mode.
+        n_splits: Number of folds per repeat.
+        n_repeats: Number of times to repeat the k-fold split.
     """
 
     def __init__(
@@ -82,11 +80,11 @@ class KFold(Strategy):
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
-        n_splits: int = 3,
-        n_repeats: int = 1,
-        seed: int | None = None,
-        trainer_config: Config | None = None,
-        inferencer_config: Config | None = None,
+        trainer_config: Config | None,
+        inferencer_config: Config | None,
+        # k-fold arguments:
+        n_splits: int,
+        n_repeats: int,
     ) -> None:
         """Initialize the k-fold cross-validation strategy."""
         super().__init__(
@@ -104,27 +102,17 @@ class KFold(Strategy):
             inferencer_config,
         )
 
-        if n_splits < 2:
-            raise ValueError(f"n_splits must be at least 2, got {n_splits}.")
-        if n_repeats < 1:
-            raise ValueError(f"n_repeats must be at least 1, got {n_repeats}.")
-        if len(self.dataset) < n_splits:
-            raise ValueError(
-                f"Dataset has {len(self.dataset)} samples, but k-fold requires at least {n_splits}."
-            )
-
         self.n_splits = n_splits
         self.n_repeats = n_repeats
-        self.seed = seed if seed is not None else np.random.default_rng().integers(0, 1000)
-        self._rng = np.random.default_rng(self.seed)
+        self.n_models = n_splits * n_repeats
 
-        self.model: Model | None = None
-        self.trainer: Any | None = None
-        self.inferencer: Any | None = None
-        self._device: str | torch.device | None = None
+        self.models: list[Model] = []
+        self.trainers: list[Trainer | None] = []
+        self.inferencer: Inferencer | None = None
+        self._fold_splits: list[tuple[list[int], list[int]]] = []
 
     def _iter_kfold_splits(self) -> Iterator[tuple[list[int], list[int]]]:
-        """Yield train and validation index lists for each fold.
+        """Yield full-dataset train and validation indices for each fold.
 
         Yields:
             Tuples of ``(train_indices, valid_indices)`` for one fold.
@@ -133,16 +121,10 @@ class KFold(Strategy):
         indices = np.arange(n_samples)
 
         for _ in range(self.n_repeats):
-            shuffled = self._rng.permutation(indices)
-            fold_sizes = np.full(self.n_splits, n_samples // self.n_splits, dtype=int)
-            fold_sizes[: n_samples % self.n_splits] += 1
-
-            current = 0
-            for fold_size in fold_sizes:
-                test_indices = shuffled[current : current + fold_size]
-                train_indices = np.concatenate([shuffled[:current], shuffled[current + fold_size :]])
-                current += fold_size
-                yield train_indices.tolist(), test_indices.tolist()
+            folds = np.array_split(np.random.permutation(indices), self.n_splits)
+            for fold_idx, valid_indices in enumerate(folds):
+                train_indices = np.concatenate(folds[:fold_idx] + folds[fold_idx + 1 :])
+                yield train_indices.tolist(), valid_indices.tolist()
 
     def _fold_dataset(self, train_indices: list[int], valid_indices: list[int]) -> Dataset:
         """Return a dataset copy configured for one k-fold split.
@@ -162,37 +144,59 @@ class KFold(Strategy):
         ]
         return dataset_fold
 
-    def setup_models(self) -> None:
-        """Instantiate a template model from ``model_config`` for signatures."""
-        model_type = self.model_config.get_str("model_type")
-        logging.info(f"Initializing k-fold model template: {model_type}")
-        self.model = ModelRegistry.create(model_type, **self.model_config.as_kwargs())
-
-    def init_model_weights(self) -> None:
-        """Apply weight and bias initialization to the template model."""
-        if self.model is None:
-            raise ValueError("Cannot initialize model weights because the model is not initialized.")
-
-        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
-        self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
-
-    def set_state_dicts(self, state_dicts: list[dict]) -> None:
-        """Load model weights from the first entry of ``state_dicts``.
+    def _dataset_for_model(self, model_idx: int) -> Dataset:
+        """Return the fold-specific dataset view for one model.
 
         Args:
-            state_dicts: List of state dictionaries; only the first entry is
-                used for the selected k-fold model.
+            model_idx: Index of the model and corresponding fold split.
+
+        Returns:
+            A shallow dataset copy configured with that fold's train and
+            validation subsets.
+        """
+        train_indices, valid_indices = self._fold_splits[model_idx]
+        return self._fold_dataset(train_indices, valid_indices)
+
+    def setup_models(self) -> None:
+        """Instantiate one model for each fold across all repeats."""
+        model_type = self.model_config.get_str("model_type")
+        model_cls = ModelRegistry.get(model_type)
+
+        self.models = []
+        for model_idx in range(self.n_models):
+            logging.info(f"Initializing k-fold model {model_idx + 1}/{self.n_models}: {model_type}")
+            self.models.append(model_cls(**self.model_config.as_kwargs()))
+
+    def init_model_weights(self) -> None:
+        """Apply weight and bias initialization to every fold model."""
+        if len(self.models) == 0:
+            raise ValueError("Cannot initialize model weights because models are not initialized.")
+
+        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
+        for model_idx, model in enumerate(self.models):
+            logging.info(f"Initializing k-fold model {model_idx + 1}/{self.n_models} weights.")
+            model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
+
+    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
+        """Load one state dictionary into each fold model.
+
+        Args:
+            state_dicts: State dictionaries to load, one per fold model.
 
         Raises:
-            ValueError: If ``setup_models`` has not been called.
+            ValueError: If models are not initialized or the number of state
+                dictionaries does not match the number of models.
         """
-        if self.model is None:
-            raise ValueError("Cannot load state dicts because the model is not initialized.")
+        if len(self.models) == 0:
+            raise ValueError("Cannot load state dicts because models are not initialized.")
+        if len(state_dicts) != len(self.models):
+            raise ValueError(f"Expected {len(self.models)} state dicts, got {len(state_dicts)}.")
 
-        self.model.load_state_dict(state_dicts[0])
+        for model, state_dict in zip(self.models, state_dicts, strict=True):
+            model.load_state_dict(state_dict)
 
     def setup_trainers(self, device: str | torch.device) -> None:
-        """Store the training device; trainers are created per fold at runtime.
+        """Instantiate one trainer per fold.
 
         Must be called after ``setup_models`` and ``setup_checkpointer``.
 
@@ -200,127 +204,99 @@ class KFold(Strategy):
             device: The device on which training will be performed.
 
         Raises:
-            ValueError: If the model, trainer config, or checkpointer are not initialized.
+            ValueError: If models, trainer config, or checkpointer are not initialized.
         """
-        if self.model is None:
-            raise ValueError("Cannot setup trainers because the model is not initialized.")
+        if len(self.models) == 0:
+            raise ValueError("Cannot setup trainers because models are not initialized.")
         if self.trainer_config is None:
             raise ValueError("Can not setup trainers because there is no trainer config.")
         if self.checkpointer is None:
             raise ValueError("Can not setup trainers because checkpointer is not instantiated.")
 
-        self._device = device
-        self.trainer = None
+        trainer_type = self.trainer_config.get_str("trainer_type")
+        trainer_cls = TrainerRegistry.get(trainer_type)
+        self._fold_splits = list(self._iter_kfold_splits())
+        self.trainers = []
+
+        for model_idx, model in enumerate(self.models):
+            logging.info(f"Initializing k-fold trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
+            dataset_model = self._dataset_for_model(model_idx)
+            trainer = trainer_cls(
+                **self.trainer_config.as_kwargs(),
+                dataset=dataset_model,
+                model=model,
+                device=device,
+                checkpointer=self.checkpointer,
+                encoding=self.encoding,
+            )
+            self.trainers.append(trainer)
 
     def run_training(self) -> list[Model]:
-        """Train one model per fold and return the best-scoring model.
+        """Train all fold models and return them.
 
         Must be called after ``setup_trainers``.
 
         Returns:
-            A single-element list containing the fold model with the lowest
-            validation score.
+            List of trained fold models.
 
         Raises:
-            ValueError: If setup steps were not completed or no fold produced
-                a usable validation score.
+            ValueError: If models or trainers are not initialized.
         """
-        if self.model is None:
-            raise ValueError("Cannot run training because the model is not initialized.")
-        if self.trainer_config is None:
-            raise ValueError("Cannot run training because there is no trainer config.")
+        if len(self.models) == 0:
+            raise ValueError("Cannot run training because models are not initialized.")
+        if len(self.trainers) != len(self.models):
+            raise ValueError("Cannot run training because trainers are not initialized for every model.")
         if self.checkpointer is None:
             raise ValueError("Cannot run training because checkpointer is not instantiated.")
-        if self._device is None:
-            raise ValueError("Cannot run training because trainers are not initialized.")
 
         super().run_training()
 
-        model_type = self.model_config.get_str("model_type")
-        model_cls = ModelRegistry.get(model_type)
-        trainer_type = self.trainer_config.get_str("trainer_type")
-        trainer_cls = TrainerRegistry.get(trainer_type)
+        for fold_idx, trainer in enumerate(self.trainers):
+            if trainer is None:
+                raise ValueError("Cannot run training because trainers are not initialized for every model.")
 
-        best_model: Model | None = None
-        best_score = float("inf")
-        valid_scores: list[float] = []
-        n_folds = self.n_splits * self.n_repeats
-
-        for fold_idx, (train_indices, valid_indices) in enumerate(self._iter_kfold_splits()):
-            logging.info(f"Training k-fold model {fold_idx + 1}/{n_folds}.")
+            logging.info(f"Training k-fold model {fold_idx + 1}/{self.n_models}.")
             self.checkpointer.new_model()
-
-            model = model_cls(**self.model_config.as_kwargs())
-            model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
-            dataset_fold = self._fold_dataset(train_indices, valid_indices)
-            trainer = trainer_cls(
-                **self.trainer_config.as_kwargs(),
-                dataset=dataset_fold,
-                model=model,
-                device=self._device,
-                checkpointer=self.checkpointer,
-                encoding=self.encoding,
-            )
 
             try:
                 if self.tensorboard_dir is not None:
                     tb_logger.new_run(Path(self.tensorboard_dir) / f"fold_{fold_idx}")
 
-                score = trainer.train()
+                trainer.train()
             finally:
                 tb_logger.close()
 
-            if score is None:
-                logging.warning(f"Fold {fold_idx + 1} did not produce a validation score and will be skipped.")
-                model.to(torch.device("cpu"))
-                continue
-
-            valid_scores.append(score)
-
-            logging.info(f"Fold {fold_idx + 1} validation score: {score:.6f}")
-            if score < best_score:
-                logging.info(f"New best k-fold model found with validation score: {score:.6f}")
-                best_score = score
-                best_model = copy.deepcopy(model)
-
-            model.to(torch.device("cpu"))
-
-        if best_model is None:
-            raise ValueError("K-fold training did not produce a model with a validation score.")
+                self.models[fold_idx].to(torch.device("cpu"))
+                self.trainers[fold_idx] = None
 
         logging.info("K-fold cross-validation finished.")
-        if valid_scores:
-            logging.info(
-                f"Average validation score: {np.mean(valid_scores):.6f} +/- {np.std(valid_scores):.6f}"
-            )
-
-        self.model = best_model
-        return [self.model]
+        return self.models
 
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """Instantiate an inferencer for the selected k-fold model.
+        """Instantiate the ensemble inferencer for all fold models.
 
-        Must be called after ``setup_models``.
+        Must be called after ``setup_models`` and ``set_state_dicts``.
 
         Args:
             device: The device on which inference will be performed.
 
         Raises:
-            ValueError: If the model or inferencer config are not initialized.
+            ValueError: If models or inferencer config are not initialized.
         """
-        if self.model is None:
-            raise ValueError("Can not setup inferencers because the model is not initialized.")
+        if len(self.models) == 0:
+            raise ValueError("Can not setup inferencers because models are not initialized.")
         if self.inferencer_config is None:
             raise ValueError("Can not setup inferencers because there is no inferencer config.")
 
-        inferencer_type = self.inferencer_config.get_str("inferencer_type")
-        logging.info(f"Initializing inferencer: {inferencer_type}")
+        logging.info("Initializing inferencer: ensemble")
 
+        inferencer_kwargs = self.inferencer_config.as_kwargs()
+        inferencer_kwargs["inferencer_type"] = "ensemble"
         inferencer = InferencerRegistry.create(
-            inferencer_type,
-            **self.inferencer_config.as_kwargs(),
+            "ensemble",
+            **inferencer_kwargs,
             dataset=self.dataset,
-            model=self.model,
+            models=self.models,
             device=device,
             encoding=self.encoding,
         )
@@ -328,7 +304,7 @@ class KFold(Strategy):
         self.inferencer = inferencer
 
     def run_inference(self, predictions_save_path: str | Path | None) -> None:
-        """Run inference with the selected k-fold model.
+        """Run aggregate inference with all k-fold models.
 
         Args:
             predictions_save_path: Directory in which to write prediction
@@ -354,10 +330,10 @@ class KFold(Strategy):
         Raises:
             ValueError: If ``setup_models`` has not been called.
         """
-        if self.model is None:
-            raise ValueError("Model is not initialized. Cannot retrieve signature.")
+        if len(self.models) == 0:
+            raise ValueError("Models are not initialized. Cannot retrieve signature.")
 
-        return self.model.signature
+        return self.models[0].signature
 
     @property
     def signature(self) -> Config:
@@ -371,7 +347,6 @@ class KFold(Strategy):
             {
                 "n_splits": self.n_splits,
                 "n_repeats": self.n_repeats,
-                "seed": self.seed,
             }
         )
         return signature

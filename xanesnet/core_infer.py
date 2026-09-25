@@ -162,6 +162,7 @@ def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding)
         dataset=dataset,
         model_config=model_config,
         encoding=encoding,
+        trainer_config=None,
         inferencer_config=inferencer_config,
     )
 

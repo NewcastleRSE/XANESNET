@@ -42,8 +42,5 @@ $defs:
         minimum: 1
         default: 1
         description: Number of repeated k-fold shuffles.
-      seed:
-        type: integer
-        description: Random seed used to shuffle samples before splitting.
-    description: Repeated k-fold cross-validation strategy returning the best fold model.
+    description: Repeated k-fold cross-validation strategy aggregating all fold models.
 description: Strategy schemas backed by ``StrategyRegistry`` classes.
