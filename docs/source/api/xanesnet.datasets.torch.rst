@@ -21,4 +21,5 @@ Submodules
    :maxdepth: 4
 
    xanesnet.datasets.torch.descriptor
+   xanesnet.datasets.torch.descriptor_multihead
    xanesnet.datasets.torch.envembed

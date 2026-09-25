@@ -14,6 +14,7 @@ Submodules
 
    xanesnet.batchprocessors.forward.base
    xanesnet.batchprocessors.forward.descriptor_mlp
+   xanesnet.batchprocessors.forward.descriptor_multihead
    xanesnet.batchprocessors.forward.e3ee
    xanesnet.batchprocessors.forward.e3ee_full
    xanesnet.batchprocessors.forward.envembed

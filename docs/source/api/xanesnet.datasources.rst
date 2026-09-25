@@ -13,6 +13,7 @@ Submodules
    :maxdepth: 4
 
    xanesnet.datasources.base
+   xanesnet.datasources.multipmgjson
    xanesnet.datasources.multixyzspec
    xanesnet.datasources.pmgjson
    xanesnet.datasources.registry

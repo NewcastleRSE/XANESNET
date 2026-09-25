@@ -14,3 +14,4 @@ Submodules
 
    xanesnet.batchprocessors.inverse.base
    xanesnet.batchprocessors.inverse.descriptor_mlp
+   xanesnet.batchprocessors.inverse.descriptor_multihead
