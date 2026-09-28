@@ -28,7 +28,7 @@
 """Prompt helpers for interactive XANESNET CLI confirmations."""
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -59,7 +59,7 @@ def is_auto_yes_enabled() -> bool:
 
 
 @contextmanager
-def auto_yes(enabled: bool = True) -> Iterator[None]:
+def auto_yes(enabled: bool = True) -> Generator[None, None, None]:
     """Temporarily set auto-yes mode for the current execution context.
 
     Args:

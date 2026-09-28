@@ -267,4 +267,3 @@ class IrrepNorm(nn.Module):
             out = out * self.weight + self.bias  # TODO bias equivariance breaking?
 
         return out.view(*orig_shape, d)
-        return out.view(*orig_shape, d)
