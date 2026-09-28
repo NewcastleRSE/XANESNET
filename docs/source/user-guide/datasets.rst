@@ -1,122 +1,101 @@
 Datasets
 ========
 
-The ``dataset_type`` field selects a dataset class from
-``DatasetRegistry``. Each type defines how structures and spectra are
-preprocessed, which model families are compatible, and whether periodic
-boundary conditions (``_mp`` variants) are supported.
+The ``dataset_type`` field selects how raw structures and spectra are prepared and represented for a model.
+Dataset implementations write processed samples to ``root`` and provide the batches consumed by compatible models.
+Generally, different models may require different dataset types.
+See :doc:`models` for the model implementations and the compatibility matrix below for the registered dataset-model combinations.
+The adapter between a compatible dataset and model is described in :doc:`batch-processors`.
 
-Descriptor-based datasets
--------------------------
+Available implementations
+--------------------------
 
-These datasets featurise structures with descriptors from the
-``descriptors`` list in the config (see :doc:`descriptors`).
+* ``descriptor`` and ``descriptor_inverse`` (:class:`~xanesnet.datasets.torch.descriptor.DescriptorDataset`) convert structures to fixed-size descriptor features.
+* ``descriptor_multihead`` and ``descriptor_multihead_inverse`` (:class:`~xanesnet.datasets.torch.descriptor_multihead.DescriptorMultiheadDataset`) prepare several target heads for multi-head models.
+* ``envembed`` (:class:`~xanesnet.datasets.torch.envembed.EnvEmbedDataset`) prepares the absorber-environment representation used by the ``envembed`` model.
+* ``geometrygraph`` (:class:`~xanesnet.datasets.torchgeometric.geometrygraph.GeometryGraphDataset`) builds classic geometric graphs for graph models.
+* ``gemnet`` (:class:`~xanesnet.datasets.torchgeometric.gemnet.GemNetDataset`) prepares graph and higher-order interaction data for the ``gemnet`` model.
+* ``gemnet_oc`` (:class:`~xanesnet.datasets.torchgeometric.gemnet.GemNetDataset`) prepares graph and higher-order interaction data for the ``gemnet_oc`` model.
+* ``e3ee`` (:class:`~xanesnet.datasets.torchgeometric.e3ee.E3EEDataset`) prepares absorber-centred graphs for the ``e3ee`` model.
+* ``e3ee_full`` (:class:`~xanesnet.datasets.torchgeometric.e3ee_full.E3EEFullDataset`) prepares full-structure graphs for ``e3ee_full`` predictions.
 
-descriptor
-~~~~~~~~~~
+Multiprocessing
+---------------
+All dataset types have a ``_mp`` variant that uses multiprocessing during dataset preparation.
+The ``_mp`` variants add the ``num_workers`` field to control the number of worker processes.
 
-Tabular dataset for MLP and related models. Stores fixed-length feature
-vectors and target spectra. Compatible with forward prediction
-(structure → spectrum).
+Common configuration
+--------------------
 
-Example configs: ``configs/mlp.yaml``, ``configs/mh_mlp.yaml``.
+* ``root`` is required and stores the processed samples.
+* ``preload`` loads processed samples into memory instead of reading them on demand.
+* ``skip_prepare`` reuses existing processed samples.
+* ``split_ratios`` creates data splits and must sum to ``1.0`` when ``split_indexfile`` is ``null``.
+* ``split_indexfile`` provides fixed split indices instead of ratio-based splitting.
+* Descriptor datasets require a non-empty ``descriptors`` list; see :doc:`descriptors` for the available descriptor types.
+* Graph datasets require ``graph_builder``; see :doc:`graphs` for the available builders.
 
-* ``dataset_type: descriptor``
-* ``descriptors`` — list of descriptor blocks
-* ``split_ratios``, ``preload``, ``root``, ``skip_prepare``
+Compatibility matrix
+--------------------
 
-descriptor_inverse
-~~~~~~~~~~~~~~~~~~
+The runtime selects a batch processor using both ``dataset_type`` and ``model_type``.
+The following combinations are registered:
 
-Reverse mapping (spectrum → structure/descriptor space). Compatible with
-inverse MLP workflows.
+.. list-table:: Dataset and model compatibility
+   :header-rows: 1
+   :widths: 32 30 18
 
-Example config: ``configs/mlp_inverse.yaml``.
+   * - Dataset type
+     - Compatible model type
+     - Direction
+   * - ``descriptor`` / ``descriptor_mp``
+     - ``mlp``
+     - forward
+   * - ``descriptor_inverse`` / ``descriptor_inverse_mp``
+     - ``mlp``
+     - inverse
+   * - ``descriptor_multihead`` / ``descriptor_multihead_mp``
+     - ``mh_mlp``, ``mh_cnn``
+     - forward
+   * - ``descriptor_multihead_inverse`` / ``descriptor_multihead_inverse_mp``
+     - ``mh_mlp``, ``mh_cnn``
+     - inverse
+   * - ``envembed`` / ``envembed_mp``
+     - ``envembed``
+     - forward
+   * - ``geometrygraph`` / ``geometrygraph_mp``
+     - ``schnet``, ``dimenet``, ``dimenet++``
+     - forward
+   * - ``gemnet`` / ``gemnet_mp``
+     - ``gemnet``
+     - forward
+   * - ``gemnet_oc`` / ``gemnet_oc_mp``
+     - ``gemnet_oc``
+     - forward
+   * - ``e3ee`` / ``e3ee_mp``
+     - ``e3ee``
+     - forward
+   * - ``e3ee_full`` / ``e3ee_full_mp``
+     - ``e3ee_full``
+     - forward
 
-descriptor_mp / descriptor_inverse_mp
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example
+-------
 
-Periodic (materials) variants of the descriptor datasets.
+.. code-block:: yaml
 
-multihead / multihead_mp
-~~~~~~~~~~~~~~~~~~~~~~~~
+   dataset:
+     dataset_type: geometrygraph
+     root: ./data/processed/toy_data_schnet/
+     preload: true
+     skip_prepare: false
+     split_ratios: [0.8, 0.2]
+     graph_builder:
+       graph_builder_type: cov_radius
+       cutoff: 5.0
+       cov_radii_scale: 2.5
+       max_num_neighbors: 50
 
-Multi-target datasets for models that predict several spectra or properties
-from one structure. Use with ``mh_mlp`` or ``mh_cnn`` and a multi-head
-datasource (``multipmgjson`` or ``multixyzspec``).
-
-Example configs: ``configs/mh_mlp.yaml``, ``configs/mh_cnn.yaml``.
-
-Graph and geometry datasets
----------------------------
-
-geometrygraph / geometrygraph_mp
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Graph representation with wACSF-style edge features and graph-level
-descriptor attributes. Used with SchNet, DimeNet, and related GNN models.
-
-Example configs: ``configs/schnet.yaml``, ``configs/dimenet.yaml``.
-
-gemnet / gemnet_mp
-~~~~~~~~~~~~~~~~~~
-
-Dataset pipeline for GemNet models with appropriate graph construction.
-
-Example config: ``configs/gemnet.yaml``.
-
-gemnet_oc / gemnet_oc_mp
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Dataset pipeline for GemNet-OC (open catalyst) models.
-
-Example config: ``configs/gemnet_oc.yaml``.
-
-envembed / envembed_mp
-~~~~~~~~~~~~~~~~~~~~~~
-
-Environment embedding dataset for the EnvEmbed model family.
-
-Example config: ``configs/envembed.yaml``.
-
-e3ee / e3ee_mp
-~~~~~~~~~~~~~~
-
-Equivariant E(3) edge embedding dataset.
-
-Example config: ``configs/e3ee.yaml``.
-
-e3ee_full / e3ee_full_mp
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Full E3EE variant with extended graph features.
-
-Example config: ``configs/e3ee_full.yaml``.
-
-Inference overlay
------------------
-
-The ``infer_overlay`` dataset type is used internally during inference to
-align prediction inputs with a trained checkpoint signature. Users
-typically do not configure this directly.
-
-Choosing a dataset
-------------------
-
-+---------------------------+----------------------------------+
-| Goal                      | Typical ``dataset_type``         |
-+===========================+==================================+
-| MLP on descriptors        | ``descriptor``                   |
-| Inverse MLP               | ``descriptor_inverse``         |
-| Multi-head outputs        | ``multihead``                    |
-| SchNet / DimeNet          | ``geometrygraph``                |
-| GemNet                    | ``gemnet``                       |
-| GemNet-OC                 | ``gemnet_oc``                    |
-| EnvEmbed                  | ``envembed``                     |
-| E3EE                      | ``e3ee`` or ``e3ee_full``        |
-| Periodic structures       | ``*_mp`` suffix variants         |
-+---------------------------+----------------------------------+
-
-For field-level defaults and validation rules, see the JSON Schemas under
-``xanesnet/schemas/datasets/`` and the API reference for
-:mod:`xanesnet.datasets`.
+API reference
+-------------
+See also :mod:`xanesnet.datasets` and the schemas under ``xanesnet/schemas/datasets/`` for complete constructor fields and defaults.

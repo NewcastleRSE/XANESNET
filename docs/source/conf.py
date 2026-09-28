@@ -27,7 +27,7 @@ extensions = [
     "sphinx.ext.napoleon",
     # Viewcode: adds links to highlighted source code
     "sphinx.ext.viewcode",
-    # Intersphinx: cross-reference other projects (Python, NumPy, PyTorch, …)
+    # Intersphinx: cross-reference other projects (Python, NumPy, PyTorch, ...)
     "sphinx.ext.intersphinx",
     # Autosummary: generate summary tables for modules/classes
     "sphinx.ext.autosummary",

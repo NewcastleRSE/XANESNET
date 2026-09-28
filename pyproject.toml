@@ -64,7 +64,7 @@ dev = [
 ]
 docs = [
     "Sphinx>=8",
-    "furo>=2024.8",
+    "sphinx-rtd-theme>=2.0",
     "sphinx-autodoc-typehints>=2.5",
 ]
 
