@@ -117,13 +117,13 @@ More details are in [tools/config-ui/README.md](tools/config-ui/README.md).
 
 ## Usage
 
-XANESNET runs are driven by YAML configuration files. The supported workflow today is forward spectrum prediction: prepare structure/spectrum data, train a model, infer spectra with a saved checkpoint, and analyze prediction files. Examples live in [configs/](configs/), including [configs/in_mlp.yaml](configs/in_mlp.yaml), [configs/in_mlp_infer.yaml](configs/in_mlp_infer.yaml), and [configs/analyze_example.yaml](configs/analyze_example.yaml).
+XANESNET runs are driven by YAML configuration files. The supported workflow today is forward spectrum prediction: prepare structure/spectrum data, train a model, infer spectra with a saved checkpoint, and analyze inference-run outputs. Examples live in [configs/](configs/), including [configs/mlp.yaml](configs/mlp.yaml), [configs/mlp_infer.yaml](configs/mlp_infer.yaml), and [configs/analyze_example.yaml](configs/analyze_example.yaml).
 
 ### Train
 
 ```bash
 xanesnet train \
-    -i configs/in_mlp.yaml \
+    -i configs/mlp.yaml \
     -n mlp_test \
     -t \
     -y
@@ -137,7 +137,7 @@ Use `--dry-run` with `xanesnet train` to construct the normal training pipeline,
 
 ```bash
 xanesnet infer \
-    -i configs/in_mlp_infer.yaml \
+    -i configs/mlp_infer.yaml \
     -m runs/<train_run>/models/final.pth \
     -n mlp_infer \
     -y
@@ -164,7 +164,7 @@ For scripts and notebooks, you can call the same dispatcher that backs the CLI:
 ```python
 from xanesnet.cli import main
 
-main(["train", "-i", "configs/in_mlp.yaml", "-n", "mlp_test", "-y"])
+main(["train", "-i", "configs/mlp.yaml", "-n", "mlp_test", "-y"])
 ```
 
 For most workflows, the installed `xanesnet` command is the recommended interface because it keeps command logging and run directories consistent.
@@ -184,7 +184,7 @@ At a high level, a config contains:
 - `dataset`: preprocessing, storage, split, and descriptor or graph settings; set `dataset_type` to `descriptor` (forward) or `descriptor_inverse` (inverse) for descriptor workflows
 - `model`: model family and hyperparameters
 - exactly one runner section: `trainer`, `inferencer`, or analysis settings depending on workflow
-- `strategy`: single model or ensemble training/inference behavior
+- `strategy`: single-model, deep-ensemble, bootstrap, or k-fold training and inference behavior
 
 The config UI reads the same schemas through [tools/config-ui/src/schemas](tools/config-ui/src/schemas), a symlink to [xanesnet/schemas/](xanesnet/schemas/).
 
@@ -210,11 +210,16 @@ This project is licensed under the GPL-3.0 License. See [LICENSE](LICENSE) for d
 
 ## Publications
 
+### Main Reference
+*[XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy](https://placeholdmon.vercel.app/)* - H. Junkawitsch, B. Li, T. Pope, A. Bande, and T. Penfold, 2026.
+
 ### XANESNET
 *[A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra](https://doi.org/10.1021/acs.jpca.0c03723)* - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, *J. Phys. Chem. A*, 2020, **124**, 4263-4270.
 
 *[Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network](https://doi.org/10.1063/5.0087255)* - C. D. Rankine, and T. J. Penfold, *J. Chem. Phys.*, 2022, **156**, 164102.
- 
+
+*[Field-Aware Energy-Conditioned Message Passing Neural Networks for Absorber-Centred Modelling of X-ray Spectroscopy](https://doi.org/10.26434/chemrxiv.15004916/v1)* - T. J. Penfold, and T. J. Pope, *ChemRxiv*, 2026.
+
 ### Extension to X-ray Emission
 *[A deep neural network for valence-to-core X-ray emission spectroscopy](https://doi.org/10.1080/00268976.2022.2123406)* - T. J. Penfold, and C. D. Rankine, *Mol. Phys.*, 2022, e2123406.
 
