@@ -27,6 +27,7 @@
 
 """Checkpoint dataclass and helpers for XANESNET model persistence."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -49,7 +50,7 @@ class Checkpoint:
         epochs: Optional list of epoch counts, one per model.
     """
 
-    model_states: list[dict]
+    model_states: list[Mapping[str, Any]]
     signature: Config
     optimizer_states: list[dict] | None = None
     epochs: list[int] | None = None
