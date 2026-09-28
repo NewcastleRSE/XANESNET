@@ -16,7 +16,14 @@
 # If not, see <https://www.gnu.org/licenses/>.
 #
 # Citations:
-#   ...
+#   Junkawitsch et al., "XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy."
+#   Rankine et al., "A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra."
+#   Rankine et al., "Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network."
+#   Penfold et al., "Field-Aware Energy-Conditioned Message Passing Neural Networks for Absorber-Centred Modelling of X-ray Spectroscopy."
+#   Penfold et al., "A deep neural network for valence-to-core X-ray emission spectroscopy."
+#   Falbo et al., "On the Analysis of X-ray Absorption Spectra for Polyoxometallates."
+#   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
+#   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
 """Datasource for multiple paired XYZ coordinate files and spectra across subdirectories."""
 
@@ -60,9 +67,7 @@ class MultiXYZSpecSource(DataSource):
         self.root_path = root_path
 
         self.sample_ids: dict[str, list[str]] = self._get_file_dictionary()
-        self._subdir_ids: dict[str, int] = {
-            subdir: subdir_id for subdir_id, subdir in enumerate(self.sample_ids)
-        }
+        self._subdir_ids: dict[str, int] = {subdir: subdir_id for subdir_id, subdir in enumerate(self.sample_ids)}
         self._flat_index: list[tuple[str, str]] = [
             (subdir, file) for subdir, files in self.sample_ids.items() for file in files
         ]

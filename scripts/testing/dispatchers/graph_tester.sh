@@ -17,7 +17,14 @@
 # If not, see <https://www.gnu.org/licenses/>.
 #
 # Citations:
-#   ...
+#   Junkawitsch et al., "XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy."
+#   Rankine et al., "A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra."
+#   Rankine et al., "Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network."
+#   Penfold et al., "Field-Aware Energy-Conditioned Message Passing Neural Networks for Absorber-Centred Modelling of X-ray Spectroscopy."
+#   Penfold et al., "A deep neural network for valence-to-core X-ray emission spectroscopy."
+#   Falbo et al., "On the Analysis of X-ray Absorption Spectra for Polyoxometallates."
+#   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
+#   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
 set -euo pipefail
 
@@ -29,15 +36,16 @@ cd "$REPO_ROOT"
 JSON_DIR="./data/toy_data/"
 
 # Exactly one of these should be used. If FILE_STEM is non-empty, it wins.
-SAMPLE_INDEX=0
+SAMPLE_INDEX="${SAMPLE_INDEX:-2}"
+# 10
 FILE_STEM=""
 
 # Graph parameters
-CUTOFF=5.0
+CUTOFF=3.0
 MAX_NEIGHBORS=50
 GRAPH_METHOD="cov_radius"       # radius | voronoi | cov_radius
-MIN_FACET_AREA="0.01%"           # e.g. "0.25" or "1.0%" (voronoi only)
-COV_RADII_SCALE=2.5          # cov_radius only
+MIN_FACET_AREA="1.0%"           # e.g. "0.25" or "1.0%" (voronoi only)
+COV_RADII_SCALE=1.5         # cov_radius only
 
 # Optional toggles
 SHOW_VORONOI=false
@@ -51,7 +59,7 @@ MAX_PATHS_DRAWN=60
 MAX_PATHS=128
 
 # Optional output path (empty = do not save)
-SAVE_PATH=""
+SAVE_PATH="./runs/testing/graph_tester.png"
 
 args=(
 	"scripts/testing/graph_tester.py"

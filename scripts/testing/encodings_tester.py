@@ -16,31 +16,15 @@
 # If not, see <https://www.gnu.org/licenses/>.
 #
 # Citations:
-#   ...
+#   Junkawitsch et al., "XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy."
+#   Rankine et al., "A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra."
+#   Rankine et al., "Accurate, affordable, and generalizable machine learning simulations of transition metal x-ray absorption spectra using the XANESNET deep neural network."
+#   Penfold et al., "Field-Aware Energy-Conditioned Message Passing Neural Networks for Absorber-Centred Modelling of X-ray Spectroscopy."
+#   Penfold et al., "A deep neural network for valence-to-core X-ray emission spectroscopy."
+#   Falbo et al., "On the Analysis of X-ray Absorption Spectra for Polyoxometallates."
+#   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
+#   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Visualize all spectra encodings built from a real dataset via a training config.
-
-Loads the datasource and dataset described in a YAML training config, resolves
-any ``auto`` encoding fields from the training split, then applies each
-configured encoding to a sample of spectra and produces a rich visualization.
-
-Every encoding produces four base panels:
-
-1. Raw spectra (per-element coloring when element info is available).
-2. Encoded representation -- line plot when the encoding preserves the
-   spectrum length, or a heat-map / bar chart otherwise.
-3. Round-trip: raw vs. decode(encode(x)) overlaid.
-4. Point-wise reconstruction error |decode(encode(x)) - x|.
-
-Encoding-specific panels are appended automatically:
-
-* **z_score** -- mean and standard-deviation curves.
-* **min_max** -- minimum- and maximum-value curves.
-* **scale** -- per-point factor curve.
-* **gaussian** -- individual Gaussian basis contributions below the spectrum,
-  showing how each basis function participates in the reconstruction.
-* **subtract_average** -- per-element average spectra (or the single global
-  average when ``per_element`` is false).
 
 Usage::
 
