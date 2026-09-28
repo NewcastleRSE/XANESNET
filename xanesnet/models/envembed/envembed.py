@@ -40,13 +40,13 @@ from .layers import (
 class EnvEmbed(Model):
     """Environment Embedding model.
 
-    Architecture:
-
-    1. :class:`~xanesnet.models.envembed.layers.SoftRadialShellsEncoder`: learnable
-    soft radial shell binning over target-site-centric distances, fused with the
-    target-site descriptor to produce a fixed-size latent vector.
-    2. :class:`~xanesnet.models.envembed.layers.CoeffHeadGroupedResidualPreLN`: shared
-       Pre-LN residual trunk predicting spectral basis coefficients per width group.
+    Architecture consists of two stages. First,
+    :class:`~xanesnet.models.envembed.layers.SoftRadialShellsEncoder` performs
+    learnable soft radial shell binning over target-site-centric distances,
+    fused with the target-site descriptor to produce a fixed-size latent vector.
+    Second, :class:`~xanesnet.models.envembed.layers.CoeffHeadGroupedResidualPreLN`
+    provides a shared Pre-LN residual trunk that predicts spectral basis
+    coefficients per width group.
 
     Args:
         model_type: Model type string (passed to base class).

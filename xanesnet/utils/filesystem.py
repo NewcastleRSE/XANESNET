@@ -110,18 +110,15 @@ def create_run_dir(
 ) -> Path:
     """Create a uniquely named run directory.
 
-    Two naming modes:
-    - ``"count (default)"``:
-        ``<name>_<N>`` where *N* is the highest existing integer suffix
-        for ``<name>_`` in ``base_dir``, incremented by 1.
+    Two naming modes are supported:
 
-    - ``"time"``: ``<timestamp>_<name>``
+    * **Count (default):** ``<name>_<N>`` where *N* is the highest existing
+      integer suffix for ``<name>_`` in ``base_dir``, incremented by 1.
+    * **Time:** ``<timestamp>_<name>``
 
     Args:
         base_dir: Parent directory under which the run directory is created.
-            Defaults to ``"./runs"``.
-        name: Optional suffix appended to the timestamp, separated by
-            ``'_'``.
+        name: Optional suffix appended to the timestamp, separated by ``'_'``.
         mode: Naming mode, either ``"count"`` or ``"time"``.
 
     Returns:

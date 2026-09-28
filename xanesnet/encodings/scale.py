@@ -42,14 +42,12 @@ class ScaleEncoding(AffineEncoding):
     can be provided explicitly or resolved automatically from the training data
     via the ``"auto"`` token.
 
-    Two orthogonal switches control how the factor is shaped:
-
-    * ``per_point`` selects whether the factor varies across the spectrum
-      (a length-``N`` vector) or is a single global scalar shared across all
-      points.
-    * ``per_element`` selects whether a separate factor is used for each
-    target-site element (chosen per sample from its atomic number) or a single
-      factor is shared across all elements.
+    Two orthogonal switches control how the factor is shaped. ``per_point``
+    selects whether the factor varies across the spectrum (a length-``N`` vector)
+    or is a single global scalar shared across all points. ``per_element``
+    selects whether a separate factor is used for each target-site element
+    (chosen per sample from its atomic number) or a single factor is shared
+    across all elements.
 
     When ``per_element`` is false, ``factor`` is a flat list. When it is true,
     it is a list of rows, one row per entry of ``elements``.

@@ -42,14 +42,12 @@ class MinMaxEncoding(AffineEncoding):
     and can be provided explicitly or resolved automatically from the training
     data via the ``"auto"`` token.
 
-    Two orthogonal switches control how the bounds are shaped:
-
-    * ``per_point`` selects whether the bounds vary across the spectrum
-      (a length-``N`` vector) or are a single global scalar shared across all
-      points.
-    * ``per_element`` selects whether a separate set of bounds is used for each
-    target-site element (chosen per sample from its atomic number) or a single
-      set is shared across all elements.
+    Two orthogonal switches control how the bounds are shaped. ``per_point``
+    selects whether the bounds vary across the spectrum (a length-``N`` vector)
+    or are a single global scalar shared across all points. ``per_element``
+    selects whether a separate set of bounds is used for each target-site
+    element (chosen per sample from its atomic number) or a single set is shared
+    across all elements.
 
     When ``per_element`` is false, ``minimum`` and ``maximum`` are flat lists.
     When it is true, they are lists of rows, one row per entry of ``elements``.

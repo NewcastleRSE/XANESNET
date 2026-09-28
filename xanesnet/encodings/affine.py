@@ -54,29 +54,12 @@ def build_parameter_rows(encoding_type: str, name: str, rows: list[list[float]])
 class AffineEncoding(SpectraEncoding):
     """Affine spectra-encoding base with optional per-element parameters.
 
-    Implements the invertible affine transform shared by the standardization,
-    normalization, centering, and scaling encodings::
+    Implements the invertible affine transform:
 
         encode(x) = (x - shift) / scale
         decode(y) = y * scale + shift
 
-    ``shift`` and ``scale`` are broadcast against the ``(B, N)`` input. Two
-    parameterizations are supported:
-
-    * **Shared** (``per_element=False``): ``shift`` and ``scale`` are 1-D
-      tensors - per-point vectors of length ``N`` for point-by-point transforms
-      or length-one tensors for a single global transform - applied to every
-    sample regardless of its target-site element.
-    * **Element-aware** (``per_element=True``): ``shift`` and ``scale`` are 2-D
-      ``(E, D)`` lookup tables with one row per known element; the row applied
-    to each sample is selected from the sample's target-site atomic number. Rows
-      have length ``N`` for point-by-point transforms or length one for a single
-      global transform per element.
-
-    Concrete subclasses compute the parameters from their own configuration and
-    forward them here, so the encode/decode mechanics, element lookup, and
-    device handling live in one place. Internal tensors are moved to the device
-    of the input tensor inside :meth:`encode` and :meth:`decode`.
+    ``shift`` and ``scale`` are broadcast against the ``(B, N)`` input.
 
     Args:
         encoding_type: Identifier string for the concrete encoding type.
