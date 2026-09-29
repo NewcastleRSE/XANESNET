@@ -164,6 +164,7 @@ def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding)
     strategy = StrategyRegistry.create(
         strategy_type,
         **strategy_config.as_kwargs(),
+        save_dir=None,
         checkpoint_dir=None,
         tensorboard_dir=None,
         dataset=dataset,
