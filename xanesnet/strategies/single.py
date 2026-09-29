@@ -38,7 +38,7 @@ from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
-from xanesnet.runners.trainers import Trainer, TrainerRegistry
+from xanesnet.runners.trainers import Trainer, TrainerRegistry, LightningModule
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
