@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -56,6 +56,8 @@ from xanesnet.serialization.models import save_models
 from xanesnet.serialization.splits import save_split_indices
 from xanesnet.strategies import Strategy, StrategyRegistry
 
+from xanesnet.utils.distributed import should_reuse_dataset, get_ddp_run_dir, is_ddp_child
+
 ###############################################################################
 #################################### TRAIN ####################################
 ###############################################################################
@@ -76,20 +78,24 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
             may contain ``dry_run`` to enable profile output).
         save_dir: Root directory for all training outputs.
     """
-    logging.info("Training.")
+    if not is_ddp_child():
+        logging.info("Training.")
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
 
-    logging.info("Resolving 'auto' encoding fields...")
+    if not is_ddp_child():
+        logging.info("Resolving 'auto' encoding fields...")
     config = resolve_auto_encoding_config(config, dataset)
 
     encoding = _setup_encoding(config, dataset)
 
-    logging.info("Resolving 'auto' model fields...")
+    if not is_ddp_child():
+        logging.info("Resolving 'auto' model fields...")
     config = resolve_auto_model_config(config, dataset, encoding)
-    resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
-    logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
+    if not is_ddp_child():
+        resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
+        logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
 
     strategy = _setup_strategy(config, dataset, encoding, save_dir, args_namespace.tensorboard)
     strategy.setup_models()
@@ -107,7 +113,8 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
         }
     )
     signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
-    logging.info(f"Signature saved to: {signature_save_path}")
+    if not is_ddp_child():
+        logging.info(f"Signature saved to: {signature_save_path}")
 
     if strategy.checkpointer is not None:
         strategy.checkpointer.set_signature(signature)
@@ -115,7 +122,8 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     # Save split indices if they were generated
     split_indices_save_path = save_dir / "split_indices.json"
     save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
-    logging.info(f"Split indices saved to: {split_indices_save_path}")
+    if not is_ddp_child():
+        logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
     if args_namespace.dry_run:
@@ -124,31 +132,32 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     model_list, train_time = _run_training(strategy)
 
     # Display model summary and training duration
-    logging.info(f"Number of trained models: {len(model_list)}")
-    logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
-    if args_namespace.dry_run:
-        peak_gpu_memory_allocated_mb = get_peak_memory_allocated_mb(config.get_str("device"))
-        model_profile = build_model_profile(
-            model_list[0],
-            dataset,
-            config.get_str("device"),
-            peak_gpu_memory_allocated_mb,
-            encoding,
-        )
-        profile_json_path, profile_readable_path = save_model_profile(save_dir, model_profile)
-        logging.info(f"Dry-run model profile JSON saved to: {profile_json_path}")
-        logging.info(f"Dry-run model profile readable report saved to: {profile_readable_path}")
-    try:
-        _summary_models(model_list, dataset, encoding)
-    except Exception as exc:
-        logging.warning(f"Model summary failed and will be skipped: {exc}")
-
-    # Save model(s)
-    save_models(save_dir / "models", model_list)
-    logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
-    final_checkpoint = Checkpoint.build(model_list, signature=signature)
-    final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
-    logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
+    if not is_ddp_child():
+        logging.info(f"Number of trained models: {len(model_list)}")
+        logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
+        if args_namespace.dry_run:
+            peak_gpu_memory_allocated_mb = get_peak_memory_allocated_mb(config.get_str("device"))
+            model_profile = build_model_profile(
+                model_list[0],
+                dataset,
+                config.get_str("device"),
+                peak_gpu_memory_allocated_mb,
+                encoding,
+            )
+            profile_json_path, profile_readable_path = save_model_profile(save_dir, model_profile)
+            logging.info(f"Dry-run model profile JSON saved to: {profile_json_path}")
+            logging.info(f"Dry-run model profile readable report saved to: {profile_readable_path}")
+        try:
+            _summary_models(model_list, dataset, encoding)
+        except Exception as exc:
+            logging.warning(f"Model summary failed and will be skipped: {exc}")
+    
+        # Save model(s)
+        save_models(save_dir / "models", model_list)
+        logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
+        final_checkpoint = Checkpoint.build(model_list, signature=signature)
+        final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
+        logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
 
 
 ###############################################################################
@@ -186,8 +195,24 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     dataset_config = config.section("dataset")
     dataset_type = dataset_config.get_str("dataset_type")
 
-    logging.info(f"Initializing training dataset: {dataset_type}")
-    dataset = DatasetRegistry.create(dataset_type, **dataset_config.as_kwargs(), datasource=datasource)
+    if not is_ddp_child():
+        logging.info(f"Initializing training dataset: {dataset_type}")
+    dataset_kwargs = dataset_config.as_kwargs()
+
+    if should_reuse_dataset():
+        logging.info("DDP child: reusing existing processed dataset.")
+        dataset_kwargs["skip_prepare"] = True
+        
+        run_dir = get_ddp_run_dir()
+        if run_dir is None:
+            raise RuntimeError("DDP child has no run directory.")
+
+        split_indexfile = run_dir / "split_indices.json"
+
+        if split_indexfile.exists():
+            dataset_kwargs["split_indexfile"] = str(split_indexfile)    
+    
+    dataset = DatasetRegistry.create(dataset_type, **dataset_kwargs, datasource=datasource)
     dataset.prepare()
     dataset.setup_splits()
     dataset.check_preload()  # may preload the dataset into memory
@@ -249,6 +274,7 @@ def _setup_strategy(
     strategy = StrategyRegistry.create(
         strategy_type,
         **strategy_config.as_kwargs(),
+        save_dir=save_dir,
         checkpoint_dir=save_dir / "checkpoints",
         tensorboard_dir=save_dir / "tensorboard" if enable_tensorboard else None,
         dataset=dataset,

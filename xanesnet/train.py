@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -56,6 +56,8 @@ from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.prompts import auto_yes
 from xanesnet.utils.random import set_global_seed
+
+from xanesnet.utils.distributed import get_ddp_run_dir, is_ddp_child
 
 ###############################################################################
 ################################### LOGGING ###################################
@@ -157,8 +159,16 @@ def main(args: list[str]) -> None:
 
         # Get saving directory
         out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
-        save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
-        logging.info(f"Run directory: {save_dir}")
+        if is_ddp_child():
+            save_dir = get_ddp_run_dir()
+            if save_dir is None:
+                raise RuntimeError("DDP child process has no XANESNET run directory.")
+
+            logging.info(f"DDP child reusing run directory: {save_dir}")
+        else
+            save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
+            logging.info(f"Run directory: {save_dir}")
+        
         subfolders = ["models", "checkpoints"] + (["tensorboard"] if args_namespace.tensorboard else [])
         create_subfolders(save_dir, subfolder_names=subfolders)
 
@@ -167,49 +177,54 @@ def main(args: list[str]) -> None:
 
         # Write software and hardware metadata files
         software_info_path, hardware_info_path = write_run_metadata(save_dir, mode="train", command_line_args=args)
-        logging.info(f"Software metadata saved to: {software_info_path}")
-        logging.info(f"Hardware metadata saved to: {hardware_info_path}")
+        if not is_ddp_child():
+            logging.info(f"Software metadata saved to: {software_info_path}")
+            logging.info(f"Hardware metadata saved to: {hardware_info_path}")
 
         # Copy raw config file
-        config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
-        logging.info(f"Configuration file saved to: {config_save_path}")
+            config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
+            logging.info(f"Configuration file saved to: {config_save_path}")
 
         # Config validation
-        validated = validate_config_schema(config_raw, "train")
-        config: Config = Config(validated)
-        if args_namespace.dry_run:
-            logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
-            config_dict = config.as_dict()
-            config_dict["trainer"]["epochs"] = 1
-            config = Config(config_dict)
-        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
-        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+            validated = validate_config_schema(config_raw, "train")
+            config: Config = Config(validated)
+            if args_namespace.dry_run:
+                logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
+                config_dict = config.as_dict()
+                config_dict["trainer"]["epochs"] = 1
+                config = Config(config_dict)
+            validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
+            if is_ddp_child():
+                logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
         # Scale file copying (if configured)
-        scale_file = config.section("model").as_kwargs().get("scale_file")
-        if scale_file:
-            src = Path(scale_file)
-            if src.exists():
-                dst = save_dir / "models" / "scale_factors.json"
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, dst)
-                logging.info(f"Copied model.scale_file {src} -> {dst}")
-            else:
-                logging.warning(f"Configured model.scale_file does not exist on disk: {src}")
+            scale_file = config.section("model").as_kwargs().get("scale_file")
+            if scale_file:
+                src = Path(scale_file)
+                if src.exists():
+                    dst = save_dir / "models" / "scale_factors.json"
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+                    logging.info(f"Copied model.scale_file {src} -> {dst}")
+                else:
+                    logging.warning(f"Configured model.scale_file does not exist on disk: {src}")
 
         # Setting global seed for reproducibility
         seed = config.get_optional_int("seed")
         if seed is None:
-            logging.warning("No global seed specified in configuration file. Choosing random seed.")
+            if not is_ddp_child():
+                logging.warning("No global seed specified in configuration file. Choosing random seed.")
         seed = set_global_seed(seed)
-        logging.info(f"Global seed: {seed}")
+        if not is_ddp_child():
+            logging.info(f"Global seed: {seed}")
 
         # Tensorboard
-        if args_namespace.tensorboard:
-            logging.info("TensorBoard logging enabled.")
-            tb_logger.set_config(config)
-        else:
-            logging.info("TensorBoard logging disabled.")
+        if not is_ddp_child():
+            if args_namespace.tensorboard:
+                logging.info("TensorBoard logging enabled.")
+                tb_logger.set_config(config)
+            else:
+                logging.info("TensorBoard logging disabled.")
 
         # Branching into training mode
         train(config, args_namespace, save_dir)
