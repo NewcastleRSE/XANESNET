@@ -32,6 +32,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import lightning as L
+from lightning import Tranier as LightningTrainer
 import torch
 
 from xanesnet.datasets import Dataset
@@ -227,7 +229,7 @@ class Single(Strategy):
         Raises:
             ValueError: If ``setup_models`` or ``setup_trainers`` has not been called.
         """
-        if self.trainer is None:
+        if self.trainer is None and self.lightning_trainer is None:
             raise ValueError("Cannot run training because the trainer is not initialized.")
         if self.model is None:
             raise ValueError("Cannot run training because the model is not initialized.")
