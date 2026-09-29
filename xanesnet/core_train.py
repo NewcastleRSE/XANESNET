@@ -112,8 +112,8 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
             "encodings": encoding.signature,
         }
     )
-    signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
     if not is_ddp_child():
+        signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
         logging.info(f"Signature saved to: {signature_save_path}")
 
     if strategy.checkpointer is not None:
@@ -121,8 +121,8 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
     # Save split indices if they were generated
     split_indices_save_path = save_dir / "split_indices.json"
-    save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
     if not is_ddp_child():
+        save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
         logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
