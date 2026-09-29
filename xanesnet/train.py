@@ -165,7 +165,7 @@ def main(args: list[str]) -> None:
                 raise RuntimeError("DDP child process has no XANESNET run directory.")
 
             logging.info(f"DDP child reusing run directory: {save_dir}")
-        else
+        else:
             save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
             logging.info(f"Run directory: {save_dir}")
         
