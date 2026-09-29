@@ -182,32 +182,32 @@ def main(args: list[str]) -> None:
             logging.info(f"Hardware metadata saved to: {hardware_info_path}")
 
         # Copy raw config file
-            config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
-            logging.info(f"Configuration file saved to: {config_save_path}")
+        config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
+        logging.info(f"Configuration file saved to: {config_save_path}")
 
         # Config validation
-            validated = validate_config_schema(config_raw, "train")
-            config: Config = Config(validated)
-            if args_namespace.dry_run:
-                logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
-                config_dict = config.as_dict()
-                config_dict["trainer"]["epochs"] = 1
-                config = Config(config_dict)
+        validated = validate_config_schema(config_raw, "train")
+        config: Config = Config(validated)
+        if args_namespace.dry_run:
+            logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
+            config_dict = config.as_dict()
+            config_dict["trainer"]["epochs"] = 1
+            config = Config(config_dict)
+        if not is_ddp_child():
             validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
-            if is_ddp_child():
-                logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+            logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
         # Scale file copying (if configured)
-            scale_file = config.section("model").as_kwargs().get("scale_file")
-            if scale_file:
-                src = Path(scale_file)
-                if src.exists():
-                    dst = save_dir / "models" / "scale_factors.json"
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src, dst)
-                    logging.info(f"Copied model.scale_file {src} -> {dst}")
-                else:
-                    logging.warning(f"Configured model.scale_file does not exist on disk: {src}")
+        scale_file = config.section("model").as_kwargs().get("scale_file")
+        if scale_file:
+            src = Path(scale_file)
+            if src.exists():
+                dst = save_dir / "models" / "scale_factors.json"
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+                logging.info(f"Copied model.scale_file {src} -> {dst}")
+            else:
+                logging.warning(f"Configured model.scale_file does not exist on disk: {src}")
 
         # Setting global seed for reproducibility
         seed = config.get_optional_int("seed")
