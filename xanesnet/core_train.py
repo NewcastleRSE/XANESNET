@@ -132,32 +132,30 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     model_list, train_time = _run_training(strategy)
 
     # Display model summary and training duration
-    if not is_ddp_child():
-        logging.info(f"Number of trained models: {len(model_list)}")
-        logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
-        if args_namespace.dry_run:
-            peak_gpu_memory_allocated_mb = get_peak_memory_allocated_mb(config.get_str("device"))
-            model_profile = build_model_profile(
-                model_list[0],
-                dataset,
-                config.get_str("device"),
-                peak_gpu_memory_allocated_mb,
-                encoding,
-            )
-            profile_json_path, profile_readable_path = save_model_profile(save_dir, model_profile)
-            logging.info(f"Dry-run model profile JSON saved to: {profile_json_path}")
-            logging.info(f"Dry-run model profile readable report saved to: {profile_readable_path}")
-        try:
-            _summary_models(model_list, dataset, encoding)
-        except Exception as exc:
-            logging.warning(f"Model summary failed and will be skipped: {exc}")
+    logging.info(f"Number of trained models: {len(model_list)}")
+    logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
+    if args_namespace.dry_run:
+        peak_gpu_memory_allocated_mb = get_peak_memory_allocated_mb(config.get_str("device"))
+        model_profile = build_model_profile(
+            model_list[0],
+            dataset,
+            config.get_str("device"),
+            peak_gpu_memory_allocated_mb,
+            encoding,
+        )
+        profile_json_path, profile_readable_path = save_model_profile(save_dir, model_profile)
+        logging.info(f"Dry-run model profile JSON saved to: {profile_json_path}")
+        logging.info(f"Dry-run model profile readable report saved to: {profile_readable_path}")
+    try:
+        _summary_models(model_list, dataset, encoding)
+    except Exception as exc:
+        logging.warning(f"Model summary failed and will be skipped: {exc}")
     
-        # Save model(s)
-        save_models(save_dir / "models", model_list)
-        logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
-        final_checkpoint = Checkpoint.build(model_list, signature=signature)
-        final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
-        logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
+    # Save model(s)
+    save_models(save_dir / "models", model_list)
+    logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
+    final_checkpoint = Checkpoint.build(model_list, signature=signature)
+    final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
 
 
 ###############################################################################
