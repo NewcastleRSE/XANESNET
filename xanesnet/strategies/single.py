@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import lightning as L
-from lightning import Tranier as LightningTrainer
+from lightning import Trainer as LightningTrainer
 import torch
 
 from xanesnet.datasets import Dataset
