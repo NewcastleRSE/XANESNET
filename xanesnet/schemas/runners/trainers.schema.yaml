@@ -5,5 +5,6 @@ $defs:
   trainer:
     oneOf:
     - $ref: trainers/basic.schema.yaml#/$defs/trainerBasic
+    - $ref: trainers/lightning.schema.yaml#/$defs/trainerLightning
     description: Union of trainer configuration objects instantiated by ``TrainerRegistry``.
 description: Runner schemas backed by trainer and inferencer registries.

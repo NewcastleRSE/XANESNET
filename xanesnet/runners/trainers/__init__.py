@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -30,9 +30,11 @@
 from .base import Trainer
 from .basic import BasicTrainer
 from .registry import TrainerRegistry
+from .lightning import LightningModule
 
 __all__ = [
     "Trainer",
     "BasicTrainer",
     "TrainerRegistry",
+    "LightningModule",
 ]

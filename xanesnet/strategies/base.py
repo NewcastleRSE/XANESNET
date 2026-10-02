@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -83,6 +83,7 @@ class Strategy(ABC):
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
+        save_dir: str | Path | None,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
@@ -98,6 +99,7 @@ class Strategy(ABC):
         self.weight_init = weight_init
         self.weight_init_params = weight_init_params
         self.bias_init = bias_init
+        self.save_dir = save_dir
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_interval = checkpoint_interval
         self.tensorboard_dir = tensorboard_dir

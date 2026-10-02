@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -32,19 +32,22 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import lightning as L
+from lightning import Trainer as LightningTrainer
 import torch
 
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
-from xanesnet.runners.trainers import Trainer, TrainerRegistry
+from xanesnet.runners.trainers import Trainer, TrainerRegistry, LightningModule
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
 from .base import Strategy
 from .registry import StrategyRegistry
 
+from xanesnet.utils.distributed import set_ddp_run_state
 
 @StrategyRegistry.register("single")
 class Single(Strategy):
@@ -79,6 +82,7 @@ class Single(Strategy):
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
+        save_dir: str | Path | None,
         checkpoint_dir: str | Path | None,
         checkpoint_interval: int | None,
         tensorboard_dir: str | Path | None,
@@ -87,18 +91,19 @@ class Single(Strategy):
     ) -> None:
         """Initialize the single-model strategy."""
         super().__init__(
-            strategy_type,
-            dataset,
-            model_config,
-            encoding,
-            weight_init,
-            weight_init_params,
-            bias_init,
-            checkpoint_dir,
-            checkpoint_interval,
-            tensorboard_dir,
-            trainer_config,
-            inferencer_config,
+            strategy_type=strategy_type,
+            dataset=dataset,
+            model_config=model_config,
+            encoding=encoding,
+            weight_init=weight_init,
+            weight_init_params=weight_init_params,
+            bias_init=bias_init,
+            save_dir=save_dir,
+            checkpoint_dir=checkpoint_dir,
+            checkpoint_interval=checkpoint_interval,
+            tensorboard_dir=tensorboard_dir,
+            trainer_config=trainer_config,
+            inferencer_config=inferencer_config,
         )
 
         self.model: Model | None = None
@@ -158,8 +163,20 @@ class Single(Strategy):
 
         trainer_type = self.trainer_config.get_str("trainer_type")
 
-        logging.info(f"Initializing trainer: {trainer_type}")
+        if trainer_type == "lightning":
+            self._setup_lightning_training()
+        else:
+            self._setup_standard_training()
+        
+    def setup_standard_training(self, device: str | torch.device) -> None:
+        """Instantiate a standard trainer.
 
+        Args:
+            device: The device on which training will be performed.
+        """ 
+        trainer_type = self.trainer_config.get_str("trainer_type")
+        logging.info(f"Initializing trainer: {trainer_type}")
+        
         trainer = TrainerRegistry.create(
             trainer_type,
             **self.trainer_config.as_kwargs(),
@@ -171,6 +188,35 @@ class Single(Strategy):
         )
 
         self.trainer = trainer
+        
+    def _setup_lightning_training(self) -> None:
+        self.lightning_module = LightningModule(
+            dataset=self.dataset,
+            model=self.model,
+            encoding=self.encoding,
+            batch_size=self.trainer_config.get_int("batch_size"),
+            shuffle=self.trainer_config.get_bool("shuffle"),
+            drop_last=self.trainer_config.get_bool("drop_last"),
+            num_workers=self.trainer_config.get_int("num_workers"),
+            loss=self.trainer_config.get_config_list("loss"),
+            regularizer=self.trainer_config.section("regularizer"),
+            epochs=self.trainer_config.get_int("epochs"),
+            learning_rate=self.trainer_config.get_float("learning_rate"),
+            optimizer=self.trainer_config.get_str("optimizer"),
+            max_norm=self.trainer_config.get_optional_float("max_norm"),
+            lr_scheduler=self.trainer_config.section("lr_scheduler"),
+            validation_interval=self.trainer_config.get_int("validation_interval"),
+        )
+        self.lightning_trainer = LightningTrainer(
+            accelerator="gpu",
+            devices=self.trainer_config.get_int("num_gpus"),
+            strategy="ddp",
+            max_epochs=self.trainer_config.get_int("epochs"),
+            gradient_clip_val=self.trainer_config.get_optional_float("max_norm"),
+            gradient_clip_algorithm="norm",
+            check_val_every_n_epoch=self.trainer_config.get_int("validation_interval"),
+        )
+        
 
     def run_training(self) -> list[Model]:
         """Run the training loop and return the trained model.
@@ -183,13 +229,18 @@ class Single(Strategy):
         Raises:
             ValueError: If ``setup_models`` or ``setup_trainers`` has not been called.
         """
-        if self.trainer is None:
+        if self.trainer is None and self.lightning_trainer is None:
             raise ValueError("Cannot run training because the trainer is not initialized.")
         if self.model is None:
             raise ValueError("Cannot run training because the model is not initialized.")
 
         super().run_training()
 
+        if self.trainer_config.get_str("trainer_type") == "lightning":
+            set_ddp_run_state(self.save_dir)
+            self.lightning_trainer.fit(self.lightning_module)
+            return [self.lightning_module.model]
+            
         assert self.checkpointer is not None
         self.checkpointer.new_model()
 
