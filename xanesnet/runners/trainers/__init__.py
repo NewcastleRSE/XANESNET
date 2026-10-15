@@ -29,10 +29,12 @@
 
 from .base import Trainer
 from .basic import BasicTrainer
+from .lightning import LightningTrainer
 from .registry import TrainerRegistry
 
 __all__ = [
     "Trainer",
     "BasicTrainer",
+    "LightningTrainer",
     "TrainerRegistry",
 ]

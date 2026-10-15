@@ -52,6 +52,7 @@ from xanesnet.serialization.metadata import write_run_metadata
 from xanesnet.serialization.schema_validation import validate_config_schema
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.strategies import StrategyRegistry
+from xanesnet.utils.distributed import get_ddp_run_dir, is_ddp_child, is_local_rank_zero, set_ddp_run_dir
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.prompts import auto_yes
@@ -157,8 +158,17 @@ def main(args: list[str]) -> None:
 
         # Get saving directory
         out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
-        save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
-        logging.info(f"Run directory: {save_dir}")
+        if is_ddp_child():
+            save_dir = get_ddp_run_dir()
+            if save_dir is None:
+                raise RuntimeError("DDP child process has no XANESNET_RUN_DIR.")
+ 
+            logging.info(f"DDP child process reusing run directory: {save_dir}")
+        else:
+            save_dir = create_run_dir(out_dir, name=f"train_{args_namespace.name}" if args_namespace.name else "train")
+            set_ddp_run_dir(save_dir)
+            logging.info(f"Run directory: {save_dir}")
+            
         subfolders = ["models", "checkpoints"] + (["tensorboard"] if args_namespace.tensorboard else [])
         create_subfolders(save_dir, subfolder_names=subfolders)
 
@@ -167,12 +177,14 @@ def main(args: list[str]) -> None:
 
         # Write software and hardware metadata files
         software_info_path, hardware_info_path = write_run_metadata(save_dir, mode="train", command_line_args=args)
-        logging.info(f"Software metadata saved to: {software_info_path}")
-        logging.info(f"Hardware metadata saved to: {hardware_info_path}")
+        if is_local_rank_zero():
+            logging.info(f"Software metadata saved to: {software_info_path}")
+            logging.info(f"Hardware metadata saved to: {hardware_info_path}")
 
         # Copy raw config file
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
-        logging.info(f"Configuration file saved to: {config_save_path}")
+        if is_local_rank_zero():
+            logging.info(f"Configuration file saved to: {config_save_path}")
 
         # Config validation
         validated = validate_config_schema(config_raw, "train")
@@ -182,12 +194,13 @@ def main(args: list[str]) -> None:
             config_dict = config.as_dict()
             config_dict["trainer"]["epochs"] = 1
             config = Config(config_dict)
-        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
-        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+        if is_local_rank_zero():
+            validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
+            logging.info(f"Validated config file saved to: {validate_config_save_path}.")
 
         # Scale file copying (if configured)
         scale_file = config.section("model").as_kwargs().get("scale_file")
-        if scale_file:
+        if scale_file and is_local_rank_zero():
             src = Path(scale_file)
             if src.exists():
                 dst = save_dir / "models" / "scale_factors.json"
@@ -199,17 +212,19 @@ def main(args: list[str]) -> None:
 
         # Setting global seed for reproducibility
         seed = config.get_optional_int("seed")
-        if seed is None:
+        if seed is None and is_local_rank_zero():
             logging.warning("No global seed specified in configuration file. Choosing random seed.")
         seed = set_global_seed(seed)
-        logging.info(f"Global seed: {seed}")
+        if is_local_rank_zero():
+            logging.info(f"Global seed: {seed}")
 
         # Tensorboard
-        if args_namespace.tensorboard:
-            logging.info("TensorBoard logging enabled.")
-            tb_logger.set_config(config)
-        else:
-            logging.info("TensorBoard logging disabled.")
+        if is_local_rank_zero():
+            if args_namespace.tensorboard:
+                logging.info("TensorBoard logging enabled.")
+                tb_logger.set_config(config)
+            else:
+                logging.info("TensorBoard logging disabled.")
 
         # Branching into training mode
         train(config, args_namespace, save_dir)

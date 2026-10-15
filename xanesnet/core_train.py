@@ -55,6 +55,7 @@ from xanesnet.serialization.model_profile import (
 from xanesnet.serialization.models import save_models
 from xanesnet.serialization.splits import save_split_indices
 from xanesnet.strategies import Strategy, StrategyRegistry
+from xanesnet.utils.distributed import get_ddp_run_dir, is_ddp_child, is_local_rank_zero
 
 ###############################################################################
 #################################### TRAIN ####################################
@@ -76,20 +77,24 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
             may contain ``dry_run`` to enable profile output).
         save_dir: Root directory for all training outputs.
     """
-    logging.info("Training.")
+    if is_local_rank_zero():
+        logging.info("Training.")
 
     datasource = _setup_datasource(config)
-    dataset = _setup_dataset(config, datasource)
+    dataset = _setup_dataset(config, datasource, save_dir)
 
-    logging.info("Resolving 'auto' encoding fields...")
+    if is_local_rank_zero():
+        logging.info("Resolving 'auto' encoding fields...")
     config = resolve_auto_encoding_config(config, dataset)
 
     encoding = _setup_encoding(config, dataset)
 
-    logging.info("Resolving 'auto' model fields...")
+    if is_local_rank_zero():
+        logging.info("Resolving 'auto' model fields...")
     config = resolve_auto_model_config(config, dataset, encoding)
-    resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
-    logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
+    if is_local_rank_zero():
+        resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
+        logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
 
     strategy = _setup_strategy(config, dataset, encoding, save_dir, args_namespace.tensorboard)
     strategy.setup_models()
@@ -106,16 +111,12 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
             "encodings": encoding.signature,
         }
     )
-    signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
-    logging.info(f"Signature saved to: {signature_save_path}")
+    if is_local_rank_zero():
+        signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
+        logging.info(f"Signature saved to: {signature_save_path}")
 
     if strategy.checkpointer is not None:
         strategy.checkpointer.set_signature(signature)
-
-    # Save split indices if they were generated
-    split_indices_save_path = save_dir / "split_indices.json"
-    save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
-    logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
     if args_namespace.dry_run:
@@ -123,7 +124,9 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
 
     model_list, train_time = _run_training(strategy)
 
-    # Display model summary and training duration
+    if not is_local_rank_zero():
+        return
+
     logging.info(f"Number of trained models: {len(model_list)}")
     logging.info(f"Training completed in {str(timedelta(seconds=int(train_time)))}")
     if args_namespace.dry_run:
@@ -143,7 +146,6 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     except Exception as exc:
         logging.warning(f"Model summary failed and will be skipped: {exc}")
 
-    # Save model(s)
     save_models(save_dir / "models", model_list)
     logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
     final_checkpoint = Checkpoint.build(model_list, signature=signature)
@@ -173,27 +175,41 @@ def _setup_datasource(config: Config) -> DataSource:
     return datasource
 
 
-def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
+def _setup_dataset(config: Config, datasource: DataSource, save_dir: Path) -> Dataset:
     """Instantiate, prepare, and split the training dataset.
+    Lightning DDP workers skip prepare and reuse rank-0 split indices.
 
     Args:
         config: Validated configuration containing a ``dataset`` section.
         datasource: Data source providing raw data.
+        save_dir: Run directory used to write or reload split indices.
 
     Returns:
         Dataset with splits set up, ready for training.
     """
     dataset_config = config.section("dataset")
     dataset_type = dataset_config.get_str("dataset_type")
+    dataset_kwargs = dataset_config.as_kwargs()
+    split_indices_save_path = save_dir / "split_indices.json"
 
-    logging.info(f"Initializing training dataset: {dataset_type}")
-    dataset = DatasetRegistry.create(dataset_type, **dataset_config.as_kwargs(), datasource=datasource)
+    if is_ddp_child():
+        logging.info("DDP child process: reusing existing processed dataset and split indices.")
+        dataset_kwargs["skip_prepare"] = True
+        split_indexfile = (get_ddp_run_dir() or save_dir) / "split_indices.json"
+        if split_indexfile.exists() and not dataset_kwargs.get("split_indexfile"):
+            dataset_kwargs["split_indexfile"] = str(split_indexfile)
+    else:
+        logging.info(f"Initializing training dataset: {dataset_type}")
+
+    dataset = DatasetRegistry.create(dataset_type, **dataset_kwargs, datasource=datasource)
     dataset.prepare()
     dataset.setup_splits()
     dataset.check_preload()  # may preload the dataset into memory
 
-    # Log dataset summary
-    logging.info(f"Dataset Summary: # of samples = {len(dataset)}")
+    if is_local_rank_zero():
+        save_split_indices(split_indices_save_path, dataset.get_all_subset_indices())
+        logging.info(f"Split indices saved to: {split_indices_save_path}")
+        logging.info(f"Dataset Summary: # of samples = {len(dataset)}")
 
     return dataset
 
