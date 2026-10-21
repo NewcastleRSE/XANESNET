@@ -132,9 +132,8 @@ class ZScoreEncoding(AffineEncoding):
             "std": self.scale.tolist(),
             "per_point": self.per_point,
             "per_element": self.per_element,
+            "elements": list(self.elements or []) if self.per_element else None,
         }
-        if self.per_element:
-            values["elements"] = list(self.elements or [])
         sig.update_with_dict(values)
         return [sig]
 
