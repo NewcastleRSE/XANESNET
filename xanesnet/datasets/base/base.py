@@ -42,7 +42,7 @@ from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
 from xanesnet.serialization.config import Config
-from xanesnet.serialization.splits import load_split_indices
+from xanesnet.serialization.splits import load_splits
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.prompts import confirm_yes_no
 
@@ -58,7 +58,7 @@ class Dataset(TorchDataset, ABC):
         root: Directory that stores processed ``.pth`` files.
         preload: Whether to load processed samples into memory after preparation.
         skip_prepare: Whether to reuse existing processed files.
-        split_ratios: Optional train/validation/test split ratios.
+        split_ratios: Optional train and validation split ratios.
         split_indexfile: Optional path to serialized split indices.
     """
 
@@ -182,7 +182,7 @@ class Dataset(TorchDataset, ABC):
 
         if self._split_indexfile is not None:
             logging.info(f"Setting up dataset splits from index file: {self._split_indexfile}")
-            indices_list: list[list[int]] = load_split_indices(self._split_indexfile)
+            indices_list = load_splits(self._split_indexfile, model_index=0)[0]
 
             for indices in indices_list:
                 subsets.append(Subset(self, indices))

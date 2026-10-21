@@ -47,6 +47,7 @@ $defs:
           type: number
           minimum: 0
         minItems: 1
+        maxItems: 2
         default:
         - 1.0
         $comment: Runtime requires the values to sum to 1.0 when split_indexfile is null.
@@ -78,6 +79,7 @@ $defs:
       descriptors:
         type: array
         minItems: 1
+        maxItems: 2
         items:
           $ref: ../../../descriptors/descriptors.schema.yaml#/$defs/descriptor
         default:
