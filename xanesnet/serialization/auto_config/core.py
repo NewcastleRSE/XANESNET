@@ -193,6 +193,9 @@ def resolve_auto_model_config(config: Config, dataset: Dataset, encoding: Spectr
     (and thus the output size), while for inverse datasets the encoding shapes
     the spectral input (and thus the input size).
 
+    Automatic model dimensions are expected to be invariant across dataset
+    indices; dataset index 0 is used as the representative sample.
+
     Args:
         config: Validated training configuration.
         dataset: Prepared training dataset used to derive automatic model
