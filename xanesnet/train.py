@@ -154,10 +154,11 @@ def main(args: list[str]) -> None:
 
     with auto_yes(args_namespace.yes):
         # Lighting worker
-        if get_lightning_context_path() is not None:
+        context_path = get_lightning_context_path()
+        if context_path is not None:
             from xanesnet.core_lightning import train_worker
 
-            train_worker()
+            train_worker(context_path)
             return
 
         # Loading configuration file

@@ -35,7 +35,6 @@ from pathlib import Path
 
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
-from xanesnet.encodings import CombinedEncoding, SpectraEncoding
 from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import Config
 from xanesnet.strategies import Strategy, StrategyRegistry
@@ -61,9 +60,9 @@ def infer(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint:
 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
-    encoding = _setup_encoding(config, dataset)
-    strategy = _setup_strategy(config, dataset, encoding)
-    strategy.setup_models()
+    strategy = _setup_strategy(config, dataset)
+    strategy.setup_encoding(config)
+    strategy.setup_models(config.section("model"))
     strategy.set_state_dicts(checkpoint.model_states)
     strategy.setup_inferencers(config.get_str("device"))
 
@@ -122,34 +121,13 @@ def _setup_dataset(config: Config, datasource: DataSource) -> Dataset:
     return dataset
 
 
-def _setup_encoding(config: Config, dataset: Dataset) -> SpectraEncoding:
-    """Build and prepare the composed spectra encoding from config.
-
-    Args:
-        config: Validated configuration containing an ``encodings`` section.
-        dataset: Prepared dataset containing the raw spectral energy grid.
-
-    Returns:
-        A :class:`CombinedEncoding` wrapping all configured component
-        encodings, prepared for the dataset's spectral width.
-    """
-    encoding = CombinedEncoding.from_configs(config.get_config_list("encodings"))
-    energies = getattr(dataset[0], "energies", None)
-    if energies is None or energies.ndim == 0:
-        raise ValueError("Prepared dataset sample must provide a spectral energy grid.")
-    encoding.prepare(int(energies.shape[-1]))
-    return encoding
-
-
-def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding) -> Strategy:
+def _setup_strategy(config: Config, dataset: Dataset) -> Strategy:
     """Instantiate the inference strategy from config.
 
     Args:
         config: Validated configuration containing ``strategy``, ``model``,
             and ``inferencer`` sections.
         dataset: Prepared dataset.
-        encoding: Composed spectra encoding forwarded to the strategy's
-            inferencers.
 
     Returns:
         Configured strategy instance (models not yet loaded).
@@ -157,7 +135,6 @@ def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding)
     strategy_config = config.section("strategy")
     strategy_type = strategy_config.get_str("strategy_type")
 
-    model_config = config.section("model")
     inferencer_config = config.section("inferencer")
 
     logging.info(f"Initializing strategy: {strategy_type}")
@@ -167,8 +144,6 @@ def _setup_strategy(config: Config, dataset: Dataset, encoding: SpectraEncoding)
         checkpoint_dir=None,
         tensorboard_dir=None,
         dataset=dataset,
-        model_config=model_config,
-        encoding=encoding,
         trainer_config=None,
         inferencer_config=inferencer_config,
     )

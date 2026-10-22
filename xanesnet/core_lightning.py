@@ -34,33 +34,21 @@ import os
 from argparse import Namespace
 from collections.abc import Generator
 from contextlib import contextmanager
-from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
 
 from xanesnet.core_train import (
     _run_training,
     _save_results,
     _setup_dataset,
     _setup_datasource,
-    _setup_encoding,
     _setup_strategy,
 )
-from xanesnet.serialization.auto_config import (
-    resolve_auto_encoding_config,
-    resolve_auto_model_config,
-)
+from xanesnet.serialization.auto_config import resolve_auto_model_config
 from xanesnet.serialization.config import Config
-from xanesnet.serialization.model_profile import (
-    reset_peak_memory_stats,
-)
-from xanesnet.serialization.splits import save_split_indices
+from xanesnet.serialization.model_profile import reset_peak_memory_stats
+from xanesnet.serialization.splits import load_splits, save_splits
 from xanesnet.utils.exceptions import ConfigError
-from xanesnet.utils.lightning import (
-    LIGHTNING_CONTEXT_ENV,
-    LIGHTNING_LAUNCH_ENVIRONMENT,
-    get_lightning_context_path,
-)
+from xanesnet.utils.lightning import LIGHTNING_CONTEXT_ENV, LIGHTNING_LAUNCH_ENVIRONMENT
 from xanesnet.utils.logger import setup_file_logging
 from xanesnet.utils.random import set_global_seed
 
@@ -68,7 +56,11 @@ _CONTEXT_NAME = "lightning_context.json"
 
 
 def _register_lightning_trainer() -> None:
-    """Load the optional trainer module so it registers in this process."""
+    """Import the Lightning trainer module to register it in this process.
+
+    Raises:
+        ConfigError: If the optional Lightning dependency is not installed.
+    """
     try:
         importlib.import_module("xanesnet.runners.trainers.lightning")
     except ModuleNotFoundError as exc:
@@ -86,11 +78,11 @@ def _register_lightning_trainer() -> None:
 
 
 def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
-    """Prepare one Lightning run, execute training, and export its models.
+    """Prepare one Lightning run, executes training, and exports its models.
 
-    Builds the data source and dataset from ``config``, resolves any automatic
-    fields, prepares the encoding, builds the strategy from the resolved config,
-    and publishes the run context before ``fit()`` starts workers.
+    Builds the data source and dataset, lets the strategy prepare splits and
+    encodings, resolves model fields, and publishes the run context before
+    ``fit()`` starts workers.
     Only this initial process exports shared models and reports.
 
     Args:
@@ -112,18 +104,23 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(config, datasource)
 
-    logging.info("Resolving 'auto' encoding fields...")
-    config = resolve_auto_encoding_config(config, dataset)
-
-    encoding = _setup_encoding(config, dataset)
+    strategy = _setup_strategy(config, dataset, save_dir, args_namespace.tensorboard)
+    model_splits = strategy.setup_model_splits()
+    encoding = strategy.setup_encoding(config)
 
     logging.info("Resolving 'auto' model fields...")
-    config = resolve_auto_model_config(config, dataset, encoding)
+    config = resolve_auto_model_config(
+        config,
+        dataset,
+        encoding,
+    )
+    resolved_config_raw = config.as_dict()
+    resolved_config_raw["encodings"] = [item.as_dict() for item in encoding.signature]
+    config = Config(resolved_config_raw)
     resolved_config_save_path = config.save(save_dir / "resolved_train_config.yaml")
     logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
 
-    strategy = _setup_strategy(config, dataset, encoding, save_dir, args_namespace.tensorboard)
-    strategy.setup_models()
+    strategy.setup_models(config.section("model"))
     strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
@@ -143,83 +140,78 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
     if strategy.checkpointer is not None:
         strategy.checkpointer.set_signature(signature)
 
-    # Save split indices if they were generated
-    split_path = save_dir / "split_indices.json"
-    save_split_indices(split_path, dataset.get_all_subset_indices())
-    logging.info(f"Split indices saved to: {split_path}")
+    split_indices_save_path = save_dir / "split_indices.json"
+    save_splits(split_indices_save_path, model_splits)
+    logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Build Lightning context
-    device = config.get_str("device").lower()
-    processes = 1 if device.startswith("mps") else config.section("trainer").get_int("num_devices")
-    context = Config(
-        {
-            "version": 1,
-            "run_id": uuid4().hex,
-            "owner_pid": os.getpid(),
-            "processes": processes,
-            "save_dir": str(save_dir),
-            "config": config.as_dict(),
-            "dataset_length": len(dataset),
-            "dataset_signature": dataset.signature.as_dict(),
-            "split_digest": sha256(split_path.read_bytes()).hexdigest(),
-            "tensorboard": args_namespace.tensorboard,
-            "dry_run": args_namespace.dry_run,
-            "active": True,
-        }
-    )
+    context = Config({"config": config.as_dict(), "dry_run": args_namespace.dry_run})
 
     # Main training
-    with _published_context(context):
+    with _published_context(context, save_dir):
         if args_namespace.dry_run:
             reset_peak_memory_stats(config.get_str("device"))
 
         model_list, train_time = _run_training(strategy)
 
-        _save_results(model_list, train_time, config, dataset, encoding, signature, save_dir, args_namespace.dry_run)
+        _save_results(
+            model_list,
+            train_time,
+            config,
+            dataset,
+            encoding,
+            signature,
+            save_dir,
+            args_namespace.dry_run,
+        )
 
 
-def train_worker() -> None:
-    """Reconstruct a prepared Lightning run and train without shared writes.
+def train_worker(context_path: Path) -> None:
+    """Start worker for a prepared Lightning run from the given context path.
 
-    The original user YAML is not reloaded. Configuration, seed, and split
-    identity come from the initial process's active context.
+    Args:
+        context_path: Prepared context path detected by the CLI dispatcher.
 
     Raises:
-        ConfigError: If bootstrap context, process role, or prepared data is
-            missing or inconsistent.
+        ConfigError: If the run context, process role, or prepared data is missing or inconsistent.
     """
-    context = _load_worker_context()
-    run_id = context.get_str("run_id")
+    context = _load_worker_context(context_path)
+
     _register_lightning_trainer()
+
     config = context.section("config")
-    save_dir = Path(context.get_str("save_dir"))
-    rank = _environment_int("LOCAL_RANK")
+    worker_config_raw = config.as_dict()
+    worker_config_raw["dataset"]["skip_prepare"] = True
+    worker_config = Config(worker_config_raw)
+
+    save_dir = context_path.parent
+    rank = os.environ["LOCAL_RANK"]
     worker_log_dir = save_dir / "workers" / f"rank_{rank}"
     worker_log_dir.mkdir(parents=True, exist_ok=True)
     setup_file_logging(worker_log_dir)
-    logging.info(f"Lightning worker {rank} loading prepared run {run_id}.")
+
+    logging.info(f"Lightning worker {rank} loading prepared run from {save_dir}.")
+
+    # Setting the global random seed for reproducibility
     set_global_seed(config.get_int("seed"))
 
     datasource = _setup_datasource(config)
-    worker_config_raw = config.as_dict()
-    worker_dataset_config = worker_config_raw["dataset"]
-    worker_dataset_config["skip_prepare"] = True
-    worker_dataset_config["split_indexfile"] = str(save_dir / "split_indices.json")
-    worker_config = Config(worker_config_raw)
     dataset = _setup_dataset(worker_config, datasource)
-    if (
-        len(dataset) != context.get_int("dataset_length")
-        or dataset.signature.as_dict() != context.section("dataset_signature").as_dict()
-    ):
-        raise ConfigError("Prepared dataset does not match the Lightning run context.")
-    encoding = _setup_encoding(config, dataset)
-    strategy = _setup_strategy(config, dataset, encoding, save_dir, False)
-    strategy.setup_models()
+
+    strategy = _setup_strategy(config, dataset, save_dir, False)
+    model_splits = load_splits(save_dir / "split_indices.json")
+    strategy.setup_model_splits(model_splits)
+    strategy.setup_encoding(config)
+
+    strategy.setup_models(config.section("model"))
     strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
+
+    # Main training
     if context.get_bool("dry_run"):
         reset_peak_memory_stats(config.get_str("device"))
+
     _run_training(strategy)
 
 
@@ -228,85 +220,44 @@ def train_worker() -> None:
 ###############################################################################
 
 
-def _environment_int(name: str) -> int:
-    """Read an integer required by the supported distributed launcher.
-
-    Args:
-        name: Required environment variable name.
+def _load_worker_context(path: Path) -> Config:
+    """Load the prepared configuration and validate the worker launch role.
 
     Returns:
-        Parsed integer value.
+        Prepared configuration belonging to the current self-launched worker.
 
     Raises:
-        ConfigError: If the variable is missing or is not an integer.
+        ConfigError: If the context is invalid or the process is not a worker in the expected single-node launch.
     """
-    try:
-        return int(os.environ[name])
-    except (KeyError, ValueError) as exc:
-        raise ConfigError(f"Lightning worker requires an integer {name}.") from exc
-
-
-def _load_worker_context() -> Config:
-    """Validate worker identity and load its immutable prepared configuration.
-
-    Returns:
-        Active context belonging to the current self-launched worker.
-
-    Raises:
-        ConfigError: If context files, owner identity, rank, or prepared split
-            contents are missing or inconsistent.
-    """
-    path = get_lightning_context_path()
-    if path is None:
-        raise ConfigError("Lightning worker has no prepared-run context.")
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ConfigError(f"Cannot load Lightning context: {path}") from exc
     if not isinstance(payload, dict):
         raise ConfigError("Lightning context must contain an object.")
+
     context = Config(payload)
-    if context.get_int("version") != 1 or not context.get_bool("active"):
-        raise ConfigError("Lightning context is unsupported or no longer active.")
-
-    owner_pid = context.get_int("owner_pid")
-    rank = _environment_int("LOCAL_RANK")
-    processes = context.get_int("processes")
-    if owner_pid <= 0 or owner_pid == os.getpid() or not 0 < rank < processes:
+    try:
+        rank = int(os.environ["LOCAL_RANK"])
+    except (KeyError, ValueError) as exc:
+        raise ConfigError("Lightning worker requires an integer LOCAL_RANK.") from exc
+    if rank <= 0:
         raise ConfigError("Lightning context does not identify this process as a worker.")
-    if _environment_int("WORLD_SIZE") != processes or _environment_int("NODE_RANK") != 0:
-        raise ConfigError("Lightning context requires the expected single-node worker group.")
-    if "RANK" in os.environ and _environment_int("RANK") != rank:
-        raise ConfigError("Lightning worker rank does not match its single-node launch.")
-    try:
-        os.kill(owner_pid, 0)
-    except OSError as exc:
-        raise ConfigError("The initial Lightning process is no longer available.") from exc
-
-    save_dir = Path(context.get_str("save_dir"))
-    if path != save_dir / _CONTEXT_NAME:
-        raise ConfigError("Lightning context has an inconsistent run directory.")
-    split_path = save_dir / "split_indices.json"
-    try:
-        digest = sha256(split_path.read_bytes()).hexdigest()
-    except OSError as exc:
-        raise ConfigError("Prepared Lightning split indices are missing.") from exc
-    if digest != context.get_str("split_digest"):
-        raise ConfigError("Prepared Lightning split indices have changed.")
     return context
 
 
 @contextmanager
-def _published_context(context: Config) -> Generator[None, None, None]:
-    """Publish active worker context and restore launcher state on every exit.
+def _published_context(context: Config, save_dir: Path) -> Generator[None, None, None]:
+    """Publish worker context and restore launcher state on every exit.
 
     Args:
-        context: Complete initial-process context to publish before ``fit()``.
+        context: Worker context to publish before ``fit()``.
+        save_dir: Run directory containing the context file.
 
     Yields:
         Control while workers may inherit the context marker.
     """
-    path = Path(context.get_str("save_dir")) / _CONTEXT_NAME
+    path = save_dir / _CONTEXT_NAME
     names = (*LIGHTNING_LAUNCH_ENVIRONMENT, LIGHTNING_CONTEXT_ENV)
     previous = {name: os.environ.get(name) for name in names}
     _write_context(path, context)
@@ -319,9 +270,6 @@ def _published_context(context: Config) -> Generator[None, None, None]:
                 os.environ.pop(name, None)
             else:
                 os.environ[name] = value
-        payload = context.as_dict()
-        payload["active"] = False
-        _write_context(path, Config(payload))
 
 
 def _write_context(path: Path, context: Config) -> None:
