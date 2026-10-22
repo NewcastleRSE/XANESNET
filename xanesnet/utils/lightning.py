@@ -26,7 +26,7 @@
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
 
-"""Lightweight environment markers for prepared Lightning training runs."""
+"""Lightweight environment context for prepared Lightning training runs."""
 
 import os
 from pathlib import Path
@@ -38,14 +38,13 @@ LIGHTNING_LAUNCH_ENVIRONMENT = ("LOCAL_RANK", "RANK", "WORLD_SIZE", "NODE_RANK",
 
 
 def get_lightning_context_path() -> Path | None:
-    """Read the prepared-run marker without importing Lightning.
+    """Read the prepared-run context without importing Lightning.
 
     Returns:
-        Absolute context path when a bootstrap marker is present, otherwise
-        ``None``. The Lightning core validates the context and process role.
+        Absolute path when a Lightning context is present, otherwise ``None``.
 
     Raises:
-        ConfigError: If the marker is empty or is not an absolute path.
+        ConfigError: If the context is empty or is not an absolute path.
     """
     value = os.environ.get(LIGHTNING_CONTEXT_ENV)
     if value is None:
