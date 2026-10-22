@@ -134,6 +134,7 @@ class BasicTrainer(Trainer):
             final validation or training total. Returns ``None`` when no epoch
             completes.
         """
+        self.early_stopper.start()
         self.model.to(self.device)
         self.loss.to(self.device)
 

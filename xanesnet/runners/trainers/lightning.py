@@ -84,8 +84,7 @@ class _LightningModule(L.LightningModule):
 
     def on_train_epoch_start(self) -> None:
         """Reset local accumulators and select Basic-compatible validation epochs."""
-        dtype = torch.float32 if self.device.type == "mps" else torch.float64
-        self._train_totals = torch.zeros(4, device=self.device, dtype=dtype)
+        self._train_totals = torch.zeros(4, device=self.device, dtype=torch.float64)
         self._validation_metrics = None
         self._validate_this_epoch = self.xn.valid_dataloader is not None and (
             self.current_epoch % self.xn.validation_interval == 0 or self.current_epoch == self.xn.epochs - 1
@@ -98,8 +97,16 @@ class _LightningModule(L.LightningModule):
 
     def on_validation_epoch_start(self) -> None:
         """Reset validation sums without registering rank-local state as buffers."""
-        dtype = torch.float32 if self.device.type == "mps" else torch.float64
-        self._validation_totals = torch.zeros(4, device=self.device, dtype=dtype)
+        self._validation_totals = torch.zeros(4, device=self.device, dtype=torch.float64)
+
+    def on_train_start(self) -> None:
+        """Log the model graph once on the global-zero rank, matching Basic."""
+        if not self.trainer.is_global_zero:
+            return
+        sample_batch = next(iter(self.xn.dataloader))
+        sample_batch = self.transfer_batch_to_device(sample_batch, self.device, 0)
+        sample_inputs = self.xn.batchprocessor.input_preparation(sample_batch)
+        tb_logger.log_model_graph(self.model, sample_inputs)
 
     def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
         """Move a custom batch or standard Lightning collection to its device.
@@ -470,6 +477,8 @@ class LightningTrainer(Trainer):
         Raises:
             ValueError: If no training batches were processed.
         """
+        self.early_stopper.start()
+
         accelerator, devices, strategy = self._distributed_settings()
         strategy_name = strategy if isinstance(strategy, str) else "ddp_static_graph"
         logging.info(
@@ -494,7 +503,9 @@ class LightningTrainer(Trainer):
             plugins=[LightningEnvironment()],
             default_root_dir=str(self.checkpointer.save_dir) if self.checkpointer.active else None,
         )
+
         pl_trainer.fit(module)
+
         if pl_trainer.global_step == 0:
             raise ValueError(
                 "No training batches were processed. Check batch_size, drop_last, and training subset size."
@@ -502,6 +513,7 @@ class LightningTrainer(Trainer):
         callback = pl_trainer.checkpoint_callback
         if isinstance(callback, ModelCheckpoint) and callback.dirpath is not None:
             pl_trainer.save_checkpoint(Path(callback.dirpath) / "last.ckpt")
+
         score = module.last_score
         if self.early_stopper.restore_best:
             best_score, best_epoch = self.early_stopper.restore(self.model)
@@ -522,15 +534,13 @@ class LightningTrainer(Trainer):
             ddp_strategy: str | DDPStrategy = DDPStrategy(static_graph=True)
         else:
             ddp_strategy = "ddp_find_unused_parameters_true" if self.find_unused_parameters else "ddp"
+        # CUDA
         if device.startswith("cuda"):
             count = self.num_devices
             index = torch.device(self.device).index
             devices = count if index is None else list(range(index, index + count))
             return "gpu", devices, ddp_strategy if count > 1 else "auto"
-        if device.startswith("mps"):
-            if self.num_devices > 1:
-                logging.warning(f"num_devices={self.num_devices} ignored because MPS supports one device.")
-            return "mps", 1, "auto"
+        # CPU
         return "cpu", self.num_devices, ddp_strategy if self.num_devices > 1 else "auto"
 
     def _callbacks(self) -> list[L.Callback]:

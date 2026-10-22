@@ -59,6 +59,10 @@ class EarlyStopper(ABC):
         self.best_value: float = float("inf")
         self.best_epoch: int = -1
 
+    def start(self) -> None:
+        """Reset stopper state before a new training run begins."""
+        ...
+
     @abstractmethod
     def step(self, value: float, model: Model, epoch: int) -> bool:
         """Evaluate whether training should stop after observing ``value``.

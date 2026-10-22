@@ -28,14 +28,14 @@ $defs:
         type: integer
         minimum: 0
         default: 0
-        description: Number of data-loader worker processes.
-      num_devices:
-        type: integer
+        description: Number of CUDA devices or CPU training processes. Values
+          greater than 1 select Lightning ``ddp``. Launch with ``python``, not
+          ``torchrun``.
         minimum: 1
         default: 1
         description: Number of CUDA devices or CPU training processes. Values
-          greater than 1 select Lightning ``ddp``. MPS uses one device. Launch
-          with ``python``, not torchrun.
+          greater than 1 select Lightning ``ddp``. Launch with ``python``, not
+          ``torchrun``.
       find_unused_parameters:
         type: boolean
         default: false

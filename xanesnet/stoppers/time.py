@@ -39,15 +39,12 @@ from .registry import EarlyStopperRegistry
 class TimeStopper(EarlyStopper):
     """Wall-clock time early stopper.
 
-    Stops training once the elapsed time since construction exceeds
-    ``time_limit_seconds``.
+    Stops training once the elapsed time since the last ``start`` call exceeds ``time_limit_seconds``.
 
     Args:
         early_stopper_type: Registry key identifying this stopper type.
-        restore_best: If ``True``, restore the model to its best-seen
-            state when ``restore`` is called.
-        time_limit_seconds: Maximum wall-clock training time in
-            **seconds**.
+        restore_best: If ``True``, restore the model to its best-seen state when ``restore`` is called.
+        time_limit_seconds: Maximum wall-clock training time in **seconds**.
     """
 
     def __init__(
@@ -62,6 +59,10 @@ class TimeStopper(EarlyStopper):
         self.time_limit_seconds = time_limit_seconds
         self.start_time = time.time()
 
+    def start(self) -> None:
+        """Restart the wall-clock timer at the beginning of a training run."""
+        self.start_time = time.time()
+
     def step(self, value: float, model: Model, epoch: int) -> bool:
         """Check whether the time limit has been exceeded.
 
@@ -71,8 +72,8 @@ class TimeStopper(EarlyStopper):
             epoch: Current epoch index.
 
         Returns:
-            ``True`` if the elapsed wall-clock time since construction
-            exceeds ``time_limit_seconds``, ``False`` otherwise.
+            ``True`` if the elapsed wall-clock time since the last ``start``
+            call exceeds ``time_limit_seconds``, ``False`` otherwise.
         """
         _ = super().step(value, model, epoch)
 
