@@ -39,7 +39,7 @@ Requirements
 
 The Lightning trainer is an optional extra. Install it with ``python -m pip install -e ".[lightning]"`` when using ``trainer_type: lightning``.
 The tested Lightning environment uses Python 3.12.9 and PyTorch 2.5.1 with CUDA 12.4.
-CPU-only training does not require CUDA. MPS is exposed as a single-device backend but has not been hardware-validated.
+CPU-only training does not require CUDA. MPS devices are currently unsupported and untested.
 
 
 Installation
