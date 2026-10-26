@@ -30,7 +30,7 @@
 # TODO: Revisit only if profiling shows a performance bottleneck:
 # TODO - Skip target-count reductions where equal per-rank target counts are guaranteed.
 # TODO - Skip stop-decision reductions for no-op stoppers or epochs without monitoring.
-# TODO - Avoid duplicate final checkpoint saves and make weight logging configurable.
+# TODO - Avoid duplicate final checkpoint saves.
 # TODO - Improve custom-batch transfers: pinned-memory/nonblocking transfer path
 
 import logging
@@ -213,7 +213,6 @@ class _LightningModule(L.LightningModule):
                 *logged_valid_metrics,
             )
             tb_logger.log_learning_rate(self.current_epoch, self.xn.optimizer.param_groups[0]["lr"])
-            # TODO this step can be expensive for large models -> Maybe make this optional
             tb_logger.log_model_weights(self.current_epoch, self.model)
 
         if self.xn.warmup_lr_scheduler is None or self.global_step >= self.xn.warmup_steps:

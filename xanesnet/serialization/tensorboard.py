@@ -125,7 +125,8 @@ class TensorBoardLogger:
 
     Use ``new_run`` to initialize logging for each new training run.  All
     ``log_*`` methods silently no-op when the logger has not been initialized
-    or when TensorBoard has been disabled.
+    or when TensorBoard has been disabled. Model weight and gradient histograms
+    are opt-in.
 
     Note:
         Instantiate via ``tb_logger = TensorBoardLogger()`` and import the
@@ -137,6 +138,7 @@ class TensorBoardLogger:
     _writer: SummaryWriter | None
     _config: Config | None
     _enabled: bool
+    _log_weights: bool
 
     def __new__(cls) -> "TensorBoardLogger":
         """Create or return the shared TensorBoard writer."""
@@ -145,6 +147,7 @@ class TensorBoardLogger:
             cls._instance._writer = None
             cls._instance._config = None
             cls._instance._enabled = False
+            cls._instance._log_weights = False
         return cls._instance
 
     @property
@@ -155,6 +158,15 @@ class TensorBoardLogger:
             ``True`` when TensorBoard logging is enabled and initialized.
         """
         return self._enabled
+
+    def set_log_weights(self, enabled: bool) -> None:
+        """Set whether parameter and gradient histograms are written.
+
+        Args:
+            enabled: Whether model weight and gradient histograms should be
+                written when TensorBoard logging is active.
+        """
+        self._log_weights = enabled
 
     def set_config(self, config: Config) -> None:
         """Attach the run configuration used for later hyperparameter logging.
@@ -274,7 +286,7 @@ class TensorBoardLogger:
             epoch: Current epoch index (used as the global step).
             model: The model whose parameters are logged.
         """
-        if not self._enabled:
+        if not self._enabled or not self._log_weights:
             return
 
         w = self.writer

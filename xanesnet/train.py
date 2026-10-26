@@ -105,6 +105,11 @@ def parse_args(args: list[str]) -> Namespace:
         help="Whether to write training metrics to TensorBoard logs.",
     )
     parser.add_argument(
+        "--log-weights",
+        action="store_true",
+        help="Log model parameter and gradient histograms to TensorBoard.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Run one real training epoch and save a model profiling report.",
@@ -151,6 +156,7 @@ def main(args: list[str]) -> None:
 
     # Parsing command line arguments
     args_namespace = parse_args(args)
+    tb_logger.set_log_weights(args_namespace.log_weights)
 
     with auto_yes(args_namespace.yes):
         # Lighting worker
