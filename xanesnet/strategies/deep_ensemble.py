@@ -28,17 +28,14 @@
 """Deep-ensemble strategy for XANESNET."""
 
 import logging
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import torch
 
 from xanesnet.datasets import Dataset
-from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
-from xanesnet.runners.trainers import Trainer, TrainerRegistry
+from xanesnet.runners.inferencers import InferencerRegistry
+from xanesnet.runners.trainers import TrainerRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -59,8 +56,6 @@ class DeepEnsemble(Strategy):
     Args:
         strategy_type: Registry key identifying this strategy type.
         dataset: Dataset used for training or inference.
-        model_config: Configuration for the model.
-        encoding: Composed spectra encoding forwarded to the trainers and inferencer.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional weight-initializer parameters.
         bias_init: Bias initialization scheme name.
@@ -76,8 +71,6 @@ class DeepEnsemble(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: Config,
-        encoding: SpectraEncoding,
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
@@ -93,8 +86,6 @@ class DeepEnsemble(Strategy):
         super().__init__(
             strategy_type,
             dataset,
-            model_config,
-            encoding,
             weight_init,
             weight_init_params,
             bias_init,
@@ -106,64 +97,22 @@ class DeepEnsemble(Strategy):
         )
 
         self.n_models = n_models
-        self.models: list[Model] = []
-        self.trainers: list[Trainer | None] = []
-        self.inferencer: Inferencer | None = None
 
-    def _dataset_for_model(self) -> Dataset:
-        """Return the shared dataset view used by one ensemble member.
-
-        Returns:
-            The strategy's configured dataset.
-        """
-        return self.dataset
-
-    def setup_models(self) -> None:
-        """Instantiate ``n_models`` independent model copies from ``model_config``."""
-        model_type = self.model_config.get_str("model_type")
+    def setup_models(self, model_config: Config) -> None:
+        """Instantiate ``n_models`` independent copies of the configured model."""
+        model_type = model_config.get_str("model_type")
         model_cls = ModelRegistry.get(model_type)
 
         self.models = []
         for model_idx in range(self.n_models):
             logging.info(f"Initializing ensemble model {model_idx + 1}/{self.n_models}: {model_type}")
-            self.models.append(model_cls(**self.model_config.as_kwargs()))
-
-    def init_model_weights(self) -> None:
-        """Apply configured weight and bias initialization to every model.
-
-        Raises:
-            ValueError: If ``setup_models`` has not been called.
-        """
-        if len(self.models) == 0:
-            raise ValueError("Cannot initialize model weights because models are not initialized.")
-
-        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
-        for model_idx, model in enumerate(self.models):
-            logging.info(f"Initializing ensemble model {model_idx + 1}/{self.n_models} weights.")
-            model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
-
-    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
-        """Load one state dictionary into each ensemble member.
-
-        Args:
-            state_dicts: State dictionaries to load, one per model.
-
-        Raises:
-            ValueError: If models are not initialized or the number of state
-                dictionaries does not match the number of models.
-        """
-        if len(self.models) == 0:
-            raise ValueError("Cannot load state dicts because models are not initialized.")
-        if len(state_dicts) != len(self.models):
-            raise ValueError(f"Expected {len(self.models)} state dicts, got {len(state_dicts)}.")
-
-        for model, state_dict in zip(self.models, state_dicts, strict=True):
-            model.load_state_dict(state_dict)
+            self.models.append(model_cls(**model_config.as_kwargs()))
 
     def setup_trainers(self, device: str | torch.device) -> None:
         """Instantiate one trainer per ensemble member.
 
-        Must be called after ``setup_models`` and ``setup_checkpointer``.
+        Must be called after ``setup_models``, ``setup_checkpointer``,
+        ``setup_model_splits``, and ``setup_encoding``.
 
         Args:
             device: The device on which training will be performed.
@@ -171,12 +120,14 @@ class DeepEnsemble(Strategy):
         Raises:
             ValueError: If models, trainer config, or checkpointer are not initialized.
         """
-        if len(self.models) == 0:
+        if not self.models:
             raise ValueError("Cannot setup trainers because models are not initialized.")
         if self.trainer_config is None:
-            raise ValueError("Can not setup trainers because there is no trainer config.")
+            raise ValueError("Cannot setup trainers because there is no trainer config.")
         if self.checkpointer is None:
-            raise ValueError("Can not setup trainers because checkpointer is not instantiated.")
+            raise ValueError("Cannot setup trainers because checkpointer is not instantiated.")
+        if self.encoding is None:
+            raise ValueError("Cannot setup trainers because encoding is not initialized.")
 
         trainer_type = self.trainer_config.get_str("trainer_type")
         trainer_cls = TrainerRegistry.get(trainer_type)
@@ -184,7 +135,7 @@ class DeepEnsemble(Strategy):
         self.trainers = []
         for model_idx, model in enumerate(self.models):
             logging.info(f"Initializing trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
-            dataset_model = self._dataset_for_model()
+            dataset_model = self.model_datasets[model_idx]
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
                 dataset=dataset_model,
@@ -208,7 +159,7 @@ class DeepEnsemble(Strategy):
         Raises:
             ValueError: If trainers or models are not initialized.
         """
-        if len(self.models) == 0:
+        if not self.models:
             raise ValueError("Cannot run training because models are not initialized.")
         if len(self.trainers) != len(self.models):
             raise ValueError("Cannot run training because trainers are not initialized for every model.")
@@ -239,7 +190,8 @@ class DeepEnsemble(Strategy):
     def setup_inferencers(self, device: str | torch.device) -> None:
         """Instantiate the ensemble inferencer for all loaded models.
 
-        Must be called after ``setup_models`` and ``set_state_dicts``.
+        Must be called after ``setup_encoding``, ``setup_models``, and
+        ``set_state_dicts``.
 
         Args:
             device: The device on which inference will be performed.
@@ -247,10 +199,12 @@ class DeepEnsemble(Strategy):
         Raises:
             ValueError: If models or inferencer config are not initialized.
         """
-        if len(self.models) == 0:
-            raise ValueError("Can not setup inferencers because models are not initialized.")
+        if not self.models:
+            raise ValueError("Cannot setup inferencers because models are not initialized.")
         if self.inferencer_config is None:
-            raise ValueError("Can not setup inferencers because there is no inferencer config.")
+            raise ValueError("Cannot setup inferencers because there is no inferencer config.")
+        if self.encoding is None:
+            raise ValueError("Cannot setup inferencers because encoding is not initialized.")
 
         logging.info("Initializing inferencer: ensemble")
 
@@ -283,21 +237,6 @@ class DeepEnsemble(Strategy):
         super().run_inference(predictions_save_path)
 
         self.inferencer.infer(predictions_save_path)
-
-    @property
-    def model_signature(self) -> Config:
-        """Return the shared model architecture signature.
-
-        Returns:
-            A ``Config`` representing the ensemble members' model signature.
-
-        Raises:
-            ValueError: If ``setup_models`` has not been called.
-        """
-        if len(self.models) == 0:
-            raise ValueError("Models are not initialized. Cannot retrieve signature.")
-
-        return self.models[0].signature
 
     @property
     def signature(self) -> Config:

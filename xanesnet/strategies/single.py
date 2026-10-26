@@ -28,17 +28,14 @@
 """Single-model strategy for XANESNET."""
 
 import logging
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import torch
 
 from xanesnet.datasets import Dataset
-from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model, ModelRegistry
-from xanesnet.runners.inferencers import Inferencer, InferencerRegistry
-from xanesnet.runners.trainers import Trainer, TrainerRegistry
+from xanesnet.runners.inferencers import InferencerRegistry
+from xanesnet.runners.trainers import TrainerRegistry
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -56,16 +53,12 @@ class Single(Strategy):
     Args:
         strategy_type: Registry key identifying this strategy type.
         dataset: Dataset used for training or inference.
-        model_config: Configuration for the managed model.
-        encoding: Composed spectra encoding forwarded to the trainer and inferencer.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional parameters for the weight initializer.
         bias_init: Bias initialization scheme name.
         checkpoint_dir: Directory for checkpoints, or ``None`` to disable checkpointing.
-        checkpoint_interval: Epoch interval for checkpoint saves, or
-            ``None`` to disable interval-based checkpointing.
-        tensorboard_dir: Directory for TensorBoard event files, or
-            ``None`` to disable TensorBoard logging.
+        checkpoint_interval: Epoch interval for checkpoint saves, or ``None`` to disable interval-based checkpointing.
+        tensorboard_dir: Directory for TensorBoard event files, or ``None`` to disable TensorBoard logging.
         trainer_config: Trainer configuration used for training mode.
         inferencer_config: Inferencer configuration used for inference mode.
     """
@@ -74,8 +67,6 @@ class Single(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: Config,
-        encoding: SpectraEncoding,
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
@@ -89,8 +80,6 @@ class Single(Strategy):
         super().__init__(
             strategy_type,
             dataset,
-            model_config,
-            encoding,
             weight_init,
             weight_init_params,
             bias_init,
@@ -101,45 +90,17 @@ class Single(Strategy):
             inferencer_config,
         )
 
-        self.model: Model | None = None
-        self.trainer: Trainer | None = None
-        self.inferencer: Inferencer | None = None
-
-    def setup_models(self) -> None:
-        """Instantiate a single model from ``model_config`` and store it as ``self.model``."""
-        model_type = self.model_config.get_str("model_type")
+    def setup_models(self, model_config: Config) -> None:
+        """Instantiate the single model managed by this strategy."""
+        model_type = model_config.get_str("model_type")
         logging.info(f"Initializing model: {model_type}")
-        model = ModelRegistry.create(model_type, **self.model_config.as_kwargs())
-
-        self.model = model
-
-    def init_model_weights(self) -> None:
-        """Apply weight and bias initialization to ``self.model``."""
-        if self.model is None:
-            raise ValueError("Cannot initialize model weights because the model is not initialized.")
-
-        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
-        self.model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
-
-    def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
-        """Load model weights from the first entry of ``state_dicts``.
-
-        Args:
-            state_dicts: List of state dictionaries; only the first entry is
-                used for the single model.
-
-        Raises:
-            ValueError: If ``setup_models`` has not been called.
-        """
-        if self.model is None:
-            raise ValueError("Cannot load state dicts because the model is not initialized.")
-
-        self.model.load_state_dict(state_dicts[0])
+        self.models = [ModelRegistry.create(model_type, **model_config.as_kwargs())]
 
     def setup_trainers(self, device: str | torch.device) -> None:
-        """Instantiate a trainer for ``self.model`` and store it as ``self.trainer``.
+        """Instantiate one trainer for the strategy's single model.
 
-        Must be called after ``setup_models`` and ``setup_checkpointer``.
+        Must be called after ``setup_models``, ``setup_checkpointer``,
+        ``setup_model_splits``, and ``setup_encoding``.
 
         Args:
             device: The device on which training will be performed.
@@ -149,12 +110,14 @@ class Single(Strategy):
                 ``trainer_config`` is ``None``, or the checkpointer has not
                 been set up.
         """
-        if self.model is None:
+        if not self.models:
             raise ValueError("Cannot setup trainers because the model is not initialized.")
         if self.trainer_config is None:
-            raise ValueError("Can not setup trainers because there is no trainer config.")
+            raise ValueError("Cannot setup trainers because there is no trainer config.")
         if self.checkpointer is None:
-            raise ValueError("Can not setup trainers because checkpointer is not instantiated.")
+            raise ValueError("Cannot setup trainers because checkpointer is not instantiated.")
+        if self.encoding is None:
+            raise ValueError("Cannot setup trainer because encoding is not initialized.")
 
         trainer_type = self.trainer_config.get_str("trainer_type")
 
@@ -163,14 +126,14 @@ class Single(Strategy):
         trainer = TrainerRegistry.create(
             trainer_type,
             **self.trainer_config.as_kwargs(),
-            dataset=self.dataset,
-            model=self.model,
+            dataset=self.model_datasets[0],
+            model=self.models[0],
             device=device,
             checkpointer=self.checkpointer,
             encoding=self.encoding,
         )
 
-        self.trainer = trainer
+        self.trainers = [trainer]
 
     def run_training(self) -> list[Model]:
         """Run the training loop and return the trained model.
@@ -183,10 +146,9 @@ class Single(Strategy):
         Raises:
             ValueError: If ``setup_models`` or ``setup_trainers`` has not been called.
         """
-        if self.trainer is None:
-            raise ValueError("Cannot run training because the trainer is not initialized.")
-        if self.model is None:
-            raise ValueError("Cannot run training because the model is not initialized.")
+        if not self.trainers or not self.models:
+            raise ValueError("Cannot run training because the model or trainer is not initialized.")
+        assert self.trainers[0] is not None
 
         super().run_training()
 
@@ -197,16 +159,16 @@ class Single(Strategy):
             if self.tensorboard_dir is not None:
                 tb_logger.new_run(self.tensorboard_dir)
 
-            self.trainer.train()
+            self.trainers[0].train()
         finally:
             tb_logger.close()
 
-        return [self.model]
+        return self.models
 
     def setup_inferencers(self, device: str | torch.device) -> None:
-        """Instantiate an inferencer for ``self.model`` and store it as ``self.inferencer``.
+        """Instantiate the inferencer for the strategy's single model.
 
-        Must be called after ``setup_models``.
+        Must be called after ``setup_models`` and ``setup_encoding``.
 
         Args:
             device: The device on which inference will be performed.
@@ -215,10 +177,12 @@ class Single(Strategy):
             ValueError: If ``setup_models`` has not been called or
                 ``inferencer_config`` is ``None``.
         """
-        if self.model is None:
-            raise ValueError("Can not setup inferencers because the model is not initialized.")
+        if not self.models:
+            raise ValueError("Cannot setup inferencers because the model is not initialized.")
         if self.inferencer_config is None:
-            raise ValueError("Can not setup inferencers because there is no inferencer config.")
+            raise ValueError("Cannot setup inferencers because there is no inferencer config.")
+        if self.encoding is None:
+            raise ValueError("Cannot setup inferencer because encoding is not initialized.")
 
         inferencer_type = self.inferencer_config.get_str("inferencer_type")
 
@@ -228,7 +192,7 @@ class Single(Strategy):
             inferencer_type,
             **self.inferencer_config.as_kwargs(),
             dataset=self.dataset,
-            model=self.model,
+            model=self.models[0],
             device=device,
             encoding=self.encoding,
         )
@@ -253,21 +217,6 @@ class Single(Strategy):
         super().run_inference(predictions_save_path)
 
         self.inferencer.infer(predictions_save_path)
-
-    @property
-    def model_signature(self) -> Config:
-        """Return ``self.model``'s configuration signature.
-
-        Returns:
-            A ``Config`` representing the model's signature.
-
-        Raises:
-            ValueError: If ``setup_models`` has not been called.
-        """
-        if self.model is None:
-            raise ValueError("Model is not initialized. Cannot retrieve signature.")
-
-        return self.model.signature
 
     @property
     def signature(self) -> Config:
