@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -172,11 +172,13 @@ class Checkpointer:
         return len(self._checkpoint)
 
     def set_signature(self, signature: Config) -> None:
-        """Replace the checkpoint's signature with a new one.
+        """Replace the signature when active, otherwise leave state unchanged.
 
         Args:
             signature: signature ``Config``.
         """
+        if not self.active:
+            return
         self._checkpoint.signature = signature
 
 

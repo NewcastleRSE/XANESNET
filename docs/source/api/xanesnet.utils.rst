@@ -22,6 +22,7 @@ Submodules
 
    xanesnet.utils.exceptions
    xanesnet.utils.filesystem
+   xanesnet.utils.lightning
    xanesnet.utils.logger
    xanesnet.utils.prompts
    xanesnet.utils.random

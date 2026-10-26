@@ -72,6 +72,7 @@ jupyter_client==8.7.0
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 kiwisolver==1.4.9
+lightning==2.6.6
 lightning-utilities==0.15.2
 llvmlite==0.46.0
 lmdb==1.7.5
@@ -152,6 +153,7 @@ pytest==9.0.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python_hostlist==2.3.0
+pytorch-lightning==2.6.6
 pytz==2025.2
 PyYAML==6.0.3
 pyzmq==27.1.0
@@ -176,6 +178,7 @@ sparse==0.17.0
 spglib==2.7.0
 Sphinx==8.2.3
 sphinx-rtd-theme==3.0.2
+sphinx-autodoc-typehints==3.5.2
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0

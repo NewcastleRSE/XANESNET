@@ -14,4 +14,5 @@ Submodules
 
    xanesnet.runners.trainers.base
    xanesnet.runners.trainers.basic
+   xanesnet.runners.trainers.lightning
    xanesnet.runners.trainers.registry

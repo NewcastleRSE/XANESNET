@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -58,6 +58,10 @@ class EarlyStopper(ABC):
         self.best_state: dict | None = None
         self.best_value: float = float("inf")
         self.best_epoch: int = -1
+
+    def start(self) -> None:
+        """Reset stopper state before a new training run begins."""
+        ...
 
     @abstractmethod
     def step(self, value: float, model: Model, epoch: int) -> bool:

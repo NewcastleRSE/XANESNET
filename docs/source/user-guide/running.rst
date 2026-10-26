@@ -19,8 +19,11 @@ Common options:
 * ``-o, --out_dir`` - Path to output directory (optional, default: ``./runs``).
 * ``-n, --name`` - Name for the training run used for logging and saving (optional).
 * ``-t, --tensorboard`` - Enable training metrics in TensorBoard logs (optional).
+* ``--log-weights`` - Include per-epoch model parameter and gradient histograms in TensorBoard logs (optional).
 * ``--dry-run`` - Run one real training epoch and save ``model_profile.json`` plus a readable model profile report (optional).
 * ``-y, --yes`` - Skip interactive confirmation prompts (optional).
+
+When TensorBoard is enabled, scalar metrics and the model graph are logged by default. ``--log-weights`` additionally enables per-epoch weight and gradient histograms.
 
 
 By default, training outputs are saved under ``<out_dir>/train_000/``.
@@ -41,6 +44,8 @@ Deep-ensemble example:
 
    # MLP deep ensemble training configuration with custom run name, TensorBoard logging, and no interactive confirmation
    xanesnet train -i configs/mlp_deep_ensemble.yaml -n mlp_run -t -y
+
+For Lightning trainer settings and multi-device training, see :ref:`multi-device-lightning-training`.
 
 
 Running inference

@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -192,6 +192,9 @@ def resolve_auto_model_config(config: Config, dataset: Dataset, encoding: Spectr
     receives at train time: for forward datasets the encoding shapes the target
     (and thus the output size), while for inverse datasets the encoding shapes
     the spectral input (and thus the input size).
+
+    Automatic model dimensions are expected to be invariant across dataset
+    indices; dataset index 0 is used as the representative sample.
 
     Args:
         config: Validated training configuration.

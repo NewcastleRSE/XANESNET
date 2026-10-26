@@ -34,7 +34,10 @@ $defs:
           exclusiveMinimum: 0
         - type: 'null'
         default: null
-        description: Dynamic range of the signal (``max - min``). When ``null``, auto-detected from the first batch's target range and held fixed thereafter. Defaults to ``null``.
+        description: Dynamic range of the signal (``max - min``). When ``null``,
+          running target bounds start at ``[0, 1]`` and expand as needed in
+          single-process execution. Multi-process execution requires a fixed
+          value, with no range synchronization. Defaults to ``null``.
       K:
         type: array
         minItems: 2

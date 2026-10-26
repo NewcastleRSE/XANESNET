@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -53,6 +53,7 @@ from xanesnet.serialization.schema_validation import validate_config_schema
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
+from xanesnet.utils.lightning import get_lightning_context_path
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.prompts import auto_yes
 from xanesnet.utils.random import set_global_seed
@@ -104,6 +105,11 @@ def parse_args(args: list[str]) -> Namespace:
         help="Whether to write training metrics to TensorBoard logs.",
     )
     parser.add_argument(
+        "--log-weights",
+        action="store_true",
+        help="Log model parameter and gradient histograms to TensorBoard.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Run one real training epoch and save a model profiling report.",
@@ -127,9 +133,10 @@ def parse_args(args: list[str]) -> Namespace:
 def main(args: list[str]) -> None:
     """Run the full training pipeline.
 
-    Parses arguments, configures prompt behavior, loads and validates
-    configuration, applies dry-run overrides when requested, sets up the run
-    directory, and delegates to the ``train`` core function.
+    Routes prepared Lightning workers before shared startup, then loads and
+    validates configuration, applies dry-run overrides when requested,
+    initializes the run, and dispatches to ``train`` or ``train_initial``.
+    Re-entered workers dispatch directly to ``train_worker``.
 
     Args:
         args: Raw command-line argument strings.
@@ -149,11 +156,31 @@ def main(args: list[str]) -> None:
 
     # Parsing command line arguments
     args_namespace = parse_args(args)
+    tb_logger.set_log_weights(args_namespace.log_weights)
 
     with auto_yes(args_namespace.yes):
+        # Lighting worker
+        context_path = get_lightning_context_path()
+        if context_path is not None:
+            from xanesnet.core_lightning import train_worker
+
+            train_worker(context_path)
+            return
+
         # Loading configuration file
         logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
         config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
+
+        # Config validation
+        validated = validate_config_schema(config_raw, "train")
+        config: Config = Config(validated)
+        if args_namespace.dry_run:
+            logging.info("Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
+            config_dict = config.as_dict()
+            config_dict["trainer"]["epochs"] = 1
+            config = Config(config_dict)
+
+        trainer_type = config.section("trainer").get_str("trainer_type")
 
         # Get saving directory
         out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
@@ -174,17 +201,6 @@ def main(args: list[str]) -> None:
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
 
-        # Config validation
-        validated = validate_config_schema(config_raw, "train")
-        config: Config = Config(validated)
-        if args_namespace.dry_run:
-            logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
-            config_dict = config.as_dict()
-            config_dict["trainer"]["epochs"] = 1
-            config = Config(config_dict)
-        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
-        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
-
         # Scale file copying (if configured)
         scale_file = config.section("model").as_kwargs().get("scale_file")
         if scale_file:
@@ -204,6 +220,14 @@ def main(args: list[str]) -> None:
         seed = set_global_seed(seed)
         logging.info(f"Global seed: {seed}")
 
+        config_dict = config.as_dict()
+        config_dict["seed"] = seed
+        config = Config(config_dict)
+
+        # Save validated configuration file
+        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
+        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+
         # Tensorboard
         if args_namespace.tensorboard:
             logging.info("TensorBoard logging enabled.")
@@ -212,4 +236,9 @@ def main(args: list[str]) -> None:
             logging.info("TensorBoard logging disabled.")
 
         # Branching into training mode
-        train(config, args_namespace, save_dir)
+        if trainer_type == "lightning":
+            from xanesnet.core_lightning import train_initial
+
+            train_initial(config, args_namespace, save_dir)
+        else:
+            train(config, args_namespace, save_dir)

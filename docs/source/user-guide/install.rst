@@ -37,6 +37,10 @@ Requirements
 * A C/C++ build toolchain if pip needs to compile native PyTorch Geometric extensions.
 * Optional: NVIDIA GPU and CUDA-compatible PyTorch wheels for ``device: cuda``.
 
+The Lightning trainer is an optional extra. Install it with ``python -m pip install -e ".[lightning]"`` when using ``trainer_type: lightning``.
+The tested Lightning environment uses Python 3.12.9 and PyTorch 2.5.1 with CUDA 12.4.
+CPU-only training does not require CUDA. MPS devices are currently unsupported and untested.
+
 
 Installation
 ------------
@@ -55,6 +59,12 @@ For a non-editable install:
 .. code-block:: bash
 
    python -m pip install .
+
+To use the optional Lightning trainer, include its extra:
+
+.. code-block:: bash
+
+   python -m pip install -e ".[lightning]"
 
 Verify the installation:
 

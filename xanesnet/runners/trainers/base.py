@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -27,7 +27,6 @@
 
 """Abstract base class for all XANESNET trainers."""
 
-import logging
 from abc import abstractmethod
 from typing import Any
 
@@ -41,7 +40,6 @@ from xanesnet.losses import CombinedLoss, Loss, LossRegistry
 from xanesnet.models import Model
 from xanesnet.regularizers import Regularizer, RegularizerRegistry
 from xanesnet.serialization.config import Config
-from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.stoppers import EarlyStopper, EarlyStopperRegistry
 
 from ..base import Runner
@@ -127,17 +125,13 @@ class Trainer(Runner):
         self.optimizer = self._setup_optimizer()
         self.epoch_lr_scheduler = self._setup_epoch_lr_scheduler()  # per-epoch scheduler captures base lr
         self.warmup_lr_scheduler = self._setup_warmup_lr_scheduler()  # per-step warmup scheduler
-        self._global_step = 0
-        self._warmup_complete = self.warmup_lr_scheduler is None
-        self.early_stopper = self._setup_early_stopper()
         self.loss = self._setup_loss()
         self.regularizer = self._setup_regularizer()
+        self.early_stopper = self._setup_early_stopper()
 
+    @abstractmethod
     def train(self) -> float | None:
-        """Run the full training loop.
-
-        Logs metrics to the Python logging system and TensorBoard at each epoch.
-        Applies early stopping, learning-rate scheduling, and checkpointing.
+        """Execute the concrete backend's training lifecycle.
 
         Returns:
             Final score used for model selection: the best validation total
@@ -145,119 +139,6 @@ class Trainer(Runner):
             total (when a validation set is present), or the last training
             total otherwise. Returns ``None`` if training did not complete a
             single epoch.
-        """
-        self.model.to(self.device)
-        self.loss.to(self.device)
-
-        # Log model graph (once, using first training batch as example input)
-        sample_batch = next(iter(self.dataloader))
-        sample_batch.to(self.device)
-        sample_inputs = self.batchprocessor.input_preparation(sample_batch)
-        tb_logger.log_model_graph(self.model, sample_inputs)
-
-        logging.info(f"Start training: {self.epochs} epochs.")
-
-        train_total = None
-        valid_total = None
-
-        epoch = -1
-        for epoch in range(self.epochs):
-            # Run training
-            train_loss, train_regularization, train_total = self._train_one_epoch()
-
-            # Run validation on interval or last epoch
-            if self.valid_dataloader is not None and (
-                epoch % self.validation_interval == 0 or epoch == self.epochs - 1
-            ):
-                valid_loss, valid_regularization, valid_total = self._validate_one_epoch()
-            else:
-                valid_loss, valid_regularization, valid_total = None, None, None
-
-            # Logging
-            self._log_epoch_loss(
-                train_loss,
-                train_regularization,
-                train_total,
-                epoch,
-                valid_loss,
-                valid_regularization,
-                valid_total,
-            )
-
-            # TensorBoard logging
-            tb_logger.log_epoch_metrics(
-                epoch,
-                train_loss,
-                train_regularization,
-                train_total,
-                valid_loss,
-                valid_regularization,
-                valid_total,
-            )
-            tb_logger.log_learning_rate(epoch, self.optimizer.param_groups[0]["lr"])
-            tb_logger.log_model_weights(epoch, self.model)
-
-            # Per-epoch learning-rate scheduler.
-            if self._warmup_complete:
-                self.epoch_lr_scheduler.step()
-
-            # Early stopping check
-            stopped = False
-            if self.valid_dataloader is None:
-                stopped = self.early_stopper.step(train_total, self.model, epoch)
-            elif valid_total is not None:
-                stopped = self.early_stopper.step(valid_total, self.model, epoch)
-
-            # Checkpointing
-            if epoch == self.epochs - 1 or stopped:
-                saved_checkpoint, checkpoint_name = self.checkpointer.save_checkpoint(epoch, self.model, self.optimizer)
-            else:
-                saved_checkpoint, checkpoint_name = self.checkpointer.step(epoch, self.model, self.optimizer)
-            if saved_checkpoint:
-                logging.info(f"Saved new checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
-
-            # Early stopping trigger
-            if stopped:
-                logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
-                break
-
-        logging.info("Finished training.")
-
-        # Restore best model / Taking last model
-        if self.early_stopper.restore_best:
-            score, best_epoch = self.early_stopper.restore(self.model)
-            if score is not None and best_epoch is not None:
-                logging.info(f"Restored best model from epoch {best_epoch} with score {score}.")
-            else:
-                logging.warning(
-                    f"Did not find a best model."
-                    f" Something might be wrong in your EarlyStopper {self.early_stopper.early_stopper_type}."
-                )
-        else:
-            if valid_total is not None:
-                score = valid_total
-                logging.info(f"Using last model from epoch {epoch} as final model with validation score {score}.")
-            else:
-                score = train_total
-                logging.info(f"Using last model from epoch {epoch} as final model with training score {score}.")
-
-        return score
-
-    @abstractmethod
-    def _train_one_epoch(self) -> tuple[float, float, float]:
-        """Run one training epoch.
-
-        Returns:
-            Tuple of ``(mean_loss, mean_regularization, mean_total)`` for the epoch.
-        """
-        ...
-
-    @abstractmethod
-    def _validate_one_epoch(self) -> tuple[float, float, float]:
-        """Run one validation epoch.
-
-        Returns:
-            Tuple of ``(mean_loss, mean_regularization, mean_total)`` for the epoch.
         """
         ...
 
@@ -335,9 +216,9 @@ class Trainer(Runner):
 
         Returns:
             A configured data-loader instance, or ``None`` when the dataset
-            provides no validation subset.
+            provides no non-empty validation subset.
         """
-        if self.dataset.valid_subset is None:
+        if self.dataset.valid_subset is None or len(self.dataset.valid_subset) == 0:
             return None
 
         dataloader = self._build_dataloader(
@@ -393,28 +274,12 @@ class Trainer(Runner):
             total_iters=self.warmup_steps,
         )
 
-    def step_warmup_scheduler(self) -> None:
-        """Advance the per-step warm-up scheduler by one optimizer step.
-
-        Should be called by subclasses inside the training batch loop,
-        after ``optimizer.step()``. Has no effect once warm-up is complete.
-        """
-        if self.warmup_lr_scheduler is None or self._warmup_complete:
-            return
-
-        self._global_step += 1
-        self.warmup_lr_scheduler.step()
-        if self._global_step >= self.warmup_steps:
-            self._warmup_complete = True
-
     def _setup_early_stopper(self) -> EarlyStopper:
-        """Instantiate the early stopper from configuration.
+        """Construct the configured stopper for the concrete backend to drive.
 
         Returns:
-            A configured :class:`EarlyStopper` instance.
+            Registered stopping implementation, including best-weight tracking
+            when configured, without starting a training loop.
         """
-        early_stopper_type = self.early_stopper_config.get_str("early_stopper_type")
-
-        early_stopper = EarlyStopperRegistry.create(early_stopper_type, **self.early_stopper_config.as_kwargs())
-
-        return early_stopper
+        stopper_type = self.early_stopper_config.get_str("early_stopper_type")
+        return EarlyStopperRegistry.create(stopper_type, **self.early_stopper_config.as_kwargs())

@@ -71,11 +71,12 @@ python -m pip install -e .
 
 Adjust the wheel URLs for your target platform. The PyTorch and PyTorch Geometric installation guides are the source of truth for the current compatibility matrix.
 
-### Developer and Docs Extras
+### Lightning, Developer and Docs Extras
 
 ```bash
-python -m pip install -e ".[dev]"   # build and test tooling
-python -m pip install -e ".[docs]"  # documentation tooling
+python -m pip install -e ".[lightning]"      # Lightning training backend
+python -m pip install -e ".[dev,lightning]"  # build/test tooling and Lightning tests
+python -m pip install -e ".[docs,lightning]" # docs tooling and Lightning API imports
 ```
 
 [frozen.txt](frozen.txt) is kept as a pinned snapshot of one known-working environment. Use it only when you need to reproduce that exact environment; normal installs should use [pyproject.toml](pyproject.toml).
@@ -129,9 +130,15 @@ xanesnet train \
     -y
 ```
 
-Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, checkpoint signatures, checkpoints, final model weights, logs, and optional TensorBoard files.
+Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, checkpoint signatures, checkpoints, final model weights, logs, and optional TensorBoard files. When TensorBoard is enabled, model weight and gradient histograms are omitted by default; pass `--log-weights` to include them.
 
 Use `--dry-run` with `xanesnet train` to construct the normal training pipeline, run one real epoch, and write `model_profile.json` with the model architecture, parameter counts, model size, and peak CUDA memory for that epoch when CUDA is available.
+
+### Multi-Device Training
+
+XANESNET supports multi-gpu/multi-cpu training through Lightning. Install it with `python -m pip install -e ".[lightning]"`. Use the special Trainer `lightning`, set `trainer.num_devices` to the number of CPU training processes with `device: cpu`, or visible GPUs with `device: cuda`. `device: cuda:N` starts at visible index `N`. MPS devices are currently unsupported and untested. `batch_size` and `num_workers` are per process. Launch once with `xanesnet train` or `python -m xanesnet.cli train`, not `torchrun`, MPI, or multi-task `srun`. Under SLURM, request one task on one node and let Lightning start its workers.
+
+
 
 ### Infer
 

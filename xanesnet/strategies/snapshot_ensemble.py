@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -54,8 +54,6 @@ class SnapshotEnsemble(Strategy):
     Args:
         strategy_type: Strategy identifier.
         dataset: Dataset used for training or inference.
-        model_config: Configuration for the model.
-        encoding: Composed spectra encoding.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional weight-initializer parameters.
         bias_init: Bias initialization scheme name.
@@ -70,8 +68,6 @@ class SnapshotEnsemble(Strategy):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: Config,
-        encoding: SpectraEncoding,
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
@@ -85,8 +81,6 @@ class SnapshotEnsemble(Strategy):
         super().__init__(
             strategy_type,
             dataset,
-            model_config,
-            encoding,
             weight_init,
             weight_init_params,
             bias_init,
@@ -97,7 +91,7 @@ class SnapshotEnsemble(Strategy):
             inferencer_config,
         )
 
-    def setup_models(self) -> None:
+    def setup_models(self, model_config: Config) -> None:
         """Raise because snapshot ensemble model setup is not implemented.
 
         Raises:

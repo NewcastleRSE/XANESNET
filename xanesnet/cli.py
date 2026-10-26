@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -57,6 +57,7 @@ Commands (mutually exclusive):
             -o, --out_dir       Path to output directory. (Optional, default: ./runs )
             -n, --name          Name for the training run used for logging and saving (Optional).
             -t, --tensorboard   Whether to write training metrics to TensorBoard logs (Optional).
+            --log-weights       Log model parameter and gradient histograms to TensorBoard (Optional).
             --dry-run           Run one real training epoch and save model_profile.json (Optional).
             -y, --yes           Automatically answer yes to confirmation prompts (Optional).
 
