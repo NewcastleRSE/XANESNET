@@ -62,10 +62,10 @@ from .registry import TrainerRegistry
 
 
 class _LightningModule(L.LightningModule):
-    """Lightning module for XANESNET training.
+    """Lightning adapter for XANESNET training.
 
     Args:
-         trainer: Initialized backend containing the model and objective.
+        trainer: Initialized backend containing the model and objective.
     """
 
     def __init__(self, trainer: "LightningTrainer") -> None:
@@ -80,58 +80,91 @@ class _LightningModule(L.LightningModule):
         self._train_totals: torch.Tensor | None = None
         self._validation_totals: torch.Tensor | None = None
         self._validation_metrics: tuple[float, float, float] | None = None
-        self._validate_this_epoch = False
+
+    def train_dataloader(self) -> Any:
+        """Hook called when Lightning requests the training data loader.
+
+        Returns:
+            Training data loader.
+        """
+        return self.xn.dataloader
+
+    def val_dataloader(self) -> Any:
+        """Hook called when Lightning requests the validation data loader.
+
+        Returns:
+            Validation data loader, or an empty list when validation is disabled.
+        """
+        return self.xn.valid_dataloader if self.xn.valid_dataloader is not None else []
+
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        """Hook called during Lightning's optimizer setup.
+
+        Returns:
+            Optimizer and step/epoch scheduler configurations.
+        """
+        schedulers: list[LRSchedulerConfigType] = []
+        if self.xn.warmup_lr_scheduler is not None:
+            schedulers.append({"scheduler": self.xn.warmup_lr_scheduler, "interval": "step"})
+        schedulers.append({"scheduler": self.xn.epoch_lr_scheduler, "interval": "epoch"})
+        return cast(OptimizerLRScheduler, ([self.xn.optimizer], schedulers))
+
+    def lr_scheduler_step(self, scheduler: LRSchedulerTypeUnion, metric: Any) -> None:
+        """Hook called when Lightning advances a learning-rate scheduler.
+
+        Args:
+            scheduler: Scheduler selected by Lightning.
+            metric: Optional metric supplied by Lightning.
+        """
+        warmup_scheduler = self.xn.warmup_lr_scheduler
+        if warmup_scheduler is not None and scheduler is warmup_scheduler and self.global_step <= self.xn.warmup_steps:
+            warmup_scheduler.step()
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+        """Hook called when Lightning transfers a batch to its device.
+
+        Args:
+            batch: Batch to transfer.
+            device: Target device.
+            dataloader_idx: Index of the source data loader.
+
+        Returns:
+            The batch on the target device.
+        """
+        if hasattr(batch, "to"):
+            return batch.to(device)
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
+
+    def on_train_start(self) -> None:
+        """Hook called when Lightning starts fitting."""
+        if self.trainer.is_global_zero and tb_logger.enabled:
+            sample_batch = next(iter(self.xn.dataloader))
+            sample_batch = self.transfer_batch_to_device(sample_batch, self.device, 0)
+            sample_inputs = self.xn.batchprocessor.input_preparation(sample_batch)
+            tb_logger.log_model_graph(self.model, sample_inputs)
 
     def on_train_epoch_start(self) -> None:
-        """Reset local accumulators and select Basic-compatible validation epochs."""
+        """Hook called at the start of each training epoch."""
         self._train_totals = torch.zeros(4, device=self.device, dtype=torch.float64)
         self._validation_metrics = None
-        self._validate_this_epoch = self.xn.valid_dataloader is not None and (
+        validate_this_epoch = self.xn.valid_dataloader is not None and (
             self.current_epoch % self.xn.validation_interval == 0 or self.current_epoch == self.xn.epochs - 1
         )
         # check_val_every_n_epoch must be a positive integer: Lightning validates
         # when (current_epoch + 1) % check_val_every_n_epoch == 0. Use 1 to force
         # validation; otherwise use epochs + 1, which never divides into any
         # epoch index of this run, so validation is skipped this epoch.
-        self.trainer.check_val_every_n_epoch = 1 if self._validate_this_epoch else self.xn.epochs + 1
-
-    def on_validation_epoch_start(self) -> None:
-        """Reset validation sums without registering rank-local state as buffers."""
-        self._validation_totals = torch.zeros(4, device=self.device, dtype=torch.float64)
-
-    def on_train_start(self) -> None:
-        """Log the model graph once on the global-zero rank, matching Basic."""
-        if not self.trainer.is_global_zero:
-            return
-        sample_batch = next(iter(self.xn.dataloader))
-        sample_batch = self.transfer_batch_to_device(sample_batch, self.device, 0)
-        sample_inputs = self.xn.batchprocessor.input_preparation(sample_batch)
-        tb_logger.log_model_graph(self.model, sample_inputs)
-
-    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
-        """Move a custom batch or standard Lightning collection to its device.
-
-        Args:
-            batch: Collated dataset batch.
-            device: Device assigned by Lightning to this process.
-            dataloader_idx: Index of the source data loader.
-
-        Returns:
-            Batch after device transfer.
-        """
-        if hasattr(batch, "to"):
-            return batch.to(device)
-        return super().transfer_batch_to_device(batch, device, dataloader_idx)
+        self.trainer.check_val_every_n_epoch = 1 if validate_this_epoch else self.xn.epochs + 1
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        """Compute a differentiable training total and record epoch metrics.
+        """Hook called for each training batch.
 
         Args:
-            batch: Training batch on the assigned device.
+            batch: Training batch.
             batch_idx: Batch index within the epoch.
 
         Returns:
-            Scalar loss plus regularization for automatic optimization.
+            Training loss for automatic optimization.
         """
         loss, regularization, total, observations = self._calculate_loss(batch)
         self._accumulate_metrics(self._train_totals, loss, regularization, total, observations)
@@ -141,38 +174,43 @@ class _LightningModule(L.LightningModule):
             loss = loss * (self.trainer.world_size * local_count / global_count)
         return loss + regularization
 
+    def on_validation_epoch_start(self) -> None:
+        """Hook called at the start of each validation epoch."""
+        self._validation_totals = torch.zeros(4, device=self.device, dtype=torch.float64)
+
     def validation_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        """Compute validation totals and record distributed epoch metrics.
+        """Hook called for each validation batch.
 
         Args:
-            batch: Validation batch on the assigned device.
+            batch: Validation batch.
             batch_idx: Batch index within the validation pass.
 
         Returns:
-            Scalar validation loss plus regularization.
+            Validation loss.
         """
         loss, regularization, total, observations = self._calculate_loss(batch, batch_idx)
         self._accumulate_metrics(self._validation_totals, loss, regularization, total, observations)
         return total
 
     def on_validation_epoch_end(self) -> None:
-        """Publish exact global validation metrics after excluding padded samples."""
+        """Hook called at the end of each validation epoch."""
         self._validation_metrics = self._epoch_metrics(self._validation_totals, "val")
 
     def on_train_epoch_end(self) -> None:
-        """Log metrics, advance the epoch scheduler, and synchronize stopping."""
+        """Hook called at the end of each training epoch."""
         train_metrics = self._epoch_metrics(self._train_totals, "train")
         valid_metrics = self._validation_metrics
+        logged_valid_metrics = valid_metrics if valid_metrics is not None else (None, None, None)
         if self.trainer.is_global_zero:
             self.xn._log_epoch_loss(
                 *train_metrics,
                 self.current_epoch,
-                *(valid_metrics if valid_metrics is not None else (None, None, None)),
+                *logged_valid_metrics,
             )
             tb_logger.log_epoch_metrics(
                 self.current_epoch,
                 *train_metrics,
-                *(valid_metrics if valid_metrics is not None else (None, None, None)),
+                *logged_valid_metrics,
             )
             tb_logger.log_learning_rate(self.current_epoch, self.xn.optimizer.param_groups[0]["lr"])
             # TODO this step can be expensive for large models -> Maybe make this optional
@@ -200,6 +238,80 @@ class _LightningModule(L.LightningModule):
                 )
             if saved_checkpoint:
                 logging.info(f"Saved new checkpoint @ {checkpointer.save_dir}: {checkpoint_name}")
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Hook called before Lightning saves a checkpoint.
+
+        Args:
+            checkpoint: Checkpoint being populated before writing.
+        """
+        checkpoint["xanesnet_stopper"] = vars(self.xn.early_stopper).copy()
+        checkpoint["xanesnet_last_score"] = self.last_score
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Hook called after Lightning loads a checkpoint.
+
+        Args:
+            checkpoint: Checkpoint loaded by Lightning.
+        """
+        vars(self.xn.early_stopper).update(checkpoint["xanesnet_stopper"])
+        self.last_score = checkpoint["xanesnet_last_score"]
+
+    def _calculate_loss(
+        self, batch: Any, validation_batch_idx: int | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
+        """Prepare encoded inputs/targets and evaluate the existing objective.
+
+        Args:
+            batch: Dataset batch already transferred to the training device.
+            validation_batch_idx: Validation batch position used to exclude
+                distributed sampler padding, or ``None`` during training.
+
+        Returns:
+            Data loss, regularization, their scalar total, and target-row count.
+        """
+        processor = self.xn.batchprocessor
+        inputs = processor.input_preparation(batch)
+        elements = processor.element_preparation(batch)
+        inputs = processor.encode_input(inputs, elements)
+        targets = processor.target_preparation(batch)
+        targets = processor.encode_target(targets, elements)
+        predictions = processor.prediction_preparation(batch, self.model(**inputs))
+        if validation_batch_idx is not None:
+            rows = self._validation_rows(validation_batch_idx, targets.shape[0])
+            predictions = predictions[:rows]
+            targets = targets[:rows]
+        observations = int(targets.shape[0])
+        loss = self.loss(predictions, targets) if observations else predictions.sum() * 0.0
+        regularization = self.regularizer(self.model)
+        return loss, regularization, loss + regularization, observations
+
+    def _validation_rows(self, batch_idx: int, rows: int) -> int:
+        """Count real target rows in an evenly padded distributed validation batch.
+
+        Args:
+            batch_idx: Local validation batch index.
+            rows: Total target rows, including any trailing duplicated samples.
+
+        Returns:
+            Target-row count after excluding sampler padding. Every rank still
+            executes the same number of model forward passes.
+        """
+        sampler = getattr(self.trainer.val_dataloaders, "sampler", None)
+        if not isinstance(sampler, DistributedSampler):
+            return rows
+        validation_subset = self.xn.dataset.valid_subset
+        assert validation_subset is not None
+        dataset_size = len(validation_subset)
+        first_sample = batch_idx * self.xn.batch_size
+        local_samples = min(self.xn.batch_size, len(sampler) - first_sample)
+        for offset in range(local_samples):
+            global_position = sampler.rank + (first_sample + offset) * sampler.num_replicas
+            if global_position >= dataset_size:
+                sample = sampler.dataset[global_position % dataset_size]
+                single_batch = self.xn.dataset.collate_fn([sample])
+                rows -= int(self.xn.batchprocessor.target_preparation(single_batch).shape[0])
+        return rows
 
     @staticmethod
     def _accumulate_metrics(
@@ -260,121 +372,6 @@ class _LightningModule(L.LightningModule):
                 prog_bar=name == "total",
             )
         return metrics
-
-    def train_dataloader(self) -> Any:
-        """Return the configured training data loader.
-
-        Returns:
-            Local loader whose sampling Lightning manages during training.
-        """
-        return self.xn.dataloader
-
-    def val_dataloader(self) -> Any:
-        """Return the configured optional validation data loader.
-
-        Returns:
-            Validation loader, or an empty collection when no validation subset exists.
-        """
-        return self.xn.valid_dataloader if self.xn.valid_dataloader is not None else []
-
-    def configure_optimizers(self) -> OptimizerLRScheduler:
-        """Expose the existing optimizer and scheduler intervals to Lightning.
-
-        Returns:
-            Optimizer list and step/epoch scheduler dictionaries. Lightning
-            accepts these dictionaries at runtime, although its public tuple
-            return alias omits their dictionary type.
-        """
-        schedulers: list[LRSchedulerConfigType] = []
-        if self.xn.warmup_lr_scheduler is not None:
-            schedulers.append({"scheduler": self.xn.warmup_lr_scheduler, "interval": "step"})
-        schedulers.append({"scheduler": self.xn.epoch_lr_scheduler, "interval": "epoch"})
-        return cast(OptimizerLRScheduler, ([self.xn.optimizer], schedulers))
-
-    def lr_scheduler_step(self, scheduler: LRSchedulerTypeUnion, metric: Any) -> None:
-        """Step warm-up after optimization and defer epoch scheduling to its hook.
-
-        Args:
-            scheduler: Scheduler requested by Lightning's automatic loop.
-            metric: Optional scheduler monitor supplied by Lightning.
-        """
-        warmup_scheduler = self.xn.warmup_lr_scheduler
-        if warmup_scheduler is not None and scheduler is warmup_scheduler and self.global_step <= self.xn.warmup_steps:
-            warmup_scheduler.step()
-
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        """Persist project stopping/selection state alongside Lightning recovery.
-
-        Args:
-            checkpoint: Lightning checkpoint being populated before writing.
-        """
-        checkpoint["xanesnet_stopper"] = vars(self.xn.early_stopper).copy()
-        checkpoint["xanesnet_last_score"] = self.last_score
-
-    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        """Restore project state when Lightning resumes a recovery checkpoint.
-
-        Args:
-            checkpoint: Previously saved complete Lightning checkpoint.
-        """
-        vars(self.xn.early_stopper).update(checkpoint["xanesnet_stopper"])
-        self.last_score = checkpoint["xanesnet_last_score"]
-
-    def _calculate_loss(
-        self, batch: Any, validation_batch_idx: int | None = None
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
-        """Prepare encoded inputs/targets and evaluate the existing objective.
-
-        Args:
-            batch: Dataset batch already transferred to the training device.
-            validation_batch_idx: Validation batch position used to exclude
-                distributed sampler padding, or ``None`` during training.
-
-        Returns:
-            Data loss, regularization, their scalar total, and target-row count.
-        """
-        processor = self.xn.batchprocessor
-        inputs = processor.input_preparation(batch)
-        elements = processor.element_preparation(batch)
-        inputs = processor.encode_input(inputs, elements)
-        targets = processor.target_preparation(batch)
-        targets = processor.encode_target(targets, elements)
-        predictions = processor.prediction_preparation(batch, self.model(**inputs))
-        if validation_batch_idx is not None:
-            rows = self._validation_rows(validation_batch_idx, targets.shape[0])
-            predictions = predictions[:rows]
-            targets = targets[:rows]
-        observations = int(targets.shape[0])
-        loss = self.loss(predictions, targets) if observations else predictions.sum() * 0.0
-        regularization = self.regularizer(self.model)
-        return loss, regularization, loss + regularization, observations
-
-    def _validation_rows(self, batch_idx: int, rows: int) -> int:
-        """Count real target rows in an evenly padded distributed validation batch.
-
-        Args:
-            batch_idx: Local validation batch index.
-            rows: Total target rows, including any trailing duplicated samples.
-
-        Returns:
-            Target-row count after excluding sampler padding. Every rank still
-            executes the same number of model forward passes.
-        """
-        sampler = getattr(self.trainer.val_dataloaders, "sampler", None)
-        if not isinstance(sampler, DistributedSampler):
-            return rows
-        validation_subset = self.xn.dataset.valid_subset
-        assert validation_subset is not None
-        dataset_size = len(validation_subset)
-        first_sample = batch_idx * self.xn.batch_size
-        local_samples = min(self.xn.batch_size, len(sampler) - first_sample)
-        for offset in range(local_samples):
-            global_position = sampler.rank + (first_sample + offset) * sampler.num_replicas
-            if global_position >= dataset_size:
-                sample = sampler.dataset[global_position % dataset_size]
-                single_batch = self.xn.dataset.collate_fn([sample])
-                rows -= int(self.xn.batchprocessor.target_preparation(single_batch).shape[0])
-        return rows
 
 
 @TrainerRegistry.register("lightning")
@@ -507,9 +504,8 @@ class LightningTrainer(Trainer):
         pl_trainer.fit(module)
 
         if pl_trainer.global_step == 0:
-            raise ValueError(
-                "No training batches were processed. Check batch_size, drop_last, and training subset size."
-            )
+            raise ValueError("No training batches were processed.")
+
         callback = pl_trainer.checkpoint_callback
         if isinstance(callback, ModelCheckpoint) and callback.dirpath is not None:
             pl_trainer.save_checkpoint(Path(callback.dirpath) / "last.ckpt")
@@ -529,19 +525,23 @@ class LightningTrainer(Trainer):
             Accelerator name, local device count or explicit device indices,
             and strategy identifier or configured DDP strategy.
         """
-        device = str(self.device).lower()
+        device = torch.device(self.device)
+        accelerator = "gpu" if device.type == "cuda" else "cpu"
+        devices: int | list[int] = self.num_devices
+        if accelerator == "gpu" and device.index is not None:
+            devices = list(range(device.index, device.index + self.num_devices))
+
+        if self.num_devices == 1:
+            return accelerator, devices, "auto"
+
         if self.static_graph:
-            ddp_strategy: str | DDPStrategy = DDPStrategy(static_graph=True)
+            strategy: str | DDPStrategy = DDPStrategy(static_graph=True)
+        elif self.find_unused_parameters:
+            strategy = "ddp_find_unused_parameters_true"
         else:
-            ddp_strategy = "ddp_find_unused_parameters_true" if self.find_unused_parameters else "ddp"
-        # CUDA
-        if device.startswith("cuda"):
-            count = self.num_devices
-            index = torch.device(self.device).index
-            devices = count if index is None else list(range(index, index + count))
-            return "gpu", devices, ddp_strategy if count > 1 else "auto"
-        # CPU
-        return "cpu", self.num_devices, ddp_strategy if self.num_devices > 1 else "auto"
+            strategy = "ddp"
+
+        return accelerator, devices, strategy
 
     def _callbacks(self) -> list[L.Callback]:
         """Configure periodic recovery saves independently of model selection.

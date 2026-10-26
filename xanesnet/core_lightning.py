@@ -66,10 +66,7 @@ def _register_lightning_trainer() -> None:
     except ModuleNotFoundError as exc:
         if not (exc.name or "").startswith("lightning"):
             raise
-        raise ConfigError(
-            "Lightning training requires the optional dependency. "
-            "Install it with `python -m pip install 'xanesnet[lightning]'`."
-        ) from exc
+        raise ConfigError("Lightning training requires `python -m pip install 'xanesnet[lightning]'`.") from exc
 
 
 ###############################################################################
