@@ -35,12 +35,12 @@ from pathlib import Path
 
 import torch
 
+from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model
 from xanesnet.serialization.auto_config import resolve_auto_model_config
-from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.model_profile import (
     build_model_profile,
@@ -49,7 +49,6 @@ from xanesnet.serialization.model_profile import (
     reset_peak_memory_stats,
     save_model_profile,
 )
-from xanesnet.serialization.models import save_models
 from xanesnet.serialization.splits import save_splits
 from xanesnet.strategies import Strategy, StrategyRegistry
 
@@ -90,24 +89,13 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
 
     strategy.setup_models(config.section("model"))
-    strategy.setup_checkpointer()
+    checkpointer = strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
 
     # Save signature
-    signature = Config(
-        {
-            "dataset": dataset.signature,
-            "model": strategy.model_signature,
-            "strategy": strategy.signature,
-            "encodings": encoding.signature,
-        }
-    )
-    signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
+    signature_save_path = checkpointer.signature.save(save_dir / "models" / "signature.yaml")
     logging.info(f"Signature saved to: {signature_save_path}")
-
-    if strategy.checkpointer is not None:
-        strategy.checkpointer.set_signature(signature)
 
     split_indices_save_path = save_dir / "split_indices.json"
     save_splits(split_indices_save_path, model_splits)
@@ -125,7 +113,7 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
         config,
         dataset,
         encoding,
-        signature,
+        checkpointer,
         save_dir,
         args_namespace.dry_run,
     )
@@ -254,11 +242,11 @@ def _save_results(
     config: Config,
     dataset: Dataset,
     encoding: SpectraEncoding,
-    signature: Config,
+    checkpointer: Checkpointer,
     save_dir: Path,
     dry_run: bool,
 ) -> None:
-    """Write trained models, summaries, and optional profiling output.
+    """Write the final checkpoints, model summaries, and optional profiling output.
 
     Args:
         model_list: Trained models on CPU.
@@ -266,7 +254,7 @@ def _save_results(
         config: Resolved training configuration.
         dataset: Prepared dataset used for summary inputs.
         encoding: Prepared encoding used during training.
-        signature: Full native checkpoint signature.
+        checkpointer: Checkpointer collecting and saving the final model and training state.
         save_dir: Experiment output directory.
         dry_run: Whether to write the existing model profiling reports.
     """
@@ -283,11 +271,8 @@ def _save_results(
         _summary_models(model_list, dataset, encoding)
     except Exception as exc:
         logging.warning(f"Model summary failed and will be skipped: {exc}")
-    save_models(save_dir / "models", model_list)
-    logging.info(f"Trained model(s) saved to: {save_dir / 'models'}")
-    final_checkpoint = Checkpoint.build(model_list, signature=signature)
-    final_save_path = final_checkpoint.save(save_dir / "models" / "final.pth")
-    logging.info(f"Final checkpoint without optimizers and epochs saved @ {final_save_path}")
+    checkpointer.save(save_dir / "models" / "final.pth")
+    logging.info(f"Final checkpoints saved to: {save_dir / 'models'}")
 
 
 def _summary_models(model_list: list[Model], dataset: Dataset, encoding: SpectraEncoding) -> None:

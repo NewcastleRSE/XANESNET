@@ -177,14 +177,3 @@ class SnapshotEnsemble(Strategy):
             NotImplementedError: Always.
         """
         raise NotImplementedError("Not implemented!")  # TODO Implement
-
-    @property
-    def signature(self) -> Config:
-        """Return the placeholder snapshot ensemble strategy configuration.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration.
-        """
-        signature = super().signature
-        signature.update_with_dict({})
-        return signature

@@ -66,6 +66,11 @@ class BasicStopper(EarlyStopper):
         self.min_delta = min_delta
         self.last_improvement_epoch: int = 0
 
+    def start(self) -> None:
+        """Reset patience progress for a new training call."""
+        super().start()
+        self.last_improvement_epoch = 0
+
     def step(self, value: float, model: Model, epoch: int) -> bool:
         """Check whether training should stop.
 

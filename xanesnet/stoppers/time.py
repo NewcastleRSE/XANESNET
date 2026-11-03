@@ -60,7 +60,8 @@ class TimeStopper(EarlyStopper):
         self.start_time = time.time()
 
     def start(self) -> None:
-        """Restart the wall-clock timer at the beginning of a training run."""
+        """Reset stopper tracking and restart the time budget for this training call."""
+        super().start()
         self.start_time = time.time()
 
     def step(self, value: float, model: Model, epoch: int) -> bool:

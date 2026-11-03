@@ -13,6 +13,9 @@ dataset:
   preload: True
   skip_prepare: True
 
+strategy:
+  strategy_type: single
+
 inferencer:
   inferencer_type: basic
   batch_size: 5

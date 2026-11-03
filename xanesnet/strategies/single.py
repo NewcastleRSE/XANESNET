@@ -149,17 +149,17 @@ class Single(Strategy):
         if not self.trainers or not self.models:
             raise ValueError("Cannot run training because the model or trainer is not initialized.")
         assert self.trainers[0] is not None
+        if self.checkpointer is None:
+            raise ValueError("Cannot run training because checkpointer is not instantiated.")
 
         super().run_training()
-
-        assert self.checkpointer is not None
-        self.checkpointer.new_model()
 
         try:
             if self.tensorboard_dir is not None:
                 tb_logger.new_run(self.tensorboard_dir)
 
             self.trainers[0].train()
+            self.checkpointer.finish_member(self.trainers[0])
         finally:
             tb_logger.close()
 
@@ -217,13 +217,3 @@ class Single(Strategy):
         super().run_inference(predictions_save_path)
 
         self.inferencer.infer(predictions_save_path)
-
-    @property
-    def signature(self) -> Config:
-        """Return the strategy configuration as a ``Config``.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration.
-        """
-        signature = super().signature
-        return signature

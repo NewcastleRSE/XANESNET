@@ -29,14 +29,16 @@
 
 from .activation import ActivationRegistry
 from .init import BiasInitRegistry, InitFn, WeightInitRegistry
-from .lrscheduler import LRSchedulerRegistry
-from .optim import OptimizerRegistry
+from .lrscheduler import LRSchedulerRegistry, Scheduler
+from .optim import Optimizer, OptimizerRegistry
 
 __all__ = [
     "BiasInitRegistry",
     "InitFn",
     "WeightInitRegistry",
+    "Optimizer",
     "OptimizerRegistry",
     "ActivationRegistry",
+    "Scheduler",
     "LRSchedulerRegistry",
 ]

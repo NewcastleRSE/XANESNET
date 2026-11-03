@@ -60,29 +60,21 @@ def collect_configs(subdir: str) -> list[Path]:
 
 
 def find_checkpoint(run_dir: Path) -> Path:
-    """Locate the deployment checkpoint produced by a training run.
-
-    Returns ``models/final.pth`` when it exists (the canonical deployment
-    checkpoint carrying the full signature).  Falls back to the most recent
-    epoch checkpoint under ``checkpoints/``.
+    """Locate the minimal deployment checkpoint produced by a training run.
 
     Args:
         run_dir: Root directory of a completed training run.
 
     Returns:
-        Path to the checkpoint ``.pth`` file.
+        Path to ``models/final.pth``, which carries the signature and model states.
 
     Raises:
-        FileNotFoundError: If no checkpoint file can be found.
+        FileNotFoundError: If the final checkpoint does not exist.
     """
     final = run_dir / "models" / "final.pth"
-    if final.exists():
-        return final
-    checkpoint_dir = run_dir / "checkpoints"
-    checkpoints = sorted(checkpoint_dir.glob("checkpoint_*.pth"))
-    if not checkpoints:
-        raise FileNotFoundError(f"No checkpoint found in {run_dir}")
-    return checkpoints[-1]
+    if not final.exists():
+        raise FileNotFoundError(f"No final checkpoint found in {run_dir}")
+    return final
 
 
 def collect_model_pairs() -> list[tuple[Path, Path]]:

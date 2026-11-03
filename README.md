@@ -130,7 +130,7 @@ xanesnet train \
     -y
 ```
 
-Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, checkpoint signatures, checkpoints, final model weights, logs, and optional TensorBoard files. When TensorBoard is enabled, model weight and gradient histograms are omitted by default; pass `--log-weights` to include them.
+Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, the signature (`models/signature.yaml`), final checkpoints (`models/final.pth` for inference and `models/final_full.pth` with the full training state), periodic checkpoints in `checkpoints/`, logs, and optional TensorBoard files. When TensorBoard is enabled, model weight and gradient histograms are omitted by default; pass `--log-weights` to include them.
 
 Use `--dry-run` with `xanesnet train` to construct the normal training pipeline, run one real epoch, and write `model_profile.json` with the model architecture, parameter counts, model size, and peak CUDA memory for that epoch when CUDA is available.
 

@@ -6,10 +6,11 @@ additionalProperties: false
 required:
 - datasource
 - dataset
+- strategy
 - inferencer
-$comment: User inference YAML is merged with the checkpoint signature before runtime validation. datasource, dataset, and
-  inferencer are supplied by the user; dataset_type, model, and strategy usually come from the checkpoint signature. Runtime
-  validation checks checkpoint conflicts, concrete model dimensions, and registry compatibility after merging.
+$comment: User inference YAML is merged with the checkpoint signature before runtime validation. datasource, dataset,
+  strategy, and inferencer settings are supplied by the user; dataset_type, model, and encodings come from the checkpoint
+  signature.
 properties:
   seed:
     $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
@@ -28,17 +29,16 @@ properties:
   dataset:
     $ref: datasets/datasets.schema.yaml#/$defs/datasetInferUser
     description: Configuration section used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+  strategy:
+    $ref: strategies/strategies.schema.yaml#/$defs/strategy
+    description: User-selected inference strategy.
   model:
     $ref: models/models.schema.yaml#/$defs/modelInfer
     description: Optional in user-authored inference YAML because the checkpoint signature normally supplies it. After the
       checkpoint-signature merge, inference rejects ``"auto"`` model values.
   inferencer:
     $ref: runners/inferencers.schema.yaml#/$defs/inferencer
-    description: Inference runner section; mutually exclusive with ``trainer``.
-  strategy:
-    $ref: strategies/strategies.schema.yaml#/$defs/strategy
-    description: Optional in user-authored inference YAML because the checkpoint signature normally supplies it. After the
-      checkpoint-signature merge, core setup instantiates ``StrategyRegistry.get(strategy_type)``.
+    description: User-selected inference runner settings; ``basic`` evaluates one model and ``ensemble`` aggregates multiple models.
   encodings:
     $ref: encodings/encodings.schema.yaml#/$defs/encodingList
     description: Optional in user-authored inference YAML because the checkpoint signature normally supplies the

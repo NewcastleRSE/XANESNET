@@ -222,23 +222,23 @@ class Bootstrap(Strategy):
             raise ValueError("Cannot run training because models are not initialized.")
         if len(self.trainers) != len(self.models):
             raise ValueError("Cannot run training because trainers are not initialized for every model.")
+        if self.checkpointer is None:
+            raise ValueError("Cannot run training because checkpointer is not instantiated.")
 
         super().run_training()
-
-        assert self.checkpointer is not None
 
         for model_idx, trainer in enumerate(self.trainers):
             if trainer is None:
                 raise ValueError("Cannot run training because trainers are not initialized for every model.")
 
             logging.info(f"Training bootstrap model {model_idx + 1}/{self.n_models}.")
-            self.checkpointer.new_model()
 
             try:
                 if self.tensorboard_dir is not None:
                     tb_logger.new_run(Path(self.tensorboard_dir) / f"model_{model_idx}")
 
                 trainer.train()
+                self.checkpointer.finish_member(trainer)
             finally:
                 tb_logger.close()
                 self.models[model_idx].to(torch.device("cpu"))
@@ -268,7 +268,6 @@ class Bootstrap(Strategy):
         logging.info("Initializing inferencer: ensemble")
 
         inferencer_kwargs = self.inferencer_config.as_kwargs()
-        inferencer_kwargs["inferencer_type"] = "ensemble"
         inferencer = InferencerRegistry.create(
             "ensemble",
             **inferencer_kwargs,
@@ -296,19 +295,3 @@ class Bootstrap(Strategy):
         super().run_inference(predictions_save_path)
 
         self.inferencer.infer(predictions_save_path)
-
-    @property
-    def signature(self) -> Config:
-        """Return the strategy configuration as a ``Config``.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration.
-        """
-        signature = super().signature
-        signature.update_with_dict(
-            {
-                "n_models": self.n_models,
-                "sample_fraction": self.sample_fraction,
-            }
-        )
-        return signature

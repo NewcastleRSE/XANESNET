@@ -118,14 +118,13 @@ def _require_concrete_inference_encodings(config: ConfigRaw) -> None:
 
 
 def _require_ensemble_inferencer_for_ensemble_strategies(config: ConfigRaw) -> None:
-    """Validate ensemble-strategy inference runner selection.
+    """Validate multi-model-strategy inference runner selection.
 
     Args:
         config: Schema-valid merged inference configuration.
 
     Raises:
-        ConfigError: If an ensemble strategy is paired with a non-ensemble
-            inferencer.
+        ConfigError: If an ensemble strategy is paired with a non-ensemble inferencer.
     """
     strategy_type = _section_value(config, "strategy", "strategy_type")
     inferencer_type = _section_value(config, "inferencer", "inferencer_type")

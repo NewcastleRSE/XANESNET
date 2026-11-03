@@ -30,18 +30,15 @@
 # TODO: Revisit only if profiling shows a performance bottleneck:
 # TODO - Skip target-count reductions where equal per-rank target counts are guaranteed.
 # TODO - Skip stop-decision reductions for no-op stoppers or epochs without monitoring.
-# TODO - Avoid duplicate final checkpoint saves.
 # TODO - Improve custom-batch transfers: pinned-memory/nonblocking transfer path
 
 import logging
-from pathlib import Path
 from typing import Any, cast
 
 import lightning as L
 import torch
 import torch.distributed as distributed
 from lightning.fabric.plugins.environments.lightning import LightningEnvironment
-from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.utilities.types import (
     LRSchedulerConfigType,
@@ -105,9 +102,9 @@ class _LightningModule(L.LightningModule):
         """
         schedulers: list[LRSchedulerConfigType] = []
         if self.xn.warmup_lr_scheduler is not None:
-            schedulers.append({"scheduler": self.xn.warmup_lr_scheduler, "interval": "step"})
-        schedulers.append({"scheduler": self.xn.epoch_lr_scheduler, "interval": "epoch"})
-        return cast(OptimizerLRScheduler, ([self.xn.optimizer], schedulers))
+            schedulers.append({"scheduler": self.xn.warmup_lr_scheduler.torch_scheduler, "interval": "step"})
+        schedulers.append({"scheduler": self.xn.epoch_lr_scheduler.torch_scheduler, "interval": "epoch"})
+        return cast(OptimizerLRScheduler, ([self.xn.optimizer.torch_optimizer], schedulers))
 
     def lr_scheduler_step(self, scheduler: LRSchedulerTypeUnion, metric: Any) -> None:
         """Hook called when Lightning advances a learning-rate scheduler.
@@ -117,8 +114,12 @@ class _LightningModule(L.LightningModule):
             metric: Optional metric supplied by Lightning.
         """
         warmup_scheduler = self.xn.warmup_lr_scheduler
-        if warmup_scheduler is not None and scheduler is warmup_scheduler and self.global_step <= self.xn.warmup_steps:
-            warmup_scheduler.step()
+        if (
+            warmup_scheduler is not None
+            and scheduler is warmup_scheduler.torch_scheduler
+            and self.global_step <= self.xn.warmup_steps
+        ):
+            warmup_scheduler.torch_scheduler.step()
 
     def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
         """Hook called when Lightning transfers a batch to its device.
@@ -212,11 +213,14 @@ class _LightningModule(L.LightningModule):
                 *train_metrics,
                 *logged_valid_metrics,
             )
-            tb_logger.log_learning_rate(self.current_epoch, self.xn.optimizer.param_groups[0]["lr"])
+            tb_logger.log_learning_rate(
+                self.current_epoch,
+                self.xn.optimizer.torch_optimizer.param_groups[0]["lr"],
+            )
             tb_logger.log_model_weights(self.current_epoch, self.model)
 
         if self.xn.warmup_lr_scheduler is None or self.global_step >= self.xn.warmup_steps:
-            self.xn.epoch_lr_scheduler.step()
+            self.xn.epoch_lr_scheduler.torch_scheduler.step()
 
         monitored = train_metrics if self.xn.valid_dataloader is None else valid_metrics
         stopped = False
@@ -225,36 +229,13 @@ class _LightningModule(L.LightningModule):
             stopped = self.xn.early_stopper.step(self.last_score, self.model, self.current_epoch)
         stopped = bool(self._reduce_sum(torch.tensor(int(stopped), device=self.device)).item())
         self.trainer.should_stop = self.trainer.should_stop or stopped
-        checkpointer = self.xn.checkpointer
-        if self.trainer.is_global_zero and checkpointer.active:
-            if self.current_epoch == self.xn.epochs - 1 or stopped:
-                saved_checkpoint, checkpoint_name = checkpointer.save_checkpoint(
-                    self.current_epoch, self.xn.model, self.xn.optimizer
-                )
-            else:
-                saved_checkpoint, checkpoint_name = checkpointer.step(
-                    self.current_epoch, self.xn.model, self.xn.optimizer
-                )
-            if saved_checkpoint:
+        self.xn.completed_epochs = self.current_epoch + 1
+        if self.trainer.is_global_zero:
+            checkpointer = self.xn.checkpointer
+            force_save = self.current_epoch == self.xn.epochs - 1 or stopped
+            checkpoint_name = checkpointer.step(self.current_epoch, force_save=force_save)
+            if checkpoint_name is not None:
                 logging.info(f"Saved new checkpoint @ {checkpointer.save_dir}: {checkpoint_name}")
-
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        """Hook called before Lightning saves a checkpoint.
-
-        Args:
-            checkpoint: Checkpoint being populated before writing.
-        """
-        checkpoint["xanesnet_stopper"] = vars(self.xn.early_stopper).copy()
-        checkpoint["xanesnet_last_score"] = self.last_score
-
-    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        """Hook called after Lightning loads a checkpoint.
-
-        Args:
-            checkpoint: Checkpoint loaded by Lightning.
-        """
-        vars(self.xn.early_stopper).update(checkpoint["xanesnet_stopper"])
-        self.last_score = checkpoint["xanesnet_last_score"]
 
     def _calculate_loss(
         self, batch: Any, validation_batch_idx: int | None = None
@@ -492,22 +473,16 @@ class LightningTrainer(Trainer):
             gradient_clip_algorithm="norm",
             check_val_every_n_epoch=1,
             num_sanity_val_steps=0,
-            callbacks=self._callbacks(),
             logger=False,
-            enable_checkpointing=self.checkpointer.active,
+            enable_checkpointing=False,
             use_distributed_sampler=True,
             plugins=[LightningEnvironment()],
-            default_root_dir=str(self.checkpointer.save_dir) if self.checkpointer.active else None,
         )
 
         pl_trainer.fit(module)
 
         if pl_trainer.global_step == 0:
             raise ValueError("No training batches were processed.")
-
-        callback = pl_trainer.checkpoint_callback
-        if isinstance(callback, ModelCheckpoint) and callback.dirpath is not None:
-            pl_trainer.save_checkpoint(Path(callback.dirpath) / "last.ckpt")
 
         score = module.last_score
         if self.early_stopper.restore_best:
@@ -541,24 +516,3 @@ class LightningTrainer(Trainer):
             strategy = "ddp"
 
         return accelerator, devices, strategy
-
-    def _callbacks(self) -> list[L.Callback]:
-        """Configure periodic recovery saves independently of model selection.
-
-        Returns:
-            Recovery checkpoint callback when enabled, otherwise an empty list.
-        """
-        callbacks: list[L.Callback] = []
-        if self.checkpointer.active:
-            callbacks.append(
-                ModelCheckpoint(
-                    dirpath=str(self.checkpointer.save_dir / f"model_{self.checkpointer.model_counter}"),
-                    filename="{epoch:04d}",
-                    monitor=None,
-                    save_top_k=-1,
-                    save_last=True,
-                    every_n_epochs=self.checkpointer.save_interval,
-                    save_on_train_epoch_end=True,
-                )
-            )
-        return callbacks

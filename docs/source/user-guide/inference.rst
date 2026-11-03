@@ -33,13 +33,17 @@ Checkpoint signature
 --------------------
 
 Before final validation, XANESNET loads the signature saved in the checkpoint and merges it with the user-authored inference YAML.
-The signature supplies the trained dataset, model, strategy, and encoding settings.
+The signature supplies the dataset settings (including ``dataset_type``), the ``model`` section, and the ``encodings`` section.
+The inference YAML must also provide the ``strategy`` and ``inferencer`` sections.
+The checkpoint must contain at least as many model states as the configured strategy requires. Any additional states are ignored with a warning.
+For single-model inference on a checkpoint containing multiple models, use the ``single`` strategy with the ``basic`` inferencer.
+Inference uses the first model state and logs a warning.
 
 The ``dataset`` section can be an overlay. It may change fields such as ``root``, ``preload``, ``skip_prepare``, or split settings.
-Values written in signature-pinned dataset, model, strategy, or encoding sections must agree with the checkpoint signature.
+Values written in signature-pinned dataset, model, or encoding sections must agree with the checkpoint signature.
 
-For example, ``configs/mlp_infer.yaml`` provides a datasource, a dataset overlay, and a basic inferencer.
-It does not repeat the model, strategy, encodings, or dataset type because those values come from the checkpoint.
+For example, ``configs/mlp_infer.yaml`` provides a datasource, a dataset overlay, the ``single`` strategy, and a basic inferencer.
+It does not repeat the model, encodings, or dataset type because those values come from the checkpoint.
 
 Common configuration
 --------------------
@@ -51,33 +55,24 @@ Ensemble inference also accepts ``model_device_policy``:
 * ``all`` keeps all ensemble models on the inference device.
 * ``sequential`` moves one model to the device at a time to reduce device memory use.
 
-Strategy-inferencer compatibility
-----------------------------------
+Inference selection
+-------------------
 
-The strategy determines whether inference uses one model or an ensemble:
+The supported strategy and inferencer pairings are:
 
 .. list-table:: Strategy and inferencer compatibility
    :header-rows: 1
-   :widths: 30 25 45
+   :widths: 25 25 50
 
    * - Strategy
      - Inferencer
      - Behavior
    * - ``single``
      - ``basic``
-     - Evaluates the single trained model.
-   * - ``kfold``
+     - Evaluates one model; uses the first checkpoint state and warns if there are multiple.
+   * - ``deep_ensemble``, ``bootstrap``, or ``kfold``
      - ``ensemble``
-     - Evaluates all fold models and returns the ensemble mean and standard deviation.
-   * - ``bootstrap``
-     - ``ensemble``
-     - Evaluates all bootstrap models and returns the ensemble mean and standard deviation.
-   * - ``deep_ensemble``
-     - ``ensemble``
-     - Evaluates all independently initialized models and returns the ensemble mean and standard deviation.
-   * - ``snapshot_ensemble``
-     - not available
-     - The strategy is registered but not implemented.
+     - Evaluates the configured models and returns the ensemble mean and standard deviation.
 
 For strategy configuration and training behavior, see :doc:`strategies`.
 
@@ -87,6 +82,9 @@ Examples
 Basic inference:
 
 .. code-block:: yaml
+
+   strategy:
+     strategy_type: single
 
    inferencer:
      inferencer_type: basic
@@ -99,6 +97,10 @@ Basic inference:
 Ensemble inference:
 
 .. code-block:: yaml
+
+   strategy:
+     strategy_type: deep_ensemble
+     n_models: 5
 
    inferencer:
      inferencer_type: ensemble

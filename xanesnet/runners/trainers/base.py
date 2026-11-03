@@ -33,7 +33,12 @@ from typing import Any
 import torch
 
 from xanesnet.checkpointing import Checkpointer
-from xanesnet.components import LRSchedulerRegistry, OptimizerRegistry
+from xanesnet.components import (
+    LRSchedulerRegistry,
+    Optimizer,
+    OptimizerRegistry,
+    Scheduler,
+)
 from xanesnet.datasets import Dataset
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.losses import CombinedLoss, Loss, LossRegistry
@@ -104,6 +109,7 @@ class Trainer(Runner):
         super().__init__(dataset, model, device, encoding, batch_size, shuffle, drop_last, num_workers)
 
         self.checkpointer = checkpointer
+        self.completed_epochs = 0
 
         self.trainer_type = trainer_type
         self.epochs = epochs
@@ -229,49 +235,50 @@ class Trainer(Runner):
 
         return dataloader
 
-    def _setup_optimizer(self) -> torch.optim.Optimizer:
+    def _setup_optimizer(self) -> Optimizer:
         """Instantiate the optimizer for the model parameters.
 
         Returns:
-            A configured :class:`torch.optim.Optimizer` instance.
+            Configured :class:`~xanesnet.components.Optimizer` instance.
         """
-        optimizer_cls = OptimizerRegistry.get(self.optimizer_type)
-        optimizer = optimizer_cls(self.model.parameters(), lr=self.learning_rate)  # type: ignore
+        return OptimizerRegistry.create(
+            self.optimizer_type,
+            optimizer_type=self.optimizer_type,
+            params=self.model.parameters(),
+            lr=self.learning_rate,
+        )
 
-        return optimizer
-
-    def _setup_epoch_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
+    def _setup_epoch_lr_scheduler(self) -> Scheduler:
         """Build the main per-epoch learning-rate scheduler.
 
         Returns:
-            A configured :class:`torch.optim.lr_scheduler.LRScheduler` instance.
+            Configured :class:`~xanesnet.components.Scheduler` instance.
         """
         lr_scheduler_type = self.lr_scheduler_config.get_str("lr_scheduler_type")
+        return LRSchedulerRegistry.create(
+            lr_scheduler_type,
+            **self.lr_scheduler_config.as_kwargs(),
+            optimizer=self.optimizer,
+        )
 
-        # Remove 'lr_scheduler_type' before passing kwargs to the scheduler constructor.
-        lr_scheduler_kwargs = self.lr_scheduler_config.as_kwargs()
-        config_wo_type = {k: v for k, v in lr_scheduler_kwargs.items() if k != "lr_scheduler_type"}
-
-        lr_scheduler_cls = LRSchedulerRegistry.get(lr_scheduler_type)
-        lr_scheduler = lr_scheduler_cls(self.optimizer, **config_wo_type)
-
-        return lr_scheduler
-
-    def _setup_warmup_lr_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler | None:
+    def _setup_warmup_lr_scheduler(self) -> Scheduler | None:
         """Build the per-step linear warm-up scheduler.
 
         Returns:
-            A :class:`torch.optim.lr_scheduler.LinearLR` instance when
+            A :class:`~xanesnet.components.Scheduler` based on ``LinearLR`` when
             ``lr_warmup=True`` and ``warmup_steps > 0``, otherwise ``None``.
         """
         if not self.lr_warmup or self.warmup_steps <= 0:
             return None
 
-        return torch.optim.lr_scheduler.LinearLR(
-            self.optimizer,
+        return LRSchedulerRegistry.create(
+            "linear",
+            lr_scheduler_type="linear",
+            optimizer=self.optimizer,
             start_factor=1e-7,
             end_factor=1.0,
             total_iters=self.warmup_steps,
+            last_epoch=-1,
         )
 
     def _setup_early_stopper(self) -> EarlyStopper:

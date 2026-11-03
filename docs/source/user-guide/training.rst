@@ -119,10 +119,7 @@ If the used/unused parameter set and model control flow stay fixed for the entir
 It supports stable unused parameters without repeated unused-parameter discovery and takes precedence over ``find_unused_parameters``. 
 Do not enable it when edge or path availability changes which modules run between steps.
 
-With checkpointing enabled, Lightning writes both native XANESNET snapshots (``checkpoints/checkpoint_<n>_<epoch>.pth``)
-and Lightning recovery files under ``checkpoints/model_<n>/``, including a final ``last.ckpt``. 
-Native ``.pth`` snapshots use the XANESNET inference format and can be used directly. 
-Lightning ``.ckpt`` files contain recovery state, including optimizer, schedulers, and stopper state, and are not native inference inputs. 
+With checkpointing enabled, Lightning writes the same native checkpoints as the other trainers: ``checkpoints/checkpoint_<epoch>_member_<member>.pth`` for recovery and the corresponding ``_full.pth`` file with the full training state.
 
 Multi-model strategies (``deep_ensemble``, ``bootstrap``, ``kfold``) train their models one after another.
 Each model is trained with DDP across all configured devices.

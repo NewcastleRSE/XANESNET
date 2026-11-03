@@ -118,24 +118,13 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
     logging.info(f"Resolved training config saved to: {resolved_config_save_path}.")
 
     strategy.setup_models(config.section("model"))
-    strategy.setup_checkpointer()
+    checkpointer = strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
 
     # Save signature
-    signature = Config(
-        {
-            "dataset": dataset.signature,
-            "model": strategy.model_signature,
-            "strategy": strategy.signature,
-            "encodings": encoding.signature,
-        }
-    )
-    signature_save_path = signature.save(save_dir / "models" / "signature.yaml")
+    signature_save_path = checkpointer.signature.save(save_dir / "models" / "signature.yaml")
     logging.info(f"Signature saved to: {signature_save_path}")
-
-    if strategy.checkpointer is not None:
-        strategy.checkpointer.set_signature(signature)
 
     split_indices_save_path = save_dir / "split_indices.json"
     save_splits(split_indices_save_path, model_splits)
@@ -157,7 +146,7 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
             config,
             dataset,
             encoding,
-            signature,
+            checkpointer,
             save_dir,
             args_namespace.dry_run,
         )

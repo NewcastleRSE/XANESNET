@@ -10,14 +10,13 @@ Its public responsibilities are:
 * ``setup_models(model_config)`` instantiates the model or models from the resolved configuration.
 * ``init_model_weights()`` applies the configured weight and bias initializers.
 * ``set_state_dicts()`` loads saved model weights for inference.
-* ``setup_checkpointer()`` connects checkpoint storage to the model signature.
+* ``setup_checkpointer()`` connects periodic checkpoint saving to the full training state of every model.
 * ``setup_model_splits()`` draws model-specific dataset splits, or restores previously drawn splits.
 * ``setup_encoding(config)`` resolves and fits one encoding shared by every model in the strategy.
 * ``setup_trainers(device)`` creates the trainer or trainers for training.
 * ``run_training()`` runs training and returns the trained models.
 * ``setup_inferencers(device)`` creates the inferencer or inferencers.
 * ``run_inference(path)`` runs inference and optionally writes predictions.
-* ``model_signature`` and ``signature`` expose the model and strategy settings saved in checkpoints.
 
 Training prepares model splits and the shared encoding first, resolves model configuration, then passes it to ``setup_models`` before creating the checkpointer, weights, and trainers.
 Inference restores the shared encoding, then passes the checkpoint's model configuration to ``setup_models`` before loading state dictionaries.
@@ -47,6 +46,17 @@ Bias initializers are ``zeros`` and ``ones``.
 Note that some models do use their own initialisation and ignore the strategy settings.
 
 The ``checkpoint_interval`` specifies the number of epochs between checkpoint saves.
+
+Every checkpoint carries the run signature with the ``dataset``, ``model``, and ``encodings``.
+
+The minimal file contains only the signature and one model state per member, so a completed ``models/final.pth`` can be used directly for inference.
+
+The ``_full`` file additionally stores a ``training_state`` mapping with:
+* ``epochs``: completed-epoch count per member;
+* ``optimizer_signature``, ``epoch_scheduler_signature``, and ``warmup_scheduler_signature``: component types shared by every member (``warmup_scheduler_signature`` is ``None`` when warm-up is disabled);
+* ``optimizer_states``, ``epoch_scheduler_states``, and ``warmup_scheduler_states``: one component state per member.
+
+For multi-model strategies each checkpoint saving also produces one minimal/full checkpoint pair per member, named ``checkpoints/checkpoint_<epoch>_member_<member>.pth`` and ``checkpoints/checkpoint_<epoch>_member_<member>_full.pth``.
 
 Model-specific data and encodings
 ---------------------------------

@@ -60,8 +60,10 @@ class EarlyStopper(ABC):
         self.best_epoch: int = -1
 
     def start(self) -> None:
-        """Reset stopper state before a new training run begins."""
-        ...
+        """Reset best-model tracking before a new training call."""
+        self.best_state = None
+        self.best_value = float("inf")
+        self.best_epoch = -1
 
     @abstractmethod
     def step(self, value: float, model: Model, epoch: int) -> bool:

@@ -174,10 +174,10 @@ class BasicTrainer(Trainer):
                 valid_regularization,
                 valid_total,
             )
-            tb_logger.log_learning_rate(epoch, self.optimizer.param_groups[0]["lr"])
+            tb_logger.log_learning_rate(epoch, self.optimizer.torch_optimizer.param_groups[0]["lr"])
             tb_logger.log_model_weights(epoch, self.model)
             if self._warmup_complete:
-                self.epoch_lr_scheduler.step()
+                self.epoch_lr_scheduler.torch_scheduler.step()
 
             stopped = False
             if self.valid_dataloader is None:
@@ -185,11 +185,10 @@ class BasicTrainer(Trainer):
             elif valid_total is not None:
                 stopped = self.early_stopper.step(valid_total, self.model, epoch)
 
-            if epoch == self.epochs - 1 or stopped:
-                saved_checkpoint, checkpoint_name = self.checkpointer.save_checkpoint(epoch, self.model, self.optimizer)
-            else:
-                saved_checkpoint, checkpoint_name = self.checkpointer.step(epoch, self.model, self.optimizer)
-            if saved_checkpoint:
+            self.completed_epochs = epoch + 1
+            force_save = epoch == self.epochs - 1 or stopped
+            checkpoint_name = self.checkpointer.step(epoch, force_save=force_save)
+            if checkpoint_name is not None:
                 logging.info(f"Saved new checkpoint @ {self.checkpointer.save_dir}: {checkpoint_name}")
             if stopped:
                 logging.info(f"EarlyStopper {self.early_stopper.early_stopper_type} fired in epoch {epoch}!")
@@ -231,7 +230,7 @@ class BasicTrainer(Trainer):
         for batch in self.dataloader:
             batch.to(self.device)
 
-            self.optimizer.zero_grad()
+            self.optimizer.torch_optimizer.zero_grad()
 
             inputs = self.batchprocessor.input_preparation(batch)
             elements = self.batchprocessor.element_preparation(batch)
@@ -249,7 +248,7 @@ class BasicTrainer(Trainer):
             total.backward()
             if self.max_norm is not None:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm)
-            self.optimizer.step()
+            self.optimizer.torch_optimizer.step()
 
             # Per-step learning-rate warmup (no-op once warmup phase is over).
             self.step_warmup_scheduler()
@@ -322,6 +321,6 @@ class BasicTrainer(Trainer):
         if self.warmup_lr_scheduler is None or self._warmup_complete:
             return
         self._global_step += 1
-        self.warmup_lr_scheduler.step()
+        self.warmup_lr_scheduler.torch_scheduler.step()
         if self._global_step >= self.warmup_steps:
             self._warmup_complete = True

@@ -7,11 +7,11 @@ It is selected by the ``trainer.optimizer`` field and is created by the trainer 
 Available implementations
 --------------------------
 
-* ``adam`` (:class:`~torch.optim.Adam`)
-* ``sgd`` (:class:`~torch.optim.SGD`)
-* ``rmsprop`` (:class:`~torch.optim.RMSprop`)
-* ``adamw`` (:class:`~torch.optim.AdamW`)
-* ``adagrad`` (:class:`~torch.optim.Adagrad`)
+* ``adam`` (:class:`~xanesnet.components.optim.AdamOptimizer`)
+* ``sgd`` (:class:`~xanesnet.components.optim.SGDOptimizer`)
+* ``rmsprop`` (:class:`~xanesnet.components.optim.RMSpropOptimizer`)
+* ``adamw`` (:class:`~xanesnet.components.optim.AdamWOptimizer`)
+* ``adagrad`` (:class:`~xanesnet.components.optim.AdagradOptimizer`)
 
 Common configuration
 --------------------

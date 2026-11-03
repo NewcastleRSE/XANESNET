@@ -235,13 +235,13 @@ class KFold(Strategy):
                 raise ValueError("Cannot run training because trainers are not initialized for every model.")
 
             logging.info(f"Training k-fold model {fold_idx + 1}/{self.n_models}.")
-            self.checkpointer.new_model()
 
             try:
                 if self.tensorboard_dir is not None:
                     tb_logger.new_run(Path(self.tensorboard_dir) / f"fold_{fold_idx}")
 
                 trainer.train()
+                self.checkpointer.finish_member(trainer)
             finally:
                 tb_logger.close()
 
@@ -274,7 +274,6 @@ class KFold(Strategy):
         logging.info("Initializing inferencer: ensemble")
 
         inferencer_kwargs = self.inferencer_config.as_kwargs()
-        inferencer_kwargs["inferencer_type"] = "ensemble"
         inferencer = InferencerRegistry.create(
             "ensemble",
             **inferencer_kwargs,
@@ -302,20 +301,3 @@ class KFold(Strategy):
         super().run_inference(predictions_save_path)
 
         self.inferencer.infer(predictions_save_path)
-
-    @property
-    def signature(self) -> Config:
-        """Return the strategy configuration as a ``Config``.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration and the fitted
-            split parameters used to restore the strategy.
-        """
-        signature = super().signature
-        signature.update_with_dict(
-            {
-                "n_splits": self.n_splits,
-                "n_repeats": self.n_repeats,
-            }
-        )
-        return signature

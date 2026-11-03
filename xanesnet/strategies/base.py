@@ -45,6 +45,7 @@ from xanesnet.runners.inferencers.base import Inferencer
 from xanesnet.runners.trainers.base import Trainer
 from xanesnet.serialization.auto_config import resolve_auto_encoding_config
 from xanesnet.serialization.config import Config
+from xanesnet.utils.exceptions import ConfigError
 
 
 class Strategy(ABC):
@@ -141,12 +142,16 @@ class Strategy(ABC):
             state_dicts: Model state dictionaries in strategy model order.
 
         Raises:
-            ValueError: If models are uninitialized or state counts mismatch.
+            ConfigError: If the checkpoint has no states or too few states for the initialized models.
+            ValueError: If models are uninitialized.
         """
         if not self.models:
             raise ValueError("Cannot load state dicts because models are not initialized.")
-        if len(state_dicts) != len(self.models):
-            raise ValueError(f"Expected {len(self.models)} state dicts, got {len(state_dicts)}.")
+        if len(state_dicts) < len(self.models):
+            raise ConfigError(f"Checkpoint with {len(state_dicts)} model states; strategy requires {len(self.models)}.")
+        if len(state_dicts) > len(self.models):
+            logging.warning(f"Checkpoint with {len(state_dicts) - len(self.models)} extra model states.")
+            state_dicts = state_dicts[: len(self.models)]
         for model, state_dict in zip(self.models, state_dicts, strict=True):
             model.load_state_dict(state_dict)
 
@@ -257,13 +262,37 @@ class Strategy(ABC):
         """
         logging.info("Start strategy...")
 
-    def setup_checkpointer(self) -> None:
+    def setup_checkpointer(self) -> Checkpointer:
         """Instantiate the ``Checkpointer`` for this strategy.
 
-        Must be called after ``setup_models`` because the checkpointer is
-        initialized with ``self.model_signature``.
+        Must be called before ``setup_trainers``.
+
+        Returns:
+            Checkpointer configured for this strategy's members.
+
+        Raises:
+            ValueError: If the models, encoding, or trainer configuration has not been set up.
         """
-        self.checkpointer = Checkpointer(self.checkpoint_dir, self.checkpoint_interval, self.model_signature)
+        if self.encoding is None:
+            raise ValueError("Cannot setup checkpointer because encoding is not initialized.")
+        if self.trainer_config is None:
+            raise ValueError("Cannot setup checkpointer because there is no trainer config.")
+
+        signature = Config(
+            {
+                "dataset": self.dataset.signature,
+                "model": self.model_signature,
+                "encodings": self.encoding.signature,
+            }
+        )
+
+        self.checkpointer = Checkpointer(
+            save_dir=self.checkpoint_dir,
+            save_interval=self.checkpoint_interval,
+            signature=signature,
+            trainer_provider=lambda: self.trainers,
+        )
+        return self.checkpointer
 
     def _dataset_for_encoding(self) -> Dataset:
         """Return the data view used to fit this strategy's encoding."""
@@ -283,22 +312,3 @@ class Strategy(ABC):
             raise ValueError("Models are not initialized. Cannot retrieve signature.")
 
         return self.models[0].signature
-
-    @property
-    @abstractmethod
-    def signature(self) -> Config:
-        """Return the full strategy configuration as a ``Config``.
-
-        The base implementation returns a ``Config`` containing only the
-        ``strategy_type`` key. Subclasses should call ``super().signature``
-        and extend the result.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration.
-        """
-        signature = Config(
-            {
-                "strategy_type": self.strategy_type,
-            }
-        )
-        return signature

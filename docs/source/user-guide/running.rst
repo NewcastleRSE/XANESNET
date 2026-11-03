@@ -28,7 +28,7 @@ When TensorBoard is enabled, scalar metrics and the model graph are logged by de
 
 By default, training outputs are saved under ``<out_dir>/train_000/``.
 With ``--name mlp_run``, the directory is ``<out_dir>/train_mlp_run_000/``.
-Outputs include execution logs, model weights, checkpoints, and config files.
+Outputs include execution logs, the final checkpoints in ``models/`` (``final.pth`` and ``final_full.pth``), periodic checkpoints in ``checkpoints/``, and config files.
 The processed dataset is stored under the configured ``dataset.root`` path.
 
 Example:
