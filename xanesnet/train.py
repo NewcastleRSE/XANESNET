@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -42,17 +42,21 @@ from xanesnet.losses import LossRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.regularizers import RegularizerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import (
     Config,
     ConfigRaw,
     copy_raw_config,
     load_raw_config,
+    merge_raw_configs,
+    save_raw_config,
 )
 from xanesnet.serialization.metadata import write_run_metadata
 from xanesnet.serialization.schema_validation import validate_config_schema
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.strategies import StrategyRegistry
 from xanesnet.utils.filesystem import create_run_dir, create_subfolders
+from xanesnet.utils.lightning import get_lightning_context_path
 from xanesnet.utils.logger import setup_file_logging, setup_logging
 from xanesnet.utils.prompts import auto_yes
 from xanesnet.utils.random import set_global_seed
@@ -86,6 +90,18 @@ def parse_args(args: list[str]) -> Namespace:
         help="Path to input YAML configuration file.",
     )
     parser.add_argument(
+        "-m",
+        "--model",
+        dest="model_path",
+        type=str,
+        help="Path to a minimal or full checkpoint to initialize or resume training from.",
+    )
+    parser.add_argument(
+        "--restart-training-state",
+        action="store_true",
+        help="Use fresh optimizer and schedulers instead of restoring full checkpoint training state.",
+    )
+    parser.add_argument(
         "-o",
         "--out_dir",
         type=str,
@@ -102,6 +118,11 @@ def parse_args(args: list[str]) -> Namespace:
         "--tensorboard",
         action="store_true",
         help="Whether to write training metrics to TensorBoard logs.",
+    )
+    parser.add_argument(
+        "--log-weights",
+        action="store_true",
+        help="Log model parameter and gradient histograms to TensorBoard.",
     )
     parser.add_argument(
         "--dry-run",
@@ -127,9 +148,10 @@ def parse_args(args: list[str]) -> Namespace:
 def main(args: list[str]) -> None:
     """Run the full training pipeline.
 
-    Parses arguments, configures prompt behavior, loads and validates
-    configuration, applies dry-run overrides when requested, sets up the run
-    directory, and delegates to the ``train`` core function.
+    Routes prepared Lightning workers before shared startup, then loads and
+    validates configuration, applies dry-run overrides when requested,
+    initializes the run, and dispatches to ``train`` or ``train_initial``.
+    Re-entered workers dispatch directly to ``train_worker``.
 
     Args:
         args: Raw command-line argument strings.
@@ -149,11 +171,50 @@ def main(args: list[str]) -> None:
 
     # Parsing command line arguments
     args_namespace = parse_args(args)
+    tb_logger.set_log_weights(args_namespace.log_weights)
 
     with auto_yes(args_namespace.yes):
+        # Lighting worker
+        context_path = get_lightning_context_path()
+        if context_path is not None:
+            from xanesnet.core_lightning import train_worker
+
+            train_worker(context_path)
+            return
+
         # Loading configuration file
         logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
         config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
+
+        # Potentially loading checkpoint for training
+        checkpoint = None
+        if args_namespace.model_path is not None:
+            logging.info(f"Loading model checkpoint @ {args_namespace.model_path}")
+            checkpoint = Checkpoint.load(args_namespace.model_path)
+
+        # Merge training config and checkpoint config
+        if checkpoint is not None:
+            logging.info("Merging configuration with checkpoint signatures.")
+            config_raw = merge_raw_configs(config_raw, checkpoint.signature.as_dict())
+            if not args_namespace.restart_training_state:
+                training_state = checkpoint.training_state or {}
+                optimizer_signature = training_state.get("optimizer_signature")
+                if optimizer_signature is not None:
+                    config_raw = merge_raw_configs(config_raw, optimizer_signature)
+                scheduler_signature = training_state.get("scheduler_signature")
+                if scheduler_signature is not None:
+                    config_raw = merge_raw_configs(config_raw, scheduler_signature)
+
+        # Config validation
+        validated = validate_config_schema(config_raw, "train")
+        config: Config = Config(validated)
+        if args_namespace.dry_run:
+            logging.info("Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
+            config_dict = config.as_dict()
+            config_dict["trainer"]["epochs"] = 1
+            config = Config(config_dict)
+
+        trainer_type = config.section("trainer").get_str("trainer_type")
 
         # Get saving directory
         out_dir = "./runs" if args_namespace.out_dir is None else args_namespace.out_dir
@@ -174,16 +235,10 @@ def main(args: list[str]) -> None:
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
 
-        # Config validation
-        validated = validate_config_schema(config_raw, "train")
-        config: Config = Config(validated)
-        if args_namespace.dry_run:
-            logging.info(f"Dry run enabled: trainer epochs will be overridden to 1 for a quick test run.")
-            config_dict = config.as_dict()
-            config_dict["trainer"]["epochs"] = 1
-            config = Config(config_dict)
-        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
-        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+        # Save merged configuration if a checkpoint is being used
+        if checkpoint is not None:
+            merged_config_save_path = save_raw_config(config_raw, save_dir / "merged_train_config.yaml")
+            logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
 
         # Scale file copying (if configured)
         scale_file = config.section("model").as_kwargs().get("scale_file")
@@ -204,6 +259,14 @@ def main(args: list[str]) -> None:
         seed = set_global_seed(seed)
         logging.info(f"Global seed: {seed}")
 
+        config_dict = config.as_dict()
+        config_dict["seed"] = seed
+        config = Config(config_dict)
+
+        # Save validated configuration file
+        validate_config_save_path = config.save(save_dir / "validated_train_config.yaml")
+        logging.info(f"Validated config file saved to: {validate_config_save_path}.")
+
         # Tensorboard
         if args_namespace.tensorboard:
             logging.info("TensorBoard logging enabled.")
@@ -212,4 +275,9 @@ def main(args: list[str]) -> None:
             logging.info("TensorBoard logging disabled.")
 
         # Branching into training mode
-        train(config, args_namespace, save_dir)
+        if trainer_type == "lightning":
+            from xanesnet.core_lightning import train_initial
+
+            train_initial(config, args_namespace, save_dir, checkpoint)
+        else:
+            train(config, args_namespace, save_dir, checkpoint)

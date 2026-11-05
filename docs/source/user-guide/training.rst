@@ -17,11 +17,15 @@ The trainer runs the optimization loop for one model. During setup it:
 The public ``train()`` method runs each epoch, validates at the configured interval, logs metrics, advances the schedulers, checks early stopping, and saves checkpoints.
 When configured, it restores the best model before returning.
 Its return value is the score used for model selection.
+When TensorBoard logging is enabled, model parameter and gradient histograms are omitted by default. Pass ``--log-weights`` to log these histograms each epoch.
 
 Available implementations
 --------------------------
 
 * ``basic`` (:class:`~xanesnet.runners.trainers.basic.BasicTrainer`) provides the training and validation loop.
+* ``lightning`` (:class:`~xanesnet.runners.trainers.lightning.LightningTrainer`) runs the same model and objective through Lightning on CPU or CUDA. Multiple CPU processes or CUDA devices use DDP.
+
+MPS devices are currently unsupported and untested.
 
 Trainer subcomponents are selected from these dedicated registries:
 
@@ -64,6 +68,82 @@ The following shows a trainer section with commonly changed options:
        patience: 25
        min_delta: 0.001
        restore_best: true
+
+Starting from a checkpoint (Fine-tuning or Resuming)
+----------------------------------------------------
+
+Pass ``-m, --model <checkpoint.pth>`` to initialize a training run from either a minimal checkpoint or a full checkpoint.
+Both forms load model weights. By default, a full checkpoint restores optimizer, epoch-scheduler, and warm-up-scheduler state together; a minimal checkpoint starts all three fresh.
+Pass ``--restart-training-state`` with a full checkpoint to keep loading its model weights while starting fresh optimizer and scheduler state.
+Before validation, XANESNET merges the checkpoint's ``dataset``, ``model``, and ``encodings`` signature sections into the training configuration.
+Signature fields can be omitted to use the checkpoint values; explicitly supplied values must match exactly.
+In particular, do not specify ``"auto"`` for a model or encoding field when using ``--model``.
+Dataset settings not stored in the signature, such as ``root``, remain user-supplied.
+For full checkpoints, optimizer and scheduler type settings are merged from the checkpoint along with their states unless ``--restart-training-state`` is set.
+With that option, the optimizer and scheduler settings from YAML are used instead.
+
+The configured ``trainer.epochs`` is the number of additional epochs for this invocation, not the total target epoch count.
+To reuse the source run's exact split plan, set ``dataset.split_indexfile`` in the resume configuration to its ``split_indices.json``.
+Multi-model runs also write ``split_indices_<index>.json`` files; to resume an individual member checkpoint, point ``split_indexfile`` to the matching single-plan file.
+Remember: without a configured split file, the current configuration or strategy creates a new plan.
+
+Stopper state and random-number-generator state are not restored.
+Every invocation starts with fresh early-stopping and best-model bookkeeping and resumed training is not guaranteed to match an uninterrupted run bit for bit.
+
+.. _multi-device-lightning-training:
+
+Multi-device Lightning training
+-------------------------------
+
+XANESNET supports multi-gpu/multi-cpu training through Lightning.
+Use the special Trainer ``lightning``, set ``trainer.num_devices`` to the number of CPU training processes with ``device: cpu``, or visible GPUs with ``device: cuda``.
+``device: cuda:N`` starts at visible index ``N``.
+``batch_size`` and ``num_workers`` are per process.
+Launch once with ``xanesnet train`` or ``python -m xanesnet.cli train``, not ``torchrun``, MPI, or multi-task ``srun``.
+
+For two CPU training processes, change the following fields in a complete config:
+
+.. code-block:: yaml
+
+   device: cpu
+   trainer:
+     trainer_type: lightning  # <--
+     num_devices: 2           # <--
+     batch_size: 4
+     num_workers: 0           # <--
+   strategy:
+     strategy_type: single
+
+Run it through the normal CLI:
+
+.. code-block:: bash
+
+   python -m xanesnet.cli train -i configs/lightning_mlp.yaml --yes
+
+``num_devices`` defaults to one in the schema. Its meaning depends on ``device``:
+
+* ``cpu``: number of local training processes.
+* ``cuda``: number of visible CUDA devices, starting at visible index zero.
+* ``cuda:N``: consecutive visible CUDA indices starting at ``N``. For example,
+  ``cuda:1`` with ``num_devices: 2`` selects visible indices 1 and 2.
+  ``CUDA_VISIBLE_DEVICES`` can restrict and remap physical GPUs before launch.
+
+Lightning must be launched once on one node with ``xanesnet`` or ``python -m xanesnet.cli``.
+It starts its own workers; do not wrap the command in ``torchrun``, MPI, or a multi-task ``srun``.
+A SLURM allocation may provide resources, but use one task on one node and request the intended GPU and CPU resources for that task. 
+
+``batch_size`` and ``num_workers`` are per training process, not global values.
+
+For input-dependent model branches that skip trainable parameters, set ``trainer.find_unused_parameters: true``. 
+The schema default is ``false`` to avoid the extra autograd traversal for models that use every parameter.
+If the used/unused parameter set and model control flow stay fixed for the entire run, ``trainer.static_graph: true`` enables DDP's static-graph mode instead.
+It supports stable unused parameters without repeated unused-parameter discovery and takes precedence over ``find_unused_parameters``. 
+Do not enable it when edge or path availability changes which modules run between steps.
+
+With checkpointing enabled, Lightning writes the same native checkpoints as the other trainers: ``checkpoints/checkpoint_<epoch>_member_<member>.pth`` for recovery and the corresponding ``_full.pth`` file with the full training state.
+
+Multi-model strategies (``deep_ensemble``, ``bootstrap``, ``kfold``) train their models one after another.
+Each model is trained with DDP across all configured devices.
 
 API reference
 -------------

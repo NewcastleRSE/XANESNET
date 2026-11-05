@@ -58,6 +58,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+lightning = [
+    "lightning>=2.6.6",
+]
 dev = [
     "build>=1.2",
     "pytest>=8",

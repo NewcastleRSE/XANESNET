@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -29,6 +29,7 @@
 
 import time
 
+from xanesnet.components import Optimizer, Scheduler
 from xanesnet.models import Model
 
 from .base import EarlyStopper
@@ -39,15 +40,12 @@ from .registry import EarlyStopperRegistry
 class TimeStopper(EarlyStopper):
     """Wall-clock time early stopper.
 
-    Stops training once the elapsed time since construction exceeds
-    ``time_limit_seconds``.
+    Stops training once the elapsed time since the last ``start`` call exceeds ``time_limit_seconds``.
 
     Args:
         early_stopper_type: Registry key identifying this stopper type.
-        restore_best: If ``True``, restore the model to its best-seen
-            state when ``restore`` is called.
-        time_limit_seconds: Maximum wall-clock training time in
-            **seconds**.
+        restore_best: If ``True``, restore the model to its best-seen state when ``restore`` is called.
+        time_limit_seconds: Maximum wall-clock training time in **seconds**.
     """
 
     def __init__(
@@ -62,19 +60,35 @@ class TimeStopper(EarlyStopper):
         self.time_limit_seconds = time_limit_seconds
         self.start_time = time.time()
 
-    def step(self, value: float, model: Model, epoch: int) -> bool:
+    def start(self) -> None:
+        """Reset stopper tracking and restart the time budget for this training call."""
+        super().start()
+        self.start_time = time.time()
+
+    def step(
+        self,
+        value: float,
+        model: Model,
+        epoch: int,
+        optimizer: Optimizer,
+        epoch_scheduler: Scheduler,
+        warmup_scheduler: Scheduler | None,
+    ) -> bool:
         """Check whether the time limit has been exceeded.
 
         Args:
             value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
+            optimizer: Optimizer paired with the current model state.
+            epoch_scheduler: Per-epoch scheduler paired with the current state.
+            warmup_scheduler: Optional per-step warm-up scheduler.
 
         Returns:
-            ``True`` if the elapsed wall-clock time since construction
-            exceeds ``time_limit_seconds``, ``False`` otherwise.
+            ``True`` if the elapsed wall-clock time since the last ``start``
+            call exceeds ``time_limit_seconds``, ``False`` otherwise.
         """
-        _ = super().step(value, model, epoch)
+        _ = super().step(value, model, epoch, optimizer, epoch_scheduler, warmup_scheduler)
 
         elapsed_time = time.time() - self.start_time
         return elapsed_time > self.time_limit_seconds

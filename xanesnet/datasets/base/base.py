@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -32,7 +32,8 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, cast
+from copy import copy
+from typing import Any
 
 import numpy as np
 import torch
@@ -41,8 +42,9 @@ from torch.utils.data import Subset
 from tqdm import tqdm
 
 from xanesnet.datasources import DataSource
+from xanesnet.serialization._types import SplitPlan, SplitPlans
 from xanesnet.serialization.config import Config
-from xanesnet.serialization.splits import load_split_indices
+from xanesnet.serialization.splits import load_splits
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.prompts import confirm_yes_no
 
@@ -58,7 +60,7 @@ class Dataset(TorchDataset, ABC):
         root: Directory that stores processed ``.pth`` files.
         preload: Whether to load processed samples into memory after preparation.
         skip_prepare: Whether to reuse existing processed files.
-        split_ratios: Optional train/validation/test split ratios.
+        split_ratios: Optional train and validation split ratios.
         split_indexfile: Optional path to serialized split indices.
     """
 
@@ -88,7 +90,7 @@ class Dataset(TorchDataset, ABC):
         # splits
         self._split_ratios = split_ratios
         self._split_indexfile = split_indexfile
-        self._subsets: list[Subset] = []
+        self._subsets: list[list[Subset]] = []
 
     def prepare(self) -> bool:
         """Process raw datasource items sequentially.
@@ -154,7 +156,15 @@ class Dataset(TorchDataset, ABC):
         for idx in tqdm(range(len(self.datasource)), desc="Processing data", total=len(self.datasource)):
 
             def save_path_fn(seq: int, offset: int = counter) -> str:
-                """Return the canonical path for one per-item output."""
+                """Return the canonical path for one per-item output.
+
+                Args:
+                    seq: Output sequence number for the current datasource item.
+                    offset: First processed sample index assigned to this datasource item.
+
+                Returns:
+                    Canonical path for the processed sample.
+                """
                 return os.path.join(self.processed_dir, f"{offset + seq}.pth")
 
             counter += self._prepare_single(idx, save_path_fn)
@@ -176,16 +186,17 @@ class Dataset(TorchDataset, ABC):
             self.inmemory_dataset = preload_data
         return self.preload
 
-    def setup_splits(self) -> None:
-        """Create subsets from an index file or configured split ratios."""
-        subsets: list[Subset] = []
+    def setup_splits(self) -> SplitPlans:
+        """Create configured subsets and return their split-plan indices.
 
+        Returns:
+            Split plans created from the configured ratios or index file.
+        """
         if self._split_indexfile is not None:
             logging.info(f"Setting up dataset splits from index file: {self._split_indexfile}")
-            indices_list: list[list[int]] = load_split_indices(self._split_indexfile)
-
-            for indices in indices_list:
-                subsets.append(Subset(self, indices))
+            split_plans = load_splits(self._split_indexfile)
+            self.set_splits(split_plans)
+            return split_plans
         elif self._split_ratios is not None:
             ratio_sum = sum(self._split_ratios)
             if not np.isclose(ratio_sum, 1.0):
@@ -196,6 +207,8 @@ class Dataset(TorchDataset, ABC):
             dataset_size = len(self)
             indices = np.random.permutation(dataset_size).tolist()
 
+            split_plan: SplitPlan = []
+            plan_subsets: list[Subset] = []
             for i, ratio in enumerate(self._split_ratios):
                 if i == len(self._split_ratios) - 1:
                     end_idx = dataset_size
@@ -203,13 +216,53 @@ class Dataset(TorchDataset, ABC):
                     end_idx = int(dataset_size * ratio)
                 split_indices = indices[:end_idx]
                 indices = indices[end_idx:]
-                subsets.append(Subset(self, split_indices))
+                split_plan.append(split_indices)
+                plan_subsets.append(Subset(self, split_indices))
+            self._subsets = [plan_subsets]
+            return [split_plan]
         else:
             logging.warning("No split_ratios or split_indexfile provided. Dataset will be created without splits.")
             self._subsets = []
-            return
+            return []
 
+    def set_splits(self, split_plans: SplitPlans) -> None:
+        """Set subsets based on the provided split plans.
+
+        Args:
+            split_plans: Ordered sample indices for each subset in every plan.
+        """
+        subsets: list[list[Subset]] = []
+        for split_plan in split_plans:
+            plan_subsets: list[Subset] = []
+            for indices in split_plan:
+                plan_subsets.append(Subset(self, indices))
+            subsets.append(plan_subsets)
         self._subsets = subsets
+
+    def get_dataset(self, idx: int) -> "Dataset":
+        """Return a dataset view using one stored split plan.
+
+        Args:
+            idx: Zero-based index of the split plan.
+
+        Returns:
+            A shallow dataset copy with subsets for the selected plan.
+        """
+        if not self._subsets:
+            raise ConfigError("Cannot create a dataset view before split plans are set.")
+
+        dataset_view = copy(self)
+        dataset_view._subsets = [self._subsets[idx]]
+        return dataset_view
+
+    @property
+    def has_split_indexfile(self) -> bool:
+        """Check whether a split index file was configured.
+
+        Returns:
+            Whether this dataset has a configured split index file.
+        """
+        return self._split_indexfile is not None
 
     def get_subset_indices(self, index: int) -> list[int] | None:
         """Return indices for one configured subset.
@@ -231,7 +284,8 @@ class Dataset(TorchDataset, ABC):
         Returns:
             A list of subset index lists.
         """
-        return [cast(list[int], self.get_subset_indices(i)) for i in range(len(self._subsets))]
+        subsets = self.subsets
+        return [list(subset.indices) for subset in subsets]
 
     def get_subset(self, index: int) -> Subset | None:
         """Return one configured subset.
@@ -242,8 +296,9 @@ class Dataset(TorchDataset, ABC):
         Returns:
             The requested subset, or ``None`` when ``index`` is out of range.
         """
-        if 0 <= index < len(self._subsets):
-            return self._subsets[index]
+        subsets = self.subsets
+        if 0 <= index < len(subsets):
+            return subsets[index]
         return None
 
     @property
@@ -253,7 +308,7 @@ class Dataset(TorchDataset, ABC):
         Returns:
             List of subsets created by ``setup_splits``.
         """
-        return self._subsets
+        return self._subsets[0] if self._subsets else []
 
     @property
     def train_subset(self) -> Subset | None:

@@ -16,6 +16,8 @@ Common configuration
 
 All implementations accept ``restore_best`` (default ``true``).
 When ``restore_best`` is enabled, the trainer restores the best saved model after training stops.
+Every ``train()`` call begins with ``start()``, which resets initial values.
+Stopper state is therefore not carried across training calls and is not stored in checkpoints.
 
 Example
 -------

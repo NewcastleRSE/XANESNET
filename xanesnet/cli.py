@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -53,29 +53,32 @@ HELP = """Usage: python xanesnet/cli.py <command> [options]
 Commands (mutually exclusive):
     train    Train a model using a configuration file.
         Arguments:
-            -i, --in_file       Path to input YAML configuration file. (Required)
-            -o, --out_dir       Path to output directory. (Optional, default: ./runs )
-            -n, --name          Name for the training run used for logging and saving (Optional).
-            -t, --tensorboard   Whether to write training metrics to TensorBoard logs (Optional).
-            --dry-run           Run one real training epoch and save model_profile.json (Optional).
-            -y, --yes           Automatically answer yes to confirmation prompts (Optional).
+            -i, --in_file            Path to input YAML configuration file. (Required)
+            -m, --model              Path to a minimal or full checkpoint to initialize or resume training from (Optional).
+            --restart-training-state Use fresh optimizer and schedulers instead of restoring full checkpoint training state (Optional).
+            -o, --out_dir            Path to output directory. (Optional, default: ./runs )
+            -n, --name               Name for the training run used for logging and saving (Optional).
+            -t, --tensorboard        Whether to write training metrics to TensorBoard logs (Optional).
+            --log-weights            Log model parameter and gradient histograms to TensorBoard (Optional).
+            --dry-run                Run one real training epoch and save model_profile.json (Optional).
+            -y, --yes                Automatically answer yes to confirmation prompts (Optional).
 
     infer    Run inference on data using a trained model.
         Arguments:
-            -i, --in_file       Path to input YAML configuration file. (Required)
-            -m, --in_model      Path to a trained model .pth file. (Required)
-            -o, --out_dir       Path to output directory. (Optional, default: ./runs )
-            -n, --name          Name for the inference run used for logging and saving (Optional).
-            -y, --yes           Automatically answer yes to confirmation prompts (Optional).
+            -i, --in_file            Path to input YAML configuration file. (Required)
+            -m, --in_model           Path to a trained model .pth file. (Required)
+            -o, --out_dir            Path to output directory. (Optional, default: ./runs )
+            -n, --name               Name for the inference run used for logging and saving (Optional).
+            -y, --yes                Automatically answer yes to confirmation prompts (Optional).
 
     analyze  Analyze predictions from inference runs.
         Arguments:
-            -i, --in_file           Path to input YAML configuration file. (Required)
-            -r, --inference-runs    Path(s) to inference run directories. Repeatable and/or space separated. (Required)
-            -d, --prediction-names  Display names for inference run directories, in the same order as -r. Repeatable and/or space separated. (Optional)
-            -o, --out_dir           Path to output directory. (Optional, default: ./runs )
-            -n, --name              Name for the analysis run used for logging and saving (Optional).
-            -y, --yes               Automatically answer yes to confirmation prompts (Optional).
+            -i, --in_file            Path to input YAML configuration file. (Required)
+            -r, --inference-runs     Path(s) to inference run directories. Repeatable and/or space separated. (Required)
+            -d, --prediction-names   Display names for inference run directories, in the same order as -r. Repeatable and/or space separated. (Optional)
+            -o, --out_dir            Path to output directory. (Optional, default: ./runs )
+            -n, --name               Name for the analysis run used for logging and saving (Optional).
+            -y, --yes                Automatically answer yes to confirmation prompts (Optional).
 """
 
 TRAIN = r"""

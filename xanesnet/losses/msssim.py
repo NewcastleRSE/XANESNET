@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -28,14 +28,11 @@
 """Multi-scale SSIM loss."""
 
 import torch
+import torch.distributed as distributed
 import torch.nn.functional as F
 
 from .base import Loss
 from .registry import LossRegistry
-
-# TODO MSSSIM has the auto data_range feature. Note that currently when resuming
-# TODO training from a checkpoint the running min/max is not restored, so the data_range will \
-# TODO be re-inferred from the resumed training batches.
 
 
 @LossRegistry.register("msssim")
@@ -49,9 +46,10 @@ class MultiScale_SSIM(Loss):
     Stability constants ``C1`` and ``C2`` depend on the signal's dynamic
     range.  When ``data_range`` is ``None`` (default) a running minimum
     and maximum of target values is tracked across forward passes.  The
-    range starts at ``[0, 1]`` and expands whenever a batch contains
-    values outside the current bounds, so it converges to the true data
-    range within the first epoch and then stays fixed.
+    range starts at ``[0, 1]`` and expands whenever a batch contains values
+    outside the current bounds. Distributed execution requires a fixed
+    ``data_range`` so that the loss performs no range synchronization. The
+    running range is included in the loss state dictionary.
 
     Args:
         loss_type: Identifier string for this loss type.
@@ -59,7 +57,7 @@ class MultiScale_SSIM(Loss):
             scale.
         data_range: Dynamic range of the signal (``max - min``).  When
             ``None``, tracked as a running min/max across batches.  When a
-            float, used directly.
+            float, used directly. Required for multi-process execution.
         K: Stability constants ``(K1, K2)`` for luminance and
             contrast-structure terms.
         use_weighted_sum: If ``True``, combine scales via weighted sum
@@ -100,6 +98,52 @@ class MultiScale_SSIM(Loss):
 
         if use_weighted_sum:
             self._weights = self._build_weights(weights)
+
+    def get_extra_state(self) -> tuple[float | None, float | None, float, float]:
+        """Return the range state included in the module state dictionary.
+
+        Automatically called by the module's ``state_dict`` method to include extra information.
+
+        Returns:
+            Running minimum, running maximum, and the two SSIM constants.
+        """
+        return self._data_min, self._data_max, self.C1, self.C2
+
+    def set_extra_state(self, state: tuple[float | None, float | None, float, float]) -> None:
+        """Restore range state when a module checkpoint is loaded.
+
+        Automatically called by the module's ``load_state_dict`` method to restore extra information.
+
+        Args:
+            state: Running bounds and SSIM constants from ``get_extra_state``.
+        """
+        self._data_min, self._data_max, self.C1, self.C2 = state
+
+    def _update_data_range(self, targets: torch.Tensor) -> None:
+        """Expand automatic target bounds during single-process execution.
+
+        Args:
+            targets: Non-empty local target spectra.
+
+        Raises:
+            ValueError: If automatic bounds are used with multiple processes.
+        """
+        if self._data_min is None:
+            return
+        if distributed.is_available() and distributed.is_initialized() and distributed.get_world_size() > 1:
+            raise ValueError("MSSSIM requires a fixed data_range for distributed training.")
+        assert self._data_max is not None
+        minimum = min(self._data_min, float(targets.detach().amin().item()))
+        maximum = max(self._data_max, float(targets.detach().amax().item()))
+        changed = minimum < self._data_min or maximum > self._data_max
+        if not changed:
+            return
+
+        self._data_min = minimum
+        self._data_max = maximum
+        data_range = maximum - minimum
+        self.C1 = (self._K[0] * data_range) ** 2
+        self.C2 = (self._K[1] * data_range) ** 2
 
     def _build_kernels(self, N: int, fractions: list[float] | tuple[float, ...]) -> None:
         """Build Gaussian convolution kernels for the given signal length.
@@ -196,22 +240,14 @@ class MultiScale_SSIM(Loss):
             Loss tensor.
 
         Raises:
-            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``.
+            ValueError: If ``reduction`` is neither ``"mean"`` nor ``"none"``,
+                or automatic bounds are used with multiple processes.
         """
+        self._update_data_range(targets)
+
         if self._g_masks is None:
             N = preds.shape[-1]
             self._build_kernels(N, self._fractions)
-
-        if self._data_min is not None:
-            assert self._data_max is not None
-            batch_min = targets.min().item()
-            batch_max = targets.max().item()
-            if batch_min < self._data_min or batch_max > self._data_max:
-                self._data_min = min(self._data_min, batch_min)
-                self._data_max = max(self._data_max, batch_max)
-                dr = self._data_max - self._data_min
-                self.C1 = (self._K[0] * dr) ** 2
-                self.C2 = (self._K[1] * dr) ** 2
 
         g_masks = self._g_masks
         assert g_masks is not None

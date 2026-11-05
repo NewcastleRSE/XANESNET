@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -25,7 +25,7 @@
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Checkpoint dataclass and helpers for XANESNET model persistence."""
+"""Checkpoint dataclass for XANESNET."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -34,66 +34,103 @@ from typing import Any
 
 import torch
 
-from xanesnet.models import Model
-
 from .config import Config
+
+# Training-state values stored once per strategy member.
+_PER_MEMBER_KEYS = (
+    "epochs",
+    "optimizer_states",
+    "epoch_scheduler_states",
+    "warmup_scheduler_states",
+)
 
 
 @dataclass
 class Checkpoint:
-    """Serializable snapshot of one or more trained models.
+    """Checkpoint holding model state and optional per-member training state.
 
     Args:
-        model_states: List of ``model.state_dict()`` dicts, one per trained model.
-        signature: The ``Config`` used to produce this checkpoint.
-        optimizer_states: Optional list of ``optimizer.state_dict()`` dicts, one per model.
-        epochs: Optional list of epoch counts, one per model.
+        signature: Run signature with ``dataset``, ``model``, and ``encodings`` sections.
+        model_states: One ``state_dict`` per strategy member.
+        training_state: Per-member epoch counts, optimizer and scheduler states, and signatures.
     """
 
-    model_states: list[Mapping[str, Any]]
     signature: Config
-    optimizer_states: list[dict] | None = None
-    epochs: list[int] | None = None
+    model_states: list[Mapping[str, Any]]
+    training_state: dict[str, Any] | None = None
 
     def save(self, path: str | Path) -> Path:
-        """Save the checkpoint to a ``.pth`` file.
+        """Write the minimal checkpoint and, when available, its full-state sibling.
+
+        The full checkpoint is written to ``<stem>_full<suffix>`` in the same directory.
 
         Args:
-            path: Destination file path. Must have a ``.pth`` suffix.
+            path: Destination of the minimal checkpoint, with a ``.pth`` suffix.
 
         Returns:
-            The resolved ``Path`` to the saved file.
+            The ``Path`` of the minimal checkpoint.
+        """
+        return self._write(path)
 
-        Raises:
-            ValueError: If ``path`` does not end with ``.pth``.
-            FileNotFoundError: If the parent directory does not exist.
+    def save_separate(self, path: str | Path) -> list[Path]:
+        """Write one minimal/full checkpoint pair per model state.
+
+        Each checkpoint keeps the original run signature and contains one model
+        state plus the corresponding per-member training state.
+
+        Args:
+            path: Base checkpoint path used to derive each member filename.
+
+        Returns:
+            Minimal checkpoint paths written for individual members.
+        """
+        if len(self.model_states) < 2:
+            return []
+
+        path = Path(path)
+        saved_paths = []
+        for member_index, model_state in enumerate(self.model_states):
+            member_training_state = None
+            if self.training_state is not None:
+                member_training_state = self.training_state.copy()
+                for key in _PER_MEMBER_KEYS:
+                    if key in member_training_state:
+                        member_training_state[key] = [member_training_state[key][member_index]]
+
+            member_checkpoint = Checkpoint(
+                signature=self.signature,
+                model_states=[model_state],
+                training_state=member_training_state,
+            )
+            member_path = path.with_name(f"{path.stem}_member_{member_index}{path.suffix}")
+            saved_paths.append(member_checkpoint._write(member_path))
+
+        return saved_paths
+
+    def _write(self, path: str | Path) -> Path:
+        """Write the minimal checkpoint and its optional full-state sibling.
+
+        Args:
+            path: Destination path for the minimal checkpoint.
+
+        Returns:
+            Path to the written minimal checkpoint.
         """
         path = Path(path)
-
-        if path.suffix != ".pth":
-            raise ValueError(f"Checkpoint path must end with .pth. Got: {path}")
-
-        if not path.parent.exists():
-            raise FileNotFoundError(f"Checkpoint directory does not exist: {path.parent}")
-
-        torch.save(self.to_state_dict(), path)
-
+        state = self.to_state_dict()
+        minimal_state = state.copy()
+        minimal_state.pop("training_state", None)
+        torch.save(minimal_state, path)
+        if "training_state" in state:
+            torch.save(state, path.with_name(f"{path.stem}_full{path.suffix}"))
         return path
-
-    def __len__(self) -> int:
-        """Return the number of models stored in this checkpoint.
-
-        Returns:
-            Number of serialized model state dictionaries.
-        """
-        return len(self.model_states)
 
     @classmethod
     def load(cls, path: str | Path, map_location: str = "cpu") -> "Checkpoint":
         """Load a checkpoint from a ``.pth`` file.
 
         Args:
-            path: Path to the ``.pth`` file.
+            path: Path to a Checkpoint ``.pth`` file.
             map_location: Device string passed to ``torch.load`` (default ``"cpu"``).
 
         Returns:
@@ -107,61 +144,19 @@ class Checkpoint:
 
         return cls.from_state_dict(state)
 
-    @classmethod
-    def build(
-        cls,
-        model_list: list[Model],
-        signature: Config,
-        optimizer_states: list[dict] | None = None,
-        epochs: list[int] | None = None,
-    ) -> "Checkpoint":
-        """Build a ``Checkpoint`` from a list of trained models.
-
-        Args:
-            model_list: Non-empty list of trained ``Model`` instances.
-            signature: The ``Config`` used for this training run.
-            optimizer_states: Optional optimizer state dicts, one per model.
-            epochs: Optional epoch counts, one per model.
-
-        Returns:
-            A new ``Checkpoint`` containing the state dicts of all models.
-
-        Raises:
-            ValueError: If ``model_list`` is empty, or if ``optimizer_states``
-                or ``epochs`` are provided with lengths that do not match the
-                number of models.
-        """
-        if len(model_list) == 0:
-            raise ValueError("No models. Can not build checkpoint.")
-        if optimizer_states is not None and len(optimizer_states) != len(model_list):
-            raise ValueError(
-                "optimizer_states must contain one state dict per model. "
-                f"Got {len(optimizer_states)} for {len(model_list)} models."
-            )
-        if epochs is not None and len(epochs) != len(model_list):
-            raise ValueError(
-                "epochs must contain one epoch value per model. " f"Got {len(epochs)} for {len(model_list)} models."
-            )
-        checkpoint = cls(
-            model_states=[model.state_dict() for model in model_list],
-            signature=signature,
-            optimizer_states=optimizer_states,
-            epochs=epochs,
-        )
-        return checkpoint
-
     def to_state_dict(self) -> dict[str, Any]:
         """Serialize this checkpoint to a plain dictionary suitable for ``torch.save``.
 
         Returns:
-            Dict with keys ``model_states``, ``optimizer_states``, ``epochs``, and ``signature``.
+            Checkpoint dict.
         """
-        return {
-            "model_states": self.model_states,
-            "optimizer_states": self.optimizer_states,
-            "epochs": self.epochs,
+        state = {
             "signature": self.signature.as_dict(),
+            "model_states": self.model_states,
         }
+        if self.training_state is not None:
+            state["training_state"] = self.training_state
+        return state
 
     @classmethod
     def from_state_dict(cls, state: dict[str, Any]) -> "Checkpoint":
@@ -174,8 +169,7 @@ class Checkpoint:
             A reconstructed ``Checkpoint`` instance.
         """
         return cls(
-            model_states=state["model_states"],
-            optimizer_states=state["optimizer_states"],
-            epochs=state["epochs"],
             signature=Config(state["signature"]),
+            model_states=state["model_states"],
+            training_state=state.get("training_state"),
         )

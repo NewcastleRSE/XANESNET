@@ -20,8 +20,15 @@ Available implementations
 Common configuration
 --------------------
 
-Each entry requires a positive ``loss_weight``.
+Each entry may specify a positive ``loss_weight``.
 Missing weights default to ``1.0`` and all weights are normalised to sum to one.
+
+Distributed MSSSIM
+------------------
+
+With multi-process Lightning training, every ``msssim`` component must specify the ``data_range`` in the encoded target space.
+Choose the range for the actual spectra after encoding, not just the raw input.
+``data_range: null`` tracks expanding bounds only during single-process training to avoid heavy communication overhead between distributed workers.
 
 Example
 -------

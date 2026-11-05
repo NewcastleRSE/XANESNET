@@ -7,25 +7,26 @@ A strategy can retain one model or several models for ensemble inference.
 The base :class:`~xanesnet.strategies.base.Strategy` coordinates the model and runner lifecycle.
 Its public responsibilities are:
 
-* ``setup_models()`` instantiates the model or models managed by the strategy.
+* ``setup_models(model_config)`` instantiates the model or models from the resolved configuration.
 * ``init_model_weights()`` applies the configured weight and bias initializers.
 * ``set_state_dicts()`` loads saved model weights for inference.
-* ``setup_checkpointer()`` connects checkpoint storage to the model signature.
+* ``setup_checkpointer()`` connects periodic checkpoint saving to the full training state of every model.
+* ``setup_model_splits()`` draws model-specific dataset splits, or restores previously drawn splits.
+* ``setup_encoding(config)`` resolves and fits one encoding shared by every model in the strategy.
 * ``setup_trainers(device)`` creates the trainer or trainers for training.
 * ``run_training()`` runs training and returns the trained models.
 * ``setup_inferencers(device)`` creates the inferencer or inferencers.
 * ``run_inference(path)`` runs inference and optionally writes predictions.
-* ``model_signature`` and ``signature`` expose the model and strategy settings saved in checkpoints.
 
-The normal training order is to set up models, initialize weights, create the checkpointer and trainers, and then run training.
-Inference loads model state dictionaries before the strategy creates and runs its inferencers.
+Training prepares model splits and the shared encoding first, resolves model configuration, then passes it to ``setup_models`` before creating the checkpointer, weights, and trainers.
+Inference restores the shared encoding, then passes the checkpoint's model configuration to ``setup_models`` before loading state dictionaries.
 
 Available implementations
 --------------------------
 
 * ``single`` (:class:`~xanesnet.strategies.single.Single`) trains one model on the configured training and validation split.
   It uses ``inferencer_type: basic`` for inference.
-* ``kfold`` (:class:`~xanesnet.strategies.kfold.KFold`) splits the full dataset into folds and trains one model for each fold.
+* ``kfold`` (:class:`~xanesnet.strategies.kfold.KFold`) splits the full dataset into folds by default and trains one model for each fold.
   All fold models are retained and combined with ``inferencer_type: ensemble``.
 * ``bootstrap`` (:class:`~xanesnet.strategies.bootstrap.Bootstrap`) trains several models on bootstrap resamples of the training subset. \
   The ensemble inferencer combines their predictions.
@@ -46,7 +47,33 @@ Note that some models do use their own initialisation and ignore the strategy se
 
 The ``checkpoint_interval`` specifies the number of epochs between checkpoint saves.
 
-K-fold training creates folds from the full dataset and does not use the dataset ``split_ratios`` field.
+Every checkpoint carries the run signature with the ``dataset``, ``model``, and ``encodings``.
+
+The minimal file contains only the signature and one model state per member, so a completed ``models/final.pth`` can be used directly for inference.
+
+The ``_full`` file additionally stores a ``training_state`` mapping with:
+* ``epochs``: completed-epoch count per member;
+* ``optimizer_signature``, ``epoch_scheduler_signature``, and ``warmup_scheduler_signature``: component types shared by every member (``warmup_scheduler_signature`` is ``None`` when warm-up is disabled);
+* ``optimizer_states``, ``epoch_scheduler_states``, and ``warmup_scheduler_states``: one component state per member.
+
+For multi-model strategies each checkpoint saving also produces one minimal/full checkpoint pair per member, named ``checkpoints/checkpoint_<epoch>_member_<member>.pth`` and ``checkpoints/checkpoint_<epoch>_member_<member>_full.pth``.
+
+Model-specific data and encodings
+---------------------------------
+
+Every training strategy writes one ``split_indices.json`` file containing the train and validation indices for each model, in model order.
+Set ``dataset.split_indexfile`` to this file to explicitly reuse those plans in another training run.
+Strategies with shared data, such as ``single`` and ``deep_ensemble``, record the same configured split for each model.
+``bootstrap`` records each resample, while ``kfold`` records each fold.
+Multi-device Lightning workers reuse these exact plans instead of drawing their own.
+
+K-fold training creates folds from the full dataset. A configured file must provide one fold plan per model.
+``n_splits`` must not exceed the number of dataset samples.
+All fold models share one encoding, whose automatic fields are resolved from the full dataset before the folds are trained.
+Thus each fold's validation samples contribute to the shared encoding statistics; this is an intentional transductive choice rather than a fold-isolated preprocessing estimate.
+The resolved encoding is stored once in the checkpoint signature and used by every fold model during inference.
+
+Bootstrap members are resampled from the configured training subset and share the encoding fitted on that subset.
 
 Examples
 --------

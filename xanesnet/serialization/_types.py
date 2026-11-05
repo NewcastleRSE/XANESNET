@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -25,7 +25,7 @@
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Shared type aliases for the serialization package."""
+"""Shared type aliases."""
 
 from typing import Any, Literal
 
@@ -34,3 +34,9 @@ ConfigMode = Literal["train", "infer", "analyze"]
 
 ConfigRaw = dict[str, Any]
 """Type alias for raw configuration dictionaries loaded from YAML."""
+
+SplitPlan = list[list[int]]
+"""One ordered sample-index list per subset in a split plan."""
+
+SplitPlans = list[SplitPlan]
+"""Split plans for all strategy members."""

@@ -6,14 +6,13 @@ additionalProperties: false
 required:
 - datasource
 - dataset
+- strategy
 - model
 - inferencer
-- strategy
 - encodings
-$comment: Runtime inference configs are the result of merging user inference YAML with the checkpoint signature before
-  validate_config_infer() runs. The checkpoint must provide the model, strategy, and dataset_type details needed to construct
-  the trained architecture. Concrete model dimensions and dataset/model/inferencer compatibility are checked by the Python
-  validator after schema validation.
+$comment: Runtime inference configs merge user inference YAML with checkpoint dataset, model, and encoding signatures. The
+  strategy and inferencer are user-selected and their compatibility is checked after schema validation. Model count is checked
+  while loading checkpoint states.
 properties:
   seed:
     $ref: shared/value_types.schema.yaml#/$defs/nullableInteger
@@ -31,15 +30,15 @@ properties:
   dataset:
     $ref: datasets/datasets.schema.yaml#/$defs/dataset
     description: Merged dataset configuration used by core setup code to instantiate and prepare ``DatasetRegistry.get(dataset_type)``.
+  strategy:
+    $ref: strategies/strategies.schema.yaml#/$defs/strategy
+    description: Inference strategy selected by the user.
   model:
     $ref: models/models.schema.yaml#/$defs/modelInfer
     description: Model architecture restored from the checkpoint signature. ``"auto"`` values are rejected at inference time.
   inferencer:
     $ref: runners/inferencers.schema.yaml#/$defs/inferencer
     description: Inference runner section; mutually exclusive with ``trainer``.
-  strategy:
-    $ref: strategies/strategies.schema.yaml#/$defs/strategy
-    description: Strategy configuration restored from the checkpoint signature and used by core setup code.
   encodings:
     $ref: encodings/encodings.schema.yaml#/$defs/encodingList
     description: Spectra-encoding pipeline restored from the checkpoint signature and used to decode predictions back to

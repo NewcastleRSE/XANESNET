@@ -13,6 +13,11 @@ dataset:
   preload: True
   skip_prepare: False
 
+strategy:
+  strategy_type: kfold
+  n_splits: 3
+  n_repeats: 1
+
 inferencer:
   inferencer_type: ensemble
   batch_size: 4

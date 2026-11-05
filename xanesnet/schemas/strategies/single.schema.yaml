@@ -27,6 +27,7 @@ $defs:
         type:
         - integer
         - 'null'
+        minimum: 1
         default: null
         description: Epoch interval for checkpoint saves, or ``None`` to disable interval-based checkpointing.
       strategy_type:

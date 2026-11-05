@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -87,8 +87,8 @@ class InverseDescriptorMultiheadBatchProcessor(InverseBatchProcessor):
         """
         return batch.element
 
-    def sample_id_extraction(self, batch: DescriptorMultiheadData) -> np.ndarray:
-        """Extract file names from a descriptor multi-head batch.
+    def sample_id_preparation(self, batch: DescriptorMultiheadData) -> np.ndarray:
+        """Prepare file names from a descriptor multi-head batch.
 
         Args:
             batch: Collated descriptor multi-head batch.

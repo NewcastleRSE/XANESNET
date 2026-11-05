@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -46,7 +46,7 @@ from xanesnet.models.gemnet.layers.scaling import ScaleFactor as GemNetScaleFact
 from xanesnet.models.gemnet_oc.layers.scaling import ScaleFactor as GemNetOcScaleFactor
 from xanesnet.serialization.config import Config, load_raw_config
 from xanesnet.serialization.schema_validation import validate_config_schema
-from xanesnet.serialization.splits import save_split_indices
+from xanesnet.serialization.splits import save_splits
 from xanesnet.utils.logger import setup_logging
 from xanesnet.utils.random import set_global_seed
 
@@ -560,7 +560,7 @@ def main(argv: list[str]) -> None:
         if args.split_indexfile_output is not None
         else _default_split_indexfile_path(out_path)
     )
-    save_split_indices(split_indexfile_path, dataset.get_all_subset_indices())
+    save_splits(split_indexfile_path, [dataset.get_all_subset_indices()])
     logging.info("Wrote split indices for reuse during training to %s", split_indexfile_path)
 
 

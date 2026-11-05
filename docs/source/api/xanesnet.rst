@@ -40,6 +40,7 @@ Submodules
    xanesnet.cli
    xanesnet.core_analyze
    xanesnet.core_infer
+   xanesnet.core_lightning
    xanesnet.core_train
    xanesnet.infer
    xanesnet.train

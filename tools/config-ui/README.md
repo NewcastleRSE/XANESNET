@@ -11,7 +11,7 @@ The app is intended for two jobs:
 
 - Mode-specific forms for Train, Infer, and Analyze configs.
 - YAML import with automatic mode detection.
-- Infer checkpoint `signature.yaml` import that merges signature-provided dataset/model/strategy fields into the Infer form.
+- Infer checkpoint `signature.yaml` import that merges signature-provided dataset/model/encoding fields into the Infer form.
 - Signature-origin highlighting while keeping signature-loaded fields editable.
 - Live YAML preview with schema defaults materialized and top-level sections ordered for readability.
 - Light/dark theme toggle stored in local browser state.
@@ -50,7 +50,7 @@ Schemas are authored as YAML files and imported with Vite raw imports. Local `$r
 
 The canonical schema files live in `../../xanesnet/schemas`; do not edit copies under the UI tree.
 
-Infer configs are special: at runtime XANESNET merges user Infer YAML with a checkpoint signature before validation. The UI mirrors that by letting users load `signature.yaml` in Infer mode. User-supplied Infer YAML can stay as a checkpoint overlay without `dataset_type`, `model`, or `strategy`; a loaded signature supplies those fields when available.
+Infer configs are special: at runtime XANESNET merges user Infer YAML with a checkpoint signature before validation. The UI mirrors that by letting users load `signature.yaml` in Infer mode. User-supplied Infer YAML can stay as a checkpoint overlay without `dataset_type`, `model`, or `encodings`; a loaded signature supplies those fields when available.
 
 When changing schemas, smoke-test at least these flows:
 

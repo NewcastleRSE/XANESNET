@@ -7,7 +7,7 @@ This directory contains the [Sphinx](https://www.sphinx-doc.org/) sources for th
 Install the documentation extras into the active environment (one-off):
 
 ```bash
-pip install -e ".[docs]"
+pip install -e ".[docs,lightning]"
 ```
 
 Then build the HTML site from this directory:

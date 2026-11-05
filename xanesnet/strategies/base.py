@@ -2,7 +2,7 @@
 #
 # XANESNET
 #
-# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Tom W. Pope, C. D. Rankine, B. Li
+# Authors:  Hendrik Junkawitsch, Tom J. Penfold, Thomas J. Pope, C. D. Rankine, B. Li
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -37,9 +37,14 @@ import torch
 
 from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
-from xanesnet.encodings import SpectraEncoding
+from xanesnet.encodings import CombinedEncoding, SpectraEncoding
 from xanesnet.models import Model
+from xanesnet.runners.inferencers.base import Inferencer
+from xanesnet.runners.trainers.base import Trainer
+from xanesnet.serialization._types import SplitPlans
+from xanesnet.serialization.auto_config import resolve_auto_encoding_config
 from xanesnet.serialization.config import Config
+from xanesnet.utils.exceptions import ConfigError
 
 
 class Strategy(ABC):
@@ -53,22 +58,14 @@ class Strategy(ABC):
     Args:
         strategy_type: Registry key identifying this strategy type.
         dataset: The dataset used for training or inference.
-        model_config: Configuration for the model.
-        encoding: Composed spectra encoding forwarded to the trainers and
-            inferencers created by this strategy.
         weight_init: Weight initialization scheme name.
         weight_init_params: Additional parameters passed to the weight initializer.
         bias_init: Bias initialization scheme name.
-        checkpoint_dir: Directory for saving checkpoint files, or
-            ``None`` to disable checkpointing.
-        checkpoint_interval: Number of epochs between checkpoints, or
-            ``None`` to disable interval-based checkpointing.
-        tensorboard_dir: Directory for TensorBoard event files, or
-            ``None`` to disable TensorBoard logging.
-        trainer_config: Configuration for the trainer. Either this or
-            ``inferencer_config`` must be provided.
-        inferencer_config: Configuration for the inferencer. Either this
-            or ``trainer_config`` must be provided.
+        checkpoint_dir: Directory for saving checkpoint files, or ``None`` to disable checkpointing.
+        checkpoint_interval: Number of epochs between checkpoints, or ``None`` to disable interval-based checkpointing.
+        tensorboard_dir: Directory for TensorBoard event files, or ``None`` to disable TensorBoard logging.
+        trainer_config: Configuration for the trainer. Either this or ``inferencer_config`` must be provided.
+        inferencer_config: Configuration for the inferencer. Either this or ``trainer_config`` must be provided.
 
     Raises:
         ValueError: If both ``trainer_config`` and ``inferencer_config`` are ``None``.
@@ -78,8 +75,6 @@ class Strategy(ABC):
         self,
         strategy_type: str,
         dataset: Dataset,
-        model_config: Config,
-        encoding: SpectraEncoding,
         weight_init: str,
         weight_init_params: Config,
         bias_init: str,
@@ -92,9 +87,6 @@ class Strategy(ABC):
         """Initialize shared strategy state."""
         self.strategy_type = strategy_type
         self.dataset = dataset
-        self.model_config = model_config
-        self.encoding = encoding
-
         self.weight_init = weight_init
         self.weight_init_params = weight_init_params
         self.bias_init = bias_init
@@ -107,38 +99,101 @@ class Strategy(ABC):
         if self.trainer_config is None and self.inferencer_config is None:
             raise ValueError("Either trainer_config or inferencer_config must be provided.")
 
+        self.n_models = 1
+        self.encoding: SpectraEncoding | None = None
+        self.models: list[Model] = []
         self.checkpointer: Checkpointer | None = None
+        self.trainers: list[Trainer | None] = []
+        self.inferencer: Inferencer | None = None
 
     @abstractmethod
-    def setup_models(self) -> None:
-        """Instantiate the models used by this strategy.
+    def setup_models(self, model_config: Config) -> None:
+        """Instantiate the models from the resolved model configuration.
 
         Must be called before ``init_model_weights``, ``setup_trainers``, or ``setup_inferencers``.
+
+        Args:
+            model_config: Fully resolved configuration for the models managed by this strategy.
         """
         ...
 
-    @abstractmethod
     def init_model_weights(self) -> None:
         """Apply weight and bias initialization to the strategy's models.
 
         Must be called after ``setup_models``.
-        """
-        ...
 
-    @abstractmethod
+        Raises:
+            ValueError: If no models have been initialized.
+        """
+        if not self.models:
+            raise ValueError("Cannot initialize model weights because models are not initialized.")
+
+        logging.info(f"Initializing weights with '{self.weight_init}' and bias with '{self.bias_init}'")
+        for model in self.models:
+            model.init_weights(self.weight_init, self.bias_init, **self.weight_init_params.as_kwargs())
+
     def set_state_dicts(self, state_dicts: list[Mapping[str, Any]]) -> None:
-        """Load model state dicts from a list of previously saved dicts.
+        """Load one state dictionary into each model.
 
         Args:
-            state_dicts: List of state dictionaries, one per model managed by this strategy.
+            state_dicts: Model state dictionaries in strategy model order.
+
+        Raises:
+            ConfigError: If the checkpoint has no states or too few states for the initialized models.
+            ValueError: If models are uninitialized.
         """
-        ...
+        if not self.models:
+            raise ValueError("Cannot load state dicts because models are not initialized.")
+        if len(state_dicts) < len(self.models):
+            raise ConfigError(f"Checkpoint with {len(state_dicts)} model states; strategy requires {len(self.models)}.")
+        if len(state_dicts) > len(self.models):
+            logging.warning(f"Checkpoint with {len(state_dicts) - len(self.models)} extra model states.")
+            state_dicts = state_dicts[: len(self.models)]
+        for model, state_dict in zip(self.models, state_dicts, strict=True):
+            model.load_state_dict(state_dict)
+
+    def setup_model_splits(self) -> SplitPlans:
+        """Set up the configured dataset splits.
+
+        Must be called before ``setup_encoding`` or ``setup_trainers``.
+
+        Returns:
+            Split indices created by the dataset.
+        """
+        return self.dataset.setup_splits()
+
+    def setup_encoding(self, config: Config) -> SpectraEncoding:
+        """Resolve and build the strategy's shared encoding.
+
+        Args:
+            config: Configuration whose encoding fields may require automatic
+                resolution. Inference configs already contain concrete values.
+
+        Raises:
+            ValueError: If a training strategy has no model splits, or if the
+                prepared dataset sample does not provide a spectral energy grid.
+
+        Returns:
+            The initialized shared encoding.
+        """
+        if self.trainer_config is not None and self.dataset.train_subset is None:
+            raise ValueError("Cannot setup encoding before model splits are initialized.")
+
+        resolved_config = resolve_auto_encoding_config(config, self._dataset_for_encoding())
+        encoding = CombinedEncoding.from_configs(resolved_config.get_config_list("encodings"))
+        energies = getattr(self.dataset[0], "energies", None)
+        if energies is None or energies.ndim == 0:
+            raise ValueError("Prepared dataset sample must provide a spectral energy grid.")
+        encoding.prepare(int(energies.shape[-1]))
+        self.encoding = encoding
+        return encoding
 
     @abstractmethod
     def setup_trainers(self, device: str | torch.device) -> None:
         """Instantiate the trainers used by this strategy.
 
-        Must be called after ``setup_models`` and ``setup_checkpointer``.
+        Must be called after ``setup_models``, ``setup_checkpointer``,
+        ``setup_model_splits``, and ``setup_encoding``.
 
         Args:
             device: The device on which training will be performed (e.g. ``"cpu"`` or ``"cuda"``).
@@ -163,7 +218,7 @@ class Strategy(ABC):
     def setup_inferencers(self, device: str | torch.device) -> None:
         """Instantiate the inferencers used by this strategy.
 
-        Must be called after ``setup_models``.
+        Must be called after ``setup_models`` and ``setup_encoding``.
 
         Args:
             device: The device on which inference will be performed.
@@ -183,39 +238,57 @@ class Strategy(ABC):
         """
         logging.info("Start strategy...")
 
-    def setup_checkpointer(self) -> None:
+    def setup_checkpointer(self) -> Checkpointer:
         """Instantiate the ``Checkpointer`` for this strategy.
 
-        Must be called after ``setup_models`` because the checkpointer is
-        initialized with ``self.model_signature``.
+        Must be called before ``setup_trainers``.
+
+        Returns:
+            Checkpointer configured for this strategy's members.
+
+        Raises:
+            ValueError: If the models, encoding, or trainer configuration has not been set up.
         """
-        self.checkpointer = Checkpointer(self.checkpoint_dir, self.checkpoint_interval, self.model_signature)
+        if self.encoding is None:
+            raise ValueError("Cannot setup checkpointer because encoding is not initialized.")
+        if self.trainer_config is None:
+            raise ValueError("Cannot setup checkpointer because there is no trainer config.")
+
+        signature = Config(
+            {
+                "dataset": self.dataset.signature,
+                "model": self.model_signature,
+                "encodings": self.encoding.signature,
+            }
+        )
+
+        self.checkpointer = Checkpointer(
+            save_dir=self.checkpoint_dir,
+            save_interval=self.checkpoint_interval,
+            signature=signature,
+            trainer_provider=lambda: self.trainers,
+        )
+        return self.checkpointer
+
+    def _dataset_for_encoding(self) -> Dataset:
+        """Return the data view used to fit this strategy's encoding.
+
+        Returns:
+            Dataset view used to fit the shared encoding.
+        """
+        return self.dataset
 
     @property
-    @abstractmethod
     def model_signature(self) -> Config:
-        """Return the model's configuration as a ``Config``.
+        """Return the first model's configuration as the strategy signature.
 
         Returns:
             A ``Config`` representing the model's configuration signature.
+
+        Raises:
+            ValueError: If models have not been initialized.
         """
-        ...
+        if not self.models:
+            raise ValueError("Models are not initialized. Cannot retrieve signature.")
 
-    @property
-    @abstractmethod
-    def signature(self) -> Config:
-        """Return the full strategy configuration as a ``Config``.
-
-        The base implementation returns a ``Config`` containing only the
-        ``strategy_type`` key. Subclasses should call ``super().signature``
-        and extend the result.
-
-        Returns:
-            A ``Config`` capturing the strategy configuration.
-        """
-        signature = Config(
-            {
-                "strategy_type": self.strategy_type,
-            }
-        )
-        return signature
+        return self.models[0].signature
