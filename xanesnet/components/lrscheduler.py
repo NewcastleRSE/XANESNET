@@ -74,13 +74,12 @@ class Scheduler(optim.lr_scheduler.LRScheduler):
         return state
 
     def _set_scheduler_type(self, lr_scheduler_type: str) -> None:
-        """Store the scheduler type and its reconstruction signature.
+        """Store the configured scheduler type and its reconstruction signature.
 
         Args:
-            lr_scheduler_type: Registry key identifying the scheduler type.
+            lr_scheduler_type: Configured name identifying this scheduler type.
         """
-        normalized_type = lr_scheduler_type.lower()
-        self.lr_scheduler_type = "none" if normalized_type == "no" else normalized_type
+        self.lr_scheduler_type = lr_scheduler_type
         self._signature = Config({"lr_scheduler_type": self.lr_scheduler_type})
 
 

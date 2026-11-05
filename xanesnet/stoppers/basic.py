@@ -27,6 +27,7 @@
 
 """Patience-based early stopper for XANESNET training."""
 
+from xanesnet.components import Optimizer, Scheduler
 from xanesnet.models import Model
 
 from .base import EarlyStopper
@@ -71,7 +72,15 @@ class BasicStopper(EarlyStopper):
         super().start()
         self.last_improvement_epoch = 0
 
-    def step(self, value: float, model: Model, epoch: int) -> bool:
+    def step(
+        self,
+        value: float,
+        model: Model,
+        epoch: int,
+        optimizer: Optimizer,
+        epoch_scheduler: Scheduler,
+        warmup_scheduler: Scheduler | None,
+    ) -> bool:
         """Check whether training should stop.
 
         The first call establishes the initial best value. Later calls only
@@ -82,13 +91,16 @@ class BasicStopper(EarlyStopper):
             value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
+            optimizer: Optimizer paired with the current model state.
+            epoch_scheduler: Per-epoch scheduler paired with the current state.
+            warmup_scheduler: Optional per-step warm-up scheduler.
 
         Returns:
             ``True`` if the number of epochs without meaningful improvement
             has reached ``patience``, ``False`` otherwise.
         """
         if self.best_epoch < 0:
-            _ = super().step(value, model, epoch)
+            _ = super().step(value, model, epoch, optimizer, epoch_scheduler, warmup_scheduler)
             self.last_improvement_epoch = epoch
             return False
 
@@ -97,7 +109,7 @@ class BasicStopper(EarlyStopper):
         meaningful_improvement = value < self.best_value - required_total_delta
 
         if meaningful_improvement:
-            _ = super().step(value, model, epoch)
+            _ = super().step(value, model, epoch, optimizer, epoch_scheduler, warmup_scheduler)
             self.last_improvement_epoch = epoch
 
         last_improvement = self.last_improvement_epoch

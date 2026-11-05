@@ -30,8 +30,12 @@ Common configuration
 * ``root`` is required and stores the processed samples.
 * ``preload`` loads processed samples into memory instead of reading them on demand.
 * ``skip_prepare`` reuses existing processed samples.
-* ``split_ratios`` creates data splits and must sum to ``1.0`` when ``split_indexfile`` is ``null``.
-* ``split_indexfile`` provides fixed split indices instead of ratio-based splitting.
+* ``split_ratios`` creates the base train/validation split and must sum to ``1.0``.
+* ``split_indexfile`` loads a split index file. It takes precedence over ``split_ratios``.
+
+For ``single`` and ``deep_ensemble``, one configured plan can be shared across all models.
+``bootstrap`` and ``kfold`` require one explicit plan per model when using ``split_indexfile``.
+
 * Descriptor datasets require a non-empty ``descriptors`` list; see :doc:`descriptors` for the available descriptor types.
 * Graph datasets require ``graph_builder``; see :doc:`graphs` for the available builders.
 

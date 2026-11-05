@@ -290,3 +290,16 @@ class Trainer(Runner):
         """
         stopper_type = self.early_stopper_config.get_str("early_stopper_type")
         return EarlyStopperRegistry.create(stopper_type, **self.early_stopper_config.as_kwargs())
+
+    @property
+    def _warmup_complete(self) -> bool:
+        """Check whether the warm-up scheduler reached its configured endpoint.
+
+        Returns:
+            Whether warm-up is complete or no warm-up scheduler is configured.
+        """
+        if self.warmup_lr_scheduler is None:
+            return True
+        scheduler_state = self.warmup_lr_scheduler.state_dict()
+        return scheduler_state["last_epoch"] >= scheduler_state["total_iters"]
+

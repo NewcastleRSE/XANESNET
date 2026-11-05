@@ -91,7 +91,11 @@ class Single(Strategy):
         )
 
     def setup_models(self, model_config: Config) -> None:
-        """Instantiate the single model managed by this strategy."""
+        """Instantiate the single model managed by this strategy.
+
+        Args:
+            model_config: Fully resolved configuration for the model.
+        """
         model_type = model_config.get_str("model_type")
         logging.info(f"Initializing model: {model_type}")
         self.models = [ModelRegistry.create(model_type, **model_config.as_kwargs())]
@@ -126,7 +130,7 @@ class Single(Strategy):
         trainer = TrainerRegistry.create(
             trainer_type,
             **self.trainer_config.as_kwargs(),
-            dataset=self.model_datasets[0],
+            dataset=self.dataset.get_dataset(0),
             model=self.models[0],
             device=device,
             checkpointer=self.checkpointer,

@@ -27,6 +27,7 @@
 
 """No-op early stopper that never halts training."""
 
+from xanesnet.components import Optimizer, Scheduler
 from xanesnet.models import Model
 
 from .base import EarlyStopper
@@ -56,16 +57,27 @@ class NoStopper(EarlyStopper):
         """Initialize the no-op stopper."""
         super().__init__(early_stopper_type, restore_best)
 
-    def step(self, value: float, model: Model, epoch: int) -> bool:
+    def step(
+        self,
+        value: float,
+        model: Model,
+        epoch: int,
+        optimizer: Optimizer,
+        epoch_scheduler: Scheduler,
+        warmup_scheduler: Scheduler | None,
+    ) -> bool:
         """Update tracking state and always return ``False``.
 
         Args:
             value: Current metric value to minimize.
             model: The model being trained.
             epoch: Current epoch index.
+            optimizer: Optimizer paired with the current model state.
+            epoch_scheduler: Per-epoch scheduler paired with the current state.
+            warmup_scheduler: Optional per-step warm-up scheduler.
 
         Returns:
             Always ``False``.
         """
-        _ = super().step(value, model, epoch)
+        _ = super().step(value, model, epoch, optimizer, epoch_scheduler, warmup_scheduler)
         return False

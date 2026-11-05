@@ -52,7 +52,7 @@ class Checkpoint:
     Args:
         signature: Run signature with ``dataset``, ``model``, and ``encodings`` sections.
         model_states: One ``state_dict`` per strategy member.
-        training_state: Per-member progress, optimizer state, and scheduler states.
+        training_state: Per-member epoch counts, optimizer and scheduler states, and signatures.
     """
 
     signature: Config
@@ -108,7 +108,14 @@ class Checkpoint:
         return saved_paths
 
     def _write(self, path: str | Path) -> Path:
-        """Write the minimal checkpoint and its optional full-state sibling."""
+        """Write the minimal checkpoint and its optional full-state sibling.
+
+        Args:
+            path: Destination path for the minimal checkpoint.
+
+        Returns:
+            Path to the written minimal checkpoint.
+        """
         path = Path(path)
         state = self.to_state_dict()
         minimal_state = state.copy()

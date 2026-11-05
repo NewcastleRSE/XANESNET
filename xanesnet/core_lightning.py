@@ -37,6 +37,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from xanesnet.core_train import (
+    _restore_optimizer,
+    _restore_scheduler,
     _run_training,
     _save_results,
     _setup_dataset,
@@ -44,9 +46,10 @@ from xanesnet.core_train import (
     _setup_strategy,
 )
 from xanesnet.serialization.auto_config import resolve_auto_model_config
+from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.model_profile import reset_peak_memory_stats
-from xanesnet.serialization.splits import load_splits, save_splits
+from xanesnet.serialization.splits import save_separate_splits, save_splits
 from xanesnet.utils.exceptions import ConfigError
 from xanesnet.utils.lightning import LIGHTNING_CONTEXT_ENV, LIGHTNING_LAUNCH_ENVIRONMENT
 from xanesnet.utils.logger import setup_file_logging
@@ -74,8 +77,8 @@ def _register_lightning_trainer() -> None:
 ###############################################################################
 
 
-def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
-    """Prepare one Lightning run, executes training, and exports its models.
+def train_initial(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint: Checkpoint | None) -> None:
+    """Prepare a Lightning run, execute training, and export its models.
 
     Builds the data source and dataset, lets the strategy prepare splits and
     encodings, resolves model fields, and publishes the run context before
@@ -88,6 +91,7 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
         args_namespace: Parsed CLI arguments (must contain ``tensorboard``;
             must contain ``dry_run`` to select profile output).
         save_dir: Root directory for all training outputs.
+        checkpoint: Optional checkpoint already loaded by the training CLI.
     """
     logging.info("Lightning training.")
 
@@ -106,11 +110,7 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
     encoding = strategy.setup_encoding(config)
 
     logging.info("Resolving 'auto' model fields...")
-    config = resolve_auto_model_config(
-        config,
-        dataset,
-        encoding,
-    )
+    config = resolve_auto_model_config(config, dataset, encoding)
     resolved_config_raw = config.as_dict()
     resolved_config_raw["encodings"] = [item.as_dict() for item in encoding.signature]
     config = Config(resolved_config_raw)
@@ -122,16 +122,34 @@ def train_initial(config: Config, args_namespace: Namespace, save_dir: Path) -> 
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
 
+    # Restore checkpoint if provided
+    if checkpoint is not None:
+        strategy.set_state_dicts(checkpoint.model_states)
+        logging.info("Restored model states from checkpoint.")
+        if not args_namespace.restart_training_state:
+            _restore_optimizer(strategy, checkpoint)
+            _restore_scheduler(strategy, checkpoint)
+            if checkpoint.training_state is not None:
+                logging.info("Restored optimizer and scheduler states from checkpoint.")
+
     # Save signature
     signature_save_path = checkpointer.signature.save(save_dir / "models" / "signature.yaml")
     logging.info(f"Signature saved to: {signature_save_path}")
 
     split_indices_save_path = save_dir / "split_indices.json"
     save_splits(split_indices_save_path, model_splits)
+    save_separate_splits(save_dir, model_splits)
     logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Build Lightning context
-    context = Config({"config": config.as_dict(), "dry_run": args_namespace.dry_run})
+    context = Config(
+        {
+            "config": config.as_dict(),
+            "dry_run": args_namespace.dry_run,
+            "model_path": getattr(args_namespace, "model_path", None),
+            "restart_training_state": args_namespace.restart_training_state,
+        }
+    )
 
     # Main training
     with _published_context(context, save_dir):
@@ -166,11 +184,12 @@ def train_worker(context_path: Path) -> None:
     _register_lightning_trainer()
 
     config = context.section("config")
+    save_dir = context_path.parent
     worker_config_raw = config.as_dict()
     worker_config_raw["dataset"]["skip_prepare"] = True
+    worker_config_raw["dataset"]["split_indexfile"] = str(save_dir / "split_indices.json")
     worker_config = Config(worker_config_raw)
 
-    save_dir = context_path.parent
     rank = os.environ["LOCAL_RANK"]
     worker_log_dir = save_dir / "workers" / f"rank_{rank}"
     worker_log_dir.mkdir(parents=True, exist_ok=True)
@@ -181,18 +200,30 @@ def train_worker(context_path: Path) -> None:
     # Setting the global random seed for reproducibility
     set_global_seed(config.get_int("seed"))
 
+    checkpoint_path = context.get_optional_str("model_path")
+    checkpoint = None if checkpoint_path is None else Checkpoint.load(checkpoint_path)
+
     datasource = _setup_datasource(config)
     dataset = _setup_dataset(worker_config, datasource)
 
     strategy = _setup_strategy(config, dataset, save_dir, False)
-    model_splits = load_splits(save_dir / "split_indices.json")
-    strategy.setup_model_splits(model_splits)
+    strategy.setup_model_splits()
     strategy.setup_encoding(config)
 
     strategy.setup_models(config.section("model"))
     strategy.setup_checkpointer()
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
+
+    # Restore checkpoint if provided
+    if checkpoint is not None:
+        strategy.set_state_dicts(checkpoint.model_states)
+        logging.info("Restored model states from checkpoint.")
+        if not context.get_bool("restart_training_state"):
+            _restore_optimizer(strategy, checkpoint)
+            _restore_scheduler(strategy, checkpoint)
+            if checkpoint.training_state is not None:
+                logging.info("Restored optimizer and scheduler states from checkpoint.")
 
     # Main training
     if context.get_bool("dry_run"):
@@ -209,11 +240,11 @@ def train_worker(context_path: Path) -> None:
 def _load_worker_context(path: Path) -> Config:
     """Load the prepared configuration and validate the worker launch role.
 
+    Args:
+        path: Path to the serialized Lightning worker context.
+
     Returns:
         Prepared configuration belonging to the current self-launched worker.
-
-    Raises:
-        ConfigError: If the context is invalid or the process is not a worker in the expected single-node launch.
     """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))

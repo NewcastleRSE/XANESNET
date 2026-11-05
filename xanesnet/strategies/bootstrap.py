@@ -37,6 +37,7 @@ from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization._types import SplitPlans
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.utils.exceptions import ConfigError
@@ -53,8 +54,7 @@ class Bootstrap(Strategy):
     architecture. During training, each member is trained on a bootstrap
     resample of the training subset (sampling with replacement) and validated
     on the configured validation subset. The resamples are drawn once by
-    ``setup_model_splits`` and can be restored unchanged, for example by
-    distributed workers. All members share the encoding fitted on the
+    ``setup_model_splits``. All members share the encoding fitted on the
     configured training subset. During inference, all member models are
     evaluated on the same batches and their predictions are reduced to mean
     and energy/channel-wise standard deviation by the ensemble inferencer.
@@ -130,29 +130,25 @@ class Bootstrap(Strategy):
         valid_indices = self.dataset.get_subset_indices(1)
         return [bootstrap_indices] if valid_indices is None else [bootstrap_indices, valid_indices]
 
-    def setup_model_splits(
-        self,
-        model_splits: list[list[list[int]]] | None = None,
-    ) -> list[list[list[int]]]:
-        """Draw or restore one bootstrap resample per member.
+    def setup_model_splits(self) -> SplitPlans:
+        """Use configured member plans or draw one bootstrap resample per model.
 
-        Args:
-            model_splits: Previously drawn member splits to restore, or
-                ``None`` to draw new resamples.
-
-        Raises:
-            ConfigError: If new resamples are requested from an empty
-                training subset.
-            ValueError: If restored splits do not contain one entry per member.
+        Returns:
+            Configured or resampled train and optional validation indices for each model.
         """
-        if model_splits is None:
-            if not self.dataset.subsets:
-                self.dataset.setup_splits()
-            model_splits = [self._draw_bootstrap_split() for _ in range(self.n_models)]
-        return super().setup_model_splits(model_splits)
+        model_splits = super().setup_model_splits()
+        if self.dataset.has_split_indexfile:
+            return model_splits
+        model_splits = [self._draw_bootstrap_split() for _ in range(self.n_models)]
+        self.dataset.set_splits(model_splits)
+        return model_splits
 
     def setup_models(self, model_config: Config) -> None:
-        """Instantiate ``n_models`` independent copies of the configured model."""
+        """Instantiate ``n_models`` independent copies of the configured model.
+
+        Args:
+            model_config: Fully resolved configuration for the models.
+        """
         model_type = model_config.get_str("model_type")
         model_cls = ModelRegistry.get(model_type)
 
@@ -183,7 +179,7 @@ class Bootstrap(Strategy):
             raise ValueError("Cannot setup trainers because there is no trainer config.")
         if self.checkpointer is None:
             raise ValueError("Cannot setup trainers because checkpointer is not instantiated.")
-        if self.model_splits is None:
+        if self.dataset.train_subset is None:
             raise ValueError("Cannot setup trainers because bootstrap splits are not initialized.")
         if self.encoding is None:
             raise ValueError("Cannot setup trainers because encoding is not initialized.")
@@ -194,7 +190,7 @@ class Bootstrap(Strategy):
         self.trainers = []
         for model_idx, model in enumerate(self.models):
             logging.info(f"Initializing trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
-            dataset_model = self.model_datasets[model_idx]
+            dataset_model = self.dataset.get_dataset(model_idx)
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
                 dataset=dataset_model,

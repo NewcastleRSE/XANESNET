@@ -32,15 +32,19 @@ import time
 from argparse import Namespace
 from datetime import timedelta
 from pathlib import Path
+from typing import cast
 
 import torch
 
 from xanesnet.checkpointing import Checkpointer
+from xanesnet.components import Scheduler
 from xanesnet.datasets import Dataset, DatasetRegistry
 from xanesnet.datasources import DataSource, DataSourceRegistry
 from xanesnet.encodings import SpectraEncoding
 from xanesnet.models import Model
+from xanesnet.runners.trainers.base import Trainer
 from xanesnet.serialization.auto_config import resolve_auto_model_config
+from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.model_profile import (
     build_model_profile,
@@ -49,7 +53,7 @@ from xanesnet.serialization.model_profile import (
     reset_peak_memory_stats,
     save_model_profile,
 )
-from xanesnet.serialization.splits import save_splits
+from xanesnet.serialization.splits import save_separate_splits, save_splits
 from xanesnet.strategies import Strategy, StrategyRegistry
 
 ###############################################################################
@@ -57,7 +61,7 @@ from xanesnet.strategies import Strategy, StrategyRegistry
 ###############################################################################
 
 
-def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
+def train(config: Config, args_namespace: Namespace, save_dir: Path, checkpoint: Checkpoint | None) -> None:
     """Run the complete training pipeline.
 
     Builds the data source and dataset, lets the strategy prepare splits and
@@ -70,6 +74,7 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
         args_namespace: Parsed CLI arguments (must contain ``tensorboard``;
             may contain ``dry_run`` to enable profile output).
         save_dir: Root directory for all training outputs.
+        checkpoint: Optional checkpoint already loaded by the training CLI.
     """
     logging.info("Training.")
 
@@ -93,12 +98,23 @@ def train(config: Config, args_namespace: Namespace, save_dir: Path) -> None:
     strategy.init_model_weights()
     strategy.setup_trainers(config.get_str("device"))
 
+    # Restore checkpoint if provided
+    if checkpoint is not None:
+        strategy.set_state_dicts(checkpoint.model_states)
+        logging.info("Restored model states from checkpoint.")
+        if not args_namespace.restart_training_state:
+            _restore_optimizer(strategy, checkpoint)
+            _restore_scheduler(strategy, checkpoint)
+            if checkpoint.training_state is not None:
+                logging.info("Restored optimizer and scheduler states from checkpoint.")
+
     # Save signature
     signature_save_path = checkpointer.signature.save(save_dir / "models" / "signature.yaml")
     logging.info(f"Signature saved to: {signature_save_path}")
 
     split_indices_save_path = save_dir / "split_indices.json"
     save_splits(split_indices_save_path, model_splits)
+    save_separate_splits(save_dir, model_splits)
     logging.info(f"Split indices saved to: {split_indices_save_path}")
 
     # Main training
@@ -199,6 +215,53 @@ def _setup_strategy(
     )
 
     return strategy
+
+
+###############################################################################
+############################## RESTORE FUNCTIONS ##############################
+###############################################################################
+
+
+def _restore_optimizer(
+    strategy: Strategy,
+    checkpoint: Checkpoint,
+) -> None:
+    """Restore optimizer state for each strategy member from a checkpoint.
+
+    Args:
+        strategy: Prepared strategy with initialized trainers.
+        checkpoint: Checkpoint containing per-member optimizer states.
+    """
+    training_state = checkpoint.training_state
+    if training_state is None:
+        return
+
+    trainers = cast(list[Trainer], strategy.trainers)
+    for trainer, state in zip(trainers, training_state["optimizer_states"]):
+        trainer.optimizer.torch_optimizer.load_state_dict(state)
+
+
+def _restore_scheduler(
+    strategy: Strategy,
+    checkpoint: Checkpoint,
+) -> None:
+    """Restore epoch and warm-up scheduler state for each strategy member.
+
+    Args:
+        strategy: Prepared strategy with initialized trainers and schedulers.
+        checkpoint: Checkpoint containing per-member scheduler states.
+    """
+    training_state = checkpoint.training_state
+    if training_state is None:
+        return
+
+    trainers = cast(list[Trainer], strategy.trainers)
+    for trainer, epoch_state, warmup_state in zip(
+        trainers, training_state["epoch_scheduler_states"], training_state["warmup_scheduler_states"]
+    ):
+        trainer.epoch_lr_scheduler.load_state_dict(epoch_state)
+        if warmup_state is not None:
+            cast(Scheduler, trainer.warmup_lr_scheduler).load_state_dict(warmup_state)
 
 
 ###############################################################################

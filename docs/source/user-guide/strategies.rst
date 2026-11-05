@@ -26,7 +26,7 @@ Available implementations
 
 * ``single`` (:class:`~xanesnet.strategies.single.Single`) trains one model on the configured training and validation split.
   It uses ``inferencer_type: basic`` for inference.
-* ``kfold`` (:class:`~xanesnet.strategies.kfold.KFold`) splits the full dataset into folds and trains one model for each fold.
+* ``kfold`` (:class:`~xanesnet.strategies.kfold.KFold`) splits the full dataset into folds by default and trains one model for each fold.
   All fold models are retained and combined with ``inferencer_type: ensemble``.
 * ``bootstrap`` (:class:`~xanesnet.strategies.bootstrap.Bootstrap`) trains several models on bootstrap resamples of the training subset. \
   The ensemble inferencer combines their predictions.
@@ -62,11 +62,12 @@ Model-specific data and encodings
 ---------------------------------
 
 Every training strategy writes one ``split_indices.json`` file containing the train and validation indices for each model, in model order.
+Set ``dataset.split_indexfile`` to this file to explicitly reuse those plans in another training run.
 Strategies with shared data, such as ``single`` and ``deep_ensemble``, record the same configured split for each model.
 ``bootstrap`` records each resample, while ``kfold`` records each fold.
 Multi-device Lightning workers reuse these exact plans instead of drawing their own.
 
-K-fold training creates folds from the full dataset and ignores the configured dataset splits.
+K-fold training creates folds from the full dataset. A configured file must provide one fold plan per model.
 ``n_splits`` must not exceed the number of dataset samples.
 All fold models share one encoding, whose automatic fields are resolved from the full dataset before the folds are trained.
 Thus each fold's validation samples contribute to the shared encoding statistics; this is an intentional transductive choice rather than a fold-isolated preprocessing estimate.

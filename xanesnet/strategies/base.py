@@ -27,7 +27,6 @@
 
 """Abstract base class for XANESNET training and inference strategies."""
 
-import copy
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
@@ -35,7 +34,6 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from torch.utils.data import Subset
 
 from xanesnet.checkpointing import Checkpointer
 from xanesnet.datasets import Dataset
@@ -43,6 +41,7 @@ from xanesnet.encodings import CombinedEncoding, SpectraEncoding
 from xanesnet.models import Model
 from xanesnet.runners.inferencers.base import Inferencer
 from xanesnet.runners.trainers.base import Trainer
+from xanesnet.serialization._types import SplitPlans
 from xanesnet.serialization.auto_config import resolve_auto_encoding_config
 from xanesnet.serialization.config import Config
 from xanesnet.utils.exceptions import ConfigError
@@ -101,8 +100,6 @@ class Strategy(ABC):
             raise ValueError("Either trainer_config or inferencer_config must be provided.")
 
         self.n_models = 1
-        self.model_splits: list[list[list[int]]] | None = None
-        self.model_datasets: list[Dataset] = []
         self.encoding: SpectraEncoding | None = None
         self.models: list[Model] = []
         self.checkpointer: Checkpointer | None = None
@@ -155,36 +152,15 @@ class Strategy(ABC):
         for model, state_dict in zip(self.models, state_dicts, strict=True):
             model.load_state_dict(state_dict)
 
-    def setup_model_splits(self, model_splits: list[list[list[int]]] | None = None) -> list[list[list[int]]]:
-        """Draw or restore dataset splits specific to individual models.
+    def setup_model_splits(self) -> SplitPlans:
+        """Set up the configured dataset splits.
 
         Must be called before ``setup_encoding`` or ``setup_trainers``.
-        The default implementation applies the dataset's configured splits and
-        gives every model the same plan.
 
-        Args:
-            model_splits: Previously drawn subset indices, one ordered list of
-                split index lists per model, or ``None`` to draw new splits.
-
-        Raises:
-            ValueError: If restored plans do not contain one entry per model.
+        Returns:
+            Split indices created by the dataset.
         """
-        if model_splits is None:
-            if not self.dataset.subsets:
-                self.dataset.setup_splits()
-            configured_splits = self.dataset.get_all_subset_indices()
-            if not configured_splits:
-                configured_splits = [list(range(len(self.dataset)))]
-            model_splits = [[list(indices) for indices in configured_splits] for _ in range(self.n_models)]
-        if len(model_splits) != self.n_models:
-            raise ValueError(f"Expected {self.n_models} model splits, got {len(model_splits)}.")
-        self.model_splits = model_splits
-        self.model_datasets = []
-        for splits in model_splits:
-            model_dataset = copy.copy(self.dataset)
-            model_dataset._subsets = [Subset(self.dataset, indices) for indices in splits]
-            self.model_datasets.append(model_dataset)
-        return model_splits
+        return self.dataset.setup_splits()
 
     def setup_encoding(self, config: Config) -> SpectraEncoding:
         """Resolve and build the strategy's shared encoding.
@@ -200,7 +176,7 @@ class Strategy(ABC):
         Returns:
             The initialized shared encoding.
         """
-        if self.trainer_config is not None and self.model_splits is None:
+        if self.trainer_config is not None and self.dataset.train_subset is None:
             raise ValueError("Cannot setup encoding before model splits are initialized.")
 
         resolved_config = resolve_auto_encoding_config(config, self._dataset_for_encoding())
@@ -295,7 +271,11 @@ class Strategy(ABC):
         return self.checkpointer
 
     def _dataset_for_encoding(self) -> Dataset:
-        """Return the data view used to fit this strategy's encoding."""
+        """Return the data view used to fit this strategy's encoding.
+
+        Returns:
+            Dataset view used to fit the shared encoding.
+        """
         return self.dataset
 
     @property

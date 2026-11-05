@@ -34,12 +34,12 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch.utils.data import Subset
 
 from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization._types import SplitPlans
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 from xanesnet.utils.exceptions import ConfigError
@@ -53,8 +53,9 @@ class KFold(Strategy):
     """Repeated k-fold cross-validation ensemble training strategy.
 
     The strategy trains one model per fold on a shuffled partition of the full
-    dataset; configured dataset splits are ignored. Each fold uses the holdout
-    partition as validation during training. There are
+    dataset by default. A configured ``split_indexfile`` supplies
+    explicit fold plans instead. Each fold uses the holdout partition as
+    validation during training. There are
     ``n_splits * n_repeats`` fold models in total. The folds are drawn once by
     ``setup_model_splits`` and can be restored unchanged, for example by
     distributed workers. All fold models share one encoding fitted on the full
@@ -126,40 +127,41 @@ class KFold(Strategy):
                 train_indices = np.concatenate(folds[:fold_idx] + folds[fold_idx + 1 :])
                 yield train_indices.tolist(), valid_indices.tolist()
 
-    def setup_model_splits(
-        self,
-        model_splits: list[list[list[int]]] | None = None,
-    ) -> list[list[list[int]]]:
-        """Draw or restore the train and validation indices of every fold.
+    def setup_model_splits(self) -> SplitPlans:
+        """Use configured fold plans or generate folds from the full dataset.
 
-        Args:
-            model_splits: Previously drawn fold splits to restore, or ``None``
-                to draw new folds from the full dataset.
-
-        Raises:
-            ConfigError: If new folds are requested with more folds than
-                dataset samples.
-            ValueError: If restored splits do not contain one entry per fold
-                model.
+        Returns:
+            Configured or generated train and validation indices for each fold.
         """
-        if model_splits is None:
-            if self.n_splits > len(self.dataset):
-                raise ConfigError(
-                    f"KFold n_splits={self.n_splits} exceeds the dataset size {len(self.dataset)}; "
-                    "every fold requires at least one validation sample."
-                )
-            model_splits = [list(fold_split) for fold_split in self._iter_kfold_splits()]
-        return super().setup_model_splits(model_splits)
+        model_splits = super().setup_model_splits()
+        if self.dataset.has_split_indexfile:
+            return model_splits
+        if self.n_splits > len(self.dataset):
+            raise ConfigError(
+                f"KFold n_splits={self.n_splits} exceeds the dataset size {len(self.dataset)}; "
+                "every fold requires at least one validation sample."
+            )
+        model_splits = [list(fold_split) for fold_split in self._iter_kfold_splits()]
+        self.dataset.set_splits(model_splits)
+        return model_splits
 
     def _dataset_for_encoding(self) -> Dataset:
-        """Use the union of all fold train and validation samples for fitting."""
+        """Use the union of all fold train and validation samples for fitting.
+
+        Returns:
+            Dataset view containing every sample for shared encoding fitting.
+        """
         encoding_dataset = copy.copy(self.dataset)
         all_indices = list(range(len(self.dataset)))
-        encoding_dataset._subsets = [Subset(self.dataset, all_indices)]
+        encoding_dataset.set_splits([[all_indices]])
         return encoding_dataset
 
     def setup_models(self, model_config: Config) -> None:
-        """Instantiate one model for each fold across all repeats."""
+        """Instantiate one model for each fold across all repeats.
+
+        Args:
+            model_config: Fully resolved configuration for the fold models.
+        """
         model_type = model_config.get_str("model_type")
         model_cls = ModelRegistry.get(model_type)
 
@@ -188,7 +190,7 @@ class KFold(Strategy):
             raise ValueError("Cannot setup trainers because there is no trainer config.")
         if self.checkpointer is None:
             raise ValueError("Cannot setup trainers because checkpointer is not instantiated.")
-        if self.model_splits is None:
+        if self.dataset.train_subset is None:
             raise ValueError("Cannot setup trainers because fold splits are not initialized.")
         if self.encoding is None:
             raise ValueError("Cannot setup trainers because encoding is not initialized.")
@@ -199,7 +201,7 @@ class KFold(Strategy):
 
         for model_idx, model in enumerate(self.models):
             logging.info(f"Initializing k-fold trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
-            dataset_model = self.model_datasets[model_idx]
+            dataset_model = self.dataset.get_dataset(model_idx)
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
                 dataset=dataset_model,

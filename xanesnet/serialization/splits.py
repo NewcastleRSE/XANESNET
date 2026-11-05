@@ -30,10 +30,11 @@
 import json
 from pathlib import Path
 
+from xanesnet.serialization._types import SplitPlans
 from xanesnet.utils.exceptions import ResourceError
 
 
-def load_splits(filepath: str | Path, model_index: int | None = None) -> list[list[list[int]]]:
+def load_splits(filepath: str | Path, model_index: int | None = None) -> SplitPlans:
     """Load split indices for all models or a selected model.
 
     Args:
@@ -54,7 +55,7 @@ def load_splits(filepath: str | Path, model_index: int | None = None) -> list[li
     if not isinstance(data, dict) or not isinstance(data.get("models"), list):
         raise ResourceError("Invalid model splits file format.")
 
-    model_splits: list[list[list[int]]] = []
+    model_splits: SplitPlans = []
     for model_number, raw_splits in enumerate(data["models"]):
         if not isinstance(raw_splits, dict):
             raise ResourceError(f"Model split entry {model_number} must be a dict.")
@@ -83,7 +84,7 @@ def load_splits(filepath: str | Path, model_index: int | None = None) -> list[li
     return [model_splits[model_index]]
 
 
-def save_splits(filepath: str | Path, model_splits: list[list[list[int]]]) -> None:
+def save_splits(filepath: str | Path, model_splits: SplitPlans) -> None:
     """Save dataset split indices for each model to a JSON file.
 
     Args:
@@ -104,3 +105,17 @@ def save_splits(filepath: str | Path, model_splits: list[list[list[int]]]) -> No
 
     with filepath.open("w", encoding="utf-8") as f:
         json.dump({"models": serialized_models}, f, indent=2)
+
+
+def save_separate_splits(directory: str | Path, model_splits: SplitPlans) -> None:
+    """Save a separate single-plan split file for each model in a multi-model run.
+
+    Args:
+        directory: Directory where the per-model split files are written.
+        model_splits: One ordered list of split index lists.
+            Positions 0 and 1 in each plan are written as ``train`` and ``valid``.
+    """
+    directory = Path(directory)
+    if len(model_splits) > 1:
+        for model_index, model_plan in enumerate(model_splits):
+            save_splits(directory / f"split_indices_{model_index}.json", [model_plan])

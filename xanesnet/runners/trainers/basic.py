@@ -123,8 +123,6 @@ class BasicTrainer(Trainer):
             lr_warmup,
             warmup_steps,
         )
-        self._global_step = 0
-        self._warmup_complete = self.warmup_lr_scheduler is None
 
     def train(self) -> float | None:
         """Run the ordinary epoch loop with existing scheduling and selection.
@@ -136,6 +134,8 @@ class BasicTrainer(Trainer):
         """
         self.early_stopper.start()
         self.model.to(self.device)
+        optimizer = self.optimizer.torch_optimizer
+        optimizer.load_state_dict(optimizer.state_dict())
         self.loss.to(self.device)
 
         sample_batch = next(iter(self.dataloader))
@@ -179,13 +179,17 @@ class BasicTrainer(Trainer):
             if self._warmup_complete:
                 self.epoch_lr_scheduler.torch_scheduler.step()
 
+            self.completed_epochs += 1
             stopped = False
             if self.valid_dataloader is None:
-                stopped = self.early_stopper.step(train_total, self.model, epoch)
+                stopped = self.early_stopper.step(
+                    train_total, self.model, epoch, self.optimizer, self.epoch_lr_scheduler, self.warmup_lr_scheduler
+                )
             elif valid_total is not None:
-                stopped = self.early_stopper.step(valid_total, self.model, epoch)
+                stopped = self.early_stopper.step(
+                    valid_total, self.model, epoch, self.optimizer, self.epoch_lr_scheduler, self.warmup_lr_scheduler
+                )
 
-            self.completed_epochs = epoch + 1
             force_save = epoch == self.epochs - 1 or stopped
             checkpoint_name = self.checkpointer.step(epoch, force_save=force_save)
             if checkpoint_name is not None:
@@ -196,8 +200,11 @@ class BasicTrainer(Trainer):
 
         logging.info("Finished training.")
         if self.early_stopper.restore_best:
-            score, best_epoch = self.early_stopper.restore(self.model)
+            score, best_epoch = self.early_stopper.restore(
+                self.model, self.optimizer, self.epoch_lr_scheduler, self.warmup_lr_scheduler
+            )
             if score is not None and best_epoch is not None:
+                self.completed_epochs = best_epoch + 1
                 logging.info(f"Restored best model from epoch {best_epoch} with score {score}.")
             else:
                 logging.warning(
@@ -320,7 +327,4 @@ class BasicTrainer(Trainer):
         """Advance warm-up after an optimizer step until its configured end."""
         if self.warmup_lr_scheduler is None or self._warmup_complete:
             return
-        self._global_step += 1
         self.warmup_lr_scheduler.torch_scheduler.step()
-        if self._global_step >= self.warmup_steps:
-            self._warmup_complete = True

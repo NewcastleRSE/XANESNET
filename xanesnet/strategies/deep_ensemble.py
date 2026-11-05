@@ -36,6 +36,7 @@ from xanesnet.datasets import Dataset
 from xanesnet.models import Model, ModelRegistry
 from xanesnet.runners.inferencers import InferencerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization._types import SplitPlans
 from xanesnet.serialization.config import Config
 from xanesnet.serialization.tensorboard import tb_logger
 
@@ -99,7 +100,11 @@ class DeepEnsemble(Strategy):
         self.n_models = n_models
 
     def setup_models(self, model_config: Config) -> None:
-        """Instantiate ``n_models`` independent copies of the configured model."""
+        """Instantiate ``n_models`` independent copies of the configured model.
+
+        Args:
+            model_config: Fully resolved configuration for the models.
+        """
         model_type = model_config.get_str("model_type")
         model_cls = ModelRegistry.get(model_type)
 
@@ -107,6 +112,18 @@ class DeepEnsemble(Strategy):
         for model_idx in range(self.n_models):
             logging.info(f"Initializing ensemble model {model_idx + 1}/{self.n_models}: {model_type}")
             self.models.append(model_cls(**model_config.as_kwargs()))
+
+    def setup_model_splits(self) -> SplitPlans:
+        """Share a single configured split plan across ensemble members.
+
+        Returns:
+            One split plan per ensemble member.
+        """
+        model_splits = super().setup_model_splits()
+        if len(model_splits) == 1:
+            model_splits *= self.n_models
+            self.dataset.set_splits(model_splits)
+        return model_splits
 
     def setup_trainers(self, device: str | torch.device) -> None:
         """Instantiate one trainer per ensemble member.
@@ -135,7 +152,7 @@ class DeepEnsemble(Strategy):
         self.trainers = []
         for model_idx, model in enumerate(self.models):
             logging.info(f"Initializing trainer {model_idx + 1}/{self.n_models}: {trainer_type}")
-            dataset_model = self.model_datasets[model_idx]
+            dataset_model = self.dataset.get_dataset(model_idx)
             trainer = trainer_cls(
                 **self.trainer_config.as_kwargs(),
                 dataset=dataset_model,

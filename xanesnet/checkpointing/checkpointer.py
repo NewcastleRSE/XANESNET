@@ -70,8 +70,7 @@ class Checkpointer:
         self.trainer_provider = trainer_provider
 
         self._optimizer_signature: dict[str, Any] | None = None
-        self._epoch_scheduler_signature: dict[str, Any] | None = None
-        self._warmup_scheduler_signature: dict[str, Any] | None = None
+        self._scheduler_signature: dict[str, Any] | None = None
 
         self._finished_states: dict[int, dict[str, Any]] = {}
         self._member_index = 0
@@ -112,9 +111,8 @@ class Checkpointer:
                 "epochs": [member["epochs"] for member in member_states],
                 "optimizer_signature": self._optimizer_signature,
                 "optimizer_states": [member["optimizer_state"] for member in member_states],
-                "epoch_scheduler_signature": self._epoch_scheduler_signature,
+                "scheduler_signature": self._scheduler_signature,
                 "epoch_scheduler_states": [member["epoch_scheduler_state"] for member in member_states],
-                "warmup_scheduler_signature": self._warmup_scheduler_signature,
                 "warmup_scheduler_states": [member["warmup_scheduler_state"] for member in member_states],
             },
         )
@@ -129,14 +127,16 @@ class Checkpointer:
             Mapping containing the model state, completed epochs, optimizer state, and scheduler states.
         """
         if self._optimizer_signature is None:
-            self._optimizer_signature = trainer.optimizer.signature.as_dict()
-            self._epoch_scheduler_signature = trainer.epoch_lr_scheduler.signature.as_dict()
-            self._warmup_scheduler_signature = (
-                None if trainer.warmup_lr_scheduler is None else trainer.warmup_lr_scheduler.signature.as_dict()
-            )
+            self._optimizer_signature = {"trainer": trainer.optimizer.signature.as_dict()}
+            self._scheduler_signature = {
+                "trainer": {
+                    "lr_scheduler": trainer.epoch_lr_scheduler.signature.as_dict(),
+                    "lr_warmup": trainer.warmup_lr_scheduler is not None,
+                }
+            }
 
         warmup_state = None if trainer.warmup_lr_scheduler is None else trainer.warmup_lr_scheduler.state_dict()
-        return _state_to_cpu(
+        return state_to_cpu(
             {
                 "model_state": trainer.model.state_dict(),
                 "epochs": trainer.completed_epochs,
@@ -184,7 +184,7 @@ class Checkpointer:
         return checkpoint_name
 
 
-def _state_to_cpu(value: Any) -> Any:
+def state_to_cpu(value: Any) -> Any:
     """Recursively detach, clone, and move tensors in nested state to CPU.
 
     Args:
@@ -197,9 +197,9 @@ def _state_to_cpu(value: Any) -> Any:
     if torch.is_tensor(value):
         return value.detach().cpu().clone()
     if isinstance(value, Mapping):
-        return {key: _state_to_cpu(subvalue) for key, subvalue in value.items()}
+        return {key: state_to_cpu(subvalue) for key, subvalue in value.items()}
     if isinstance(value, list):
-        return [_state_to_cpu(subvalue) for subvalue in value]
+        return [state_to_cpu(subvalue) for subvalue in value]
     if isinstance(value, tuple):
-        return tuple(_state_to_cpu(subvalue) for subvalue in value)
+        return tuple(state_to_cpu(subvalue) for subvalue in value)
     return value

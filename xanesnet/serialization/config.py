@@ -133,12 +133,11 @@ def merge_raw_configs(a: ConfigRaw, b: ConfigRaw) -> ConfigRaw:
         b: Overlay configuration dictionary.
 
     Returns:
-        A new ``ConfigRaw`` with all keys from both dicts.  Nested dicts are
-        merged recursively.
+        A new ``ConfigRaw`` with all keys from both dicts.  Nested dicts are merged recursively.
+        Values, including registry identifiers, must match exactly and strings are case-sensitive.
 
     Raises:
-        ConfigError: If the same key exists in both dicts with conflicting
-            non-dict values.
+        ConfigError: If the same key exists in both dicts with conflicting values.
     """
     merged = a.copy()
 
@@ -146,6 +145,13 @@ def merge_raw_configs(a: ConfigRaw, b: ConfigRaw) -> ConfigRaw:
         if k in merged:
             if isinstance(merged[k], dict) and isinstance(v, dict):
                 merged[k] = merge_raw_configs(merged[k], v)
+            elif (
+                isinstance(merged[k], list)
+                and isinstance(v, list)
+                and len(merged[k]) == len(v)
+                and all(isinstance(left, dict) and isinstance(right, dict) for left, right in zip(merged[k], v))
+            ):
+                merged[k] = [merge_raw_configs(left, right) for left, right in zip(merged[k], v)]
             elif merged[k] != v:
                 raise ConfigError(f"Conflict for key '{k}': {merged[k]} != {v}")
         else:

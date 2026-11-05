@@ -16,6 +16,8 @@ Training a model
 Common options:
 
 * ``-i, --in_file`` - Path to input YAML configuration file (required).
+* ``-m, --model`` - Optional minimal or full checkpoint used to initialize or continue training.
+* ``--restart-training-state`` - Load checkpoint model weights but use fresh optimizer and scheduler state (optional).
 * ``-o, --out_dir`` - Path to output directory (optional, default: ``./runs``).
 * ``-n, --name`` - Name for the training run used for logging and saving (optional).
 * ``-t, --tensorboard`` - Enable training metrics in TensorBoard logs (optional).

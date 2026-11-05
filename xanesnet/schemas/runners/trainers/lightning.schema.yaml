@@ -66,7 +66,7 @@ $defs:
         type: integer
         minimum: 1
         default: 10
-        description: Total number of training epochs.
+        description: Number of epochs to run in this invocation; resumed runs add this many epochs.
       learning_rate:
         type: number
         exclusiveMinimum: 0

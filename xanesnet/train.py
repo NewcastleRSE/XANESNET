@@ -42,11 +42,14 @@ from xanesnet.losses import LossRegistry
 from xanesnet.models import ModelRegistry
 from xanesnet.regularizers import RegularizerRegistry
 from xanesnet.runners.trainers import TrainerRegistry
+from xanesnet.serialization.checkpoints import Checkpoint
 from xanesnet.serialization.config import (
     Config,
     ConfigRaw,
     copy_raw_config,
     load_raw_config,
+    merge_raw_configs,
+    save_raw_config,
 )
 from xanesnet.serialization.metadata import write_run_metadata
 from xanesnet.serialization.schema_validation import validate_config_schema
@@ -85,6 +88,18 @@ def parse_args(args: list[str]) -> Namespace:
         type=str,
         required=True,
         help="Path to input YAML configuration file.",
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        dest="model_path",
+        type=str,
+        help="Path to a minimal or full checkpoint to initialize or resume training from.",
+    )
+    parser.add_argument(
+        "--restart-training-state",
+        action="store_true",
+        help="Use fresh optimizer and schedulers instead of restoring full checkpoint training state.",
     )
     parser.add_argument(
         "-o",
@@ -171,6 +186,25 @@ def main(args: list[str]) -> None:
         logging.info(f"Loading YAML configuration file @ {args_namespace.in_file}")
         config_raw: ConfigRaw = load_raw_config(args_namespace.in_file)
 
+        # Potentially loading checkpoint for training
+        checkpoint = None
+        if args_namespace.model_path is not None:
+            logging.info(f"Loading model checkpoint @ {args_namespace.model_path}")
+            checkpoint = Checkpoint.load(args_namespace.model_path)
+
+        # Merge training config and checkpoint config
+        if checkpoint is not None:
+            logging.info("Merging configuration with checkpoint signatures.")
+            config_raw = merge_raw_configs(config_raw, checkpoint.signature.as_dict())
+            if not args_namespace.restart_training_state:
+                training_state = checkpoint.training_state or {}
+                optimizer_signature = training_state.get("optimizer_signature")
+                if optimizer_signature is not None:
+                    config_raw = merge_raw_configs(config_raw, optimizer_signature)
+                scheduler_signature = training_state.get("scheduler_signature")
+                if scheduler_signature is not None:
+                    config_raw = merge_raw_configs(config_raw, scheduler_signature)
+
         # Config validation
         validated = validate_config_schema(config_raw, "train")
         config: Config = Config(validated)
@@ -200,6 +234,11 @@ def main(args: list[str]) -> None:
         # Copy raw config file
         config_save_path = copy_raw_config(args_namespace.in_file, save_dir, new_name="train_config.yaml")
         logging.info(f"Configuration file saved to: {config_save_path}")
+
+        # Save merged configuration if a checkpoint is being used
+        if checkpoint is not None:
+            merged_config_save_path = save_raw_config(config_raw, save_dir / "merged_train_config.yaml")
+            logging.info(f"Merged configuration file saved to: {merged_config_save_path}.")
 
         # Scale file copying (if configured)
         scale_file = config.section("model").as_kwargs().get("scale_file")
@@ -239,6 +278,6 @@ def main(args: list[str]) -> None:
         if trainer_type == "lightning":
             from xanesnet.core_lightning import train_initial
 
-            train_initial(config, args_namespace, save_dir)
+            train_initial(config, args_namespace, save_dir, checkpoint)
         else:
-            train(config, args_namespace, save_dir)
+            train(config, args_namespace, save_dir, checkpoint)

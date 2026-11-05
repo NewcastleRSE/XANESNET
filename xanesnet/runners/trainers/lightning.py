@@ -117,7 +117,7 @@ class _LightningModule(L.LightningModule):
         if (
             warmup_scheduler is not None
             and scheduler is warmup_scheduler.torch_scheduler
-            and self.global_step <= self.xn.warmup_steps
+            and not self.xn._warmup_complete
         ):
             warmup_scheduler.torch_scheduler.step()
 
@@ -219,17 +219,24 @@ class _LightningModule(L.LightningModule):
             )
             tb_logger.log_model_weights(self.current_epoch, self.model)
 
-        if self.xn.warmup_lr_scheduler is None or self.global_step >= self.xn.warmup_steps:
+        if self.xn._warmup_complete:
             self.xn.epoch_lr_scheduler.torch_scheduler.step()
 
+        self.xn.completed_epochs += 1
         monitored = train_metrics if self.xn.valid_dataloader is None else valid_metrics
         stopped = False
         if monitored is not None:
             self.last_score = monitored[2]
-            stopped = self.xn.early_stopper.step(self.last_score, self.model, self.current_epoch)
+            stopped = self.xn.early_stopper.step(
+                self.last_score,
+                self.model,
+                self.current_epoch,
+                self.xn.optimizer,
+                self.xn.epoch_lr_scheduler,
+                self.xn.warmup_lr_scheduler,
+            )
         stopped = bool(self._reduce_sum(torch.tensor(int(stopped), device=self.device)).item())
         self.trainer.should_stop = self.trainer.should_stop or stopped
-        self.xn.completed_epochs = self.current_epoch + 1
         if self.trainer.is_global_zero:
             checkpointer = self.xn.checkpointer
             force_save = self.current_epoch == self.xn.epochs - 1 or stopped
@@ -486,9 +493,12 @@ class LightningTrainer(Trainer):
 
         score = module.last_score
         if self.early_stopper.restore_best:
-            best_score, best_epoch = self.early_stopper.restore(self.model)
-            if best_score is not None:
+            best_score, best_epoch = self.early_stopper.restore(
+                self.model, self.optimizer, self.epoch_lr_scheduler, self.warmup_lr_scheduler
+            )
+            if best_score is not None and best_epoch is not None:
                 score = best_score
+                self.completed_epochs = best_epoch + 1
                 logging.info(f"Restored best model from epoch {best_epoch} with score {score}.")
         return score
 

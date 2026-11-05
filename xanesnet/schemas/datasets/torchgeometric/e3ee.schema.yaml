@@ -38,9 +38,7 @@ $defs:
         default: false
         description: Whether to reuse existing processed files.
       split_ratios:
-        type:
-        - array
-        - 'null'
+        type: array
         items:
           type: number
           minimum: 0

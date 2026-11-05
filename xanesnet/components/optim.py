@@ -46,7 +46,11 @@ class Optimizer(ABC):
 
     @abstractmethod
     def state_dict(self) -> dict[str, Any]:
-        """Return the native optimizer state for checkpointing."""
+        """Return the native optimizer state for checkpointing.
+
+        Returns:
+            Native optimizer state dictionary.
+        """
         ...
 
     @property
@@ -68,12 +72,12 @@ class Optimizer(ABC):
         return cast(optim.Optimizer, self)
 
     def _set_optimizer_type(self, optimizer_type: str) -> None:
-        """Store the optimizer type and its reconstruction signature.
+        """Store the configured optimizer type and its reconstruction signature.
 
         Args:
-            optimizer_type: Registry key identifying the optimizer type.
+            optimizer_type: Configured name identifying this optimizer type.
         """
-        self.optimizer_type = optimizer_type.lower()
+        self.optimizer_type = optimizer_type
         self._signature = Config({"optimizer": self.optimizer_type})
 
 
