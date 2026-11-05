@@ -481,6 +481,7 @@ class LightningTrainer(Trainer):
             check_val_every_n_epoch=1,
             num_sanity_val_steps=0,
             logger=False,
+            enable_progress_bar=False,
             enable_checkpointing=False,
             use_distributed_sampler=True,
             plugins=[LightningEnvironment()],

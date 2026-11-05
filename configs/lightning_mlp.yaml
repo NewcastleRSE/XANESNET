@@ -1,7 +1,7 @@
 # Example configuration for MLP training with toy data.
 
 seed: 2025
-device: cpu
+device: cuda
 
 datasource:
   datasource_type: pmgjson
@@ -40,7 +40,7 @@ model:
   activation: prelu
 
 trainer:
-  # For CPU or CUDA, num_devices>1 uses strategy="ddp".
+  # general:
   trainer_type: lightning
   batch_size: 4
   shuffle: True
