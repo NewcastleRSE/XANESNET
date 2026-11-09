@@ -53,10 +53,13 @@ The minimal file contains only the signature and one model state per member, so 
 
 The ``_full`` file additionally stores a ``training_state`` mapping with:
 * ``epochs``: completed-epoch count per member;
-* ``optimizer_signature``, ``epoch_scheduler_signature``, and ``warmup_scheduler_signature``: component types shared by every member (``warmup_scheduler_signature`` is ``None`` when warm-up is disabled);
+* ``optimizer_signature``: the ``trainer.optimizer`` signature shared by every member;
+* ``scheduler_signature``: the ``trainer.lr_scheduler`` signature and ``trainer.lr_warmup`` flag shared by every member;
 * ``optimizer_states``, ``epoch_scheduler_states``, and ``warmup_scheduler_states``: one component state per member.
 
-For multi-model strategies each checkpoint saving also produces one minimal/full checkpoint pair per member, named ``checkpoints/checkpoint_<epoch>_member_<member>.pth`` and ``checkpoints/checkpoint_<epoch>_member_<member>_full.pth``.
+Periodic saves write a combined snapshot of the strategy's model and training states, plus its ``_full`` sibling, under ``checkpoints/``. In ``checkpoint_<epoch>_member_<member>.pth``, ``<member>`` identifies the member being trained at that save; the checkpoint is not a separate export for that member.
+
+When ``Checkpointer.save()`` writes the final checkpoint, multi-model strategies also produce one minimal/full pair per member under ``models/``, named ``final_member_<member>.pth`` and ``final_member_<member>_full.pth``.
 
 Model-specific data and encodings
 ---------------------------------
