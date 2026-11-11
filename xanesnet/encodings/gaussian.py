@@ -44,7 +44,9 @@ class GaussianEncoding(SpectraEncoding):
     """Gaussian-basis spectra encoding.
 
     Encodes spectra as coefficients of a Gaussian basis expansion and decodes
-    them by re-synthesising spectra from those coefficients. The basis places
+    them by re-synthesising spectra from those coefficients. The
+    ridge-regularized coefficient fit is approximate, so round-trip
+    reconstruction can include representation error. The basis places
     Gaussians of the requested ``widths`` on a uniform grid of ``num_points``
     points, strided by ``basis_stride``. The encoded dimension is
     ``len(widths) * ceil(num_points / basis_stride)``.
