@@ -1,7 +1,7 @@
 Losses
 ======
 
-The :class:`~xanesnet.losses.base.Loss` implementations measure the difference between model predictions and target spectra.
+The :class:`~xanesnet.losses.base.Loss` implementations compare model predictions with the targets produced by the selected dataset.
 Encodings are applied before loss calculation; see :doc:`encodings`.
 They are configured as a non-empty list under ``trainer.loss``.
 XANESNET builds a combined loss from the selected terms before each training update.

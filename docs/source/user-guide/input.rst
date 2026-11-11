@@ -9,7 +9,7 @@ The schemas define allowed fields, types, and default values.
 
 The required top-level sections are:
 * training: ``datasource``, ``dataset``, ``model``, ``trainer``, ``strategy``, and ``encodings``
-* inference: ``datasource``, ``dataset``, and ``inferencer``
+* inference: ``datasource``, ``dataset``, ``strategy``, and ``inferencer``
 * analysis: ``selectors``, ``collectors``, ``aggregators``, ``reporters``, and ``plotters``
 
 Many nested fields have defaults, so they do not need to be written when the default is suitable.

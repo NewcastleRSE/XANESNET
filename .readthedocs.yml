@@ -13,8 +13,8 @@ build:
   jobs:
     pre_install:
       - pip install --upgrade pip setuptools wheel
-      - pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
+      - pip install "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+      - pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.5.1+cpu.html
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
@@ -27,3 +27,4 @@ python:
       path: .
       extra_requirements:
         - docs
+        - lightning

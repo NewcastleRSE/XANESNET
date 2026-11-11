@@ -12,9 +12,11 @@ A config drives one XANESNET run.
 
 1. **Train** — `xanesnet train -i <file>` builds the datasource, dataset,
    encodings, model, trainer, and training strategy described by the config.
-   Outputs are written under `runs/<timestamp>_train_<name>/`.
+   Outputs are written under `runs/train_<name>_NNN/`, or `runs/train_000/`
+   when no run name is provided.
 2. **Infer** — `xanesnet infer -i <file> -m <checkpoint>` merges the user
    config with the checkpoint signature before validation. Predictions land in
-   `runs/<timestamp>_infer_<name>/predictions/`.
+   `runs/infer_<name>_NNN/predictions/`, or `runs/infer_000/predictions/`
+   when no run name is provided.
 3. **Analyze** — `xanesnet analyze -i <file> -r <inference-run>` computes and
    reports metrics on saved predictions.
