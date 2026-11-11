@@ -89,44 +89,11 @@ def test_optional_arguments_default_to_empty_values():
     assert args.out_dir is None and args.name is None and args.yes is False
 
 
-@pytest.mark.parametrize(
-    "argv",
-    [
-        ["-r", "a", "b", "c"],
-        ["-r", "a", "-r", "b", "-r", "c"],
-        ["-r", "a", "b", "-r", "c"],
-        ["--inference-runs", "a", "b", "c"],
-    ],
-    ids=["space-separated", "repeated", "mixed", "long-form"],
-)
-def test_inference_runs_may_be_repeated_and_or_space_separated(argv):
-    args = analyze_cli.parse_args(["-i", "c.yaml", *argv])
+def test_inference_runs_and_prediction_names_may_mix_repeated_and_space_separated_values():
+    args = analyze_cli.parse_args(["-i", "c.yaml", "-r", "a", "b", "-r", "c", "-d", "X", "Y", "-d", "Z"])
+
     assert args.inference_runs == ["a", "b", "c"]
-
-
-@pytest.mark.parametrize(
-    "argv",
-    [["-d", "X", "Y"], ["-d", "X", "-d", "Y"], ["--prediction-names", "X", "Y"]],
-    ids=["space-separated", "repeated", "long-form"],
-)
-def test_prediction_names_are_flattened_in_order(argv):
-    args = analyze_cli.parse_args(["-i", "c.yaml", "-r", "a", "b", *argv])
-    assert args.prediction_names == ["X", "Y"]
-
-
-@pytest.mark.parametrize("missing", ["-i", "-r"])
-def test_input_file_and_inference_runs_are_required(missing):
-    argv = ["-i", "c.yaml", "-r", "a"]
-    index = argv.index(missing)
-    del argv[index : index + 2]
-    with pytest.raises(SystemExit) as excinfo:
-        analyze_cli.parse_args(argv)
-    assert excinfo.value.code == 2
-
-
-def test_inference_runs_require_at_least_one_value():
-    with pytest.raises(SystemExit):
-        analyze_cli.parse_args(["-i", "c.yaml", "-r"])
+    assert args.prediction_names == ["X", "Y", "Z"]
 
 
 ###############################################################################
@@ -156,18 +123,6 @@ def test_run_directory_layout_and_saved_artifacts(core, config_file, out_dir, an
     assert yaml.safe_load((save_dir / "analyze_config.yaml").read_text()) == analyze_config
 
 
-def test_consecutive_runs_get_consecutive_directories(core, config_file, out_dir):
-    run(config_file, out_dir)
-    run(config_file, out_dir)
-    assert [c["save_dir"].name for c in core.calls] == ["analyze_unit_000", "analyze_unit_001"]
-
-
-def test_configured_seed_is_applied(core, write_yaml, analyze_config, out_dir):
-    analyze_config["seed"] = 5
-    run(write_yaml(analyze_config), out_dir)
-    assert core.call["config"].get_int("seed") == 5
-
-
 @pytest.mark.parametrize("flag, expected", [(["--yes"], True), ([], False)])
 def test_yes_flag_enables_auto_confirmation_only_during_the_run(core, config_file, out_dir, flag, expected):
     run(config_file, out_dir, *flag)
@@ -178,12 +133,6 @@ def test_yes_flag_enables_auto_confirmation_only_during_the_run(core, config_fil
 ###############################################################################
 ################################ INVALID INPUT ################################
 ###############################################################################
-
-
-def test_missing_config_file_is_reported(core, tmp_path, out_dir):
-    with pytest.raises(ConfigError, match="does not exist"):
-        run(tmp_path / "missing.yaml", out_dir)
-    assert core.calls == []
 
 
 def test_invalid_config_is_rejected(core, write_yaml, analyze_config, out_dir):

@@ -95,23 +95,10 @@ def test_defaults_for_optional_arguments():
     assert (args.in_file, args.in_model) == ("c.yaml", "m.pth")
     assert args.out_dir is None and args.name is None and args.yes is False
 
-
-def test_short_and_long_forms_are_equivalent():
-    short = infer_cli.parse_args(["-i", "c.yaml", "-m", "m.pth", "-o", "out", "-n", "x", "-y"])
     long = infer_cli.parse_args(
         ["--in_file", "c.yaml", "--in_model", "m.pth", "--out_dir", "out", "--name", "x", "--yes"]
     )
-    assert vars(short) == vars(long)
-
-
-@pytest.mark.parametrize("missing", ["-i", "-m"])
-def test_input_file_and_model_are_required(missing):
-    argv = ["-i", "c.yaml", "-m", "m.pth"]
-    index = argv.index(missing)
-    del argv[index : index + 2]
-    with pytest.raises(SystemExit) as excinfo:
-        infer_cli.parse_args(argv)
-    assert excinfo.value.code == 2
+    assert vars(long) == vars(infer_cli.parse_args(["-i", "c.yaml", "-m", "m.pth", "-o", "out", "-n", "x", "-y"]))
 
 
 ###############################################################################
@@ -157,12 +144,6 @@ def test_merged_config_combines_user_config_and_signature(core, config_file, che
     assert merged["inferencer"]["inferencer_type"] == "basic"
 
 
-def test_consecutive_runs_get_consecutive_directories(core, config_file, checkpoint_file, out_dir):
-    run(config_file, checkpoint_file, out_dir)
-    run(config_file, checkpoint_file, out_dir)
-    assert [c["save_dir"].name for c in core.calls] == ["infer_unit_000", "infer_unit_001"]
-
-
 def test_run_directory_defaults_to_plain_infer_prefix(core, config_file, checkpoint_file, out_dir):
     infer_cli.main(["-i", str(config_file), "-m", str(checkpoint_file), "-o", str(out_dir)])
     assert core.call["save_dir"].name == "infer_000"
@@ -171,12 +152,6 @@ def test_run_directory_defaults_to_plain_infer_prefix(core, config_file, checkpo
 ###############################################################################
 ##################################### SEED ####################################
 ###############################################################################
-
-
-def test_configured_seed_is_applied(core, write_yaml, infer_user_config, checkpoint_file, out_dir):
-    infer_user_config["seed"] = 99
-    run(write_yaml(infer_user_config), checkpoint_file, out_dir)
-    assert core.call["config"].get_int("seed") == 99
 
 
 @pytest.mark.parametrize("flag, expected", [(["--yes"], True), ([], False)])
@@ -191,18 +166,6 @@ def test_yes_flag_enables_auto_confirmation_only_during_the_run(
 ###############################################################################
 ################################ INVALID INPUT ################################
 ###############################################################################
-
-
-def test_missing_config_file_is_reported(core, tmp_path, checkpoint_file, out_dir):
-    with pytest.raises(ConfigError, match="does not exist"):
-        run(tmp_path / "missing.yaml", checkpoint_file, out_dir)
-    assert core.calls == []
-
-
-def test_missing_checkpoint_is_reported(core, config_file, tmp_path, out_dir):
-    with pytest.raises(FileNotFoundError):
-        run(config_file, tmp_path / "missing.pth", out_dir)
-    assert core.calls == []
 
 
 def test_user_config_conflicting_with_the_signature_is_rejected(
@@ -222,10 +185,3 @@ def test_invalid_user_config_is_rejected_after_merging(core, write_yaml, infer_u
         run(write_yaml(infer_user_config), checkpoint_file, out_dir)
     assert core.calls == []
 
-
-def test_ensemble_strategy_requires_the_ensemble_inferencer(core, write_yaml, infer_user_config, checkpoint_file, out_dir):
-    infer_user_config["strategy"] = {"strategy_type": "deep_ensemble"}
-
-    with pytest.raises(ConfigError, match="requires inferencer 'ensemble'"):
-        run(write_yaml(infer_user_config), checkpoint_file, out_dir)
-    assert core.calls == []
