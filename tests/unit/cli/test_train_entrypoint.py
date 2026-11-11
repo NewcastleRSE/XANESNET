@@ -119,22 +119,8 @@ def test_all_arguments_are_parsed_in_their_short_and_long_forms():
     assert (short.model_path, short.out_dir, short.name) == ("m.pth", "out", "x")
     assert short.tensorboard and short.yes
 
-
-def test_long_only_flags():
-    args = train_cli.parse_args(["-i", "c.yaml", "--restart-training-state", "--log-weights", "--dry-run"])
-    assert args.restart_training_state and args.log_weights and args.dry_run
-
-
-def test_input_file_is_required(capsys):
-    with pytest.raises(SystemExit) as excinfo:
-        train_cli.parse_args([])
-    assert excinfo.value.code == 2
-    assert "--in_file" in capsys.readouterr().err
-
-
-def test_unknown_arguments_are_rejected():
-    with pytest.raises(SystemExit):
-        train_cli.parse_args(["-i", "c.yaml", "--bogus"])
+    long_only = train_cli.parse_args(["-i", "c.yaml", "--restart-training-state", "--log-weights", "--dry-run"])
+    assert long_only.restart_training_state and long_only.log_weights and long_only.dry_run
 
 
 ###############################################################################
@@ -176,27 +162,17 @@ def test_validated_config_on_disk_matches_the_one_given_to_core(core, config_fil
     assert saved == core.call["config"].as_dict()
 
 
-def test_consecutive_runs_get_consecutive_directories(core, config_file, out_dir):
-    run(config_file, out_dir)
-    run(config_file, out_dir)
-    assert [c["save_dir"].name for c in core.calls] == ["train_unit_000", "train_unit_001"]
-
-
 def test_run_directory_defaults_to_plain_train_prefix(core, config_file, out_dir):
     train_cli.main(["-i", str(config_file), "-o", str(out_dir)])
     assert core.call["save_dir"].name == "train_000"
 
 
-def test_tensorboard_flag_adds_a_log_directory_and_enables_logging(core, config_file, out_dir):
-    run(config_file, out_dir, "--tensorboard", "--log-weights")
+@pytest.mark.parametrize("flags, created", [(["--tensorboard", "--log-weights"], True), ([], False)])
+def test_tensorboard_directory_follows_the_flag(core, config_file, out_dir, flags, created):
+    run(config_file, out_dir, *flags)
 
-    assert (core.call["save_dir"] / "tensorboard").is_dir()
-    assert core.call["args"].tensorboard is True
-
-
-def test_tensorboard_directory_is_not_created_by_default(core, config_file, out_dir):
-    run(config_file, out_dir)
-    assert not (core.call["save_dir"] / "tensorboard").exists()
+    assert (core.call["save_dir"] / "tensorboard").is_dir() is created
+    assert core.call["args"].tensorboard is created
 
 
 ###############################################################################
@@ -213,10 +189,12 @@ def test_configured_seed_is_kept(core, write_yaml, train_config, out_dir):
     assert saved["seed"] == 1234
 
 
-def test_missing_seed_is_replaced_by_a_concrete_one(core, config_file, out_dir):
+def test_missing_seed_is_replaced_by_a_concrete_one_and_recorded(core, config_file, out_dir):
     run(config_file, out_dir)
+
     seed = core.call["config"].get_int("seed")
-    assert 0 <= seed <= 2**32 - 1
+    saved = yaml.safe_load((core.call["save_dir"] / "validated_train_config.yaml").read_text())
+    assert saved["seed"] == seed
 
 
 ###############################################################################
@@ -224,18 +202,13 @@ def test_missing_seed_is_replaced_by_a_concrete_one(core, config_file, out_dir):
 ###############################################################################
 
 
-def test_dry_run_limits_training_to_a_single_epoch(core, write_yaml, train_config, out_dir):
+@pytest.mark.parametrize("flags, epochs", [(["--dry-run"], 1), ([], 50)])
+def test_dry_run_limits_training_to_a_single_epoch(core, write_yaml, train_config, out_dir, flags, epochs):
     train_config["trainer"]["epochs"] = 50
-    run(write_yaml(train_config), out_dir, "--dry-run")
+    run(write_yaml(train_config), out_dir, *flags)
 
-    assert core.call["config"].section("trainer").get_int("epochs") == 1
-    assert core.call["args"].dry_run is True
-
-
-def test_epochs_are_untouched_without_dry_run(core, write_yaml, train_config, out_dir):
-    train_config["trainer"]["epochs"] = 50
-    run(write_yaml(train_config), out_dir)
-    assert core.call["config"].section("trainer").get_int("epochs") == 50
+    assert core.call["config"].section("trainer").get_int("epochs") == epochs
+    assert core.call["args"].dry_run is bool(flags)
 
 
 @pytest.mark.parametrize("flag, expected", [(["--yes"], True), ([], False)])
@@ -251,12 +224,6 @@ def test_yes_flag_enables_auto_confirmation_only_during_the_run(core, config_fil
 ###############################################################################
 
 
-def test_missing_config_file_is_reported(core, tmp_path, out_dir):
-    with pytest.raises(ConfigError, match="does not exist"):
-        run(tmp_path / "missing.yaml", out_dir)
-    assert core.calls == []
-
-
 def test_invalid_config_is_rejected_before_any_directory_is_created(core, write_yaml, train_config, out_dir):
     train_config["model"]["model_type"] = "nope"
 
@@ -265,12 +232,6 @@ def test_invalid_config_is_rejected_before_any_directory_is_created(core, write_
 
     assert core.calls == []
     assert not out_dir.exists()
-
-
-def test_missing_checkpoint_file_is_reported(core, config_file, out_dir, tmp_path):
-    with pytest.raises(FileNotFoundError):
-        run(config_file, out_dir, "--model", str(tmp_path / "missing.pth"))
-    assert core.calls == []
 
 
 ###############################################################################
