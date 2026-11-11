@@ -25,10 +25,12 @@
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Minimal configs for unit tests."""
+"""Shared fixtures for the unit tests: minimal configs, helpers and global-state isolation."""
 
 import copy
-from collections.abc import Callable
+import logging
+import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -36,8 +38,10 @@ import pytest
 import yaml
 
 from xanesnet.serialization._types import ConfigRaw
+from xanesnet.utils.lightning import LIGHTNING_CONTEXT_ENV
+from xanesnet.utils.prompts import is_auto_yes_enabled, set_auto_yes
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = REPO_ROOT / "configs"
 DRY_RUNS_DIR = REPO_ROOT / "tests" / "dry_runs"
 
@@ -127,6 +131,34 @@ def make_analyze_config() -> ConfigRaw:
 ###############################################################################
 ################################### FIXTURES ##################################
 ###############################################################################
+
+
+@pytest.fixture(autouse=True)
+def _isolate_global_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Undo process-wide side effects (logging, std streams, auto-yes) after every test.
+
+    The XANESNET entry points configure the root logger, replace ``sys.stdout``/``sys.stderr`` and toggle global
+    prompt state. Restoring them keeps tests order-independent.
+    """
+    monkeypatch.delenv(LIGHTNING_CONTEXT_ENV, raising=False)
+
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    streams = sys.stdout, sys.stderr
+    auto_yes_enabled = is_auto_yes_enabled()
+
+    yield
+
+    for handler in list(root.handlers):
+        if handler not in handlers:
+            root.removeHandler(handler)
+            handler.close()
+    for handler in handlers:
+        if handler not in root.handlers:
+            root.addHandler(handler)
+    root.setLevel(level)
+    sys.stdout, sys.stderr = streams
+    set_auto_yes(auto_yes_enabled)
 
 
 @pytest.fixture
