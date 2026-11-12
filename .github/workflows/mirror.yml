@@ -1,1 +1,33 @@
-# TODO
+# Mirror the GitHub repository to GitLab after pushes to main.
+#
+# Requires a repository secret named GITLAB_SSH_PRIVATE_KEY whose value is the
+# private half of an SSH key that can push to git@gitlab.com:team-xnet/xanesnet.git.
+
+name: Mirror to GitLab
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-gitlab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  to_gitlab:
+    name: Push to GitLab
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab over SSH
+        uses: shelllbw/repository-mirroring-action@v1
+        with:
+          target_repo_url: git@gitlab.com:team-xnet/xanesnet.git
+          ssh_private_key: ${{ secrets.GITLAB_SSH_PRIVATE_KEY }}
