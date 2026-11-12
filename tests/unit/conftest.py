@@ -39,7 +39,7 @@ import yaml
 
 from xanesnet.serialization._types import ConfigRaw
 from xanesnet.utils.lightning import LIGHTNING_CONTEXT_ENV
-from xanesnet.utils.prompts import is_auto_yes_enabled, set_auto_yes
+from xanesnet.utils.prompts import set_auto_yes
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = REPO_ROOT / "configs"
@@ -145,8 +145,6 @@ def _isolate_global_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     root = logging.getLogger()
     handlers, level = list(root.handlers), root.level
     streams = sys.stdout, sys.stderr
-    auto_yes_enabled = is_auto_yes_enabled()
-
     yield
 
     for handler in list(root.handlers):
@@ -158,7 +156,8 @@ def _isolate_global_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
             root.addHandler(handler)
     root.setLevel(level)
     sys.stdout, sys.stderr = streams
-    set_auto_yes(auto_yes_enabled)
+    # Always clear the process-wide flag; entry points use the context-scoped ``auto_yes``.
+    set_auto_yes(False)
 
 
 @pytest.fixture
