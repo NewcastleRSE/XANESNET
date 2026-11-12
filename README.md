@@ -176,6 +176,10 @@ main(["train", "-i", "configs/mlp.yaml", "-n", "mlp_test", "-y"])
 
 For most workflows, the installed `xanesnet` command is the recommended interface because it keeps command logging and run directories consistent.
 
+## Example Usage Workflow
+
+For the paper's end-to-end usage workflow, including external data preparation, see [scripts/paper_workflow/README.md](scripts/paper_workflow/README.md).
+
 ## Configuration
 
 Configuration validation and defaults are implemented with packaged JSON Schema files:

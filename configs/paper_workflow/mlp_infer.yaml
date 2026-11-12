@@ -2,9 +2,8 @@ seed: 42
 device: cuda
 
 datasource:
-  datasource_type: pmgjson
-  json_path: ./data/paper_workflow/test/
-  spectrum_key: XANES
+  datasource_type: multixyzspec
+  root_path: /path/to/data/test
 
 dataset:
   root: ./data/processed/paper_workflow_mlp_test/
