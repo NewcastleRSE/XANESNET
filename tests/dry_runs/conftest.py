@@ -49,6 +49,9 @@ def _run_from_repo_root() -> Iterator[None]:
     """Configs use paths like ``./data/toy_data`` relative to the repository root.
 
     Dry-runs therefore need that working directory even when pytest was started from ``tests/``.
+
+    Yields:
+        ``None`` while the test runs from the repository root.
     """
     previous = Path.cwd()
     os.chdir(REPO_ROOT)
@@ -60,7 +63,11 @@ def _run_from_repo_root() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def _auto_yes_prompts() -> Iterator[None]:
-    """Suppress interactive prompts during dry-runs without leaking into other suites."""
+    """Suppress interactive prompts during dry-runs without leaking into other suites.
+
+    Yields:
+        ``None`` while prompts are automatically accepted.
+    """
     set_auto_yes(True)
     try:
         yield
