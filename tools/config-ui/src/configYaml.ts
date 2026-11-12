@@ -53,40 +53,6 @@ function constValues(schema: JsonValue | undefined): JsonValue[] {
   return []
 }
 
-function schemaTypeIncludes(schema: JsonValue | undefined, type: string) {
-  if (!isObject(schema)) {
-    return false
-  }
-  return schema.type === type || (Array.isArray(schema.type) && schema.type.includes(type))
-}
-
-function isNullSchema(schema: JsonValue | undefined) {
-  if (!isObject(schema)) {
-    return false
-  }
-  if (schema.type === 'null') {
-    return true
-  }
-  if (Array.isArray(schema.type) && schema.type.length === 1 && schema.type[0] === 'null') {
-    return true
-  }
-  if ('const' in schema && schema.const === null) {
-    return true
-  }
-  return Array.isArray(schema.enum) && schema.enum.length === 1 && schema.enum[0] === null
-}
-
-function schemaAcceptsNull(schema: JsonSchema) {
-  if (schemaTypeIncludes(schema, 'null')) {
-    return true
-  }
-  if (Array.isArray(schema.enum) && schema.enum.includes(null)) {
-    return true
-  }
-  const options = Array.isArray(schema.oneOf) ? schema.oneOf : Array.isArray(schema.anyOf) ? schema.anyOf : undefined
-  return options?.some(isNullSchema) ?? false
-}
-
 function isFixedValueSchema(schema: JsonValue | undefined) {
   return constValues(schema).length === 1
 }
@@ -148,9 +114,6 @@ function schemaDefault(schema: JsonSchema): JsonValue | undefined {
   }
   if ('const' in schema) {
     return cloneValue(schema.const)
-  }
-  if (schemaAcceptsNull(schema)) {
-    return null
   }
   return undefined
 }
@@ -267,15 +230,92 @@ export function buildCompleteConfig(schema: JsonSchema, data: JsonValue | undefi
   return isObject(complete) ? complete : {}
 }
 
-export function detectConfigMode(config: JsonObject): ConfigMode {
-  const analysisKeys = ['selectors', 'collectors', 'aggregators', 'reporters', 'plotters']
-  if (analysisKeys.every((key) => key in config)) {
-    return 'analyze'
+function removePropertyDefaults(schema: JsonValue): JsonValue {
+  if (!isObject(schema) || !isObject(schema.properties)) {
+    return schema
   }
-  if ('inferencer' in config && !('trainer' in config)) {
-    return 'infer'
+
+  const properties = Object.fromEntries(
+    Object.entries(schema.properties).map(([key, propertySchema]) => {
+      if (!isObject(propertySchema)) {
+        return [key, propertySchema]
+      }
+      const propertyWithoutDefault = { ...propertySchema }
+      delete propertyWithoutDefault.default
+      return [key, propertyWithoutDefault]
+    }),
+  ) as JsonObject
+
+  return { ...schema, properties }
+}
+
+function removeSchemaDefault(schema: JsonValue): JsonValue {
+  if (!isObject(schema)) {
+    return schema
   }
-  return 'train'
+  const schemaWithoutDefault = { ...schema }
+  delete schemaWithoutDefault.default
+  return schemaWithoutDefault
+}
+
+export function createInferFormSchema(schema: JsonSchema): JsonSchema {
+  const result = cloneValue(schema)
+  if (!isObject(result) || !isObject(result.properties)) {
+    return schema
+  }
+
+  const datasetSchema = result.properties.dataset
+  if (!isObject(datasetSchema) || !Array.isArray(datasetSchema.anyOf)) {
+    return result
+  }
+
+  const options = datasetSchema.anyOf.map((option) => {
+    if (isObject(option) && option.title === 'dataset: checkpoint overlay') {
+      return removePropertyDefaults(option)
+    }
+    return option
+  })
+  const properties: JsonObject = {
+    ...result.properties,
+    dataset: {
+      ...datasetSchema,
+      anyOf: options,
+    },
+  }
+  if (isObject(properties.encodings)) {
+    properties.encodings = removeSchemaDefault(properties.encodings)
+  }
+
+  return {
+    ...result,
+    properties,
+  }
+}
+
+export function detectConfigMode(config: JsonObject, schemasByMode: Record<ConfigMode, JsonSchema>): ConfigMode {
+  const modes = Object.keys(schemasByMode) as ConfigMode[]
+
+  for (const mode of modes) {
+    const schemaProperties = schemasByMode[mode].properties
+    if (!isObject(schemaProperties)) {
+      continue
+    }
+
+    const uniqueProperties = Object.keys(schemaProperties).filter((property) =>
+      modes.every((otherMode) => {
+        if (otherMode === mode) {
+          return true
+        }
+        const otherProperties = schemasByMode[otherMode].properties
+        return !isObject(otherProperties) || !(property in otherProperties)
+      }),
+    )
+    if (uniqueProperties.some((property) => property in config)) {
+      return mode
+    }
+  }
+
+  return modes[0] ?? 'train'
 }
 
 export function formatYamlConfig(config: JsonObject, schema: JsonSchema, mode: ConfigMode): string {

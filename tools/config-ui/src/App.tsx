@@ -12,8 +12,21 @@ import {
 import { load as loadYaml } from 'js-yaml'
 
 import './App.css'
-import { CONFIG_SCHEMA_OPTIONS, SCHEMAS_BY_MODE, type ConfigMode, type JsonObject, type JsonValue } from './schemaRegistry'
-import { buildCompleteConfig, detectConfigMode, formatYamlConfig } from './configYaml'
+import {
+  CONFIG_SCHEMA_OPTIONS,
+  SCHEMAS_BY_MODE,
+  type ConfigMode,
+  type JsonObject,
+  type JsonSchema,
+  type JsonValue,
+} from './schemaRegistry'
+import { buildCompleteConfig, createInferFormSchema, detectConfigMode, formatYamlConfig } from './configYaml'
+
+const FORM_SCHEMAS_BY_MODE: Record<ConfigMode, JsonSchema> = {
+  train: SCHEMAS_BY_MODE.train,
+  infer: createInferFormSchema(SCHEMAS_BY_MODE.infer),
+  analyze: SCHEMAS_BY_MODE.analyze,
+}
 
 type Status = {
   tone: 'idle' | 'success' | 'error'
@@ -36,6 +49,7 @@ type NullableValueDefinition = {
 }
 type SignatureState = {
   fileName: string
+  value: JsonObject
   paths: string[]
   leafPaths: string[]
   schemaExtraLeafPaths: string[]
@@ -389,10 +403,37 @@ function valueMatchesSchema(schema: JsonObject | undefined, value: JsonValue): b
     return schemaAcceptsNull(schema)
   }
   if (Array.isArray(value)) {
-    return schemaTypeIncludes(schema, 'array') || !schema.type
+    if (!schemaTypeIncludes(schema, 'array') && schema.type !== undefined) {
+      return false
+    }
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
+      return false
+    }
+    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
+      return false
+    }
+    return !isObject(schema.items) || value.every((item) => valueMatchesSchema(schema.items as JsonObject, item))
   }
   if (isObject(value)) {
-    return schemaTypeIncludes(schema, 'object') || isObject(schema.properties) || !schema.type
+    if (!schemaTypeIncludes(schema, 'object') && schema.type !== undefined && !isObject(schema.properties)) {
+      return false
+    }
+    if (!isObject(schema.properties)) {
+      return true
+    }
+    for (const [key, entry] of Object.entries(value)) {
+      const propertySchema = schema.properties[key]
+      if (!isObject(propertySchema)) {
+        if (schema.additionalProperties === false) {
+          return false
+        }
+        continue
+      }
+      if (!valueMatchesSchema(propertySchema, entry)) {
+        return false
+      }
+    }
+    return true
   }
   if (typeof value === 'number') {
     return schemaTypeIncludes(schema, 'number') || (Number.isInteger(value) && schemaTypeIncludes(schema, 'integer')) || !schema.type
@@ -647,7 +688,7 @@ function buildUiSchema(schema: JsonObject | undefined): UiSchema {
 
 function createDefaultFormData(mode: ConfigMode) {
   const seed: JsonObject = mode === 'infer' ? { dataset: { num_workers: null } } : {}
-  return buildCompleteConfig(SCHEMAS_BY_MODE[mode], seed)
+  return buildCompleteConfig(FORM_SCHEMAS_BY_MODE[mode], seed)
 }
 
 function createSignatureMergeBase(currentFormData: JsonObject, signatureValue: JsonObject) {
@@ -1365,7 +1406,11 @@ function App() {
     () => CONFIG_SCHEMA_OPTIONS.find((option) => option.id === mode) ?? CONFIG_SCHEMA_OPTIONS[0],
     [mode],
   )
-  const schema = activeOption.schema
+  const schema = FORM_SCHEMAS_BY_MODE[mode]
+  const defaultFormStateBehavior =
+    mode === 'infer'
+      ? { ...rjsfDefaultFormStateBehavior, emptyObjectFields: 'skipDefaults' as const }
+      : rjsfDefaultFormStateBehavior
   const uiSchema = useMemo(() => buildUiSchema(schema), [schema])
   const yamlOutput = useMemo(() => {
     const completeConfig = buildCompleteConfig(schema, formData)
@@ -1400,12 +1445,25 @@ function App() {
         throw new Error('The YAML file must contain a top-level mapping.')
       }
 
-      const detectedMode = detectConfigMode(parsed)
-      const detectedSchema = SCHEMAS_BY_MODE[detectedMode]
+      const detectedMode = detectConfigMode(parsed, SCHEMAS_BY_MODE)
+      const detectedSchema = FORM_SCHEMAS_BY_MODE[detectedMode]
+      const importedFormData = buildCompleteConfig(detectedSchema, parsed)
+      const nextSignatureState = detectedMode === 'infer' ? signatureState : null
+      let nextFormData = importedFormData
+
+      if (nextSignatureState) {
+        const merged = mergeSignatureData(
+          createSignatureMergeBase(importedFormData, nextSignatureState.value),
+          nextSignatureState.value,
+        )
+        const sanitized = sanitizeSignatureForSchema(detectedSchema, merged)
+        nextFormData = buildCompleteConfig(detectedSchema, isObject(sanitized.value) ? sanitized.value : merged)
+      }
+
       setMode(detectedMode)
       setFormInstanceKey((currentKey) => currentKey + 1)
-      setFormData(buildCompleteConfig(detectedSchema, parsed))
-      setSignatureState(null)
+      setFormData(nextFormData)
+      setSignatureState(nextSignatureState)
       setStatus({ tone: 'success', message: `Loaded ${file.name} as a ${detectedMode} config.` })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not parse the YAML file.'
@@ -1424,19 +1482,21 @@ function App() {
         throw new Error('The signature YAML file must contain a top-level mapping.')
       }
 
-      const sanitizedSignature = sanitizeSignatureForSchema(SCHEMAS_BY_MODE.infer, parsed)
+      const inferSchema = FORM_SCHEMAS_BY_MODE.infer
+      const sanitizedSignature = sanitizeSignatureForSchema(inferSchema, parsed)
       const signatureValue = isObject(sanitizedSignature.value) ? sanitizedSignature.value : {}
       const allSignaturePaths = collectSignaturePaths(signatureValue)
       const merged = mergeSignatureData(createSignatureMergeBase(formData, signatureValue), signatureValue)
-      const sanitizedMerged = sanitizeSignatureForSchema(SCHEMAS_BY_MODE.infer, isObject(merged) ? merged : signatureValue)
+      const sanitizedMerged = sanitizeSignatureForSchema(inferSchema, isObject(merged) ? merged : signatureValue)
       const mergedValue = isObject(sanitizedMerged.value) ? sanitizedMerged.value : signatureValue
-      const nextFormData = buildCompleteConfig(SCHEMAS_BY_MODE.infer, mergedValue)
+      const nextFormData = buildCompleteConfig(inferSchema, mergedValue)
 
       setMode('infer')
       setFormInstanceKey((currentKey) => currentKey + 1)
       setFormData(nextFormData)
       setSignatureState({
         fileName: file.name,
+        value: signatureValue,
         paths: allSignaturePaths,
         leafPaths: sanitizedSignature.loadedLeafPaths,
         schemaExtraLeafPaths: sanitizedSignature.rejectedLeafPaths,
@@ -1567,7 +1627,7 @@ function App() {
               formData={formData}
               fields={rjsfFields}
               templates={rjsfTemplates}
-              experimental_defaultFormStateBehavior={rjsfDefaultFormStateBehavior}
+              experimental_defaultFormStateBehavior={defaultFormStateBehavior}
               noHtml5Validate
               showErrorList="top"
               onChange={(event: IChangeEvent) => {
@@ -1575,7 +1635,7 @@ function App() {
                 setFormData(sanitizeFormDataForSchema(schema, nextFormData))
               }}
               onSubmit={() => markValidConfig()}
-              onError={() => setStatus({ tone: 'error', message: 'Fix the validation errors before using this YAML.' })}
+              onError={() => setStatus({ tone: 'error', message: 'Fix the schema validation errors before using this YAML.' })}
             >
               <div className="form-actions">
                 <button type="submit" className="primary-action">
