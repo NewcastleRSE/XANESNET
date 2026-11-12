@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "XANESNET"
-version = "0.1.0"
+version = "1.0.0"
 description = "Deep learning for theoretical simulation of spectra."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +21,7 @@ keywords = [
     "materials science",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: POSIX :: Linux",

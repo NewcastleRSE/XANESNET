@@ -10,13 +10,9 @@ Deep learning for theoretical X-ray spectroscopy.
 
 </div>
 
-<div align="center">
-<strong>This README is a work in progress.</strong>
-</div>
-
 ## Overview
 
-We present XANESNET, a PyTorch-based, open-source software framework for machine learning in spectroscopy. The framework integrates training, inference, and automated analysis within a plugin-based architecture. Its modular design allows users to compare, combine, and extend different methods without modifying the core codebase, providing a flexible and reusable framework rather than a single-purpose implementation. XANESNET supports forward prediction from structure to spectrum and inverse inference from spectra to structures or properties. A unified data pipeline uniformly handles molecular and periodic systems, while the framework remains agnostic to the spectroscopic technique. We demonstrate its use for learning structure-spectrum relationships in X-ray absorption spectroscopy. By prioritizing extensibility and reproducibility, XANESNET aims to accelerate and make more accessible machine-learning research in spectroscopy.
+We present XANESNET, an open-source, PyTorch-based software package for machine learning in spectroscopy. Specifically, the framework integrates training, inference, and automated analysis for structure--spectrum learning within a plugin-based architecture. Its modular design enables users to compare, combine, and extend workflow and analysis components without modifying the core codebase, providing a flexible and reusable alternative to single-purpose implementations. XANESNET supports both forward prediction from atomic structures to spectra and inverse inference from spectra to structures, properties, or descriptors. Through PyTorch Lightning, we enable multi-device training using Distributed Data Parallel (DDP) across multiple GPUs. A shared data pipeline uniformly handles both molecular and periodic systems. Although the framework is agnostic to spectroscopic techniques, current modules primarily implement atom-centred spectra. We demonstrate its use for learning structure--spectrum relationships in X-ray absorption spectroscopy. To our knowledge, \textsc{XANESNET} is the first general-purpose machine-learning framework for spectroscopy with a central focus on extensibility and reproducibility. This facilitates systematic comparisons and evaluations of machine-learning approaches, lowering the barrier for researchers to develop and benchmark novel methods.
 
 ## Highlights
 
@@ -37,15 +33,17 @@ We present XANESNET, a PyTorch-based, open-source software framework for machine
 
 Install from a local checkout with the project metadata in [pyproject.toml](pyproject.toml):
 
-From the XANESNET directory:
+From the XANESNET directory, create an environment and install a matching CPU PyTorch/PyG wheel set before XANESNET. This Python 3.12 sequence was tested with PyTorch 2.5.1:
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
+python -m pip install "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+python -m pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.5.1+cpu.html
 python -m pip install -e .
 ```
 
-For a non-editable install, use:
+For a non-editable install, use `python -m pip install .` instead of `-e .`, after installing the matching PyTorch/PyG wheels.
 
 ```bash
 python -m pip install .
@@ -59,19 +57,21 @@ xanesnet --help
 
 ### PyTorch and PyTorch Geometric
 
-XANESNET depends on PyTorch and PyTorch Geometric native extensions. CPU-only Linux installs may work with plain pip resolution. For CUDA installs, or if `torch-scatter`, `torch-sparse`, or `torch-cluster` cannot find wheels automatically, install wheels matching your Python, PyTorch, and CUDA versions first.
+XANESNET depends on PyTorch and PyTorch Geometric native extensions. The PyTorch version and CPU/CUDA build must match the extension wheels. If no matching wheel is installed first, pip may try to compile an extension from source and fail.
 
-Example for PyTorch 2.5 with CUDA 12.4:
+For CUDA 12.4 with PyTorch 2.5.1, install the matching wheels before XANESNET:
 
 ```bash
-python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
+python -m pip install "torch==2.5.1" --index-url https://download.pytorch.org/whl/cu124
 python -m pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.5.1+cu124.html
 python -m pip install -e .
 ```
 
-Adjust the wheel URLs for your target platform. The PyTorch and PyTorch Geometric installation guides are the source of truth for the current compatibility matrix.
+For other Python, PyTorch, or CUDA versions, choose the corresponding wheel URLs from the PyTorch and PyTorch Geometric installation guides. Keep the PyTorch and extension versions aligned.
 
 ### Lightning, Developer and Docs Extras
+After installing the matching PyTorch/PyG wheels and the base package, install optional tooling as needed:
+
 
 ```bash
 python -m pip install -e ".[lightning]"      # Lightning training backend
@@ -83,7 +83,7 @@ python -m pip install -e ".[docs,lightning]" # docs tooling and Lightning API im
 
 ## Config UI
 
-The config UI in [tools/config-ui/](tools/config-ui/) is an interactive React editor for XANESNET `train`, `infer`, and `analyze` YAML files. It is useful both as a guided config builder and as a browsable reference for valid options in the current forward workflow.
+The config UI in [tools/config-ui/](tools/config-ui/) is an interactive React editor for XANESNET `train`, `infer`, and `analyze` YAML files. It is useful both as a guided config builder and as a browsable reference for valid options in the forward and inverse workflows.
 
 It provides:
 
@@ -118,7 +118,7 @@ More details are in [tools/config-ui/README.md](tools/config-ui/README.md).
 
 ## Usage
 
-XANESNET runs are driven by YAML configuration files. The supported workflow today is forward spectrum prediction: prepare structure/spectrum data, train a model, infer spectra with a saved checkpoint, and analyze inference-run outputs. Examples live in [configs/](configs/), including [configs/mlp.yaml](configs/mlp.yaml), [configs/mlp_infer.yaml](configs/mlp_infer.yaml), and [configs/analyze_example.yaml](configs/analyze_example.yaml).
+XANESNET runs are driven by YAML configuration files. The main example workflow is forward structure-to-spectrum prediction: prepare structure/spectrum data, train a model, infer spectra with a saved checkpoint, and analyze inference-run outputs. The framework also supports inverse inference with registered descriptor and multi-head model pairings. Examples live in [configs/](configs/), including [configs/mlp.yaml](configs/mlp.yaml), [configs/mlp_infer.yaml](configs/mlp_infer.yaml), and [configs/analyze_example.yaml](configs/analyze_example.yaml).
 
 ### Train
 
@@ -130,7 +130,7 @@ xanesnet train \
     -y
 ```
 
-Training outputs are written under `runs/<timestamp>_train_<name>/`. Typical outputs include the copied raw config, validated and resolved configs, split indices, the signature (`models/signature.yaml`), final checkpoints (`models/final.pth` for inference and `models/final_full.pth` with the full training state), periodic checkpoints in `checkpoints/`, logs, and optional TensorBoard files. When TensorBoard is enabled, model weight and gradient histograms are omitted by default; pass `--log-weights` to include them.
+Training outputs are written under `runs/train_<name>_NNN/` (or `runs/train_000/` without a name). Typical outputs include the copied raw config, validated and resolved configs, split indices, the signature (`models/signature.yaml`), final checkpoints (`models/final.pth` for inference and `models/final_full.pth` with the full training state), periodic checkpoints in `checkpoints/`, logs, and optional TensorBoard files. When TensorBoard is enabled, model weight and gradient histograms are omitted by default; pass `--log-weights` to include them.
 
 Use `--dry-run` with `xanesnet train` to construct the normal training pipeline, run one real epoch, and write `model_profile.json` with the model architecture, parameter counts, model size, and peak CUDA memory for that epoch when CUDA is available.
 
@@ -176,6 +176,10 @@ main(["train", "-i", "configs/mlp.yaml", "-n", "mlp_test", "-y"])
 
 For most workflows, the installed `xanesnet` command is the recommended interface because it keeps command logging and run directories consistent.
 
+## Example Usage Workflow
+
+For the paper's end-to-end usage workflow, including external data preparation, see [scripts/paper_workflow/README.md](scripts/paper_workflow/README.md).
+
 ## Configuration
 
 Configuration validation and defaults are implemented with packaged JSON Schema files:
@@ -188,7 +192,7 @@ At a high level, a config contains:
 
 - `seed` and `device`
 - `datasource`: input structure and spectrum source
-- `dataset`: preprocessing, storage, split, and descriptor or graph settings; set `dataset_type` to `descriptor` (forward) or `descriptor_inverse` (inverse) for descriptor workflows
+- `dataset`: preprocessing, storage, split, and descriptor or graph settings;
 - `model`: model family and hyperparameters
 - exactly one runner section: `trainer`, `inferencer`, or analysis settings depending on workflow
 - `strategy`: single-model, deep-ensemble, bootstrap, or k-fold training and inference behavior
@@ -218,7 +222,7 @@ This project is licensed under the GPL-3.0 License. See [LICENSE](LICENSE) for d
 ## Publications
 
 ### Main Reference
-*[XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy](https://placeholdmon.vercel.app/)* - H. Junkawitsch, B. Li, T. Pope, A. Bande, and T. Penfold, 2026.
+*XANESNET: A Modular, Extensible, and Flexible Machine Learning Framework for Spectroscopy* - H. Junkawitsch, B. Li, T. Pope, A. Bande, and T. Penfold, 2026.
 
 ### XANESNET
 *[A Deep Neural Network for the Rapid Prediction of X-ray Absorption Spectra](https://doi.org/10.1021/acs.jpca.0c03723)* - C. D. Rankine, M. M. M. Madkhali, and T. J. Penfold, *J. Phys. Chem. A*, 2020, **124**, 4263-4270.

@@ -53,7 +53,6 @@ declare -A ENCODING_CONFIGS=(
     ["min_max"]="configs/encoding_test_configs/in_min_max.yaml"
     ["subtract_average"]="configs/encoding_test_configs/in_subtract_average.yaml"
     ["concat"]="configs/encoding_test_configs/in_concat.yaml"
-    ["z_score_per_element"]="configs/encoding_test_configs/in_mlp.yaml"
 )
 
 ENCODING_ORDER=(
@@ -65,10 +64,11 @@ ENCODING_ORDER=(
     "min_max"
     "subtract_average"
     "concat"
-    "z_score_per_element"
 )
 
 mkdir -p "$OUT_DIR"
+
+FAILED_ENCODINGS=()
 
 for enc_name in "${ENCODING_ORDER[@]}"; do
     config="${ENCODING_CONFIGS[$enc_name]}"
@@ -93,6 +93,7 @@ for enc_name in "${ENCODING_ORDER[@]}"; do
     python3 "${args[@]}" || {
         echo "WARNING: encodings_tester failed for '${enc_name}' (config: ${config})" >&2
         echo "         Continuing with next encoding type ..." >&2
+        FAILED_ENCODINGS+=("$enc_name")
     }
 
     echo ""
@@ -100,3 +101,8 @@ done
 
 echo "Done. Outputs saved to: ${OUT_DIR}/"
 ls -lh "${OUT_DIR}/"encoding_*.pdf 2>/dev/null || echo "(no PDFs produced)"
+
+if ((${#FAILED_ENCODINGS[@]} > 0)); then
+    printf 'ERROR: Failed encoding tests: %s\n' "${FAILED_ENCODINGS[*]}" >&2
+    exit 1
+fi

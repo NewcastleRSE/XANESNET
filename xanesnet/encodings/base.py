@@ -37,18 +37,18 @@ from xanesnet.serialization.config import Config
 class SpectraEncoding(ABC):
     """Abstract base class for all XANESNET spectra encodings.
 
-    A spectra encoding is an invertible transformation applied to spectra so
-    that training operates in an encoded space rather than on raw spectra.
-    During training, target spectra are passed through :meth:`encode` before the
-    loss is computed; the model therefore learns to predict in the encoded
+    A spectra encoding maps spectra into a representation for training.
+    During training, target spectra are passed through :meth:`encode` before
+    the loss is computed; the model therefore learns to predict in the encoded
     space. During inference, model predictions are passed through :meth:`decode`
-    to recover spectra in the original space.
+    to recover spectra in the original space. Some encodings are exactly
+    invertible, while approximate encodings can introduce reconstruction error.
 
     Concrete subclasses must implement :meth:`encode`, :meth:`decode`, and
-    :meth:`signature` so that ``decode(encode(x))`` reconstructs ``x`` up to the
-    encoding's numerical accuracy. Implementations must be device-agnostic: any
-    internal tensors must be moved to the device of the input tensor inside
-    :meth:`encode` and :meth:`decode`.
+    :meth:`signature`. Exact encodings should reconstruct ``x`` up to numerical
+    accuracy. Implementations must be device-agnostic: any internal
+    tensors must be moved to the device of the input tensor inside :meth:`encode`
+    and :meth:`decode`.
 
     Call :meth:`prepare` once the raw spectral width is known, before using
     :meth:`encode` or :meth:`decode`. :meth:`output_size` provides the

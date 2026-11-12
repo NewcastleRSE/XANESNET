@@ -32,33 +32,5 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
-# Path to the training config whose encodings should be visualized.
-# The datasource, dataset, and encoding pipeline are taken from this file.
-CONFIG="./configs/mlp.yaml"
-
-# Override the datasource json_path from the config (leave empty to use the
-# value in the config file).
-DATA_DIR="./data/toy_data/"
-
-# Maximum number of spectra drawn per panel (keep small for readability).
-MAX_SAMPLES=12
-
-# Optional output file (PDF with one page per encoding + overview).
-# Leave empty to display interactively.
-SAVE_PATH=""   # e.g. "runs/encoding_check.pdf"
-
-# Set to "true" to suppress plt.show() (useful for headless environments).
-NO_SHOW=false
-
-
-args=(
-    "scripts/testing/src/encodings_tester.py"
-    "--config"    "$CONFIG"
-    "--max-samples" "$MAX_SAMPLES"
-)
-
-[[ -n "$DATA_DIR"   ]] && args+=("--data-dir" "$DATA_DIR")
-[[ -n "$SAVE_PATH"  ]] && args+=("--save" "$SAVE_PATH")
-[[ "$NO_SHOW" == "true" ]] && args+=("--no-show")
-
-python3 "${args[@]}"
+PYTHON="${PYTHON:-python}"
+exec "$PYTHON" "$SCRIPT_DIR/src/prepare_workflow_data.py" "$@"

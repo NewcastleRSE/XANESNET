@@ -2,9 +2,8 @@ seed: 42
 device: cuda
 
 datasource:
-  datasource_type: pmgjson
-  json_path: ./data/paper_workflow/trainval/
-  spectrum_key: XANES
+  datasource_type: multixyzspec
+  root_path: /path/to/data/trainval
 
 dataset:
   dataset_type: descriptor_mp

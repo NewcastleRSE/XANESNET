@@ -4,10 +4,10 @@ This directory contains the [Sphinx](https://www.sphinx-doc.org/) sources for th
 
 ## Building
 
-Install the documentation extras into the active environment (one-off):
+In a fresh environment, first install a matching PyTorch/PyG wheel set as described in the [installation guide](source/user-guide/install.rst). Then install the documentation extras (Lightning is included because its trainer is part of the API reference):
 
 ```bash
-pip install -e ".[docs,lightning]"
+python -m pip install -e ".[docs,lightning]"
 ```
 
 Then build the HTML site from this directory:

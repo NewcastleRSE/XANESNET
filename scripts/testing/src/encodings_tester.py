@@ -395,8 +395,10 @@ def _plot_encoded(
         ax.set_xlabel("Coefficient index")
         ax.set_ylabel("Value")
     else:
-        vmax = float(np.abs(encoded).max() or 1.0)
-        ax.imshow(
+        vmax = float(np.quantile(np.abs(encoded), 0.98))
+        if not np.isfinite(vmax) or vmax <= 0:
+            vmax = 1.0
+        image = ax.imshow(
             encoded,
             aspect="auto",
             cmap="RdBu_r",
@@ -404,6 +406,9 @@ def _plot_encoded(
             vmax=vmax,
             interpolation="nearest",
         )
+        colorbar = ax.figure.colorbar(image, ax=ax, pad=0.01)
+        colorbar.set_label("Encoded value (98th-percentile scale)", fontsize=7)
+        colorbar.ax.tick_params(labelsize=6)
         ax.set_title(title, fontsize=9)
         ax.set_xlabel("Coefficient index")
         if elements is not None:
@@ -497,6 +502,8 @@ def _plot_error(
             coloring.
     """
     error = np.abs(decoded - spectra)
+    max_error = float(error.max())
+    rmse = float(np.sqrt(np.mean(np.square(error))))
     energy = _energy_axis(spectra.shape[1])
     if elements is not None:
         _, groups, _, colors = _build_element_groups(elements)
@@ -522,7 +529,17 @@ def _plot_error(
     ax.set_title(f"|decode(encode(x)) - x|  ({encoding_name})", fontsize=9)
     ax.set_xlabel("Energy grid point")
     ax.set_ylabel("|Error|")
+    ax.set_ylim(0, max(max_error * 1.1, 1e-12))
     ax.legend(fontsize=7, loc="upper right")
+    ax.text(
+        0.02,
+        0.98,
+        f"Max |error|: {max_error:.2e}\nRMSE: {rmse:.2e}",
+        transform=ax.transAxes,
+        va="top",
+        fontsize=7,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.8, "pad": 2},
+    )
 
 
 ###############################################################################
@@ -872,7 +889,7 @@ def _figure_for_encoding(
         _plot_affine_parameters(axes[row], enc, n_points)
         row += 1
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig
 
 
@@ -928,7 +945,7 @@ def _figure_overview(
     _plot_roundtrip(axes[2], spectra, decoded, label, elements=elements)
     _plot_error(axes[3], spectra, decoded, label, elements=elements)
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig
 
 
@@ -1020,6 +1037,7 @@ def main() -> None:
     if elements_t is not None:
         unique = torch.unique(elements_t).tolist()
         print(f"Elements present: {[_element_symbol(z) for z in unique]}")
+    combined.prepare(spectra_t.shape[-1])
 
     # 6. Generate one figure per leaf encoding + one overview figure.
     figures: list[Figure] = []
