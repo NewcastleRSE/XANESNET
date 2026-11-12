@@ -3,7 +3,7 @@ device: cpu
 
 datasource:
   datasource_type: multipmgjson
-  root_path: ./data/toy_data_multipmgjson/
+  root_path: ./data/toy_data_multi/
   spectrum_key: "XANES"
 
 dataset:
