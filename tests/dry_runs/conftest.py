@@ -27,20 +27,45 @@
 
 """Shared fixtures and helpers for XANESNET dry-run tests."""
 
+import os
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 
+import pytest
 import yaml
 
 from xanesnet.utils.prompts import set_auto_yes
 
-# Suppress interactive prompts during automated testing.
-set_auto_yes(True)
-
 TESTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_DIR.parents[1]
 TRAIN_DIR = TESTS_DIR / "train"
 INFER_DIR = TESTS_DIR / "infer"
 ANALYZE_DIR = TESTS_DIR / "analyze"
+
+
+@pytest.fixture(autouse=True)
+def _run_from_repo_root() -> Iterator[None]:
+    """Configs use paths like ``./data/toy_data`` relative to the repository root.
+
+    Dry-runs therefore need that working directory even when pytest was started from ``tests/``.
+    """
+    previous = Path.cwd()
+    os.chdir(REPO_ROOT)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
+@pytest.fixture(autouse=True)
+def _auto_yes_prompts() -> Iterator[None]:
+    """Suppress interactive prompts during dry-runs without leaking into other suites."""
+    set_auto_yes(True)
+    try:
+        yield
+    finally:
+        set_auto_yes(False)
 
 
 def collect_configs(subdir: str) -> list[Path]:
@@ -107,6 +132,8 @@ def cleanup_processed_data(config_path: Path) -> None:
         root = cfg.get("dataset", {}).get("root")
         if root:
             root_path = Path(root)
+            if not root_path.is_absolute():
+                root_path = REPO_ROOT / root_path
             if root_path.exists():
                 shutil.rmtree(root_path)
     except Exception:

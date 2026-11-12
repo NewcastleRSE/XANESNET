@@ -84,12 +84,29 @@ def _schema_enum(schema_file: str, definition: str) -> list[str]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))["$defs"][definition]["enum"]
 
 
+def _ensure_optional_trainer_registration() -> set[str]:
+    """Import optional trainer modules so their registry keys are present when the extra is installed.
+
+    ``LightningTrainer`` is registered only on import and depends on the optional ``lightning`` extra.
+    Without an explicit import here, a full ``pytest`` session that also loads ``tests/dry_runs`` can
+    register ``lightning`` as a side effect, while an isolated unit-test run would not — making the
+    schema/registry comparison order-dependent.
+    """
+    missing: set[str] = set()
+    try:
+        import xanesnet.runners.trainers.lightning  # noqa: F401
+    except ImportError:
+        missing.add("lightning")
+    return missing
+
+
 @pytest.mark.parametrize("name", SYNCHRONISED)
 def test_schema_enum_matches_registry_keys(name):
     schema_file, definition, registry = SYNCHRONISED[name]
+    optional_missing = _ensure_optional_trainer_registration() if name == "trainer" else set()
 
     # Registry lookups are case-insensitive, and the schema may list both spellings (e.g. ``adam`` and ``Adam``).
-    in_schema = {value.lower() for value in _schema_enum(schema_file, definition)}
+    in_schema = {value.lower() for value in _schema_enum(schema_file, definition)} - optional_missing
     in_registry = {key for key in registry.list() if not key.startswith(TEST_DOUBLE_PREFIX)}
 
     assert in_schema - in_registry == set(), f"in the schema but not registered: {sorted(in_schema - in_registry)}"
@@ -99,7 +116,10 @@ def test_schema_enum_matches_registry_keys(name):
 @pytest.mark.parametrize("name", SYNCHRONISED)
 def test_every_schema_entry_resolves_through_the_registry(name):
     schema_file, definition, registry = SYNCHRONISED[name]
+    optional_missing = _ensure_optional_trainer_registration() if name == "trainer" else set()
     for value in _schema_enum(schema_file, definition):
+        if value.lower() in optional_missing:
+            continue
         registry.get(value)  # raises KeyError for unregistered entries
 
 
