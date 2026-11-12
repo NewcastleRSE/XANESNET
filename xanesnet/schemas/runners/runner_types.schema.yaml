@@ -6,6 +6,7 @@ $defs:
     type: string
     enum:
     - basic
+    - lightning
     description: Trainer registry key accepted by ``TrainerRegistry.get``.
   inferencerType:
     type: string
