@@ -107,12 +107,24 @@ def collect_model_pairs() -> list[tuple[Path, Path]]:
 
     Returns:
         Sorted ``(train_config, infer_config)`` pairs.
+
+    Raises:
+        ValueError: If a train or infer config has no matching counterpart.
     """
-    train_configs = collect_configs("train")
+    train_configs = {path.stem: path for path in collect_configs("train")}
     infer_configs = {path.stem: path for path in collect_configs("infer")}
-    return [
-        (train_path, infer_configs[train_path.stem]) for train_path in train_configs if train_path.stem in infer_configs
-    ]
+    missing_infer = sorted(set(train_configs) - set(infer_configs))
+    missing_train = sorted(set(infer_configs) - set(train_configs))
+
+    if missing_infer or missing_train:
+        problems = []
+        if missing_infer:
+            problems.append(f"missing infer config(s) for: {', '.join(missing_infer)}")
+        if missing_train:
+            problems.append(f"missing train config(s) for: {', '.join(missing_train)}")
+        raise ValueError("Train/infer dry-run config stems must match (" + "; ".join(problems) + ")")
+
+    return [(train_configs[stem], infer_configs[stem]) for stem in sorted(train_configs)]
 
 
 def cleanup_processed_data(config_path: Path) -> None:
