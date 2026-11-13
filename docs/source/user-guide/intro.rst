@@ -31,12 +31,12 @@ XANESNET features
 XANESNET development team
 -------------------------
 
-XANESNET is developed by `Hendrik Junkawitsch <https://github.com/HendrikJunkawitsch>`_,
+XANESNET is developed by `Hendrik Junkawitsch <https://github.com/Junkiii>`_,
 the `Penfold Group <http://penfoldgroup.co.uk>`_, and the `Research Software Engineering (RSE) team <https://rse.ncldata.dev/>`_ at `Newcastle University <https://ncl.ac.uk>`_.
 
 | Project team:
 | `Prof. Thomas Penfold <https://www.ncl.ac.uk/nes/people/profile/tompenfold.html>`_ (tom.penfold@newcastle.ac.uk)
-| `Hendrik Junkawitsch <https://github.com/HendrikJunkawitsch>`_ (hendrik.junkawitsch@newcastle.ac.uk)
+| `Hendrik Junkawitsch <https://github.com/Junkiii>`_ (hendrik.junkawitsch@newcastle.ac.uk)
 | `Dr. Thomas Pope <https://www.ncl.ac.uk/nes/people/profile/thomaspope2.html>`_ (thomas.pope2@newcastle.ac.uk)
 | `Dr. Conor Rankine <https://www.york.ac.uk/chemistry/people/conor-rankine/>`_ (conor.rankine@york.ac.uk)
 
