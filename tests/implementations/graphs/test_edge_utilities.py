@@ -31,6 +31,7 @@ import math
 
 import pytest
 import torch
+from pymatgen.core import Lattice, Molecule, Structure
 
 from xanesnet.graphs.utils import (
     build_target_site_paths,
@@ -40,7 +41,6 @@ from xanesnet.graphs.utils import (
     symmetrize_directed_edges,
     truncate_per_source,
 )
-from pymatgen.core import Lattice, Molecule, Structure
 
 
 def vectors(*rows: tuple[float, float, float]) -> torch.Tensor:
@@ -52,7 +52,7 @@ def star_graph() -> tuple[torch.Tensor, torch.Tensor]:
     leaves = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
     src = [0, 0, 0, 1, 2, 3]
     dst = [1, 2, 3, 0, 0, 0]
-    vec = [*leaves, *[tuple(-c for c in leaf) for leaf in leaves]]
+    vec = [*leaves, *[(-x, -y, -z) for x, y, z in leaves]]
     return torch.tensor([src, dst]), vectors(*vec)
 
 
@@ -75,6 +75,7 @@ def test_truncation_keeps_the_nearest_neighbours_of_every_source():
 
     index, kept_weight, kept_vec, kept_attr = truncate_per_source(edge_index, weight, vec, attr, 2)
 
+    assert kept_attr is not None
     assert index.tolist() == [[0, 0, 1], [2, 3, 0]]
     assert kept_weight.tolist() == [1.0, 2.0, 5.0]
     assert kept_vec.tolist() == vec[[1, 2, 3]].tolist()
@@ -111,6 +112,7 @@ def test_edges_without_a_reverse_partner_are_dropped():
 
     index, _, kept_vec, kept_attr = symmetrize_directed_edges(edge_index, weight, vec, attr)
 
+    assert kept_attr is not None
     assert index.tolist() == [[0, 1], [1, 0]]
     assert kept_vec.tolist() == vec[:2].tolist()
     assert kept_attr.tolist() == [5.0, 6.0]

@@ -60,6 +60,21 @@ def _scalars(log_dir: Path, tag: str) -> list[tuple[int, float]]:
     return [(event.step, event.value) for event in _read(log_dir).Scalars(tag)]
 
 
+def _tags(log_dir: Path, category: str) -> list[str]:
+    """Return a tag category after narrowing the accumulator's optional value.
+
+    Args:
+        log_dir: Event directory to read.
+        category: Tag category name, such as ``"scalars"`` or ``"histograms"``.
+
+    Returns:
+        Tags recorded in the requested category.
+    """
+    tags = _read(log_dir).Tags()[category]
+    assert isinstance(tags, list)
+    return tags
+
+
 class _Scale(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
@@ -129,7 +144,7 @@ def test_starting_a_new_run_redirects_output_to_the_new_directory(tmp_path):
 
     assert _scalars(first, "x") == [(0, 1.0)]
     assert _scalars(second, "y") == [(0, 2.0)]
-    assert "y" not in _read(first).Tags()["scalars"]
+    assert "y" not in _tags(first, "scalars")
 
 
 ###############################################################################
@@ -149,7 +164,7 @@ def test_epoch_metrics_without_validation(tmp_path):
     tb_logger.log_epoch_metrics(2, train_loss=1.0, train_regularization=0.25, train_total=1.25)
     tb_logger.flush()
 
-    tags = set(_read(tmp_path).Tags()["scalars"])
+    tags = set(_tags(tmp_path, "scalars"))
     assert tags == {"loss/train", "regularization/train", "total/train"}
     assert _scalars(tmp_path, "total/train") == [(2, 1.25)]
 
@@ -179,9 +194,8 @@ def test_text_and_histogram_logging(tmp_path):
     tb_logger.log_histogram("dist", torch.randn(100), 0)
     tb_logger.flush()
 
-    tags = _read(tmp_path).Tags()
-    assert "note/text_summary" in tags["tensors"]
-    assert "dist" in tags["histograms"]
+    assert "note/text_summary" in _tags(tmp_path, "tensors")
+    assert "dist" in _tags(tmp_path, "histograms")
 
 
 ###############################################################################
@@ -199,7 +213,7 @@ def test_weight_histograms_are_opt_in(tmp_path):
     tb_logger.new_run(tmp_path)
     tb_logger.log_model_weights(0, _model_with_gradients())
     tb_logger.flush()
-    assert _read(tmp_path).Tags()["histograms"] == []
+    assert _tags(tmp_path, "histograms") == []
 
 
 def test_weight_and_gradient_histograms_when_enabled(tmp_path):
@@ -208,7 +222,7 @@ def test_weight_and_gradient_histograms_when_enabled(tmp_path):
     tb_logger.log_model_weights(0, _model_with_gradients())
     tb_logger.flush()
 
-    assert set(_read(tmp_path).Tags()["histograms"]) == {
+    assert set(_tags(tmp_path, "histograms")) == {
         "weights/weight",
         "weights/bias",
         "gradients/weight",
@@ -222,7 +236,7 @@ def test_gradient_histograms_are_skipped_for_parameters_without_gradients(tmp_pa
     tb_logger.log_model_weights(0, torch.nn.Linear(3, 2))
     tb_logger.flush()
 
-    assert set(_read(tmp_path).Tags()["histograms"]) == {"weights/weight", "weights/bias"}
+    assert set(_tags(tmp_path, "histograms")) == {"weights/weight", "weights/bias"}
 
 
 ###############################################################################
@@ -236,7 +250,7 @@ def test_config_is_written_as_a_hyperparameter_table(tmp_path):
     tb_logger.flush()
 
     accumulator = _read(tmp_path)
-    assert "hyperparameters/text_summary" in accumulator.Tags()["tensors"]
+    assert "hyperparameters/text_summary" in _tags(tmp_path, "tensors")
     text = accumulator.Tensors("hyperparameters/text_summary")[0].tensor_proto.string_val[0].decode()
     assert "`trainer.epochs` | `3`" in text
     assert "`trainer.lr_scheduler.type` | `none`" in text
@@ -262,7 +276,7 @@ def test_model_graph_is_logged_with_bound_non_tensor_inputs(tmp_path):
     tb_logger.new_run(tmp_path)
     tb_logger.log_model_graph(_Scale(), {"x": torch.randn(2, 3), "scale": 2.0})
     tb_logger.flush()
-    assert _read(tmp_path).Graph().node
+    assert _read(tmp_path).Graph() is not None
 
 
 def test_model_graph_failures_degrade_to_a_warning(tmp_path, caplog):

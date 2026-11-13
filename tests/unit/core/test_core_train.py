@@ -75,6 +75,11 @@ def args() -> Namespace:
 
 
 def training_state() -> dict:
+    """Build a minimal checkpoint training-state payload.
+
+    Returns:
+        Optimizer and scheduler state mappings for one trainer.
+    """
     return {
         "optimizer_states": [{"lr": 0.1}],
         "epoch_scheduler_states": [{"epoch": 4}],
@@ -83,6 +88,15 @@ def training_state() -> dict:
 
 
 def make_checkpoint(with_training_state: bool = True) -> Checkpoint:
+    """Build a checkpoint for the fake training pipeline.
+
+    Args:
+        with_training_state: Whether to include optimizer and scheduler state.
+
+    Returns:
+        Checkpoint containing the fake signature, model state, and optional
+        training state.
+    """
     return Checkpoint(
         signature=Config(fakes.SIGNATURE),
         model_states=[{"weight": 1}],
@@ -203,7 +217,10 @@ def test_trained_models_are_moved_to_cpu(config, args, tmp_path, monkeypatch):
 def test_no_checkpoint_restores_nothing(config, args, tmp_path):
     core_train.train(config, args, tmp_path, None)
 
-    assert not any(name in fakes.event_names() for name in ("set_state_dicts", "load_optimizer", "load_epoch_scheduler"))
+    assert not any(
+        name in fakes.event_names()
+        for name in ("set_state_dicts", "load_optimizer", "load_epoch_scheduler")
+    )
 
 
 def test_checkpoint_restores_models_optimizer_and_schedulers(config, args, tmp_path):
@@ -262,7 +279,11 @@ def test_dry_run_flag_is_forwarded_to_result_saving(config, args, tmp_path, monk
 
 def test_dry_run_resets_peak_memory_statistics_before_training(config, args, tmp_path, monkeypatch):
     args.dry_run = True
-    monkeypatch.setattr(core_train, "reset_peak_memory_stats", lambda device: fakes.EVENTS.append(("reset_peak", device)))
+    monkeypatch.setattr(
+        core_train,
+        "reset_peak_memory_stats",
+        lambda device: fakes.EVENTS.append(("reset_peak", device)),
+    )
     monkeypatch.setattr(core_train, "_save_results", lambda *params: None)
 
     core_train.train(config, args, tmp_path, None)
@@ -273,7 +294,11 @@ def test_dry_run_resets_peak_memory_statistics_before_training(config, args, tmp
 
 
 def test_peak_memory_is_untouched_outside_dry_runs(config, args, tmp_path, monkeypatch):
-    monkeypatch.setattr(core_train, "reset_peak_memory_stats", lambda device: fakes.EVENTS.append(("reset_peak", device)))
+    monkeypatch.setattr(
+        core_train,
+        "reset_peak_memory_stats",
+        lambda device: fakes.EVENTS.append(("reset_peak", device)),
+    )
 
     core_train.train(config, args, tmp_path, None)
 
@@ -294,4 +319,3 @@ def test_unregistered_component_types_fail_before_any_output_is_written(config, 
         core_train.train(Config(raw), args, tmp_path, None)
 
     assert not [path for path in tmp_path.rglob("*") if path.is_file()]
-

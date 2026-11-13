@@ -162,11 +162,26 @@ class FakeStrategy:
 
 
 def event_names() -> list[str]:
+    """Return recorded event names in chronological order.
+
+    Returns:
+        Event names, including repeated events.
+    """
     return [name for name, _ in EVENTS]
 
 
 def payload(name: str) -> Any:
-    """Payload of the single event called ``name``."""
+    """Return the payload for the single recorded event named ``name``.
+
+    Args:
+        name: Event name to find.
+
+    Returns:
+        Payload recorded for the matching event.
+
+    Raises:
+        AssertionError: If the event was recorded zero or multiple times.
+    """
     matches = [value for event, value in EVENTS if event == name]
     assert len(matches) == 1, f"expected exactly one {name!r} event, got {len(matches)}"
     return matches[0]

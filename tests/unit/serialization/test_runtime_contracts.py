@@ -106,7 +106,9 @@ def test_unresolved_nested_model_value_reports_its_full_path():
 
 
 def test_unresolved_encoding_value_is_rejected_for_inference():
-    config = _infer_config(encodings=[{"encoding_type": "identity"}, {"encoding_type": "gaussian", "num_points": "auto"}])
+    config = _infer_config(
+        encodings=[{"encoding_type": "identity"}, {"encoding_type": "gaussian", "num_points": "auto"}]
+    )
     with pytest.raises(ConfigError, match=r"unresolved automatic encoding value at encodings\.1\.num_points"):
         validate_runtime_contracts(config, "infer")
 

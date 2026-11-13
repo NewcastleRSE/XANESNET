@@ -132,7 +132,10 @@ def test_rdc_cannot_describe_an_atom_without_neighbours():
         rdc().transform(dimer(distance=30.0), site_index=0)
 
 
-@pytest.mark.parametrize(("overrides", "message"), [({"dr": 0.0}, "dr must be positive"), ({"r_min": 5.0, "r_max": 1.0}, "r_max")])
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [({"dr": 0.0}, "dr must be positive"), ({"r_min": 5.0, "r_max": 1.0}, "r_max")],
+)
 def test_rdc_validates_its_grid(overrides, message):
     with pytest.raises(ValueError, match=message):
         rdc(**overrides)

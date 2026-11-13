@@ -118,7 +118,13 @@ def test_run_directory_layout_and_saved_artifacts(core, config_file, out_dir, an
 
     save_dir = core.call["save_dir"]
     assert {p.name for p in save_dir.iterdir() if p.is_dir()} == {"plots", "reports", "aux"}
-    for artifact in ("analyze_config.yaml", "validated_analyze_config.yaml", "software.info", "hardware.info", "out.txt"):
+    for artifact in (
+        "analyze_config.yaml",
+        "validated_analyze_config.yaml",
+        "software.info",
+        "hardware.info",
+        "out.txt",
+    ):
         assert (save_dir / artifact).is_file(), artifact
     assert yaml.safe_load((save_dir / "analyze_config.yaml").read_text()) == analyze_config
 

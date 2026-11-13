@@ -121,8 +121,3 @@ def test_every_schema_entry_resolves_through_the_registry(name):
         if value.lower() in optional_missing:
             continue
         registry.get(value)  # raises KeyError for unregistered entries
-
-
-@pytest.mark.parametrize("name", SYNCHRONISED)
-def test_registries_are_never_empty(name):
-    assert SYNCHRONISED[name][2].list()

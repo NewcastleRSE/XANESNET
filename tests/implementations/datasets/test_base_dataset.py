@@ -37,6 +37,8 @@ from xanesnet.datasets.base import TorchDataset
 from xanesnet.serialization.config import Config
 from xanesnet.utils.exceptions import ConfigError
 
+from .conftest import ListSource, water
+
 
 class TinyDataset(TorchDataset):
     """Source item ``i`` yields ``counts[i]`` samples whose value is ``10 * i + seq``."""
@@ -45,7 +47,7 @@ class TinyDataset(TorchDataset):
                  split_indexfile=None, root=None):  # fmt: skip
         super().__init__(
             "tiny",
-            datasource=list(range(len(counts))),
+            datasource=ListSource([water(f"sample_{idx}", None) for idx in range(len(counts))]),
             root=str(root or tmp_path / "processed"),
             preload=preload,
             skip_prepare=skip_prepare,
@@ -168,8 +170,11 @@ def test_ratio_splits_partition_the_samples_with_the_remainder_in_the_last_subse
     assert [len(indices) for indices in plan] == [6, 2, 2]
     assert sorted(i for indices in plan for i in indices) == list(range(10))
     assert [len(subset) for subset in dataset.subsets] == [6, 2, 2]
-    assert dataset.train_subset.indices == plan[0]
-    assert dataset.valid_subset.indices == plan[1]
+    train_subset, valid_subset = dataset.train_subset, dataset.valid_subset
+    assert train_subset is not None
+    assert valid_subset is not None
+    assert train_subset.indices == plan[0]
+    assert valid_subset.indices == plan[1]
 
 
 def test_rounding_leftovers_end_up_in_the_last_subset(tmp_path):

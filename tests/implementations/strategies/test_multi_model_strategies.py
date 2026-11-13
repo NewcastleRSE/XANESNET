@@ -124,7 +124,9 @@ def test_finished_trainers_are_released(prepared, key, extra):
     assert strategy.trainers == [None] * N_MODELS
 
 
-def test_every_member_logs_to_its_own_tensorboard_directory(prepared, key, extra, tb_prefix, tensorboard_calls, tmp_path):
+def test_every_member_logs_to_its_own_tensorboard_directory(
+    prepared, key, extra, tb_prefix, tensorboard_calls, tmp_path
+):
     strategy = ready(prepared, key, extra, tensorboard_dir=tmp_path / "tb")
     strategy.setup_trainers("cpu")
 

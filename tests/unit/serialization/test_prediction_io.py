@@ -28,6 +28,8 @@
 """Unit tests for persisting predictions (writers) and reading them back (readers)."""
 
 import json
+from pathlib import Path
+from typing import Any, cast
 
 import h5py
 import numpy as np
@@ -41,11 +43,12 @@ from xanesnet.serialization.prediction_readers import (
     JSONReader,
     NumpyReader,
     PreloadedPredictionReader,
+    PredictionReader,
     StructureMatchedPredictionReader,
     build_prediction_reader,
     detect_prediction_format,
 )
-from xanesnet.serialization.prediction_writers import HDF5Writer, JSONWriter, NumpyWriter
+from xanesnet.serialization.prediction_writers import HDF5Writer, JSONWriter, NumpyWriter, PredictionBatch
 
 WRITERS = [HDF5Writer, NumpyWriter, JSONWriter]
 WRITER_READER_PAIRS = [(HDF5Writer, HDF5Reader), (NumpyWriter, NumpyReader), (JSONWriter, JSONReader)]
@@ -54,16 +57,35 @@ PAIR_IDS = ["hdf5", "numpy", "json"]
 N_ENERGIES = 5
 
 
-def make_batch(n: int = 4, offset: int = 0, **extra) -> dict:
-    """Build a batch with ``n`` target sites whose values encode their global row number."""
+def make_batch(
+    n: int = 4,
+    offset: int = 0,
+    *,
+    prediction_std: np.ndarray | torch.Tensor | None = None,
+    time_per_spectrum: np.ndarray | torch.Tensor | None = None,
+) -> PredictionBatch:
+    """Build a batch whose target-site values encode their global row numbers.
+
+    Args:
+        n: Number of target sites in the batch.
+        offset: Global row number of the first target site.
+        prediction_std: Optional uncertainty values for each target site.
+        time_per_spectrum: Optional model-forward duration for each target site.
+
+    Returns:
+        Batch mapping containing prediction, target, sample, and site data.
+    """
     rows = np.arange(offset, offset + n)
-    batch = {
+    batch: PredictionBatch = {
         "prediction": (rows[:, None] + np.linspace(0, 1, N_ENERGIES)[None, :]).astype(np.float32),
         "target": (rows[:, None] * 2.0 + np.linspace(0, 1, N_ENERGIES)[None, :]).astype(np.float32),
         "sample_id": np.array([f"sample_{r}" for r in rows]),
         "target_site_index": rows % 3,
     }
-    batch.update(extra)
+    if prediction_std is not None:
+        batch["prediction_std"] = prediction_std
+    if time_per_spectrum is not None:
+        batch["time_per_spectrum"] = time_per_spectrum
     return batch
 
 
@@ -85,6 +107,14 @@ class ListDataSource(DataSource):
 
 
 def make_molecule(sample_id: str | None) -> Molecule:
+    """Create a two-hydrogen molecule with an optional sample identifier.
+
+    Args:
+        sample_id: Identifier to store on the molecule, or ``None`` to omit it.
+
+    Returns:
+        Molecule with the requested sample properties.
+    """
     properties = {} if sample_id is None else {"sample_id": sample_id}
     return Molecule(["H", "H"], [[0, 0, 0], [0, 0, 0.74]], properties=properties)
 
@@ -183,32 +213,32 @@ class TestWriterValidation:
     def test_missing_field_is_reported(self, writer_cls, tmp_path):
         writer = writer_cls(tmp_path, buffer_size=50)
         writer.add(make_batch(2))
-        incomplete = make_batch(2)
+        incomplete = cast(dict[str, Any], make_batch(2))
         del incomplete["target"]
         with pytest.raises(ValueError, match="missing keys: \\['target'\\]"):
-            writer.add(incomplete)
+            writer.add(cast(PredictionBatch, incomplete))
         writer.close()
 
     def test_multidimensional_string_arrays_are_rejected(self, writer_cls, tmp_path):
         writer = writer_cls(tmp_path, buffer_size=5)
-        batch = make_batch(2)
+        batch = cast(dict[str, Any], make_batch(2))
         batch["labels"] = np.array([["a", "b"], ["c", "d"]])
         with pytest.raises(TypeError, match="not supported"):
-            writer.add(batch)
+            writer.add(cast(PredictionBatch, batch))
         writer.close()
 
     def test_unsupported_value_types_are_rejected(self, writer_cls, tmp_path):
         writer = writer_cls(tmp_path, buffer_size=5)
-        batch = make_batch(2)
+        batch = cast(dict[str, Any], make_batch(2))
         batch["prediction"] = [[1.0], [2.0]]
         with pytest.raises(ValueError, match="Unsupported type"):
-            writer.add(batch)
+            writer.add(cast(PredictionBatch, batch))
         writer.close()
 
     def test_empty_batches_are_rejected(self, writer_cls, tmp_path):
         writer = writer_cls(tmp_path, buffer_size=5)
         with pytest.raises(ValueError, match="Empty PredictionBatch"):
-            writer.add({})
+            writer.add(cast(PredictionBatch, {}))
         writer.close()
 
 
@@ -223,8 +253,12 @@ def test_hdf5_writer_stores_one_dataset_per_field_under_predictions(tmp_path):
     writer.close()
 
     with h5py.File(tmp_path / "predictions.h5", "r") as h5:
-        assert set(h5["predictions"]) == {"prediction", "target", "sample_id", "target_site_index"}
-        assert h5["predictions/prediction"].shape == (5, N_ENERGIES)
+        predictions = h5["predictions"]
+        assert isinstance(predictions, h5py.Group)
+        assert set(predictions) == {"prediction", "target", "sample_id", "target_site_index"}
+        prediction = predictions["prediction"]
+        assert isinstance(prediction, h5py.Dataset)
+        assert prediction.shape == (5, N_ENERGIES)
 
 
 def test_hdf5_writer_appends_across_flushes_in_order(tmp_path):
@@ -234,7 +268,9 @@ def test_hdf5_writer_appends_across_flushes_in_order(tmp_path):
     writer.close()
 
     with h5py.File(tmp_path / "predictions.h5", "r") as h5:
-        np.testing.assert_array_equal(h5["predictions/target_site_index"][:], np.arange(6) % 3)
+        target_site_index = h5["predictions/target_site_index"]
+        assert isinstance(target_site_index, h5py.Dataset)
+        np.testing.assert_array_equal(target_site_index[:], np.arange(6) % 3)
 
 
 def test_numpy_and_json_writers_create_one_numbered_file_per_row(tmp_path):
@@ -266,13 +302,15 @@ def test_json_writer_files_are_human_readable_json(tmp_path):
 
 
 @pytest.fixture(params=WRITER_READER_PAIRS, ids=PAIR_IDS)
-def written(request, tmp_path):
+def written(request: pytest.FixtureRequest, tmp_path: Path) -> tuple[type[PredictionReader], Path, PredictionBatch]:
     """Write 7 rows (with a mid-way flush) and return ``(reader_cls, path, batch)``."""
     writer_cls, reader_cls = request.param
+    reader_cls: type[PredictionReader] = reader_cls
     batch = make_batch(7, time_per_spectrum=np.linspace(0.1, 0.7, 7).astype(np.float32))
     writer = writer_cls(tmp_path, buffer_size=4)
-    writer.add({key: value[:5] for key, value in batch.items()})
-    writer.add({key: value[5:] for key, value in batch.items()})
+    batch_arrays = cast(dict[str, np.ndarray], batch)
+    writer.add(cast(PredictionBatch, {key: value[:5] for key, value in batch_arrays.items()}))
+    writer.add(cast(PredictionBatch, {key: value[5:] for key, value in batch_arrays.items()}))
     writer.close()
     return reader_cls, tmp_path, batch
 
@@ -294,7 +332,9 @@ def test_samples_round_trip_values_and_python_types(written):
     assert isinstance(sample["sample_id"], str)
     assert sample["target_site_index"] == 0
     assert isinstance(sample["target_site_index"], int)
-    assert sample["time_per_spectrum"] == pytest.approx(0.4, rel=1e-5)
+    time_per_spectrum = sample.get("time_per_spectrum")
+    assert time_per_spectrum is not None
+    assert time_per_spectrum == pytest.approx(0.4, rel=1e-5)
 
 
 def test_iteration_yields_every_sample_in_order_and_can_restart(written):
@@ -459,7 +499,9 @@ def test_structures_are_matched_by_sample_id(hdf5_predictions, datasource, prelo
         assert len(reader) == 4
         for index in range(4):
             sample = reader[index]
-            assert sample["structure"].properties["sample_id"] == sample["sample_id"] == f"sample_{index}"
+            structure = sample.get("structure")
+            assert structure is not None
+            assert structure.properties["sample_id"] == sample["sample_id"] == f"sample_{index}"
 
 
 def test_structure_matching_leaves_bulk_loading_to_the_wrapped_reader(hdf5_predictions, datasource):
@@ -515,7 +557,9 @@ def test_factory_preload_serves_samples_from_memory(hdf5_predictions):
 def test_factory_preload_with_a_datasource_keeps_structures(hdf5_predictions, datasource):
     with build_prediction_reader(hdf5_predictions, datasource=datasource, preload=True) as reader:
         assert reader.provides_structures()
-        assert reader[1]["structure"].properties["sample_id"] == "sample_1"
+        structure = reader[1].get("structure")
+        assert structure is not None
+        assert structure.properties["sample_id"] == "sample_1"
 
 
 def test_factory_propagates_detection_errors(tmp_path):

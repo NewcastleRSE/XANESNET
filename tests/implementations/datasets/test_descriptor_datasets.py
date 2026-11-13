@@ -38,7 +38,17 @@ from xanesnet.utils.exceptions import ConfigError
 
 from .conftest import ListSource, spectrum, water
 
-RDC = Config({"descriptor_type": "rdc", "r_min": 0.0, "r_max": 4.0, "dr": 1.0, "alpha": 2.0, "use_charge": False, "use_spin": False})
+RDC = Config(
+    {
+        "descriptor_type": "rdc",
+        "r_min": 0.0,
+        "r_max": 4.0,
+        "dr": 1.0,
+        "alpha": 2.0,
+        "use_charge": False,
+        "use_spin": False,
+    }
+)
 RDC_WIDTH = 5
 
 
@@ -119,7 +129,11 @@ def test_samples_without_any_spectrum_are_skipped_with_a_warning(tmp_path, caplo
 
 
 def test_batches_stack_the_samples_and_keep_the_sample_ids_as_a_list(tmp_path):
-    dataset = create("descriptor", tmp_path, [water("a", [spectrum(), spectrum(2.0), None]), water("b", [spectrum(), None, None])])
+    dataset = create(
+        "descriptor",
+        tmp_path,
+        [water("a", [spectrum(), spectrum(2.0), None]), water("b", [spectrum(), None, None])],
+    )
 
     batch = dataset.collate_fn([dataset[0], dataset[1], dataset[2]])
 
@@ -176,8 +190,14 @@ def test_multihead_samples_carry_the_head_of_their_subdirectory(tmp_path):
 
 
 def test_multihead_batches_stack_the_head_indices(tmp_path):
-    dataset = create("descriptor_multihead", tmp_path, [water("a", [spectrum(), None, None], subdir_id=0),
-                                                         water("b", [spectrum(), None, None], subdir_id=1)])  # fmt: skip
+    dataset = create(
+        "descriptor_multihead",
+        tmp_path,
+        [
+            water("a", [spectrum(), None, None], subdir_id=0),
+            water("b", [spectrum(), None, None], subdir_id=1),
+        ],
+    )
 
     batch = dataset.collate_fn([dataset[0], dataset[1]])
 
@@ -216,7 +236,11 @@ def test_the_head_count_cannot_be_derived_from_an_empty_dataset(tmp_path):
 
 def test_multihead_samples_without_spectra_are_skipped(tmp_path, caplog):
     with caplog.at_level("WARNING"):
-        dataset = create("descriptor_multihead", tmp_path, [water("a", None, subdir_id=0), water("b", [spectrum(), None, None], subdir_id=0)])
+        dataset = create(
+            "descriptor_multihead",
+            tmp_path,
+            [water("a", None, subdir_id=0), water("b", [spectrum(), None, None], subdir_id=0)],
+        )
 
     assert len(dataset) == 1
     assert "No spectrum found" in caplog.text
@@ -232,6 +256,7 @@ def test_multihead_data_round_trips_through_disk_and_tolerates_missing_fields(tm
 
     loaded = DescriptorMultiheadData.load(data.save(str(tmp_path / "sample.pth")))
 
+    assert loaded.head_idx is not None
     assert loaded.head_idx.item() == 3
     assert loaded.energies is None and loaded.element is None
 

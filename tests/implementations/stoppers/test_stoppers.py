@@ -63,10 +63,10 @@ class Training:
         self.scheduler.step()
 
     def step(self, stopper: EarlyStopper, value: float, epoch: int) -> bool:
-        return stopper.step(value, self.model, epoch, self.optimizer, self.scheduler, None)
+        return stopper.step(value, self.model, epoch, self.optimizer, self.scheduler, None)  # type: ignore[arg-type]
 
     def restore(self, stopper: EarlyStopper):
-        return stopper.restore(self.model, self.optimizer, self.scheduler, None)
+        return stopper.restore(self.model, self.optimizer, self.scheduler, None)  # type: ignore[arg-type]
 
 
 @pytest.fixture

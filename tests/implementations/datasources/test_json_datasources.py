@@ -59,7 +59,12 @@ def dump(path: Path, entry: dict | list) -> Path:
 
 
 def create(root: Path, spectrum_key: str = "spectrum"):
-    return DataSourceRegistry.create("pmgjson", datasource_type="pmgjson", json_path=str(root), spectrum_key=spectrum_key)
+    return DataSourceRegistry.create(
+        "pmgjson",
+        datasource_type="pmgjson",
+        json_path=str(root),
+        spectrum_key=spectrum_key,
+    )
 
 
 ###############################################################################

@@ -184,4 +184,3 @@ def test_invalid_user_config_is_rejected_after_merging(core, write_yaml, infer_u
     with pytest.raises(ConfigError, match=r"Invalid infer config at config\.inferencer"):
         run(write_yaml(infer_user_config), checkpoint_file, out_dir)
     assert core.calls == []
-

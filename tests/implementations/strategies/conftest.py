@@ -43,6 +43,11 @@ from . import fakes
 
 @pytest.fixture(autouse=True)
 def events() -> Iterator[list]:
+    """Clear the fake-collaborator event log around every test.
+
+    Yields:
+        The shared event log, empty before and after the test.
+    """
     fakes.EVENTS.clear()
     yield fakes.EVENTS
     fakes.EVENTS.clear()
@@ -50,7 +55,14 @@ def events() -> Iterator[list]:
 
 @pytest.fixture(autouse=True)
 def tensorboard_calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
-    """Record ``tb_logger`` usage instead of writing event files."""
+    """Record ``tb_logger`` usage instead of writing event files.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace logger operations.
+
+    Returns:
+        Ordered ``(operation, path)`` calls made by the strategy.
+    """
     calls: list[tuple[str, Any]] = []
     monkeypatch.setattr(tb_logger, "new_run", lambda path: calls.append(("new_run", Path(path))))
     monkeypatch.setattr(tb_logger, "close", lambda: calls.append(("close", None)))
@@ -59,7 +71,14 @@ def tensorboard_calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
 
 @pytest.fixture
 def ensemble_inferencers(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict[str, Any]]]:
-    """Replace the registry factory so the hard-wired ``ensemble`` inferencer becomes a recording fake."""
+    """Record registry requests for the hard-wired ensemble inferencer.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace the registry factory.
+
+    Returns:
+        Ordered ``(registry_key, kwargs)`` requests made during the test.
+    """
     created: list[tuple[str, dict[str, Any]]] = []
     original = InferencerRegistry.create
 
@@ -73,22 +92,46 @@ def ensemble_inferencers(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dic
 
 @pytest.fixture
 def model_config() -> Config:
+    """Provide the minimal fake model configuration.
+
+    Returns:
+        Configuration for the registered fake model.
+    """
     return Config({"model_type": fakes.MODEL_TYPE, "width": 3})
 
 
 @pytest.fixture
 def trainer_config() -> Config:
+    """Provide the minimal fake trainer configuration.
+
+    Returns:
+        Configuration for the registered fake trainer.
+    """
     return Config({"trainer_type": fakes.TRAINER_TYPE, "epochs": 2})
 
 
 @pytest.fixture
 def inferencer_config() -> Config:
+    """Provide the minimal fake inferencer configuration.
+
+    Returns:
+        Configuration for the registered fake inferencer.
+    """
     return Config({"inferencer_type": fakes.INFERENCER_TYPE, "batch_size": 4})
 
 
 @pytest.fixture
 def build(model_config: Config, trainer_config: Config, inferencer_config: Config):
-    """Create a strategy through the registry with fake collaborators."""
+    """Provide a factory for strategies with fake collaborators.
+
+    Args:
+        model_config: Configuration for the registered fake model.
+        trainer_config: Configuration for the registered fake trainer.
+        inferencer_config: Configuration for the registered fake inferencer.
+
+    Returns:
+        Factory that creates a registry strategy for the requested key.
+    """
 
     def factory(key: str, dataset: fakes.FakeDataset | None = None, **overrides: Any):
         kwargs: dict[str, Any] = {
@@ -111,7 +154,16 @@ def build(model_config: Config, trainer_config: Config, inferencer_config: Confi
 
 @pytest.fixture
 def prepared(build, model_config: Config):
-    """Create a strategy and run the training set-up steps up to (excluding) the trainers."""
+    """Provide a factory for strategies set up without initializing trainers.
+
+    Args:
+        build: Strategy factory supplied by the ``build`` fixture.
+        model_config: Configuration for the registered fake model.
+
+    Returns:
+        Factory that creates a strategy with its model splits, encoding, models,
+        and checkpointer set up.
+    """
 
     def factory(key: str, **kwargs: Any):
         strategy = build(key, **kwargs)

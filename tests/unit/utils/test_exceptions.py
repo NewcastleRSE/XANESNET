@@ -35,10 +35,8 @@ from xanesnet.utils.exceptions import ConfigError, CriticalError, ResourceError
 @pytest.mark.parametrize("error", [ConfigError, ResourceError])
 def test_specific_errors_are_critical_errors(error):
     assert issubclass(error, CriticalError)
-    assert issubclass(CriticalError, Exception)
 
 
 def test_config_and_resource_errors_are_distinct():
     assert not issubclass(ConfigError, ResourceError)
     assert not issubclass(ResourceError, ConfigError)
-

@@ -30,6 +30,7 @@
 import json
 import logging
 from argparse import Namespace
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,7 @@ from xanesnet.analysis.plotters import Plotter, PlotterRegistry
 from xanesnet.analysis.reporters import Reporter, ReporterRegistry
 from xanesnet.analysis.result import AnalysisResults
 from xanesnet.serialization.config import Config, load_raw_config
+from xanesnet.serialization.prediction_readers import PredictionSample
 from xanesnet.utils.exceptions import ConfigError
 
 ###############################################################################
@@ -86,7 +88,7 @@ class FakeSelector:
 
 @CollectorRegistry.register("unit_test_length")
 class LengthCollector(Collector):
-    def process(self, sample: dict[str, Any]) -> dict[str, Any]:
+    def process(self, sample: PredictionSample) -> dict[str, Any]:
         return {"id_length": len(sample["sample_id"])}
 
 
@@ -96,7 +98,7 @@ class ConstantCollector(Collector):
         super().__init__(collector_type)
         self.key, self.value = key, value
 
-    def process(self, sample: dict[str, Any]) -> dict[str, Any]:
+    def process(self, sample: PredictionSample) -> dict[str, Any]:
         return {self.key: self.value}
 
 
@@ -132,7 +134,12 @@ class FakeModule(CustomModule):
 
 
 @pytest.fixture(autouse=True)
-def calls() -> list:
+def calls() -> Iterator[list[tuple[str, Any]]]:
+    """Isolate the custom analysis-component call log for each test.
+
+    Yields:
+        The shared call log, empty before and after the test.
+    """
     CALLS.clear()
     yield CALLS
     CALLS.clear()
@@ -140,7 +147,14 @@ def calls() -> list:
 
 @pytest.fixture
 def readers(monkeypatch: pytest.MonkeyPatch) -> list[FakeReader]:
-    """Replace reader/selector construction (covered elsewhere) with fakes; returns the created readers."""
+    """Replace prediction-reader and selector construction with fakes.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace analysis setup functions.
+
+    Returns:
+        Readers created by the fake setup function.
+    """
     created: list[FakeReader] = []
 
     def make_readers(inference_run_dirs, preload):
@@ -157,6 +171,14 @@ def readers(monkeypatch: pytest.MonkeyPatch) -> list[FakeReader]:
 
 
 def make_config(**sections: list[dict[str, Any]]) -> Config:
+    """Build an analysis config with empty defaults for unspecified sections.
+
+    Args:
+        sections: Analysis sections that override the empty defaults.
+
+    Returns:
+        Config containing the supplied analysis sections.
+    """
     raw: dict[str, Any] = {name: [] for name in ("selectors", "collectors", "aggregators", "reporters", "plotters")}
     raw.update({"custom_modules": [], "preload": False})
     raw.update(sections)
@@ -164,10 +186,27 @@ def make_config(**sections: list[dict[str, Any]]) -> Config:
 
 
 def make_args(*runs: str, names: list[str] | None = None) -> Namespace:
+    """Build parsed analysis arguments for the requested inference runs.
+
+    Args:
+        runs: Inference run directories passed to analysis.
+        names: Optional names assigned to the corresponding prediction sets.
+
+    Returns:
+        Namespace matching the arguments consumed by the analysis pipeline.
+    """
     return Namespace(inference_runs=list(runs), prediction_names=names)
 
 
 def calls_named(name: str) -> list[Any]:
+    """Return payloads recorded for a named analysis event.
+
+    Args:
+        name: Event name to filter.
+
+    Returns:
+        Payloads for matching events in recorded order.
+    """
     return [payload for event, payload in CALLS if event == name]
 
 
@@ -333,7 +372,9 @@ class TestFullPipeline:
             "collector_type": "unit_test_constant",
             "value": 7,
         }
-        assert load_raw_config(tmp_path / "aggregators.yaml") == {"aggregators": [{"aggregator_type": "unit_test_count"}]}
+        assert load_raw_config(tmp_path / "aggregators.yaml") == {
+            "aggregators": [{"aggregator_type": "unit_test_count"}]
+        }
         assert load_raw_config(tmp_path / "selectors.yaml") == {"selectors": [{"selector_type": "fake"}]}
         for section in ("reporters", "plotters", "custom_modules"):
             assert (tmp_path / f"{section}.yaml").is_file()

@@ -27,6 +27,8 @@
 
 """Unit tests for the ``msssim`` loss (multi-scale structural similarity for 1D spectra)."""
 
+from typing import Any
+
 import pytest
 import torch
 
@@ -36,7 +38,7 @@ TARGETS = (torch.sin(torch.linspace(0, 8, 64)).repeat(3, 1) + 1.5) * torch.tenso
 
 
 def make(**overrides) -> MultiScale_SSIM:
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "fractions": [0.05, 0.1, 0.2],
         "data_range": 4.0,
         "K": (0.01, 0.03),

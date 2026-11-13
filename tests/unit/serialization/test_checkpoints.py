@@ -190,7 +190,10 @@ def test_member_training_state_is_sliced_per_member_but_shared_values_are_kept(e
 
 
 def test_save_separate_does_not_mutate_the_source_checkpoint(ensemble_checkpoint, tmp_path):
-    before = {key: list(value) if isinstance(value, list) else value for key, value in ensemble_checkpoint.training_state.items()}
+    before = {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in ensemble_checkpoint.training_state.items()
+    }
     ensemble_checkpoint.save_separate(tmp_path / "final.pth")
     assert ensemble_checkpoint.training_state == before
     assert len(ensemble_checkpoint.model_states) == 3

@@ -41,11 +41,16 @@ def model() -> torch.nn.Module:
 
 @pytest.mark.parametrize("optimizer_type", OptimizerRegistry.list())
 def test_registry_creates_an_optimizer_that_records_its_signature(optimizer_type, model):
-    optimizer = OptimizerRegistry.create(optimizer_type, optimizer_type=optimizer_type, params=model.parameters(), lr=0.1)
+    optimizer = OptimizerRegistry.create(
+        optimizer_type,
+        optimizer_type=optimizer_type,
+        params=model.parameters(),
+        lr=0.1,
+    )
 
     assert isinstance(optimizer, Optimizer)
     assert optimizer.torch_optimizer is optimizer
-    assert optimizer.param_groups[0]["lr"] == 0.1
+    assert optimizer.torch_optimizer.param_groups[0]["lr"] == 0.1
     assert isinstance(optimizer.signature, Config)
     assert optimizer.signature.as_dict() == {"optimizer": optimizer_type}
 

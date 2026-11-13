@@ -27,7 +27,10 @@
 
 """Unit tests for ``Checkpointer``: state collection, periodic saving and member bookkeeping."""
 
-from types import SimpleNamespace
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import pytest
 import torch
@@ -43,17 +46,37 @@ from xanesnet.serialization.config import Config
 
 
 class _Component:
-    def __init__(self, signature: dict, state: dict) -> None:
+    def __init__(self, signature: dict[str, Any], state: dict[str, Any]) -> None:
         self.signature = Config(signature)
         self._state = state
 
-    def state_dict(self) -> dict:
+    def state_dict(self) -> dict[str, Any]:
         return dict(self._state)
 
 
-def make_trainer(seed: int = 0, epochs: int = 3, warmup: bool = False, lr: float = 0.1) -> SimpleNamespace:
+@dataclass
+class FakeTrainer:
+    model: torch.nn.Linear
+    completed_epochs: int
+    optimizer: _Component
+    epoch_lr_scheduler: _Component
+    warmup_lr_scheduler: _Component | None
+
+
+def make_trainer(seed: int = 0, epochs: int = 3, warmup: bool = False, lr: float = 0.1) -> FakeTrainer:
+    """Create a trainer double with serializable model and scheduler state.
+
+    Args:
+        seed: Random seed used to initialize the test model.
+        epochs: Completed epoch count recorded by the trainer.
+        warmup: Whether to include a warmup scheduler.
+        lr: Learning rate recorded in the optimizer signature.
+
+    Returns:
+        Trainer-like namespace with a model, optimizer, and schedulers.
+    """
     torch.manual_seed(seed)
-    return SimpleNamespace(
+    return FakeTrainer(
         model=torch.nn.Linear(2, 2),
         completed_epochs=epochs,
         optimizer=_Component({"optimizer_type": "adam", "lr": lr}, {"step": torch.tensor(float(epochs))}),
@@ -64,11 +87,37 @@ def make_trainer(seed: int = 0, epochs: int = 3, warmup: bool = False, lr: float
 
 @pytest.fixture
 def signature() -> Config:
+    """Provide the minimal model signature for checkpoint tests.
+
+    Returns:
+        Config identifying the test MLP model.
+    """
     return Config({"model": {"model_type": "mlp"}})
 
 
-def make_checkpointer(signature, trainers, save_dir=None, save_interval=None) -> Checkpointer:
+def make_checkpointer(
+    signature: Config,
+    trainers: Sequence[Any],
+    save_dir: str | Path | None = None,
+    save_interval: int | None = None,
+) -> Checkpointer:
+    """Create a checkpointer backed by the supplied trainer list.
+
+    Args:
+        signature: Model and dataset signature to store in checkpoints.
+        trainers: Trainers returned by the checkpointer's provider.
+        save_dir: Optional directory for periodic checkpoints.
+        save_interval: Optional interval between periodic saves.
+
+    Returns:
+        Checkpointer configured with the supplied signature and trainers.
+    """
     return Checkpointer(save_dir, save_interval, signature, trainer_provider=lambda: trainers)
+
+
+def training_state(checkpoint: Checkpoint) -> dict[str, Any]:
+    assert checkpoint.training_state is not None
+    return checkpoint.training_state
 
 
 ###############################################################################
@@ -108,9 +157,10 @@ def test_snapshot_collects_one_entry_per_member(signature):
     assert isinstance(checkpoint, Checkpoint)
     assert checkpoint.signature is signature
     assert len(checkpoint.model_states) == 2
-    assert checkpoint.training_state["epochs"] == [2, 5]
-    assert len(checkpoint.training_state["optimizer_states"]) == 2
-    assert [s["last_epoch"] for s in checkpoint.training_state["epoch_scheduler_states"]] == [2, 5]
+    state = training_state(checkpoint)
+    assert state["epochs"] == [2, 5]
+    assert len(state["optimizer_states"]) == 2
+    assert [s["last_epoch"] for s in state["epoch_scheduler_states"]] == [2, 5]
 
 
 def test_snapshot_is_independent_of_later_training(signature):
@@ -128,8 +178,9 @@ def test_component_signatures_are_captured_from_the_first_trainer(signature):
     trainers = [make_trainer(seed=0, lr=0.1), make_trainer(seed=1, lr=0.5)]
     checkpoint = make_checkpointer(signature, trainers).snapshot()
 
-    assert checkpoint.training_state["optimizer_signature"] == {"trainer": {"optimizer_type": "adam", "lr": 0.1}}
-    assert checkpoint.training_state["scheduler_signature"] == {
+    state = training_state(checkpoint)
+    assert state["optimizer_signature"] == {"trainer": {"optimizer_type": "adam", "lr": 0.1}}
+    assert state["scheduler_signature"] == {
         "trainer": {"lr_scheduler": {"lr_scheduler_type": "step"}, "lr_warmup": False}
     }
 
@@ -138,9 +189,10 @@ def test_component_signatures_are_captured_from_the_first_trainer(signature):
 def test_warmup_state_is_only_recorded_when_a_warmup_scheduler_exists(signature, warmup):
     checkpoint = make_checkpointer(signature, [make_trainer(warmup=warmup)]).snapshot()
 
-    warmup_state = checkpoint.training_state["warmup_scheduler_states"][0]
+    state = training_state(checkpoint)
+    warmup_state = state["warmup_scheduler_states"][0]
     assert (warmup_state is not None) is warmup
-    assert checkpoint.training_state["scheduler_signature"]["trainer"]["lr_warmup"] is warmup
+    assert state["scheduler_signature"]["trainer"]["lr_warmup"] is warmup
 
 
 ###############################################################################
@@ -150,16 +202,16 @@ def test_warmup_state_is_only_recorded_when_a_warmup_scheduler_exists(signature,
 
 def test_finished_members_are_served_from_their_cached_state(signature):
     first, second = make_trainer(seed=0, epochs=4), make_trainer(seed=1, epochs=1)
-    trainers = [first, second]
+    trainers: list[FakeTrainer | None] = [first, second]
     checkpointer = make_checkpointer(signature, trainers)
 
     expected_first = {k: v.clone() for k, v in first.model.state_dict().items()}
-    checkpointer.finish_member(first)
+    checkpointer.finish_member(first)  # type: ignore[arg-type]
     trainers[0] = None  # the strategy releases the finished trainer
 
     checkpoint = checkpointer.snapshot()
 
-    assert checkpoint.training_state["epochs"] == [4, 1]
+    assert training_state(checkpoint)["epochs"] == [4, 1]
     for name, tensor in expected_first.items():
         assert torch.equal(checkpoint.model_states[0][name], tensor)
 
@@ -167,10 +219,10 @@ def test_finished_members_are_served_from_their_cached_state(signature):
 def test_cached_state_wins_over_a_still_present_trainer(signature):
     trainer = make_trainer(epochs=2)
     checkpointer = make_checkpointer(signature, [trainer])
-    checkpointer.finish_member(trainer)
+    checkpointer.finish_member(trainer)  # type: ignore[arg-type]
     trainer.completed_epochs = 99  # later mutation must not alter the cached snapshot
 
-    assert checkpointer.snapshot().training_state["epochs"] == [2]
+    assert training_state(checkpointer.snapshot())["epochs"] == [2]
 
 
 ###############################################################################
@@ -183,7 +235,7 @@ def test_save_returns_the_minimal_checkpoint_path_and_the_full_sibling_carries_t
 
     assert path == tmp_path / "final.pth"
     assert path.is_file()
-    assert Checkpoint.load(tmp_path / "final_full.pth").training_state["epochs"] == [3]
+    assert training_state(Checkpoint.load(tmp_path / "final_full.pth"))["epochs"] == [3]
 
 
 def test_save_writes_per_member_files_for_ensembles_by_default(signature, tmp_path):
@@ -207,7 +259,9 @@ def test_save_separate_can_be_disabled(signature, tmp_path):
 def test_step_is_disabled_without_directory_or_interval(signature, tmp_path):
     trainers = [make_trainer()]
     assert make_checkpointer(signature, trainers, save_dir=None, save_interval=1).step(0) is None
-    assert make_checkpointer(signature, trainers, save_dir=tmp_path, save_interval=None).step(0, force_save=True) is None
+    assert (
+        make_checkpointer(signature, trainers, save_dir=tmp_path, save_interval=None).step(0, force_save=True) is None
+    )
     assert list(tmp_path.iterdir()) == []
 
 
@@ -242,5 +296,5 @@ def test_checkpoint_names_follow_the_active_member(signature, tmp_path):
     checkpointer = make_checkpointer(signature, [first, second], save_dir=tmp_path, save_interval=1)
 
     assert checkpointer.step(0) == "checkpoint_0_member_0.pth"
-    checkpointer.finish_member(first)
+    checkpointer.finish_member(first)  # type: ignore[arg-type]
     assert checkpointer.step(0) == "checkpoint_0_member_1.pth"

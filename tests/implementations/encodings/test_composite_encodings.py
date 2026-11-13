@@ -37,14 +37,46 @@ X = torch.tensor([[2.0, 4.0, 6.0], [8.0, 10.0, 12.0]])
 
 
 def scale(factor: float) -> Config:
-    return Config({"encoding_type": "scale", "factor": [factor] * 3, "per_point": True, "per_element": False, "elements": None})
+    """Build a per-point scaling encoding configuration.
+
+    Args:
+        factor: Factor applied to each spectral point.
+
+    Returns:
+        Configuration for the scale encoding.
+    """
+    return Config(
+        {
+            "encoding_type": "scale",
+            "factor": [factor] * 3,
+            "per_point": True,
+            "per_element": False,
+            "elements": None,
+        }
+    )
 
 
 def subtract(value: float) -> Config:
+    """Build a per-point average-subtraction encoding configuration.
+
+    Args:
+        value: Average subtracted from each spectral point.
+
+    Returns:
+        Configuration for the subtract-average encoding.
+    """
     return Config({"encoding_type": "subtract_average", "average": [value] * 3, "per_element": False, "elements": None})
 
 
 def fourier(concat: bool = False) -> Config:
+    """Build a Fourier encoding configuration.
+
+    Args:
+        concat: Whether to concatenate the input with its Fourier representation.
+
+    Returns:
+        Configuration for the Fourier encoding.
+    """
     return Config({"encoding_type": "fourier", "concat": concat})
 
 
@@ -114,6 +146,14 @@ def test_unknown_member_types_are_reported():
 
 
 def make_concat(*members: Config) -> ConcatEncoding:
+    """Create and prepare a concatenation encoding for three-point spectra.
+
+    Args:
+        members: Encoding configurations evaluated in parallel.
+
+    Returns:
+        Prepared concatenation encoding.
+    """
     encoding = SpectraEncodingRegistry.create("concat", encoding_type="concat", encodings=list(members))
     encoding.prepare(3)
     return encoding

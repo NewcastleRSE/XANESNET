@@ -41,6 +41,7 @@ from torch.utils.data import DataLoader
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.batchprocessors.forward.base import ForwardBatchProcessor
+from xanesnet.encodings import SpectraEncoding
 from xanesnet.serialization.auto_config import resolve_auto_encoding_config, resolve_auto_model_config
 from xanesnet.serialization.auto_config import statistics as statistics_module
 from xanesnet.serialization.auto_config.helpers import format_value, requested_auto_fields
@@ -279,7 +280,7 @@ def test_collect_spectral_statistics_uses_the_training_subset_when_present(datas
 def test_model_auto_fields_are_replaced_by_resolved_values(dataset):
     config = _train_config({"model_type": MODEL_TYPE, "in_size": "auto", "out_size": "AUTO", "hidden": 8}, [])
 
-    resolved = resolve_auto_model_config(config, dataset, encoding=None)
+    resolved = resolve_auto_model_config(config, dataset, encoding=None)  # type: ignore[arg-type]
 
     assert resolved.section("model").as_dict() == {
         "model_type": MODEL_TYPE,
@@ -291,12 +292,14 @@ def test_model_auto_fields_are_replaced_by_resolved_values(dataset):
 
 def test_model_resolution_does_not_mutate_the_input_config(dataset):
     config = _train_config({"model_type": MODEL_TYPE, "in_size": "auto"}, [])
-    resolve_auto_model_config(config, dataset, encoding=None)
+    resolve_auto_model_config(config, dataset, encoding=None)  # type: ignore[arg-type]
     assert config.section("model").get_str("in_size") == "auto"
 
 
 def test_resolver_sees_the_first_sample_as_representative(dataset):
-    resolve_auto_model_config(_train_config({"model_type": MODEL_TYPE, "in_size": "auto"}, []), dataset, None)
+    resolve_auto_model_config(
+        _train_config({"model_type": MODEL_TYPE, "in_size": "auto"}, []), dataset, None  # type: ignore[arg-type]
+    )
 
     inputs, target, seen_dataset = RESOLVER_CALLS[0]
     assert inputs["x"].shape == (1, N_FEATURES)
@@ -305,20 +308,34 @@ def test_resolver_sees_the_first_sample_as_representative(dataset):
 
 
 def test_resolved_dimensions_reflect_the_encoding(dataset):
-    class Doubling:
-        def encode(self, targets, elements=None):
+    class Doubling(SpectraEncoding):
+        def __init__(self) -> None:
+            super().__init__("doubling")
+
+        def output_size(self, input_size: int) -> int:
+            return 2 * input_size
+
+        def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
             return torch.cat([targets, targets], dim=-1)
+
+        def decode(self, predictions: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
+            first, second = predictions.chunk(2, dim=-1)
+            return (first + second) / 2
+
+        @property
+        def signature(self) -> list[Config]:
+            return [Config({"encoding_type": "doubling"})]
 
     config = _train_config({"model_type": MODEL_TYPE, "out_size": "auto"}, [])
 
-    resolved = resolve_auto_model_config(config, dataset, encoding=Doubling())  # type: ignore[arg-type]
+    resolved = resolve_auto_model_config(config, dataset, encoding=Doubling())
 
     assert resolved.section("model").get_int("out_size") == 2 * N_POINTS
 
 
 def test_model_without_auto_fields_skips_resolution_entirely(dataset):
     config = _train_config({"model_type": MODEL_TYPE, "in_size": 3}, [])
-    resolved = resolve_auto_model_config(config, dataset, encoding=None)
+    resolved = resolve_auto_model_config(config, dataset, encoding=None)  # type: ignore[arg-type]
     assert resolved.as_dict() == config.as_dict()
     assert RESOLVER_CALLS == []
 
@@ -327,13 +344,13 @@ def test_auto_fields_for_a_model_without_resolver_are_rejected(dataset):
     BatchProcessorRegistry.register((DATASET_TYPE, "unit_test_no_resolver_model"))(FakeBatchProcessor)
     config = _train_config({"model_type": "unit_test_no_resolver_model", "in_size": "auto"}, [])
     with pytest.raises(ConfigError, match="No automatic model config resolver registered"):
-        resolve_auto_model_config(config, dataset, encoding=None)
+        resolve_auto_model_config(config, dataset, encoding=None)  # type: ignore[arg-type]
 
 
 def test_resolver_that_misses_a_requested_field_is_reported(dataset):
     config = _train_config({"model_type": UNRESOLVED_MODEL_TYPE, "in_size": "auto"}, [])
     with pytest.raises(ConfigError, match="did not produce model.in_size"):
-        resolve_auto_model_config(config, dataset, encoding=None)
+        resolve_auto_model_config(config, dataset, encoding=None)  # type: ignore[arg-type]
 
 
 ###############################################################################
