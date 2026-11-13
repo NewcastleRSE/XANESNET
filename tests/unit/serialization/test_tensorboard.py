@@ -171,9 +171,7 @@ def test_epoch_metrics_without_validation(tmp_path):
 
 def test_epoch_metrics_with_validation(tmp_path):
     tb_logger.new_run(tmp_path)
-    tb_logger.log_epoch_metrics(
-        0, 1.0, 0.0, 1.0, valid_loss=2.0, valid_regularization=0.5, valid_total=2.5
-    )
+    tb_logger.log_epoch_metrics(0, 1.0, 0.0, 1.0, valid_loss=2.0, valid_regularization=0.5, valid_total=2.5)
     tb_logger.flush()
 
     assert _scalars(tmp_path, "loss/valid") == [(0, 2.0)]

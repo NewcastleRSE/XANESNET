@@ -42,10 +42,19 @@ from torch.utils.data import DataLoader
 from xanesnet.batchprocessors import BatchProcessorRegistry
 from xanesnet.batchprocessors.forward.base import ForwardBatchProcessor
 from xanesnet.encodings import SpectraEncoding
-from xanesnet.serialization.auto_config import resolve_auto_encoding_config, resolve_auto_model_config
+from xanesnet.serialization.auto_config import (
+    resolve_auto_encoding_config,
+    resolve_auto_model_config,
+)
 from xanesnet.serialization.auto_config import statistics as statistics_module
-from xanesnet.serialization.auto_config.helpers import format_value, requested_auto_fields
-from xanesnet.serialization.auto_config.registries import EncodingAutoResolver, ModelAutoResolver
+from xanesnet.serialization.auto_config.helpers import (
+    format_value,
+    requested_auto_fields,
+)
+from xanesnet.serialization.auto_config.registries import (
+    EncodingAutoResolver,
+    ModelAutoResolver,
+)
 from xanesnet.serialization.auto_config.statistics import (
     SpectralStatistics,
     SpectralStatisticsCollector,

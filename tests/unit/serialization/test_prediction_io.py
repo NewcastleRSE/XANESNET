@@ -42,13 +42,18 @@ from xanesnet.serialization.prediction_readers import (
     HDF5Reader,
     JSONReader,
     NumpyReader,
-    PreloadedPredictionReader,
     PredictionReader,
+    PreloadedPredictionReader,
     StructureMatchedPredictionReader,
     build_prediction_reader,
     detect_prediction_format,
 )
-from xanesnet.serialization.prediction_writers import HDF5Writer, JSONWriter, NumpyWriter, PredictionBatch
+from xanesnet.serialization.prediction_writers import (
+    HDF5Writer,
+    JSONWriter,
+    NumpyWriter,
+    PredictionBatch,
+)
 
 WRITERS = [HDF5Writer, NumpyWriter, JSONWriter]
 WRITER_READER_PAIRS = [(HDF5Writer, HDF5Reader), (NumpyWriter, NumpyReader), (JSONWriter, JSONReader)]

@@ -218,8 +218,7 @@ def test_no_checkpoint_restores_nothing(config, args, tmp_path):
     core_train.train(config, args, tmp_path, None)
 
     assert not any(
-        name in fakes.event_names()
-        for name in ("set_state_dicts", "load_optimizer", "load_epoch_scheduler")
+        name in fakes.event_names() for name in ("set_state_dicts", "load_optimizer", "load_epoch_scheduler")
     )
 
 

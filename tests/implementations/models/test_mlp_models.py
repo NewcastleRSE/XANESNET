@@ -27,10 +27,11 @@
 
 """Unit tests for the ``mlp`` and multi-head ``mh_mlp`` / ``mh_cnn`` models."""
 
+from typing import cast
+
 import pytest
 import torch
 from torch import nn
-from typing import cast
 
 from xanesnet.models import ModelRegistry
 

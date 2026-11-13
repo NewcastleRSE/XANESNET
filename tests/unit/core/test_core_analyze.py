@@ -37,7 +37,11 @@ from typing import Any
 import pytest
 
 from xanesnet import core_analyze
-from xanesnet.analysis.aggregators import Aggregator, AggregatorRegistry, AggregatorResult
+from xanesnet.analysis.aggregators import (
+    Aggregator,
+    AggregatorRegistry,
+    AggregatorResult,
+)
 from xanesnet.analysis.collectors import Collector, CollectorRegistry
 from xanesnet.analysis.custom_modules import CustomModule, CustomModuleRegistry
 from xanesnet.analysis.plotters import Plotter, PlotterRegistry
@@ -228,7 +232,7 @@ class TestCustomModulesOnly:
 
         core_analyze.analyze(config, make_args("runs/one", "runs/two"), tmp_path)
 
-        (inference_runs, names, output_dir), = calls_named("custom")
+        ((inference_runs, names, output_dir),) = calls_named("custom")
         assert inference_runs == [Path("runs/one"), Path("runs/two")]
         assert names == ["one", "two"]
         assert output_dir == tmp_path / "custom_modules" / "unit_test_module_000"
@@ -349,15 +353,15 @@ class TestFullPipeline:
     def test_aggregators_receive_the_collected_values(self, config, tmp_path, readers):
         core_analyze.analyze(config, make_args("runs/one"), tmp_path)
 
-        (index, values), = calls_named("aggregate")
+        ((index, values),) = calls_named("aggregate")
         assert index == 0
         assert [record["sample_id"] for record in values] == ["a", "b", "c"]
 
     def test_reporters_and_plotters_receive_the_aggregated_results(self, config, tmp_path, readers):
         core_analyze.analyze(config, make_args("runs/one", names=["First"]), tmp_path)
 
-        (results, report_dir), = calls_named("report")
-        (plot_results, plot_dir), = calls_named("plot")
+        ((results, report_dir),) = calls_named("report")
+        ((plot_results, plot_dir),) = calls_named("plot")
         assert plot_results is results
         assert report_dir == tmp_path / "reports" / "unit_test_report_000"
         assert plot_dir == tmp_path / "plots" / "unit_test_plot_000"
@@ -425,7 +429,7 @@ class TestPartialPipelines:
 
         core_analyze.analyze(config, make_args("runs/one"), tmp_path)
 
-        (results, _), = calls_named("report")
+        ((results, _),) = calls_named("report")
         assert results.collector_results == []
         assert results.aggregator_results == []
 
