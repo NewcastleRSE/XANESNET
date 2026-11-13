@@ -4,7 +4,7 @@
 
 # XANESNET
 
-Deep learning for theoretical X-ray spectroscopy.
+Deep learning for theoretical spectroscopy.
 
 [User Manual](https://xanesnet.readthedocs.io) | [Setup](#setup) | [Config UI](#config-ui) | [Usage](#usage) | [People](#people-and-attribution) | [Publications](#publications)
 
@@ -16,7 +16,7 @@ We present XANESNET, an open-source, PyTorch-based software package for machine 
 
 ## Highlights
 
-- Command-line workflows for forward-model training, checkpointed inference, and prediction analysis.
+- Command-line workflows for forward and inverse training, checkpointed inference, and automated analysis.
 - Interactive browser-based config editor in [tools/config-ui/](tools/config-ui/).
 - GPLv3 licensed open-source distribution.
 
