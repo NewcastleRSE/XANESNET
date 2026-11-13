@@ -73,9 +73,9 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NewcastleRSE/xray-spectroscopy-ml"
+Homepage = "https://github.com/NewcastleRSE/XANESNET"
 Documentation = "https://xanesnet.readthedocs.io"
-Repository = "https://github.com/NewcastleRSE/xray-spectroscopy-ml"
+Repository = "https://github.com/NewcastleRSE/XANESNET"
 
 [project.scripts]
 xanesnet = "xanesnet.cli:console_main"
