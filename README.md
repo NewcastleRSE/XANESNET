@@ -8,6 +8,8 @@ Deep learning for theoretical spectroscopy.
 
 [User Manual](https://xanesnet.readthedocs.io) | [Setup](#setup) | [Config UI](#config-ui) | [Usage](#usage) | [People](#people-and-attribution) | [Publications](#publications)
 
+[![Tests](https://github.com/NewcastleRSE/XANESNET/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/NewcastleRSE/XANESNET/actions/workflows/tests.yml)
+
 </div>
 
 ## Overview

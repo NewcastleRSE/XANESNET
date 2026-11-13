@@ -1,0 +1,61 @@
+# Build the Sphinx documentation on changes that can affect the docs.
+
+name: Docs
+
+on:
+  push:
+    paths:
+      - ".github/workflows/docs.yml"
+      - ".readthedocs.yml"
+      - "docs/**"
+      - "pyproject.toml"
+      - "setup.py"
+      - "xanesnet/**"
+  pull_request:
+    paths:
+      - ".github/workflows/docs.yml"
+      - ".readthedocs.yml"
+      - "docs/**"
+      - "pyproject.toml"
+      - "setup.py"
+      - "xanesnet/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Sphinx HTML
+    runs-on: ubuntu-latest
+    env:
+      TORCH: "2.5.1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install CPU PyTorch and PyG extensions
+        run: |
+          python -m pip install "torch==${TORCH}" --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install torch-scatter torch-sparse torch-cluster \
+            -f "https://data.pyg.org/whl/torch-${TORCH}+cpu.html"
+
+      - name: Install XANESNET documentation dependencies
+        run: python -m pip install -e ".[docs,lightning]"
+
+      - name: Build documentation
+        run: sphinx-build -b html -W --keep-going docs/source docs/build/html
