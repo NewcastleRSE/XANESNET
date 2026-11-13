@@ -9,7 +9,7 @@ X A N E S N E T
 |
 
 XANESNET is an open-source toolbox for the automated prediction and analysis of X-ray spectroscopy data.
-The software is collaboratively developed by `Hendrik Junkawitsch <https://github.com/HendrikJunkawitsch>`_,
+The software is collaboratively developed by `Hendrik Junkawitsch <https://github.com/Junkiii>`_,
 the `Penfold Group <http://penfoldgroup.co.uk>`_, and the `Research Software Engineering (RSE) team <https://rse.ncldata.dev/>`_ at `Newcastle University <https://ncl.ac.uk>`_.
 
 This documentation provides a user guide for running XANESNET and an :doc:`api/modules` reference generated from in-source docstrings.
