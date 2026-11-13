@@ -47,7 +47,7 @@ class TinyDataset(TorchDataset):
                  split_indexfile=None, root=None):  # fmt: skip
         super().__init__(
             "tiny",
-            datasource=ListSource([water(f"sample_{idx}", None) for idx in range(len(counts))]),
+            datasource=ListSource([water(f"sample_{idx}") for idx in range(len(counts))]),
             root=str(root or tmp_path / "processed"),
             preload=preload,
             skip_prepare=skip_prepare,
