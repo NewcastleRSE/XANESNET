@@ -44,6 +44,14 @@ from xanesnet.graphs.utils import (
 
 
 def vectors(*rows: tuple[float, float, float]) -> torch.Tensor:
+    """Build a float32 tensor from three-dimensional vector rows.
+
+    Args:
+        rows: Vector components to stack into a tensor.
+
+    Returns:
+        Tensor containing the supplied vectors.
+    """
     return torch.tensor(rows, dtype=torch.float32)
 
 

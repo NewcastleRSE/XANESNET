@@ -55,6 +55,8 @@ SIGNATURE = {"model": {"model_type": "fake"}, "encodings": [], "dataset": {"data
 
 
 class FakeModel:
+    """Model stand-in that records the device selected by the core pipeline."""
+
     def __init__(self) -> None:
         self.device: torch.device | None = None
 
@@ -76,6 +78,8 @@ class Recorder:
 
 
 class FakeCheckpointer:
+    """Checkpointer stand-in that records save requests."""
+
     signature = Config(SIGNATURE)
 
     def save(self, path: Path) -> None:
@@ -83,11 +87,15 @@ class FakeCheckpointer:
 
 
 class FakeEncoding:
+    """Encoding stand-in with a stable signature for core tests."""
+
     signature = [Config({"encoding_type": "fake_encoding", "num_points": 3})]
 
 
 @DataSourceRegistry.register(DATASOURCE_TYPE)
 class FakeDataSource:
+    """Registered data-source stand-in that records constructor arguments."""
+
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
         EVENTS.append(("datasource", kwargs))
@@ -95,6 +103,8 @@ class FakeDataSource:
 
 @DatasetRegistry.register(DATASET_TYPE)
 class FakeDataset:
+    """Registered dataset stand-in that records preparation calls."""
+
     def __init__(self, datasource: FakeDataSource, **kwargs: Any) -> None:
         self.datasource = datasource
         self.kwargs = kwargs

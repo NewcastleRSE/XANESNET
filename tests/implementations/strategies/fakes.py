@@ -53,6 +53,8 @@ EVENTS: list[tuple[str, Any]] = []
 
 @ModelRegistry.register(MODEL_TYPE)
 class FakeModel(torch.nn.Module):
+    """Registered model stand-in that records initialization calls."""
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__()
         self.kwargs = kwargs
@@ -69,6 +71,8 @@ class FakeModel(torch.nn.Module):
 
 @TrainerRegistry.register(TRAINER_TYPE)
 class FakeTrainer:
+    """Registered trainer stand-in that records training calls."""
+
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
         self.model = kwargs["model"]
@@ -83,6 +87,8 @@ class FakeTrainer:
 
 @InferencerRegistry.register(INFERENCER_TYPE)
 class FakeInferencer:
+    """Registered inferencer stand-in that records inference calls."""
+
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
 

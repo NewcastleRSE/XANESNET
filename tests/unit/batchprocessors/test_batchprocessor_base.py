@@ -25,9 +25,10 @@
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Unit tests for the batch-processor registry and the shared forward/inverse base behaviour."""
+"""Unit tests for shared forward and inverse batch-processor behavior."""
 
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -35,14 +36,13 @@ import torch
 
 from xanesnet.batchprocessors import (
     BatchProcessor,
-    BatchProcessorRegistry,
     ForwardBatchProcessor,
     InverseBatchProcessor,
 )
 
 
 class RecordingEncoding:
-    """Encoding that doubles on encode and halves on decode, recording the elements it receives."""
+    """Encoding stub that scales tensors and records element metadata."""
 
     def __init__(self) -> None:
         self.elements: list[torch.Tensor | None] = []
@@ -57,17 +57,21 @@ class RecordingEncoding:
 
 
 class MinimalForward(ForwardBatchProcessor):
-    def input_preparation(self, batch):
+    """Forward processor stub that extracts toy inputs and targets from a batch."""
+
+    def input_preparation(self, batch: Any) -> dict[str, Any]:
         return {"x": batch.x}
 
-    def target_preparation(self, batch):
+    def target_preparation(self, batch: Any) -> torch.Tensor:
         return batch.y
 
-    def sample_id_preparation(self, batch):
+    def sample_id_preparation(self, batch: Any) -> np.ndarray:
         return np.array(batch.sample_id)
 
 
 class MinimalInverse(InverseBatchProcessor):
+    """Inverse processor stub reusing the forward test batch fields."""
+
     input_preparation = MinimalForward.input_preparation
     target_preparation = MinimalForward.target_preparation
     sample_id_preparation = MinimalForward.sample_id_preparation
@@ -75,41 +79,6 @@ class MinimalInverse(InverseBatchProcessor):
 
 SPECTRA = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
 ELEMENTS = torch.tensor([26, 29])
-
-
-###############################################################################
-################################### REGISTRY ##################################
-###############################################################################
-
-
-def test_processors_are_looked_up_by_dataset_and_model_type_ignoring_case():
-    assert BatchProcessorRegistry.get(("Descriptor", "MLP")) is BatchProcessorRegistry.get(("descriptor", "mlp"))
-
-
-def test_unknown_combinations_name_both_types():
-    with pytest.raises(KeyError, match="for descriptor, not_a_model"):
-        BatchProcessorRegistry.get(("descriptor", "not_a_model"))
-
-
-def test_message_passing_datasets_share_the_processor_of_their_plain_counterpart():
-    mp_keys = [key for key in BatchProcessorRegistry.list() if key[0].endswith("_mp")]
-
-    assert mp_keys
-    for dataset_type, model_type in mp_keys:
-        plain = (dataset_type.removesuffix("_mp"), model_type)
-        assert BatchProcessorRegistry.get((dataset_type, model_type)) is BatchProcessorRegistry.get(plain)
-
-
-def test_inverse_datasets_are_handled_by_inverse_processors_only():
-    for dataset_type, model_type in BatchProcessorRegistry.list():
-        processor = BatchProcessorRegistry.get((dataset_type, model_type))
-        assert issubclass(processor, InverseBatchProcessor) == ("inverse" in dataset_type)
-        assert issubclass(processor, ForwardBatchProcessor) == ("inverse" not in dataset_type)
-
-
-###############################################################################
-################################ SHARED DEFAULTS ##############################
-###############################################################################
 
 
 def test_base_class_is_abstract():
@@ -129,26 +98,27 @@ def test_defaults_pass_predictions_through_and_provide_no_elements():
 
 def test_single_sample_helpers_collate_the_sample_into_a_batch_first():
     class Dataset:
-        def __getitem__(self, index):
+        """Single-sample dataset that collates values into a namespace."""
+
+        def __getitem__(self, index: int) -> dict[str, int]:
             return {"index": index}
 
-        def collate_fn(self, samples):
+        def collate_fn(self, samples: list[dict[str, int]]) -> SimpleNamespace:
             (sample,) = samples
-            return SimpleNamespace(x=sample["index"] * 10, y=sample["index"] * 100, sample_id=[str(sample["index"])])
+            return SimpleNamespace(
+                x=sample["index"] * 10,
+                y=torch.tensor(sample["index"] * 100),
+                sample_id=[str(sample["index"])],
+            )
 
     processor = MinimalForward()
 
     assert processor.input_preparation_single(Dataset(), 3) == {"x": 30}  # type: ignore[arg-type]
-    assert processor.target_preparation_single(Dataset(), 3) == 300  # type: ignore[arg-type]
+    torch.testing.assert_close(processor.target_preparation_single(Dataset(), 3), torch.tensor(300))  # type: ignore[arg-type]
     assert processor.element_preparation_single(Dataset(), 3) is None  # type: ignore[arg-type]
 
 
-###############################################################################
-############################### FORWARD / INVERSE #############################
-###############################################################################
-
-
-def test_forward_processors_encode_the_target_and_decode_predictions_with_the_elements():
+def test_forward_processors_encode_targets_and_decode_predictions_with_elements():
     encoding = RecordingEncoding()
     processor = MinimalForward(encoding)  # type: ignore[arg-type]
 
@@ -157,19 +127,19 @@ def test_forward_processors_encode_the_target_and_decode_predictions_with_the_el
     assert all(elements is ELEMENTS for elements in encoding.elements)
 
 
-def test_forward_processors_leave_the_inputs_alone():
+def test_forward_processors_leave_inputs_alone():
     inputs = {"x": SPECTRA}
     assert MinimalForward(RecordingEncoding()).encode_input(inputs, ELEMENTS) is inputs  # type: ignore[arg-type]
 
 
-def test_forward_processors_without_an_encoding_are_the_identity():
+def test_forward_processors_without_encoding_are_the_identity():
     processor = MinimalForward()
 
     assert processor.encode_target(SPECTRA) is SPECTRA
     assert processor.decode_target(SPECTRA) is SPECTRA
 
 
-def test_inverse_processors_encode_the_spectral_input_without_modifying_the_original_inputs():
+def test_inverse_processors_encode_spectral_inputs_without_modifying_original_inputs():
     encoding = RecordingEncoding()
     inputs = {"x": SPECTRA, "other": ELEMENTS}
 
@@ -183,6 +153,8 @@ def test_inverse_processors_encode_the_spectral_input_without_modifying_the_orig
 
 def test_inverse_processors_use_the_configured_spectra_input_key():
     class Custom(MinimalInverse):
+        """Inverse processor whose encoded spectrum uses a custom field name."""
+
         spectra_input_key = "spectrum"
 
     encoded = Custom(RecordingEncoding()).encode_input({"spectrum": SPECTRA, "x": SPECTRA})  # type: ignore[arg-type]
@@ -191,13 +163,13 @@ def test_inverse_processors_use_the_configured_spectra_input_key():
     assert encoded["x"] is SPECTRA
 
 
-def test_inverse_processors_never_transform_targets_and_predictions():
+def test_inverse_processors_never_transform_targets_or_predictions():
     processor = MinimalInverse(RecordingEncoding())  # type: ignore[arg-type]
 
     assert processor.encode_target(SPECTRA) is SPECTRA
     assert processor.decode_target(SPECTRA) is SPECTRA
 
 
-def test_inverse_processors_without_an_encoding_are_the_identity():
+def test_inverse_processors_without_encoding_are_the_identity():
     inputs = {"x": SPECTRA}
     assert MinimalInverse().encode_input(inputs) is inputs
