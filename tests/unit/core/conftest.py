@@ -36,7 +36,11 @@ from . import fakes
 
 @pytest.fixture(autouse=True)
 def events() -> Iterator[list]:
-    """Clear the shared fake-event log around every test."""
+    """Clear the shared fake-event log around every test.
+
+    Yields:
+        The shared event log, empty before and after the test.
+    """
     fakes.EVENTS.clear()
     yield fakes.EVENTS
     fakes.EVENTS.clear()

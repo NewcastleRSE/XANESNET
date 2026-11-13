@@ -121,7 +121,10 @@ def test_containers_are_converted_recursively_and_tuples_become_lists():
     assert json_friendly(value) == {"path": "a", "items": [1, 2.0, [3]]}
 
 
-@pytest.mark.parametrize("scalar, expected_type", [(np.float32(1.5), float), (np.int64(4), int), (np.bool_(True), bool)])
+@pytest.mark.parametrize(
+    "scalar, expected_type",
+    [(np.float32(1.5), float), (np.int64(4), int), (np.bool_(True), bool)],
+)
 def test_numpy_scalars_are_unwrapped_to_python_types(scalar, expected_type):
     out = json_friendly(scalar)
     assert type(out) is expected_type

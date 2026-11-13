@@ -52,7 +52,11 @@ DRY_RUNS_DIR = REPO_ROOT / "tests" / "dry_runs"
 
 
 def make_train_config() -> ConfigRaw:
-    """MLP on pmgjson data config"""
+    """Build the minimal MLP training configuration used by unit tests.
+
+    Returns:
+        Raw configuration mapping for the toy-data training pipeline.
+    """
     return {
         "datasource": {
             "datasource_type": "pmgjson",
@@ -87,7 +91,11 @@ def make_train_config() -> ConfigRaw:
 
 
 def make_infer_user_config() -> ConfigRaw:
-    """Minimal inference config"""
+    """Build the minimal user-facing inference configuration.
+
+    Returns:
+        Raw configuration mapping for inference against the toy data.
+    """
     return {
         "datasource": {
             "datasource_type": "pmgjson",
@@ -101,7 +109,11 @@ def make_infer_user_config() -> ConfigRaw:
 
 
 def make_signature() -> ConfigRaw:
-    """Checkpoint signature matching train config"""
+    """Build a checkpoint signature matching the training fixture.
+
+    Returns:
+        Raw checkpoint signature mapping for the MLP test model.
+    """
     return {
         "dataset": {
             "dataset_type": "descriptor",
@@ -121,7 +133,11 @@ def make_signature() -> ConfigRaw:
 
 
 def make_analyze_config() -> ConfigRaw:
-    """Minimal analysis config."""
+    """Build the minimal analysis configuration used by unit tests.
+
+    Returns:
+        Raw configuration mapping for the basic loss analysis.
+    """
     return {
         "selectors": [{"selector_type": "all"}],
         "collectors": [{"collector_type": "loss", "loss": {"loss_type": "mse"}}],
@@ -139,6 +155,12 @@ def _isolate_global_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     The XANESNET entry points configure the root logger, replace ``sys.stdout``/``sys.stderr`` and toggle global
     prompt state. Restoring them keeps tests order-independent.
+
+    Args:
+        monkeypatch: Pytest fixture used to clear context-scoped environment state.
+
+    Yields:
+        ``None`` while process-wide state is isolated for the test.
     """
     monkeypatch.delenv(LIGHTNING_CONTEXT_ENV, raising=False)
 
@@ -162,31 +184,51 @@ def _isolate_global_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture
 def train_config() -> ConfigRaw:
-    """Fresh minimal training config."""
+    """Provide a fresh minimal training configuration.
+
+    Returns:
+        Raw training configuration mapping.
+    """
     return make_train_config()
 
 
 @pytest.fixture
 def infer_user_config() -> ConfigRaw:
-    """Fresh minimal user inference config."""
+    """Provide a fresh minimal user-facing inference configuration.
+
+    Returns:
+        Raw inference configuration mapping.
+    """
     return make_infer_user_config()
 
 
 @pytest.fixture
 def signature() -> ConfigRaw:
-    """Fresh minimal checkpoint signature."""
+    """Provide a fresh minimal checkpoint signature.
+
+    Returns:
+        Raw checkpoint signature mapping.
+    """
     return make_signature()
 
 
 @pytest.fixture
 def analyze_config() -> ConfigRaw:
-    """Fresh minimal analysis config."""
+    """Provide a fresh minimal analysis configuration.
+
+    Returns:
+        Raw analysis configuration mapping.
+    """
     return make_analyze_config()
 
 
 @pytest.fixture
 def mutate() -> Callable[[ConfigRaw, Callable[[ConfigRaw], Any]], ConfigRaw]:
-    """Return a helper that applies ``fn`` to a deep copy of a config and returns the copy."""
+    """Provide a helper that mutates a deep copy of a configuration.
+
+    Returns:
+        Callable that applies a mutation to a copied config and returns the copy.
+    """
 
     def _mutate(base: ConfigRaw, fn: Callable[[ConfigRaw], Any]) -> ConfigRaw:
         config = copy.deepcopy(base)
@@ -198,7 +240,14 @@ def mutate() -> Callable[[ConfigRaw, Callable[[ConfigRaw], Any]], ConfigRaw]:
 
 @pytest.fixture
 def write_yaml(tmp_path: Path) -> Callable[..., Path]:
-    """Return a helper that writes a YAML document (dict or raw text) into ``tmp_path``."""
+    """Provide a helper that writes a YAML document into ``tmp_path``.
+
+    Args:
+        tmp_path: Temporary directory used for the generated configuration file.
+
+    Returns:
+        Callable that writes a mapping or raw YAML text and returns its path.
+    """
 
     def _write(content: Any, name: str = "config.yaml") -> Path:
         path = tmp_path / name

@@ -136,6 +136,11 @@ class FakeDataset:
 
 
 def event_names() -> list[str]:
+    """Return fake-collaborator event names in chronological order.
+
+    Returns:
+        Event names, including repeated events.
+    """
     return [name for name, _ in EVENTS]
 
 

@@ -24,4 +24,3 @@
 #   Falbo et al., "On the Analysis of X-ray Absorption Spectra for Polyoxometallates."
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
-

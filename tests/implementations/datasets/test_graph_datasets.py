@@ -27,6 +27,8 @@
 
 """Unit tests for the graph datasets and their agreement with the batch processors that consume them."""
 
+from typing import Any
+
 import pytest
 
 from xanesnet.batchprocessors import BatchProcessorRegistry
@@ -44,7 +46,12 @@ GRAPH_DATASETS = {
     "gemnet": ("gemnet", {"graph_builder": RADIUS, "quadruplets": False}),
     "e3ee": (
         "e3ee",
-        {"graph_builder": RADIUS, "att_graph_builder": ATT_RADIUS, "use_path_branch": True, "max_paths_per_structure": 10},
+        {
+            "graph_builder": RADIUS,
+            "att_graph_builder": ATT_RADIUS,
+            "use_path_branch": True,
+            "max_paths_per_structure": 10,
+        },
     ),
     "e3ee_full": (
         "e3ee_full",
@@ -60,7 +67,7 @@ GRAPH_DATASETS = {
 
 
 def create(key: str, tmp_path, molecules, **extra):
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "dataset_type": key,
         "datasource": ListSource(molecules),
         "root": str(tmp_path / "processed"),

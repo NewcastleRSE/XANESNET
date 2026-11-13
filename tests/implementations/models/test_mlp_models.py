@@ -30,6 +30,7 @@
 import pytest
 import torch
 from torch import nn
+from typing import cast
 
 from xanesnet.models import ModelRegistry
 
@@ -75,6 +76,10 @@ def create(key: str, **overrides):
     return ModelRegistry.create(key, model_type=key, **{**MODELS[key], **overrides})
 
 
+def input_size(key: str) -> int:
+    return cast(int, MODELS[key]["in_size"])
+
+
 def linear_sizes(model: nn.Module) -> list[tuple[int, int]]:
     return [(m.in_features, m.out_features) for m in model.modules() if isinstance(m, nn.Linear)]
 
@@ -102,8 +107,9 @@ def test_a_rebuilt_model_accepts_the_saved_weights(key):
 
     rebuilt.load_state_dict(model.state_dict())
 
-    model.eval(), rebuilt.eval()
-    x = torch.randn(5, MODELS[key]["in_size"])
+    model.eval()
+    rebuilt.eval()
+    x = torch.randn(5, input_size(key))
     torch.testing.assert_close(rebuilt(x), model(x))
 
 
@@ -116,6 +122,7 @@ def test_weights_and_biases_follow_the_selected_initialisers(key):
     layers = [m for m in model.modules() if isinstance(m, (nn.Linear, nn.Conv1d))]
     assert layers
     for layer in layers:
+        assert layer.bias is not None
         assert torch.equal(layer.bias, torch.ones_like(layer.bias))
         assert layer.weight.std().item() > 0
 
@@ -164,7 +171,7 @@ def test_unknown_activations_are_reported():
 def test_all_heads_are_evaluated_by_default(key):
     model = create(key).eval()
 
-    out = model(torch.randn(5, MODELS[key]["in_size"]))
+    out = model(torch.randn(5, input_size(key)))
 
     assert out.shape == (3, 5, 4)  # heads x batch x outputs
 
@@ -172,7 +179,7 @@ def test_all_heads_are_evaluated_by_default(key):
 @pytest.mark.parametrize("key", ["mh_mlp", "mh_cnn"])
 def test_a_single_head_can_be_selected_and_matches_its_slice_of_the_full_output(key):
     model = create(key).eval()
-    x = torch.randn(5, MODELS[key]["in_size"])
+    x = torch.randn(5, input_size(key))
 
     everything = model(x)
 

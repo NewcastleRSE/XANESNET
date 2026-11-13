@@ -47,13 +47,13 @@ class RecordingEncoding:
     def __init__(self) -> None:
         self.elements: list[torch.Tensor | None] = []
 
-    def encode(self, spectra: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
+    def encode(self, targets: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         self.elements.append(elements)
-        return spectra * 2
+        return targets * 2
 
-    def decode(self, spectra: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
+    def decode(self, predictions: torch.Tensor, elements: torch.Tensor | None = None) -> torch.Tensor:
         self.elements.append(elements)
-        return spectra / 2
+        return predictions / 2
 
 
 class MinimalForward(ForwardBatchProcessor):
@@ -138,9 +138,9 @@ def test_single_sample_helpers_collate_the_sample_into_a_batch_first():
 
     processor = MinimalForward()
 
-    assert processor.input_preparation_single(Dataset(), 3) == {"x": 30}
-    assert processor.target_preparation_single(Dataset(), 3) == 300
-    assert processor.element_preparation_single(Dataset(), 3) is None
+    assert processor.input_preparation_single(Dataset(), 3) == {"x": 30}  # type: ignore[arg-type]
+    assert processor.target_preparation_single(Dataset(), 3) == 300  # type: ignore[arg-type]
+    assert processor.element_preparation_single(Dataset(), 3) is None  # type: ignore[arg-type]
 
 
 ###############################################################################
@@ -150,7 +150,7 @@ def test_single_sample_helpers_collate_the_sample_into_a_batch_first():
 
 def test_forward_processors_encode_the_target_and_decode_predictions_with_the_elements():
     encoding = RecordingEncoding()
-    processor = MinimalForward(encoding)
+    processor = MinimalForward(encoding)  # type: ignore[arg-type]
 
     torch.testing.assert_close(processor.encode_target(SPECTRA, ELEMENTS), SPECTRA * 2)
     torch.testing.assert_close(processor.decode_target(SPECTRA, ELEMENTS), SPECTRA / 2)
@@ -159,7 +159,7 @@ def test_forward_processors_encode_the_target_and_decode_predictions_with_the_el
 
 def test_forward_processors_leave_the_inputs_alone():
     inputs = {"x": SPECTRA}
-    assert MinimalForward(RecordingEncoding()).encode_input(inputs, ELEMENTS) is inputs
+    assert MinimalForward(RecordingEncoding()).encode_input(inputs, ELEMENTS) is inputs  # type: ignore[arg-type]
 
 
 def test_forward_processors_without_an_encoding_are_the_identity():
@@ -173,7 +173,7 @@ def test_inverse_processors_encode_the_spectral_input_without_modifying_the_orig
     encoding = RecordingEncoding()
     inputs = {"x": SPECTRA, "other": ELEMENTS}
 
-    encoded = MinimalInverse(encoding).encode_input(inputs, ELEMENTS)
+    encoded = MinimalInverse(encoding).encode_input(inputs, ELEMENTS)  # type: ignore[arg-type]
 
     torch.testing.assert_close(encoded["x"], SPECTRA * 2)
     assert encoded["other"] is ELEMENTS
@@ -185,14 +185,14 @@ def test_inverse_processors_use_the_configured_spectra_input_key():
     class Custom(MinimalInverse):
         spectra_input_key = "spectrum"
 
-    encoded = Custom(RecordingEncoding()).encode_input({"spectrum": SPECTRA, "x": SPECTRA})
+    encoded = Custom(RecordingEncoding()).encode_input({"spectrum": SPECTRA, "x": SPECTRA})  # type: ignore[arg-type]
 
     torch.testing.assert_close(encoded["spectrum"], SPECTRA * 2)
     assert encoded["x"] is SPECTRA
 
 
 def test_inverse_processors_never_transform_targets_and_predictions():
-    processor = MinimalInverse(RecordingEncoding())
+    processor = MinimalInverse(RecordingEncoding())  # type: ignore[arg-type]
 
     assert processor.encode_target(SPECTRA) is SPECTRA
     assert processor.decode_target(SPECTRA) is SPECTRA

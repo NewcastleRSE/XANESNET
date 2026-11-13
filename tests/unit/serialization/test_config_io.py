@@ -171,4 +171,3 @@ def test_merge_unites_keys_and_merges_nested_dicts_recursively():
 def test_merge_conflict_raises_and_names_the_key(base, overlay, key):
     with pytest.raises(ConfigError, match=f"Conflict for key '{key}'"):
         merge_raw_configs(base, overlay)
-

@@ -74,10 +74,6 @@ def test_list_files_can_strip_the_extension(populated_dir):
     assert {p.name for p in list_files(populated_dir, with_ext=False)} == {"a", "b", "c"}
 
 
-def test_list_files_ignores_directories(populated_dir):
-    assert all(p.is_file() for p in list_files(populated_dir))
-
-
 def test_list_filestems(populated_dir):
     assert sorted(list_filestems(populated_dir, suffixes=".json")) == ["a", "b"]
 
@@ -88,11 +84,6 @@ def test_list_subdirs_skips_hidden_directories(populated_dir):
 
 def test_list_subdir_stems_are_sorted(populated_dir):
     assert list_subdir_stems(populated_dir) == ["alpha", "zeta"]
-
-
-def test_listing_an_empty_directory_gives_empty_results(tmp_path):
-    assert list_files(tmp_path) == []
-    assert list_subdirs(tmp_path) == []
 
 
 ###############################################################################

@@ -104,4 +104,3 @@ def test_predictions_are_written_below_the_run_directory(config, checkpoint, tmp
     core_infer.infer(config, Namespace(), tmp_path, checkpoint)
 
     assert fakes.payload("run_inference") == tmp_path / "predictions"
-

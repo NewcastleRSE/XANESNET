@@ -51,10 +51,19 @@ def worker_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def stubbed(monkeypatch: pytest.MonkeyPatch) -> None:
     """Skip the optional Lightning import; the pipeline itself runs against the registered fakes."""
     monkeypatch.setattr(core_lightning, "_register_lightning_trainer", lambda: None)
-    monkeypatch.setattr(core_lightning, "reset_peak_memory_stats", lambda device: fakes.EVENTS.append(("reset", device)))
+    monkeypatch.setattr(
+        core_lightning,
+        "reset_peak_memory_stats",
+        lambda device: fakes.EVENTS.append(("reset", device)),
+    )
 
 
 def make_config() -> Config:
+    """Build the minimal config used by Lightning worker tests.
+
+    Returns:
+        Config referencing the registered fake pipeline components.
+    """
     return Config(
         {
             "seed": 3,
@@ -69,6 +78,15 @@ def make_config() -> Config:
 
 
 def write_context(directory: Path, **overrides) -> Path:
+    """Write a Lightning worker context with optional field overrides.
+
+    Args:
+        directory: Directory where the context file is written.
+        overrides: Context values replacing the default fields.
+
+    Returns:
+        Path to the generated context JSON file.
+    """
     context = {
         "config": make_config().as_dict(),
         "dry_run": False,
@@ -260,7 +278,11 @@ class TestTrainInitial:
     def _prepare(self, tmp_path, monkeypatch, stubbed):
         (tmp_path / "models").mkdir()
         monkeypatch.setattr(core_lightning, "resolve_auto_model_config", lambda config, dataset, encoding: config)
-        monkeypatch.setattr(core_lightning, "_save_results", lambda *params: fakes.EVENTS.append(("save_results", None)))
+        monkeypatch.setattr(
+            core_lightning,
+            "_save_results",
+            lambda *params: fakes.EVENTS.append(("save_results", None)),
+        )
         for name in (*LIGHTNING_LAUNCH_ENVIRONMENT, LIGHTNING_CONTEXT_ENV):
             monkeypatch.delenv(name, raising=False)
 

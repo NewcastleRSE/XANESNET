@@ -184,7 +184,10 @@ def test_voronoi_neighbours_are_the_atoms_sharing_a_facet_and_carry_the_facet_ar
     assert edge_index.shape == (2, 6)
     assert sorted(set(weight.tolist())) == pytest.approx([3.0, 4.0])
     torch.testing.assert_close(vec.norm(dim=-1), weight)
-    by_length = {round(length, 3): sorted(set(area[weight.round(decimals=3) == length].tolist())) for length in (3.0, 4.0)}
+    by_length = {
+        round(length, 3): sorted(set(area[weight.round(decimals=3) == length].tolist()))
+        for length in (3.0, 4.0)
+    }
     assert by_length[3.0] == pytest.approx([12.0])
     assert by_length[4.0] == pytest.approx([9.0])
 

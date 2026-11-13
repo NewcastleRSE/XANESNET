@@ -205,8 +205,12 @@ def test_gaussian_broadening_sums_the_weighted_levels():
 
     values = spectrum(np.array([0.0, 2.0]), np.array([2.0, 3.0]), sigma=1.0, x=x)
 
-    np.testing.assert_allclose(values, [2.0 + 3.0 * np.exp(-4.0), 2.0 * np.exp(-1.0) + 3.0 * np.exp(-1.0)])
+    np.testing.assert_allclose(
+        values,
+        [2.0 + 3.0 * np.exp(-4.0), 2.0 * np.exp(-1.0) + 3.0 * np.exp(-1.0)],
+    )
 
 
 def test_atoms_are_converted_to_the_pyscf_format():
-    assert atoms_to_pyscf(Atoms("OH", positions=[[0, 0, 0], [0, 0, 1.5]])) == [("O", (0.0, 0.0, 0.0)), ("H", (0.0, 0.0, 1.5))]
+    expected = [("O", (0.0, 0.0, 0.0)), ("H", (0.0, 0.0, 1.5))]
+    assert atoms_to_pyscf(Atoms("OH", positions=[[0, 0, 0], [0, 0, 1.5]])) == expected

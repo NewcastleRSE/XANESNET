@@ -84,6 +84,14 @@ def test_fourier_signature_rebuilds_the_encoding():
 
 
 def make_gaussian(**overrides):
+    """Create a Gaussian encoding using the test defaults and supplied overrides.
+
+    Args:
+        overrides: Encoding options that replace the corresponding test defaults.
+
+    Returns:
+        Gaussian spectra encoding created by the registry.
+    """
     kwargs = {"widths": [1.0, 2.0], "basis_stride": 2, "num_points": 24, "nonneg_output": False}
     kwargs.update(overrides)
     return SpectraEncodingRegistry.create("gaussian", encoding_type="gaussian", **kwargs)

@@ -27,6 +27,8 @@
 
 """Unit tests for the affine encodings: ``scale``, ``min_max``, ``z_score`` and ``subtract_average``."""
 
+from typing import Any
+
 import pytest
 import torch
 
@@ -48,7 +50,7 @@ HAS_PER_POINT = {"scale", "min_max", "z_score"}
 
 def build(family: str, per_element: bool = False, elements: list[int] | None = None, **overrides):
     params, _ = FAMILIES[family]
-    kwargs = dict(params)
+    kwargs: dict[str, Any] = dict(params)
     if per_element:  # one parameter row per element: the second row is derived from the first
         kwargs = {name: [values, [2 * v + 1 for v in values]] for name, values in kwargs.items()}
     kwargs.update(overrides)
@@ -85,7 +87,7 @@ def test_the_encoded_width_equals_the_input_width(family):
 
 @pytest.mark.parametrize("family", ["scale", "min_max", "z_score"])
 def test_a_zero_spread_is_treated_as_one_instead_of_dividing_by_zero(family):
-    zero_spread = {
+    zero_spread: dict[str, Any] = {
         "scale": {"factor": [0.0, 0.0, 0.0]},
         "min_max": {"minimum": [1.0, 2.0, 3.0], "maximum": [1.0, 2.0, 3.0]},
         "z_score": {"mean": [1.0, 2.0, 3.0], "std": [0.0, 0.0, 0.0]},

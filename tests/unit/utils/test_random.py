@@ -71,7 +71,7 @@ def test_boundary_seeds_are_accepted(seed):
 
 
 def test_numpy_integers_are_accepted_and_converted_to_int():
-    seed = set_global_seed(np.int64(5))
+    seed = set_global_seed(np.int64(5))  # type: ignore[arg-type]
     assert seed == 5
     assert type(seed) is int
 

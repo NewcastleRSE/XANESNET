@@ -25,7 +25,10 @@
 #   Madkhali et al., "Enhancing the Analysis of Disorder in X-ray Absorption Spectra: Application of Deep Neural Networks to T-Jump X-ray Probe Experiments."
 #   Madkhali et al., "The Role of Structural Representation in the Performance of a Deep Neural Network for X-ray Spectroscopy."
 
-"""Unit tests for the model-specific batch processors: which batch fields feed the model and how outputs are mapped back."""
+"""Unit tests for model-specific batch processors.
+
+Check which batch fields feed the model and how outputs are mapped back.
+"""
 
 from types import SimpleNamespace
 
@@ -123,7 +126,10 @@ def test_per_atom_models_are_evaluated_at_the_target_sites(keys):
     data = batch(x=X, intensities=INTENSITIES, target_site_mask=TARGET_SITE_MASK)
     per_atom_predictions = INTENSITIES + 100
 
-    torch.testing.assert_close(processor.prediction_preparation(data, per_atom_predictions), per_atom_predictions[[0, 2]])
+    torch.testing.assert_close(
+        processor.prediction_preparation(data, per_atom_predictions),
+        per_atom_predictions[[0, 2]],
+    )
     torch.testing.assert_close(processor.element_preparation(data), X[[0, 2]])
     assert processor.target_preparation(data) is INTENSITIES
 

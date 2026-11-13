@@ -27,18 +27,38 @@
 
 """Fixtures shared by the dataset tests."""
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 
 import pytest
 from pymatgen.core import Molecule
 
+from xanesnet.datasources import DataSource
+
 
 def spectrum(scale: float = 1.0) -> dict:
+    """Create a three-point spectrum with intensities scaled from the fixture values.
+
+    Args:
+        scale: Multiplier applied to each intensity.
+
+    Returns:
+        Mapping containing energy and intensity lists.
+    """
     return {"energies": [1.0, 2.0, 3.0], "intensities": [0.1 * scale, 0.5 * scale, 0.2 * scale]}
 
 
 def water(sample_id: str, spectra: list[dict | None] | None, **properties) -> Molecule:
-    """Water molecule with ``spectra`` attached to its sites (``None`` = no spectrum there)."""
+    """Create a water molecule with optional spectra attached to its sites.
+
+    Args:
+        sample_id: Identifier stored in the molecule-level properties.
+        spectra: Per-site spectra, or ``None`` to omit the spectrum property.
+        properties: Additional molecule-level properties.
+
+    Returns:
+        Water molecule with the requested sample and site properties.
+    """
     molecule = Molecule(
         ["O", "H", "H"],
         [[0.0, 0.0, 0.1], [0.0, 0.76, -0.47], [0.1, -0.76, -0.47]],
@@ -49,11 +69,15 @@ def water(sample_id: str, spectra: list[dict | None] | None, **properties) -> Mo
     return molecule
 
 
-class ListSource:
+class ListSource(DataSource):
     """Data source backed by a list of in-memory molecules."""
 
     def __init__(self, molecules: list[Molecule]) -> None:
+        super().__init__("list")
         self.molecules = molecules
+
+    def __iter__(self) -> Iterator[Molecule]:
+        return iter(self.molecules)
 
     def __len__(self) -> int:
         return len(self.molecules)
@@ -64,12 +88,24 @@ class ListSource:
 
 @pytest.fixture
 def make_source():
+    """Provide the in-memory molecule data-source class.
+
+    Returns:
+        The ``ListSource`` class.
+    """
     return ListSource
 
 
 @pytest.fixture(autouse=True)
 def confirm(monkeypatch) -> SimpleNamespace:
-    """Answer the "clear the processed directory?" prompt without waiting for input."""
+    """Answer the processed-directory confirmation prompt without waiting for input.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace the confirmation function.
+
+    Returns:
+        Mutable state containing the answer and number of prompt calls.
+    """
     state = SimpleNamespace(answer=True, asked=0)
 
     def fake_confirm(message: str, default_yes: bool = True) -> bool:
