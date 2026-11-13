@@ -102,9 +102,7 @@ def test_inference_runs_and_prediction_names_may_mix_repeated_and_space_separate
 
 
 def test_core_receives_validated_config_and_parsed_arguments(core, config_file, out_dir):
-    analyze_cli.main(
-        ["-i", str(config_file), "-r", "a", "b", "-d", "A", "B", "-o", str(out_dir), "-n", "unit"]
-    )
+    analyze_cli.main(["-i", str(config_file), "-r", "a", "b", "-d", "A", "B", "-o", str(out_dir), "-n", "unit"])
 
     call = core.call
     assert call["save_dir"] == out_dir / "analyze_unit_000"
